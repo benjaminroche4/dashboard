@@ -157,13 +157,16 @@
 @keyframes shimmer-breathe {
     0%,
     100% {
-        box-shadow: 0 0 0 0 color-mix(in oklab, var(--shimmer-glow) 0%, transparent);
+        box-shadow: 0 0 0 0
+            color-mix(in oklab, var(--shimmer-glow) 0%, transparent);
     }
     12% {
-        box-shadow: 0 0 12px 0 color-mix(in oklab, var(--shimmer-glow) 14%, transparent);
+        box-shadow: 0 0 12px 0
+            color-mix(in oklab, var(--shimmer-glow) 14%, transparent);
     }
     40% {
-        box-shadow: 0 0 0 0 color-mix(in oklab, var(--shimmer-glow) 0%, transparent);
+        box-shadow: 0 0 0 0
+            color-mix(in oklab, var(--shimmer-glow) 0%, transparent);
     }
 }
 
