@@ -69,6 +69,10 @@ describe('Login page', () => {
         expect(page.getByRole('status')).toHaveTextContent(
             'Vous avez été déconnecté.',
         );
+        expect(page.getByRole('status')).toHaveClass(
+            'bg-amber-50',
+            'dark:bg-amber-950',
+        );
     });
 
     it('shows authentication errors in a global banner and flags the field', () => {
@@ -80,6 +84,10 @@ describe('Login page', () => {
         );
         expect(page.getByRole('alert')).toHaveTextContent(
             'Ces identifiants ne correspondent pas.',
+        );
+        expect(page.getByRole('alert')).toHaveClass(
+            'bg-red-50',
+            'dark:bg-red-950',
         );
         expect(page.getByLabelText('Adresse e-mail')).toHaveAttribute(
             'aria-invalid',

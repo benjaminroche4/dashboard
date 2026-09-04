@@ -42,7 +42,10 @@ export default function LoginForm({
     return (
         <div className={cn('flex flex-col gap-6', className)}>
             {status && (
-                <Alert role="status">
+                <Alert
+                    role="status"
+                    className="border-amber-200 bg-amber-50 text-amber-900 *:data-[slot=alert-description]:text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-50 dark:*:data-[slot=alert-description]:text-amber-200"
+                >
                     <InfoIcon />
                     <AlertDescription>{status}</AlertDescription>
                 </Alert>
