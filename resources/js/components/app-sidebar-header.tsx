@@ -1,4 +1,4 @@
-import { PanelRight } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { OnlineStaff } from '@/components/online-staff';
 import { RealtimeStaff } from '@/components/realtime-staff';
@@ -44,7 +44,7 @@ export function AppSidebarHeader({
                         onClick={onToggleInfo}
                         data-test="info-sidebar-trigger"
                     >
-                        <PanelRight className="size-4" />
+                        <Users className="size-4" />
                     </Button>
                 )}
             </div>
