@@ -74,7 +74,27 @@ test('managers can create an invoice in euros and are sent back to the list', fu
         ->and($invoice->client_city)->toBe('Genève')
         ->and($invoice->client_address)->toBe("Rue du Rhône 1\n1204 Genève\nSuisse")
         ->and($invoice->notes)->toBe('Merci pour votre confiance.')
-        ->and($invoice->created_by)->toBe($manager->id);
+        ->and($invoice->created_by)->toBe($manager->id)
+        ->and($invoice->statusChanges()->count())->toBe(1)
+        ->and($invoice->statusChanges()->first()->note)->toBe('Création');
+});
+
+test('discount and deposit are stored and reflected in the totals', function (): void {
+    $this->actingAs(User::factory()->manager()->create())
+        ->post(route('invoices.store'), validInvoiceInput([
+            'vat_rate' => 0,
+            'discount_percent' => 50,
+            'deposit_cents' => 5_000,
+        ]))
+        ->assertRedirect(route('invoices.index'));
+
+    $invoice = Invoice::sole();
+
+    expect($invoice->discount_percent)->toBe(50.0)
+        ->and($invoice->discount_cents)->toBe(15_000)
+        ->and($invoice->amount_cents)->toBe(15_000)
+        ->and($invoice->deposit_cents)->toBe(5_000)
+        ->and($invoice->dueCents())->toBe(10_000);
 });
 
 test('the request is validated in French', function (): void {

@@ -80,13 +80,18 @@ Echo est configuré dans `resources/js/app.tsx` via `configureEcho({ broadcaster
 
 - Société suisse : devises `CHF` ou `EUR` (`App\Enums\Currency`), TVA par défaut 8,1 %, coordonnées et prix par défaut dans `config/company.php` (surchargés par les variables `COMPANY_*` et `OFFER_*` de `.env`).
 - Deux offres seulement : `App\Enums\Offer` (`accompagne`, `confie`). Une ligne de facture = offre + quantité + prix unitaire en centimes, la description est générée par l'enum.
-- Création : `StoreInvoiceRequest` → `InvoiceData` / `InvoiceLineData` (totaux calculés dans le DTO) → `CreateInvoice` (numéro `F-AAAA-NNNN` séquentiel par année, transaction, `DashboardUpdated`).
+- Création : `StoreInvoiceRequest` → `InvoiceData` / `InvoiceLineData` (totaux calculés dans le DTO) → `CreateInvoice` (numéro `RP-27NNN` séquentiel, transaction, première entrée d'historique, `DashboardUpdated`).
 - Page `invoices/create` : formulaire `useForm` Inertia avec aperçu en direct (`InvoicePreview`), calcul des totaux partagé dans `resources/js/lib/invoice-totals.ts` avec les mêmes arrondis que le PHP. Le formulaire saisit des unités, le `transform` envoie des centimes.
 - Liste `invoices/index` : Data Table shadcn (TanStack v8), 50 lignes par page, pagination masquée en dessous.
 - Droits : `InvoicePolicy`, tout le staff consulte, managers et admins créent et modifient, admins suppriment.
 - **PDF** : route `invoices.pdf`, vue Blade `resources/views/invoices/pdf.blade.php` rendue puis envoyée à DocRaptor (`App\Services\DocRaptor`, clé `DOC_RAPTOR_KEY`, `DOC_RAPTOR_TEST_MODE=true` ajoute un filigrane sans facturation). Les tests simulent l'API avec `Http::fake`.
 - **Adresse** : autocomplétion Google Places via le proxy Laravel (`PlacesController`, routes `places.suggest` et `places.details`, `App\Services\GooglePlaces`, clé serveur `GOOGLE_MAPS_API_KEY`, jamais exposée). Le front (`AddressAutocomplete`) reçoit `features.addressAutocomplete` en prop partagée ; sans clé, le champ est un simple texte.
 - **Numéros de facture** : `config('company.invoice_prefix')` (`RP-27`, 27 = agent immobilier) + séquence à 3 chiffres minimum (`CreateInvoice::nextNumber()`), affiché à l'avance dans l'aperçu.
+- **Cycle de vie** : `App\Enums\InvoiceStatus::transitions()` (brouillon → envoyée → payée, envoyée → en retard, tout sauf payée → annulée). Toujours passer par `Invoice::transitionTo()` : il refuse les transitions interdites et journalise dans `invoice_status_changes` (`InvoiceStatusChange`, affiché dans l'historique de la page `invoices/show`).
+- **Envoi** : `SendInvoice` (route `invoices.send`) génère le PDF via DocRaptor si configuré, envoie le mailable `InvoiceSent` avec le PDF en pièce jointe au `client_email` (obligatoire), pose `sent_at` et passe en `sent`. **Paiement** : `MarkInvoicePaid` (route `invoices.pay`, `PayInvoiceRequest` avec `paid_at`). Le front expose `can_send` / `can_pay` par facture ; les boutons sont masqués sinon.
+- **Retard automatique** : commande `invoices:mark-overdue` (`MarkOverdueInvoices`) planifiée chaque jour à 02:00 dans `routes/console.php`. Sur Laravel Cloud, activer le scheduler (`php artisan schedule:run` chaque minute).
+- **Remise et acompte** : `discount_percent` (0–100, appliqué sur le sous-total HT avant TVA) et `deposit_cents` (déduit du total, « Reste à payer »). Les arrondis sont identiques dans `InvoiceData` et `resources/js/lib/invoice-totals.ts`.
+- **Validation locale** : `validateInvoiceForm()` (même fichier) bloque l'envoi du formulaire et affiche les erreurs avec les mêmes clés que Laravel ; les erreurs serveur priment toujours.
 - Les clés vivent dans `.env` (jamais commité). Sur Laravel Cloud, les ajouter aux variables d'environnement, `VITE_*` étant lues au build.
 
 ## Architecture et conventions

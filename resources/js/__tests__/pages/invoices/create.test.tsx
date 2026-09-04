@@ -1,12 +1,15 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState, type ReactNode } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { post, transform } = vi.hoisted(() => ({
+const { post, transform, toastError } = vi.hoisted(() => ({
     post: vi.fn(),
     transform: vi.fn(),
+    toastError: vi.fn(),
 }));
+
+vi.mock('sonner', () => ({ toast: { error: toastError } }));
 
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@inertiajs/react')>();
@@ -107,6 +110,8 @@ const props = {
 };
 
 describe('Invoice creation page', () => {
+    beforeEach(() => vi.clearAllMocks());
+
     it('prefills the first offer and updates the preview as the form is filled', async () => {
         const user = userEvent.setup();
         render(<InvoicesCreate {...props} />);
@@ -231,5 +236,52 @@ describe('Invoice creation page', () => {
             { offer: 'confie', quantity: 1.5, unit_price_cents: 9999 },
         ]);
         expect(post).toHaveBeenCalledWith('/invoices');
+    });
+
+    it('blocks submission and shows errors when the discount is out of range', async () => {
+        const user = userEvent.setup();
+        render(<InvoicesCreate {...props} />);
+
+        await user.type(screen.getByLabelText('Nom / Prénom'), 'Acme SA');
+        await user.type(screen.getByLabelText('Remise (%)'), '150');
+        await user.click(
+            screen.getByRole('button', { name: 'Créer la facture' }),
+        );
+
+        expect(post).not.toHaveBeenCalled();
+        expect(toastError).toHaveBeenCalledWith(
+            'Corrigez les champs signalés avant de créer la facture.',
+        );
+        expect(
+            screen.getByText('La remise doit être comprise entre 0 et 100 %.'),
+        ).toBeInTheDocument();
+    });
+
+    it('sends discount and deposit as numbers and cents', async () => {
+        const user = userEvent.setup();
+        render(<InvoicesCreate {...props} />);
+
+        await user.type(screen.getByLabelText('Nom / Prénom'), 'Acme SA');
+        await user.type(screen.getByLabelText('Remise (%)'), '10');
+        await user.type(
+            screen.getByLabelText('Acompte déjà versé (CHF)'),
+            '100,50',
+        );
+        await user.click(
+            screen.getByRole('button', { name: 'Créer la facture' }),
+        );
+
+        expect(post).toHaveBeenCalledWith('/invoices');
+        const transformer = transform.mock.calls.at(-1)?.[0] as (
+            data: Record<string, unknown>,
+        ) => Record<string, unknown>;
+        const payload = transformer({
+            vat_rate: '8.1',
+            discount_percent: '10',
+            deposit: '100,50',
+            items: [{ offer: 'accompagne', quantity: '1', unit_price: '2500' }],
+        });
+        expect(payload.discount_percent).toBe(10);
+        expect(payload.deposit_cents).toBe(10_050);
     });
 });

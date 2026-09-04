@@ -19,18 +19,50 @@ export type InvoiceLine = {
     unit_price_cents: number;
 };
 
+/** Ligne de la liste des factures. */
 export type Invoice = {
     id: number;
     number: string;
     client_name: string;
     client_email: string | null;
     amount_cents: number;
+    deposit_cents: number;
+    due_cents: number;
     currency: Currency;
     status: InvoiceStatus;
     status_label: string;
     issued_at: string;
     due_at: string;
     paid_at: string | null;
+    can_send: boolean;
+    can_pay: boolean;
+};
+
+/** Facture complète (page de détail). */
+export type InvoiceDetail = Invoice & {
+    client_street: string | null;
+    client_postal_code: string | null;
+    client_city: string | null;
+    client_country: string | null;
+    items: InvoiceLine[];
+    vat_rate: number;
+    discount_percent: number;
+    discount_cents: number;
+    subtotal_cents: number;
+    vat_cents: number;
+    sent_at: string | null;
+    notes: string | null;
+    created_by: string | null;
+};
+
+export type InvoiceStatusChange = {
+    id: number;
+    from: string | null;
+    to: string;
+    to_status: InvoiceStatus;
+    by: string | null;
+    note: string | null;
+    at: string;
 };
 
 export type Company = {
@@ -62,6 +94,10 @@ export type InvoiceForm = {
     client_country: string;
     currency: Currency;
     vat_rate: string;
+    /** Remise en pourcentage, saisie en texte (« 10 »). */
+    discount_percent: string;
+    /** Acompte déjà versé, saisi en unités (« 500 »). */
+    deposit: string;
     issued_at: string;
     due_at: string;
     notes: string;

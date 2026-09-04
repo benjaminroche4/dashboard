@@ -4,6 +4,7 @@ import type { Company, InvoiceForm, Offer } from '@/types';
 
 /**
  * Aperçu de la facture, mis à jour en direct depuis le formulaire.
+ * Sert aussi de rendu sur la page de détail (voir invoiceToForm).
  */
 export function InvoicePreview({
     form,
@@ -16,7 +17,10 @@ export function InvoicePreview({
     offers: Offer[];
     number?: string;
 }) {
-    const totals = computeInvoiceTotals(form.items, form.vat_rate, offers);
+    const totals = computeInvoiceTotals(form.items, form.vat_rate, offers, {
+        discountPercent: form.discount_percent,
+        deposit: form.deposit,
+    });
     const addressLines = [
         form.client_street,
         [form.client_postal_code, form.client_city].filter(Boolean).join(' '),
@@ -126,6 +130,16 @@ export function InvoicePreview({
                 <dd className="text-right" data-test="preview-subtotal">
                     {money(totals.subtotalCents)}
                 </dd>
+                {totals.discountCents > 0 && (
+                    <>
+                        <dt className="text-muted-foreground">
+                            Remise {totals.discountPercent} %
+                        </dt>
+                        <dd className="text-right" data-test="preview-discount">
+                            − {money(totals.discountCents)}
+                        </dd>
+                    </>
+                )}
                 <dt className="text-muted-foreground">
                     TVA {form.vat_rate || 0} %
                 </dt>
@@ -139,6 +153,23 @@ export function InvoicePreview({
                 >
                     {money(totals.totalCents)}
                 </dd>
+                {totals.depositCents > 0 && (
+                    <>
+                        <dt className="text-muted-foreground">Acompte versé</dt>
+                        <dd className="text-right" data-test="preview-deposit">
+                            − {money(totals.depositCents)}
+                        </dd>
+                        <dt className="border-t pt-2 font-semibold">
+                            Reste à payer
+                        </dt>
+                        <dd
+                            className="border-t pt-2 text-right font-semibold"
+                            data-test="preview-due"
+                        >
+                            {money(totals.dueCents)}
+                        </dd>
+                    </>
+                )}
             </dl>
 
             <footer className="text-muted-foreground mt-auto space-y-2 border-t pt-4 text-xs">

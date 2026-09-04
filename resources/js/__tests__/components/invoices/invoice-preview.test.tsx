@@ -40,6 +40,8 @@ const form: InvoiceForm = {
     client_country: 'Suisse',
     currency: 'CHF',
     vat_rate: '8.1',
+    discount_percent: '',
+    deposit: '',
     issued_at: '2026-09-04',
     due_at: '2026-10-04',
     notes: 'Merci.',

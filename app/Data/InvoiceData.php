@@ -31,6 +31,8 @@ final readonly class InvoiceData
         public array $lines,
         public ?string $notes = null,
         public InvoiceStatus $status = InvoiceStatus::Draft,
+        public float $discountPercent = 0,
+        public int $depositCents = 0,
     ) {}
 
     /**
@@ -52,6 +54,8 @@ final readonly class InvoiceData
             lines: array_map(InvoiceLineData::from(...), array_values($data['items'])),
             notes: $data['notes'] ?? null,
             status: isset($data['status']) ? InvoiceStatus::from($data['status']) : InvoiceStatus::Draft,
+            discountPercent: (float) ($data['discount_percent'] ?? 0),
+            depositCents: (int) ($data['deposit_cents'] ?? 0),
         );
     }
 
@@ -74,13 +78,32 @@ final readonly class InvoiceData
         return array_sum(array_map(fn (InvoiceLineData $line): int => $line->totalCents(), $this->lines));
     }
 
-    public function vatCents(): int
+    /** Remise en centimes, arrondie, appliquée sur le sous-total HT. */
+    public function discountCents(): int
     {
-        return (int) round($this->subtotalCents() * $this->vatRate / 100);
+        return (int) round($this->subtotalCents() * $this->discountPercent / 100);
     }
 
+    /** Sous-total HT après remise. */
+    public function netSubtotalCents(): int
+    {
+        return $this->subtotalCents() - $this->discountCents();
+    }
+
+    public function vatCents(): int
+    {
+        return (int) round($this->netSubtotalCents() * $this->vatRate / 100);
+    }
+
+    /** Total TTC (après remise, avant acompte). */
     public function totalCents(): int
     {
-        return $this->subtotalCents() + $this->vatCents();
+        return $this->netSubtotalCents() + $this->vatCents();
+    }
+
+    /** Reste à payer après l'acompte déjà versé. */
+    public function dueCents(): int
+    {
+        return max(0, $this->totalCents() - $this->depositCents);
     }
 }

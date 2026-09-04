@@ -1,6 +1,7 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { Plus, Trash2 } from 'lucide-react';
-import type { FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
+import { toast } from 'sonner';
 import { AddressAutocomplete } from '@/components/address-autocomplete';
 import { CountryFlag } from '@/components/country-flag';
 import { DatePicker } from '@/components/date-picker';
@@ -20,7 +21,12 @@ import {
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { formatMoney } from '@/lib/format';
-import { toCents, toNumber } from '@/lib/invoice-totals';
+import {
+    toCents,
+    toNumber,
+    validateInvoiceForm,
+    type InvoiceFormErrors,
+} from '@/lib/invoice-totals';
 import { index as invoicesIndex, store } from '@/routes/invoices';
 import type {
     Company,
@@ -104,11 +110,20 @@ export default function InvoicesCreate({
         client_country: countries[0]?.name ?? '',
         currency: defaults.currency,
         vat_rate: String(defaults.vat_rate),
+        discount_percent: '',
+        deposit: '',
         issued_at: defaults.issued_at,
         due_at: defaults.due_at,
         notes: '',
         items: [emptyLine(defaults.currency)],
     });
+
+    // Erreurs détectées localement avant l'envoi ; celles du serveur priment.
+    const [localErrors, setLocalErrors] = useState<InvoiceFormErrors>({});
+    const errors: Record<string, string | undefined> = {
+        ...localErrors,
+        ...(form.errors as Record<string, string>),
+    };
 
     const setLine = (index: number, patch: Partial<InvoiceLineForm>) =>
         form.setData(
@@ -151,10 +166,24 @@ export default function InvoicesCreate({
     const submit = (event: FormEvent) => {
         event.preventDefault();
 
+        // Validation locale : pas d'aller-retour serveur pour les oublis évidents.
+        const found = validateInvoiceForm(form.data);
+        setLocalErrors(found);
+
+        if (Object.keys(found).length > 0) {
+            toast.error(
+                'Corrigez les champs signalés avant de créer la facture.',
+            );
+
+            return;
+        }
+
         // Le backend attend des centimes et des nombres.
         form.transform((data) => ({
             ...data,
             vat_rate: toNumber(data.vat_rate),
+            discount_percent: toNumber(data.discount_percent || 0),
+            deposit_cents: toCents(data.deposit || 0),
             items: data.items.map((line) => ({
                 offer: line.offer,
                 quantity: toNumber(line.quantity),
@@ -168,7 +197,7 @@ export default function InvoicesCreate({
         index: number,
         field: 'offer' | 'quantity' | 'unit_price',
     ) =>
-        (form.errors as Record<string, string>)[
+        errors[
             `items.${index}.${field === 'unit_price' ? 'unit_price_cents' : field}`
         ];
 
@@ -229,9 +258,7 @@ export default function InvoicesCreate({
                                         required
                                         autoFocus
                                     />
-                                    <InputError
-                                        message={form.errors.client_name}
-                                    />
+                                    <InputError message={errors.client_name} />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="client_email">E-mail</Label>
@@ -248,9 +275,7 @@ export default function InvoicesCreate({
                                             )
                                         }
                                     />
-                                    <InputError
-                                        message={form.errors.client_email}
-                                    />
+                                    <InputError message={errors.client_email} />
                                 </div>
                             </div>
                             <div className="grid gap-2">
@@ -276,9 +301,7 @@ export default function InvoicesCreate({
                                         })
                                     }
                                 />
-                                <InputError
-                                    message={form.errors.client_street}
-                                />
+                                <InputError message={errors.client_street} />
                             </div>
                             <div className="grid gap-5 sm:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)]">
                                 <div className="grid gap-2">
@@ -299,7 +322,7 @@ export default function InvoicesCreate({
                                         }
                                     />
                                     <InputError
-                                        message={form.errors.client_postal_code}
+                                        message={errors.client_postal_code}
                                     />
                                 </div>
                                 <div className="grid gap-2">
@@ -317,9 +340,7 @@ export default function InvoicesCreate({
                                             )
                                         }
                                     />
-                                    <InputError
-                                        message={form.errors.client_city}
-                                    />
+                                    <InputError message={errors.client_city} />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="client_country">Pays</Label>
@@ -353,7 +374,7 @@ export default function InvoicesCreate({
                                         </SelectContent>
                                     </Select>
                                     <InputError
-                                        message={form.errors.client_country}
+                                        message={errors.client_country}
                                     />
                                 </div>
                             </div>
@@ -389,9 +410,7 @@ export default function InvoicesCreate({
                                             ))}
                                         </SelectContent>
                                     </Select>
-                                    <InputError
-                                        message={form.errors.currency}
-                                    />
+                                    <InputError message={errors.currency} />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="vat_rate">TVA</Label>
@@ -418,9 +437,7 @@ export default function InvoicesCreate({
                                             ))}
                                         </SelectContent>
                                     </Select>
-                                    <InputError
-                                        message={form.errors.vat_rate}
-                                    />
+                                    <InputError message={errors.vat_rate} />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="issued_at">
@@ -434,9 +451,7 @@ export default function InvoicesCreate({
                                             form.setData('issued_at', iso)
                                         }
                                     />
-                                    <InputError
-                                        message={form.errors.issued_at}
-                                    />
+                                    <InputError message={errors.issued_at} />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="due_at">Échéance</Label>
@@ -448,7 +463,7 @@ export default function InvoicesCreate({
                                             form.setData('due_at', iso)
                                         }
                                     />
-                                    <InputError message={form.errors.due_at} />
+                                    <InputError message={errors.due_at} />
                                 </div>
                             </div>
                         </section>
@@ -473,7 +488,7 @@ export default function InvoicesCreate({
                                     Ajouter une ligne
                                 </Button>
                             </div>
-                            <InputError message={form.errors.items} />
+                            <InputError message={errors.items} />
                             <ol role="list" className="grid gap-4">
                                 {form.data.items.map((line, index) => {
                                     const lineTotal = Math.round(
@@ -629,6 +644,65 @@ export default function InvoicesCreate({
                             </ol>
                         </section>
 
+                        <section className="grid gap-5">
+                            <div>
+                                <h2 className="text-base font-medium">
+                                    Remise et acompte
+                                </h2>
+                                <p className="text-muted-foreground text-sm">
+                                    Facultatif. La remise s'applique avant la
+                                    TVA, l'acompte est déduit du total.
+                                </p>
+                            </div>
+                            <div className="grid gap-5 sm:grid-cols-2">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="discount_percent">
+                                        Remise (%)
+                                    </Label>
+                                    <Input
+                                        id="discount_percent"
+                                        name="discount_percent"
+                                        inputMode="decimal"
+                                        className="bg-background"
+                                        placeholder="0"
+                                        value={form.data.discount_percent}
+                                        onChange={(e) =>
+                                            form.setData(
+                                                'discount_percent',
+                                                e.target.value,
+                                            )
+                                        }
+                                    />
+                                    <InputError
+                                        message={errors.discount_percent}
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="deposit">
+                                        Acompte déjà versé ({form.data.currency}
+                                        )
+                                    </Label>
+                                    <Input
+                                        id="deposit"
+                                        name="deposit"
+                                        inputMode="decimal"
+                                        className="bg-background"
+                                        placeholder="0.00"
+                                        value={form.data.deposit}
+                                        onChange={(e) =>
+                                            form.setData(
+                                                'deposit',
+                                                e.target.value,
+                                            )
+                                        }
+                                    />
+                                    <InputError
+                                        message={errors.deposit_cents}
+                                    />
+                                </div>
+                            </div>
+                        </section>
+
                         <section className="grid gap-2">
                             <Label htmlFor="notes">
                                 Notes (affichées sur la facture)
@@ -643,7 +717,7 @@ export default function InvoicesCreate({
                                     form.setData('notes', e.target.value)
                                 }
                             />
-                            <InputError message={form.errors.notes} />
+                            <InputError message={errors.notes} />
                         </section>
                     </form>
 

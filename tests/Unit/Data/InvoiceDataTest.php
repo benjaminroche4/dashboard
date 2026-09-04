@@ -58,3 +58,19 @@ test('it composes the postal address from its parts', function (): void {
     expect(InvoiceData::from(invoicePayload())->clientAddress())->toBe("Rue du Rhône 1\n1204 Genève\nSuisse")
         ->and(InvoiceData::from(invoicePayload(['client_street' => null, 'client_postal_code' => null, 'client_city' => null, 'client_country' => null]))->clientAddress())->toBeNull();
 });
+
+test('discount applies before VAT and the deposit reduces the amount due', function (): void {
+    $data = InvoiceData::from(invoicePayload([
+        'vat_rate' => 10,
+        'discount_percent' => 10,
+        'deposit_cents' => 20_000,
+        'items' => [['offer' => 'accompagne', 'quantity' => 1, 'unit_price_cents' => 100_000]],
+    ]));
+
+    expect($data->subtotalCents())->toBe(100_000)
+        ->and($data->discountCents())->toBe(10_000)
+        ->and($data->netSubtotalCents())->toBe(90_000)
+        ->and($data->vatCents())->toBe(9_000)
+        ->and($data->totalCents())->toBe(99_000)
+        ->and($data->dueCents())->toBe(79_000);
+});

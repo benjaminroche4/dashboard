@@ -21,6 +21,10 @@ const invoices: Invoice[] = [
         issued_at: '2026-09-01',
         due_at: '2026-10-01',
         paid_at: '2026-09-15',
+        deposit_cents: 0,
+        due_cents: 0,
+        can_send: true,
+        can_pay: true,
     },
     {
         id: 2,
@@ -34,6 +38,10 @@ const invoices: Invoice[] = [
         issued_at: '2026-07-01',
         due_at: '2026-07-31',
         paid_at: null,
+        deposit_cents: 0,
+        due_cents: 0,
+        can_send: true,
+        can_pay: true,
     },
 ];
 

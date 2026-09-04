@@ -28,6 +28,10 @@ const invoice = (id: number, status: Invoice['status']): Invoice => ({
     issued_at: '2026-09-01',
     due_at: '2026-10-01',
     paid_at: null,
+    deposit_cents: 0,
+    due_cents: 0,
+    can_send: true,
+    can_pay: true,
 });
 
 describe('Invoices page', () => {

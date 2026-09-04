@@ -1,18 +1,10 @@
 import type { ColumnDef } from '@tanstack/react-table';
-import { ArrowUpDown, MoreHorizontal } from 'lucide-react';
+import { ArrowUpDown } from 'lucide-react';
+import { InvoiceRowActions } from '@/components/invoices/invoice-row-actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { formatDate, formatMoney } from '@/lib/format';
-import { pdf } from '@/routes/invoices';
 import type { Invoice, InvoiceStatus } from '@/types';
 
 export const invoiceColumnLabels: Record<string, string> = {
@@ -160,48 +152,6 @@ export const invoiceColumns: ColumnDef<Invoice>[] = [
     {
         id: 'actions',
         enableHiding: false,
-        cell: ({ row }) => {
-            const invoice = row.original;
-
-            return (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            variant="ghost"
-                            className="size-8 p-0"
-                            aria-label={`Actions pour ${invoice.number}`}
-                        >
-                            <MoreHorizontal />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem
-                            onClick={() =>
-                                navigator.clipboard.writeText(invoice.number)
-                            }
-                        >
-                            Copier le numéro
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem asChild>
-                            <a
-                                href={pdf({ invoice: invoice.id }).url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                Télécharger le PDF
-                            </a>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem disabled>
-                            Voir la facture
-                        </DropdownMenuItem>
-                        <DropdownMenuItem disabled>
-                            Marquer comme payée
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            );
-        },
+        cell: ({ row }) => <InvoiceRowActions invoice={row.original} />,
     },
 ];

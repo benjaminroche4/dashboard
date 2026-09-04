@@ -19,27 +19,43 @@ final class CreateInvoice
 {
     public function handle(InvoiceData $data, ?User $creator = null): Invoice
     {
-        $invoice = DB::transaction(fn (): Invoice => Invoice::create([
-            'number' => self::nextNumber(),
-            'client_name' => $data->clientName,
-            'client_email' => $data->clientEmail,
-            'client_street' => $data->clientStreet,
-            'client_postal_code' => $data->clientPostalCode,
-            'client_city' => $data->clientCity,
-            'client_country' => $data->clientCountry,
-            'client_address' => $data->clientAddress(),
-            'items' => array_map(fn (InvoiceLineData $line): array => $line->toArray(), $data->lines),
-            'vat_rate' => $data->vatRate,
-            'subtotal_cents' => $data->subtotalCents(),
-            'vat_cents' => $data->vatCents(),
-            'amount_cents' => $data->totalCents(),
-            'currency' => $data->currency,
-            'status' => $data->status,
-            'issued_at' => $data->issuedAt,
-            'due_at' => $data->dueAt,
-            'notes' => $data->notes,
-            'created_by' => $creator?->id,
-        ]));
+        $invoice = DB::transaction(function () use ($data, $creator): Invoice {
+            $invoice = Invoice::create([
+                'number' => self::nextNumber(),
+                'client_name' => $data->clientName,
+                'client_email' => $data->clientEmail,
+                'client_street' => $data->clientStreet,
+                'client_postal_code' => $data->clientPostalCode,
+                'client_city' => $data->clientCity,
+                'client_country' => $data->clientCountry,
+                'client_address' => $data->clientAddress(),
+                'items' => array_map(fn (InvoiceLineData $line): array => $line->toArray(), $data->lines),
+                'vat_rate' => $data->vatRate,
+                'discount_percent' => $data->discountPercent,
+                'discount_cents' => $data->discountCents(),
+                'subtotal_cents' => $data->subtotalCents(),
+                'vat_cents' => $data->vatCents(),
+                'amount_cents' => $data->totalCents(),
+                'deposit_cents' => $data->depositCents,
+                'currency' => $data->currency,
+                'status' => $data->status,
+                'issued_at' => $data->issuedAt,
+                'due_at' => $data->dueAt,
+                'notes' => $data->notes,
+                'created_by' => $creator?->id,
+            ]);
+
+            // Première entrée de l'historique : la création.
+            $invoice->statusChanges()->create([
+                'from_status' => null,
+                'to_status' => $invoice->status,
+                'changed_by' => $creator?->id,
+                'note' => 'Création',
+                'created_at' => now(),
+            ]);
+
+            return $invoice;
+        });
 
         event(new DashboardUpdated('invoices', ['id' => $invoice->id], "a créé la facture {$invoice->number}"));
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Models\User;
+use App\Services\DocRaptor;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +20,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Services externes construits depuis la config (injectables dans les Actions).
+        $this->app->bind(DocRaptor::class, fn (): DocRaptor => DocRaptor::fromConfig());
     }
 
     /**

@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class InvoiceFactory extends Factory
 {
+    private static int $sequence = 1;
+
     /**
      * @return array<string, mixed>
      */
@@ -39,7 +41,8 @@ class InvoiceFactory extends Factory
         $vat = (int) round($subtotal * $vatRate / 100);
 
         return [
-            'number' => sprintf('RP-27%03d', fake()->unique()->numberBetween(1, 999)),
+            // Compteur statique : les closures étant résolues avant l'insertion, nextNumber() donnerait des doublons en série.
+            'number' => sprintf('RP-27%03d', self::$sequence++),
             'client_name' => fake()->company(),
             'client_email' => fake()->companyEmail(),
             'client_street' => fake()->streetAddress(),
@@ -49,6 +52,9 @@ class InvoiceFactory extends Factory
             'client_address' => null,
             'items' => $items,
             'vat_rate' => $vatRate,
+            'discount_percent' => 0,
+            'discount_cents' => 0,
+            'deposit_cents' => 0,
             'subtotal_cents' => $subtotal,
             'vat_cents' => $vat,
             'amount_cents' => $subtotal + $vat,

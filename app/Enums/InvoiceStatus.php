@@ -24,6 +24,26 @@ enum InvoiceStatus: string
     }
 
     /**
+     * Transitions autorisées depuis ce statut.
+     *
+     * @return list<self>
+     */
+    public function transitions(): array
+    {
+        return match ($this) {
+            self::Draft => [self::Sent, self::Cancelled],
+            self::Sent => [self::Paid, self::Overdue, self::Cancelled],
+            self::Overdue => [self::Paid, self::Cancelled],
+            self::Paid, self::Cancelled => [],
+        };
+    }
+
+    public function canTransitionTo(self $target): bool
+    {
+        return in_array($target, $this->transitions(), true);
+    }
+
+    /**
      * @return list<string>
      */
     public static function values(): array

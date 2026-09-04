@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { computeInvoiceTotals, toCents, toNumber } from '@/lib/invoice-totals';
+import {
+    computeInvoiceTotals,
+    toCents,
+    toNumber,
+    validateInvoiceForm,
+} from '@/lib/invoice-totals';
 import type { Offer } from '@/types';
 
 const offers: Offer[] = [
@@ -41,5 +46,72 @@ describe('invoice totals', () => {
         expect(totals.subtotalCents).toBe(44_999);
         expect(totals.vatCents).toBe(Math.round((44_999 * 8.1) / 100));
         expect(totals.totalCents).toBe(totals.subtotalCents + totals.vatCents);
+    });
+});
+
+describe('discount, deposit and local validation', () => {
+    const form = {
+        client_name: 'Acme',
+        client_email: '',
+        client_street: '',
+        client_postal_code: '',
+        client_city: '',
+        client_country: 'Suisse',
+        currency: 'EUR' as const,
+        vat_rate: '8.1',
+        discount_percent: '',
+        deposit: '',
+        issued_at: '2026-09-04',
+        due_at: '2026-10-04',
+        notes: '',
+        items: [
+            { offer: 'accompagne' as const, quantity: '1', unit_price: '1190' },
+        ],
+    };
+
+    it('applies the discount before VAT and deducts the deposit', () => {
+        const totals = computeInvoiceTotals(form.items, '8.1', offers, {
+            discountPercent: '10',
+            deposit: '500',
+        });
+
+        // 119000 − 10 % = 107100 ; TVA 8,1 % = 8675 ; total 115775 ; − 50000
+        expect(totals.discountCents).toBe(11_900);
+        expect(totals.netSubtotalCents).toBe(107_100);
+        expect(totals.vatCents).toBe(8_675);
+        expect(totals.totalCents).toBe(115_775);
+        expect(totals.dueCents).toBe(65_775);
+    });
+
+    it('accepts a valid form', () => {
+        expect(validateInvoiceForm(form)).toEqual({});
+    });
+
+    it('reports missing name, invalid email, inverted dates, bad discount and deposit', () => {
+        const errors = validateInvoiceForm({
+            ...form,
+            client_name: ' ',
+            client_email: 'pas-un-mail',
+            due_at: '2026-09-01',
+            discount_percent: '150',
+            deposit: '999999',
+            items: [{ offer: 'confie', quantity: '-1', unit_price: '' }],
+        });
+
+        expect(errors.client_name).toBe('Le nom du client est obligatoire.');
+        expect(errors.client_email).toBe("L'adresse e-mail n'est pas valide.");
+        expect(errors.due_at).toMatch(/postérieure/);
+        expect(errors.discount_percent).toMatch(/0 et 100/);
+        expect(errors.deposit_cents).toMatch(/dépasse le total/);
+        expect(errors['items.0.unit_price_cents']).toBe(
+            'Indiquez un prix unitaire.',
+        );
+        expect(errors['items.0.quantity']).toBe('Indiquez une quantité.');
+    });
+
+    it('requires at least one line', () => {
+        expect(validateInvoiceForm({ ...form, items: [] }).items).toBe(
+            'Ajoutez au moins une ligne.',
+        );
     });
 });
