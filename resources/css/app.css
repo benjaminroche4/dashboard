@@ -144,45 +144,51 @@
 
 /* Reflet qui balaie le logo, avec un halo léger qui respire (voir components/shimmer-logo.tsx). */
 @keyframes shimmer-sweep {
-    0%,
-    70% {
-        transform: translateX(-160%) skewX(-18deg);
+    0% {
+        transform: translateX(-180%) skewX(-20deg);
+        animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
     }
+    24%,
     100% {
-        transform: translateX(160%) skewX(-18deg);
+        transform: translateX(180%) skewX(-20deg);
     }
 }
 
 @keyframes shimmer-breathe {
     0%,
     100% {
-        box-shadow: 0 0 0 0
-            color-mix(in oklab, var(--shimmer-glow) 0%, transparent);
+        box-shadow: 0 0 0 0 color-mix(in oklab, var(--shimmer-glow) 0%, transparent);
     }
-    50% {
-        box-shadow: 0 0 14px 2px
-            color-mix(in oklab, var(--shimmer-glow) 28%, transparent);
+    12% {
+        box-shadow: 0 0 12px 0 color-mix(in oklab, var(--shimmer-glow) 14%, transparent);
+    }
+    40% {
+        box-shadow: 0 0 0 0 color-mix(in oklab, var(--shimmer-glow) 0%, transparent);
     }
 }
 
 @utility shimmer-logo {
     --shimmer-glow: #a3243f;
+    --shimmer-cycle: 9s;
     position: relative;
     overflow: hidden;
-    animation: shimmer-breathe 7s ease-in-out infinite;
+    animation: shimmer-breathe var(--shimmer-cycle) ease-in-out infinite;
 
     &::after {
         content: '';
         position: absolute;
         inset: 0;
-        width: 40%;
+        width: 34%;
         background: linear-gradient(
             to right,
-            transparent,
-            rgb(255 255 255 / 0.22),
-            transparent
+            transparent 0%,
+            rgb(255 255 255 / 0.06) 30%,
+            rgb(255 255 255 / 0.26) 50%,
+            rgb(255 255 255 / 0.06) 70%,
+            transparent 100%
         );
-        animation: shimmer-sweep 7s ease-in-out infinite;
+        animation: shimmer-sweep var(--shimmer-cycle) linear infinite;
+        will-change: transform;
         pointer-events: none;
     }
 
