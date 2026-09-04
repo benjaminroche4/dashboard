@@ -8,7 +8,7 @@ type Props = {
 export default function Login({ status }: Props) {
     return (
         <>
-            <Head title="Log in" />
+            <Head title="Connexion" />
 
             <div className="bg-background grid min-h-svh lg:grid-cols-2">
                 <div className="flex items-center justify-center p-6 md:p-10">
@@ -20,10 +20,11 @@ export default function Login({ status }: Props) {
                         />
                         <div className="space-y-1">
                             <h1 className="text-2xl font-medium tracking-tight text-balance">
-                                Log in to your account
+                                Connectez-vous à votre compte
                             </h1>
                             <p className="text-muted-foreground text-sm text-pretty">
-                                Enter your email and password below to log in
+                                Saisissez votre e-mail et votre mot de passe
+                                pour continuer
                             </p>
                         </div>
                         <LoginForm status={status} />

@@ -39,20 +39,20 @@ describe('Login page', () => {
     it('renders the email, password and remember fields', () => {
         const page = renderVisible();
 
-        expect(page.getByLabelText('Email address')).toBeRequired();
-        expect(page.getByLabelText('Password')).toBeRequired();
-        expect(page.getByLabelText('Remember me')).toBeInTheDocument();
+        expect(page.getByLabelText('Adresse e-mail')).toBeRequired();
+        expect(page.getByLabelText(/^Mot de passe$/)).toBeRequired();
+        expect(page.getByLabelText('Se souvenir de moi')).toBeInTheDocument();
         expect(
-            page.getByRole('button', { name: 'Log in' }),
+            page.getByRole('button', { name: 'Connexion' }),
         ).toBeInTheDocument();
     });
 
     it('does not offer registration or password reset', () => {
         const page = renderVisible();
 
-        expect(page.queryByText(/sign up/i)).not.toBeInTheDocument();
+        expect(page.queryByText(/inscri/i)).not.toBeInTheDocument();
         expect(
-            page.queryByText(/forgot your password/i),
+            page.queryByText(/mot de passe oublié/i),
         ).not.toBeInTheDocument();
     });
 

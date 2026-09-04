@@ -40,6 +40,12 @@ Comptes staff : **pas d'inscription**. Créer un membre avec :
 php artisan staff:create --name="Nom" --email=nom@exemple.com --role=admin|manager|member
 ```
 
+## Langue : tout en français
+
+- `APP_LOCALE=fr`, `APP_FALLBACK_LOCALE=fr`. Les traductions Laravel (validation, auth, passwords, Fortify) viennent de `laravel-lang/common` (`php artisan lang:update` après une montée de version). Les chaînes applicatives passent par `__('...')` avec leur traduction dans `lang/fr.json`.
+- Tout texte affiché dans le front (libellés, placeholders, titres `<Head>`, `aria-label`, toasts, messages d'erreur) est écrit directement en français, vouvoiement. Le nom du produit reste « Dashboard ».
+- Les tests assertent les textes français.
+
 ## Règles d'accès et SEO
 
 - Toute route applicative est derrière le middleware `auth`. `/` redirige vers `login` ou `dashboard`.

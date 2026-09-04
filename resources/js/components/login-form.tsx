@@ -31,7 +31,7 @@ export default function LoginForm({
     inputClassName,
     labelClassName,
     buttonClassName,
-    submitLabel = 'Log in',
+    submitLabel = 'Connexion',
     passkey = true,
 }: LoginFormProps) {
     return (
@@ -47,7 +47,7 @@ export default function LoginForm({
                     <>
                         <div className="grid gap-2">
                             <Label htmlFor="email" className={labelClassName}>
-                                Email address
+                                Adresse e-mail
                             </Label>
                             <Input
                                 id="email"
@@ -57,7 +57,7 @@ export default function LoginForm({
                                 autoFocus
                                 tabIndex={1}
                                 autoComplete="email"
-                                placeholder="email@example.com"
+                                placeholder="email@exemple.fr"
                                 className={inputClassName}
                             />
                             <InputError message={errors.email} />
@@ -68,7 +68,7 @@ export default function LoginForm({
                                 htmlFor="password"
                                 className={labelClassName}
                             >
-                                Password
+                                Mot de passe
                             </Label>
                             <PasswordInput
                                 id="password"
@@ -76,7 +76,7 @@ export default function LoginForm({
                                 required
                                 tabIndex={2}
                                 autoComplete="current-password"
-                                placeholder="Password"
+                                placeholder="Mot de passe"
                                 className={inputClassName}
                             />
                             <InputError message={errors.password} />
@@ -92,7 +92,7 @@ export default function LoginForm({
                                 htmlFor="remember"
                                 className={labelClassName}
                             >
-                                Remember me
+                                Se souvenir de moi
                             </Label>
                         </div>
 
