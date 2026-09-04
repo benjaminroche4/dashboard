@@ -14,7 +14,7 @@ vi.mock('@inertiajs/react', () => ({ router: { visit: vi.fn() } }));
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
 
 describe('AppSidebarHeader', () => {
-    it('lays out navigation, search and notifications in three zones', () => {
+    it('lays out navigation, search and presence in three zones', () => {
         const { container } = render(<AppSidebarHeader />);
         const header = container.querySelector('header');
 
@@ -25,9 +25,6 @@ describe('AppSidebarHeader', () => {
         ).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Rechercher' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('button', { name: /non lue/ }),
         ).toBeInTheDocument();
     });
 });

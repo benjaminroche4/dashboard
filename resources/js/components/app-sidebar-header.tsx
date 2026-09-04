@@ -1,15 +1,13 @@
 import { Breadcrumbs } from '@/components/breadcrumbs';
-import { Notifications } from '@/components/notifications';
 import { OnlineStaff } from '@/components/online-staff';
 import { RealtimeStaff } from '@/components/realtime-staff';
 import { SearchCommand } from '@/components/search-command';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { sampleNotifications } from '@/data/sample-notifications';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
 /**
  * En-tête de page en trois zones : navigation à gauche, recherche au centre,
- * notifications et présence à droite.
+ * présence à droite.
  */
 export function AppSidebarHeader({
     breadcrumbs = [],
@@ -30,8 +28,6 @@ export function AppSidebarHeader({
             <div className="flex items-center justify-end gap-2">
                 <RealtimeStaff />
                 <OnlineStaff />
-                {/* Données d'exemple en attendant le temps réel. */}
-                <Notifications items={sampleNotifications} />
             </div>
         </header>
     );
