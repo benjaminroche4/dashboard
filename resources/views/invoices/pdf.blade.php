@@ -31,7 +31,8 @@
         <div>
             <strong>{{ $company['name'] }}</strong>
             <div class="muted pre">{{ $company['address'] }}</div>
-            <div class="muted">{{ $company['email'] }} · {{ $company['phone'] }}</div>
+            <div class="muted">{{ $company['email'] }}</div>
+            <div class="muted">{{ $company['phone'] }}</div>
         </div>
         <div style="text-align: right">
             <h1>Facture</h1>

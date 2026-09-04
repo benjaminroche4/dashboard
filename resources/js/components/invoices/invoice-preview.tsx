@@ -36,7 +36,9 @@ export function InvoicePreview({
                         {company.address}
                     </p>
                     <p className="text-muted-foreground">
-                        {company.email} · {company.phone}
+                        {company.email}
+                        <br />
+                        {company.phone}
                     </p>
                 </div>
                 <div className="text-right">
