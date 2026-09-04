@@ -13,6 +13,8 @@ type Props = {
     inkOpacity?: number;
     /** Anime la trame (ondulation + balayage). Désactivé si prefers-reduced-motion. */
     animate?: boolean;
+    /** Intensité de l'animation (0 = figée, 1 = vive). */
+    intensity?: number;
 };
 
 export type AsciiCell = {
@@ -152,14 +154,28 @@ export function drawAsciiFrame(
     ctx.textBaseline = 'middle';
 
     const last = charset.length - 1;
-    // Balayage lumineux : une bande qui descend en boucle (période 6 s).
-    const sweepRow = ((time / 6) % 1) * (grid.rows + 12) - 6;
+    // Balayage lumineux : une bande large qui descend en boucle (période 3,5 s).
+    const sweepRow = ((time / 3.5) % 1) * (grid.rows + 20) - 10;
 
     for (const cell of grid.cells) {
-        // Ondulation : la densité respire en vague à travers la grille.
+        // Ondulation : deux vagues croisées, la densité respire à travers la grille.
         const wave =
-            amplitude * Math.sin(time * 1.4 + cell.x * 0.35 + cell.y * 0.22);
-        const level = Math.min(1, Math.max(0, cell.darkness + wave));
+            amplitude *
+            (0.6 * Math.sin(time * 2.2 + cell.x * 0.35 + cell.y * 0.22) +
+                0.4 * Math.sin(time * 1.3 - cell.x * 0.18 + cell.y * 0.4));
+        // Scintillement : quelques cellules s'allument brièvement.
+        const sparkle =
+            amplitude > 0
+                ? Math.max(
+                      0,
+                      Math.sin(time * 6 + cell.x * 12.9898 + cell.y * 78.233) -
+                          0.93,
+                  ) * 6
+                : 0;
+        const level = Math.min(
+            1,
+            Math.max(0, cell.darkness + wave + sparkle * 0.5),
+        );
         const char = charset[Math.round(level * last)];
 
         if (char === ' ') {
@@ -168,9 +184,9 @@ export function drawAsciiFrame(
 
         const sweep =
             amplitude > 0
-                ? Math.max(0, 1 - Math.abs(cell.y - sweepRow) / 6) * 0.35
+                ? Math.max(0, 1 - Math.abs(cell.y - sweepRow) / 10) * 0.45
                 : 0;
-        const alpha = Math.min(1, inkOpacity + sweep);
+        const alpha = Math.min(1, inkOpacity + sweep + sparkle * 0.3);
 
         ctx.fillStyle = `rgb(${cell.ink} / ${alpha})`;
         ctx.fillText(
@@ -216,6 +232,7 @@ export default function AsciiHalftone({
     charset = ' .:-=+*#%@',
     inkOpacity = 0.9,
     animate = true,
+    intensity = 1,
 }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [ready, setReady] = useState(false);
@@ -239,8 +256,8 @@ export default function AsciiHalftone({
         const reducedMotion = window.matchMedia(
             '(prefers-reduced-motion: reduce)',
         ).matches;
-        const animated = animate && !reducedMotion;
-        const amplitude = animated ? 0.16 : 0;
+        const animated = animate && !reducedMotion && intensity > 0;
+        const amplitude = animated ? 0.28 * intensity : 0;
 
         const drawFrame = (time: number) => {
             if (!image || !grid) {
@@ -284,13 +301,13 @@ export default function AsciiHalftone({
             setReady(true);
         };
 
-        // Boucle limitée à ~24 images par seconde : la trame n'a pas besoin de plus.
+        // Boucle limitée à ~30 images par seconde.
         const loop = (now: number) => {
             if (disposed) {
                 return;
             }
 
-            if (now - lastFrameAt >= 1000 / 24) {
+            if (now - lastFrameAt >= 1000 / 30) {
                 lastFrameAt = now;
                 drawFrame((now - start) / 1000);
             }
@@ -318,7 +335,7 @@ export default function AsciiHalftone({
             cancelAnimationFrame(frame);
             observer.disconnect();
         };
-    }, [src, cellSize, charset, inkOpacity, animate]);
+    }, [src, cellSize, charset, inkOpacity, animate, intensity]);
 
     return (
         <div className={cn('relative overflow-hidden', className)}>
