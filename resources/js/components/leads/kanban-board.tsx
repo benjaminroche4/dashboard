@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { Star } from 'lucide-react';
+import { Clock, Star } from 'lucide-react';
 import { useEffect, useState, type DragEvent } from 'react';
 import {
     LeadStatusMenu,
@@ -216,7 +216,7 @@ function LeadCard({
     onDragStart: (event: DragEvent) => void;
     onDragEnd: () => void;
 }) {
-    const contact = [lead.email, lead.phone].filter(Boolean).join(' · ');
+    const contact = lead.email ?? lead.phone ?? '';
     const budget =
         lead.budget_cents === null
             ? null
@@ -282,11 +282,14 @@ function LeadCard({
                 </p>
             )}
             <div className="flex min-w-0 items-center justify-between gap-2">
-                <p className="text-muted-foreground truncate text-xs">
-                    {lead.created_at
-                        ? `Ajouté le ${formatDate(lead.created_at.slice(0, 10))}`
-                        : 'Ajouté'}
-                    {lead.created_by ? ` par ${lead.created_by}` : ''}
+                <p className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
+                    <Clock className="size-3.5 shrink-0" aria-hidden />
+                    <span className="sr-only">Ajouté le</span>
+                    <span className="truncate">
+                        {lead.created_at
+                            ? formatDate(lead.created_at.slice(0, 10))
+                            : '—'}
+                    </span>
                 </p>
                 {lead.score !== null && (
                     <span
