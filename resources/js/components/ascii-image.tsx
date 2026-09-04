@@ -53,13 +53,16 @@ void main() {
 
     // Léger scintillement pour donner vie à la trame.
     float flicker = 0.04 * sin(u_time * 2.0 + cell.x * 0.7 + cell.y * 1.3);
-    float index = floor(clamp(luma + flicker, 0.0, 0.999) * u_glyphCount);
+    // Sur fond clair, les zones sombres reçoivent les glyphes les plus denses.
+    float index = floor(clamp(1.0 - luma + flicker, 0.0, 0.999) * u_glyphCount);
 
     vec2 glyphUv = vec2((index + cellUv.x) / u_glyphCount, 1.0 - cellUv.y);
     float ink = texture2D(u_glyphs, glyphUv).a;
 
-    vec3 tint = mix(color * 1.4, vec3(1.0), 0.25);
-    gl_FragColor = vec4(tint * ink, 1.0);
+    // Rendu clair : fond blanc, glyphes encrés dans une teinte assombrie de l'image.
+    vec3 ink_color = mix(color * 0.7, vec3(0.1), 0.35);
+    vec3 paper = vec3(1.0);
+    gl_FragColor = vec4(mix(paper, ink_color, ink), 1.0);
 }
 `;
 
