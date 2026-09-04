@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AsciiHalftone from '@/components/ascii-halftone';
 import LoginForm from '@/components/login-form';
+import ShimmerBorder from '@/components/shimmer-border';
 
 type Props = {
     status?: string;
@@ -14,11 +15,13 @@ export default function Login({ status }: Props) {
             <div className="bg-background grid min-h-svh lg:grid-cols-2">
                 <div className="flex items-center justify-center p-6 md:p-10">
                     <div className="animate-in fade-in w-full max-w-sm space-y-8 duration-500">
-                        <img
-                            src="/images/logo.jpg"
-                            alt="Dashboard"
-                            className="size-10 rounded-md"
-                        />
+                        <ShimmerBorder radiusClassName="rounded-[9px]">
+                            <img
+                                src="/images/logo.jpg"
+                                alt="Dashboard"
+                                className="size-10 rounded-md"
+                            />
+                        </ShimmerBorder>
                         <div className="space-y-1">
                             <h1 className="text-2xl font-medium tracking-tight text-balance">
                                 Connectez-vous à votre compte
