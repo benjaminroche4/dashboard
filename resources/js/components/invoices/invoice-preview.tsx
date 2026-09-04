@@ -31,14 +31,23 @@ export function InvoicePreview({
         >
             <header className="flex items-start justify-between gap-6">
                 <div className="space-y-1">
-                    <p className="text-base font-semibold">{company.name}</p>
-                    <p className="text-muted-foreground whitespace-pre-line">
-                        {company.address}
-                    </p>
+                    <div className="flex items-center gap-2">
+                        <img
+                            src="/images/logo.jpg"
+                            alt=""
+                            className="size-6 rounded-sm"
+                        />
+                        <p className="text-base font-semibold">
+                            {company.name}
+                        </p>
+                    </div>
                     <p className="text-muted-foreground">
                         {company.email}
                         <br />
                         {company.phone}
+                    </p>
+                    <p className="text-muted-foreground border-t pt-2 whitespace-pre-line">
+                        {company.address}
                     </p>
                 </div>
                 <div className="text-right">

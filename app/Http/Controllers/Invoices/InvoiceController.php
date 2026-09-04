@@ -104,6 +104,7 @@ class InvoiceController extends Controller
         $html = view('invoices.pdf', [
             'invoice' => $invoice,
             'company' => config('company'),
+            'logo' => $this->logoDataUri(),
         ])->render();
 
         $pdf = $docRaptor->pdf($html, "facture-{$invoice->number}.pdf");
@@ -112,5 +113,19 @@ class InvoiceController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="facture-'.$invoice->number.'.pdf"',
         ]);
+    }
+
+    /**
+     * Logo embarqué en data URI : DocRaptor ne peut pas charger nos fichiers locaux.
+     */
+    private function logoDataUri(): ?string
+    {
+        $path = public_path('images/logo.jpg');
+
+        if (! is_file($path)) {
+            return null;
+        }
+
+        return 'data:image/jpeg;base64,'.base64_encode((string) file_get_contents($path));
     }
 }

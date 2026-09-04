@@ -57,6 +57,11 @@ describe('InvoicePreview', () => {
         );
 
         expect(screen.getByText('Relocation In Paris')).toBeInTheDocument();
+        expect(container.querySelector('header img')).toHaveAttribute(
+            'src',
+            '/images/logo.jpg',
+        );
+        expect(screen.getByText(/Rue des Alpes 5/)).toHaveClass('border-t');
         expect(screen.getByText('Acme SA')).toBeInTheDocument();
         expect(
             screen.getByText(/Rue du Rhône 1\s+1204 Genève\s+Suisse/),

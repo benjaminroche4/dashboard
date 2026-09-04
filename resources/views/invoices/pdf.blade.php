@@ -12,6 +12,9 @@
         h1 { font-size: 22pt; margin: 0; }
         .muted { color: #6b7280; }
         .header { display: flex; justify-content: space-between; margin-bottom: 28px; }
+        .brand { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+        .logo { width: 18px; height: 18px; border-radius: 3px; }
+        .divider { border-top: 1px solid #e5e7eb; margin-top: 6px; padding-top: 6px; }
         .grid { display: flex; justify-content: space-between; margin-bottom: 28px; }
         .label { font-size: 8.5pt; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; margin-bottom: 4px; }
         table { width: 100%; border-collapse: collapse; }
@@ -29,10 +32,15 @@
 <body>
     <div class="header">
         <div>
-            <strong>{{ $company['name'] }}</strong>
-            <div class="muted pre">{{ $company['address'] }}</div>
+            <div class="brand">
+                @if (! empty($logo))
+                    <img class="logo" src="{{ $logo }}" alt="">
+                @endif
+                <strong>{{ $company['name'] }}</strong>
+            </div>
             <div class="muted">{{ $company['email'] }}</div>
             <div class="muted">{{ $company['phone'] }}</div>
+            <div class="muted pre divider">{{ $company['address'] }}</div>
         </div>
         <div style="text-align: right">
             <h1>Facture</h1>

@@ -28,7 +28,8 @@ test('the PDF is generated through DocRaptor and downloaded', function (): void 
             && $body['test'] === true
             && $body['document_type'] === 'pdf'
             && str_contains((string) $body['document_content'], 'Acme SA')
-            && str_contains((string) $body['document_content'], 'F-2026-0042');
+            && str_contains((string) $body['document_content'], 'F-2026-0042')
+            && str_contains((string) $body['document_content'], 'data:image/jpeg;base64,');
     });
 });
 
