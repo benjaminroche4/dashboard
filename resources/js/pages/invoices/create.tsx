@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
+import { formatMoney } from '@/lib/format';
 import { toCents, toNumber } from '@/lib/invoice-totals';
 import { index as invoicesIndex, store } from '@/routes/invoices';
 import type {
@@ -286,7 +287,14 @@ export default function InvoicesCreate({
 
                     <section className="grid gap-4">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-base font-medium">Lignes</h2>
+                            <div>
+                                <h2 className="text-base font-medium">
+                                    Lignes
+                                </h2>
+                                <p className="text-muted-foreground text-sm">
+                                    Une ligne par offre facturée.
+                                </p>
+                            </div>
                             <Button
                                 type="button"
                                 variant="outline"
@@ -298,14 +306,40 @@ export default function InvoicesCreate({
                             </Button>
                         </div>
                         <InputError message={form.errors.items} />
-                        <div className="grid gap-3">
-                            {form.data.items.map((line, index) => (
-                                <div
-                                    key={index}
-                                    className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[minmax(0,1fr)_5rem_8rem_auto] sm:items-start"
-                                    data-test="invoice-line"
-                                >
-                                    <div className="grid gap-2">
+                        <ol role="list" className="grid gap-3">
+                            {form.data.items.map((line, index) => {
+                                const lineTotal = Math.round(
+                                    toNumber(line.quantity) *
+                                        toCents(line.unit_price),
+                                );
+
+                                return (
+                                    <li
+                                        key={index}
+                                        className="bg-sidebar grid gap-4 rounded-xl border p-4"
+                                        data-test="invoice-line"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-muted-foreground text-xs font-medium uppercase">
+                                                Ligne {index + 1}
+                                            </p>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                className="text-muted-foreground hover:text-destructive size-7"
+                                                aria-label={`Supprimer la ligne ${index + 1}`}
+                                                onClick={() =>
+                                                    removeLine(index)
+                                                }
+                                                disabled={
+                                                    form.data.items.length === 1
+                                                }
+                                            >
+                                                <Trash2 className="size-4" />
+                                            </Button>
+                                        </div>
+
                                         <RadioGroup
                                             aria-label={`Offre ligne ${index + 1}`}
                                             value={line.offer}
@@ -315,79 +349,116 @@ export default function InvoicesCreate({
                                                     value as OfferValue,
                                                 )
                                             }
-                                            className="flex flex-wrap gap-4"
+                                            className="grid gap-3 sm:grid-cols-2"
                                         >
                                             {offers.map((offer) => (
-                                                <div
+                                                <Label
                                                     key={offer.value}
-                                                    className="flex items-center gap-2"
+                                                    htmlFor={`line-${index}-${offer.value}`}
+                                                    className="bg-background has-data-[state=checked]:border-primary has-data-[state=checked]:ring-primary/20 hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-3 font-normal transition-colors has-data-[state=checked]:ring-2"
                                                 >
                                                     <RadioGroupItem
                                                         id={`line-${index}-${offer.value}`}
                                                         value={offer.value}
+                                                        className="mt-0.5"
                                                     />
-                                                    <Label
-                                                        htmlFor={`line-${index}-${offer.value}`}
-                                                    >
-                                                        {offer.label}
-                                                    </Label>
-                                                </div>
+                                                    <span className="grid gap-0.5">
+                                                        <span className="font-medium">
+                                                            {offer.label}
+                                                        </span>
+                                                        <span className="text-muted-foreground text-xs">
+                                                            {formatMoney(
+                                                                offer.prices[
+                                                                    form.data
+                                                                        .currency
+                                                                ],
+                                                                form.data
+                                                                    .currency,
+                                                            )}{' '}
+                                                            par défaut
+                                                        </span>
+                                                    </span>
+                                                </Label>
                                             ))}
                                         </RadioGroup>
                                         <InputError
                                             message={lineError(index, 'offer')}
                                         />
-                                    </div>
-                                    <div className="grid gap-1">
-                                        <Input
-                                            aria-label={`Quantité ligne ${index + 1}`}
-                                            inputMode="decimal"
-                                            value={line.quantity}
-                                            onChange={(e) =>
-                                                setLine(index, {
-                                                    quantity: e.target.value,
-                                                })
-                                            }
-                                        />
-                                        <InputError
-                                            message={lineError(
-                                                index,
-                                                'quantity',
-                                            )}
-                                        />
-                                    </div>
-                                    <div className="grid gap-1">
-                                        <Input
-                                            aria-label={`Prix unitaire ligne ${index + 1}`}
-                                            inputMode="decimal"
-                                            placeholder={`0.00 ${form.data.currency}`}
-                                            value={line.unit_price}
-                                            onChange={(e) =>
-                                                setLine(index, {
-                                                    unit_price: e.target.value,
-                                                })
-                                            }
-                                        />
-                                        <InputError
-                                            message={lineError(
-                                                index,
-                                                'unit_price',
-                                            )}
-                                        />
-                                    </div>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        aria-label={`Supprimer la ligne ${index + 1}`}
-                                        onClick={() => removeLine(index)}
-                                        disabled={form.data.items.length === 1}
-                                    >
-                                        <Trash2 />
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
+
+                                        <div className="grid gap-3 sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:items-end">
+                                            <div className="grid gap-1.5">
+                                                <Label
+                                                    htmlFor={`line-${index}-quantity`}
+                                                >
+                                                    Quantité
+                                                </Label>
+                                                <Input
+                                                    id={`line-${index}-quantity`}
+                                                    aria-label={`Quantité ligne ${index + 1}`}
+                                                    inputMode="decimal"
+                                                    className="bg-background"
+                                                    value={line.quantity}
+                                                    onChange={(e) =>
+                                                        setLine(index, {
+                                                            quantity:
+                                                                e.target.value,
+                                                        })
+                                                    }
+                                                />
+                                                <InputError
+                                                    message={lineError(
+                                                        index,
+                                                        'quantity',
+                                                    )}
+                                                />
+                                            </div>
+                                            <div className="grid gap-1.5">
+                                                <Label
+                                                    htmlFor={`line-${index}-price`}
+                                                >
+                                                    Prix unitaire (
+                                                    {form.data.currency})
+                                                </Label>
+                                                <Input
+                                                    id={`line-${index}-price`}
+                                                    aria-label={`Prix unitaire ligne ${index + 1}`}
+                                                    inputMode="decimal"
+                                                    className="bg-background"
+                                                    placeholder="0.00"
+                                                    value={line.unit_price}
+                                                    onChange={(e) =>
+                                                        setLine(index, {
+                                                            unit_price:
+                                                                e.target.value,
+                                                        })
+                                                    }
+                                                />
+                                                <InputError
+                                                    message={lineError(
+                                                        index,
+                                                        'unit_price',
+                                                    )}
+                                                />
+                                            </div>
+                                            <div className="grid gap-1.5 text-right">
+                                                <span className="text-muted-foreground text-sm">
+                                                    Total ligne
+                                                </span>
+                                                <span
+                                                    className="h-9 leading-9 font-medium tabular-nums"
+                                                    data-test="line-total"
+                                                >
+                                                    {formatMoney(
+                                                        lineTotal,
+                                                        form.data.currency,
+                                                    )}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </li>
+                                );
+                            })}
+                        </ol>
                     </section>
 
                     <section className="grid gap-2">

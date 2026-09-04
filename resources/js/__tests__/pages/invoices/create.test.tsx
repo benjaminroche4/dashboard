@@ -97,7 +97,7 @@ describe('Invoice creation page', () => {
         const user = userEvent.setup();
         render(<InvoicesCreate {...props} />);
 
-        expect(screen.getByRole('radio', { name: 'Accompagné' })).toBeChecked();
+        expect(screen.getByRole('radio', { name: /Accompagné/ })).toBeChecked();
         expect(screen.getByLabelText('Prix unitaire ligne 1')).toHaveValue(
             '2500',
         );
@@ -113,13 +113,16 @@ describe('Invoice creation page', () => {
         ).toBeInTheDocument();
         // 2 × 2500 = 5000 ; TVA 8,1 % = 405 ; total 5405
         expect(preview.getByText(/5.405\.00/)).toBeInTheDocument();
+        expect(
+            document.querySelector('[data-test="line-total"]')?.textContent,
+        ).toMatch(/5.000\.00/);
     });
 
     it('switching the offer fills in its default price', async () => {
         const user = userEvent.setup();
         render(<InvoicesCreate {...props} />);
 
-        await user.click(screen.getByRole('radio', { name: 'Confié' }));
+        await user.click(screen.getByRole('radio', { name: /Confié/ }));
 
         expect(screen.getByLabelText('Prix unitaire ligne 1')).toHaveValue(
             '4500',
