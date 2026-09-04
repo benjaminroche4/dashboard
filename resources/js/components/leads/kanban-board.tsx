@@ -96,7 +96,7 @@ export function LeadKanban({ leads, statuses }: Props) {
         <div
             role="list"
             aria-label="Kanban des leads"
-            className="bg-sidebar flex min-h-0 flex-1 snap-x gap-4 overflow-x-auto rounded-xl border p-4"
+            className="-mx-4 flex min-h-0 flex-1 snap-x gap-4 overflow-x-auto px-4 pb-4"
         >
             {statuses.map((status) => {
                 const column = items.filter(
@@ -279,7 +279,7 @@ function LeadCard({
                     <LeadStatusMenu lead={lead} statuses={statuses} />
                 </div>
             </div>
-            <dl className="grid min-w-0 grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
+            <dl className="bg-muted/50 grid min-w-0 grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 rounded-md border p-2.5 text-xs">
                 {rows.map((row) => (
                     <div key={row.label} className="contents">
                         <dt className="text-muted-foreground truncate">
