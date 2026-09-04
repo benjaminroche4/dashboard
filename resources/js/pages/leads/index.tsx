@@ -1,9 +1,9 @@
 import { Head, Link } from '@inertiajs/react';
 import { Sparkles } from 'lucide-react';
-import { useMemo } from 'react';
-import { DataTable } from '@/components/data-table';
-import { leadColumnLabels, leadColumns } from '@/components/leads/columns';
+import { useMemo, useState } from 'react';
+import { LeadKanban } from '@/components/leads/kanban-board';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { create as leadsCreate, index as leadsIndex } from '@/routes/leads';
 import type { Lead, LeadStatusOption } from '@/types';
 
@@ -13,9 +13,23 @@ type Props = {
 };
 
 export default function LeadsIndex({ leads, statuses }: Props) {
-    const columns = useMemo(() => leadColumns(statuses), [statuses]);
+    const [query, setQuery] = useState('');
+    const filtered = useMemo(() => {
+        const needle = query.trim().toLowerCase();
+
+        return needle === ''
+            ? leads
+            : leads.filter((lead) =>
+                  [lead.name, lead.email, lead.phone, lead.origin_city]
+                      .filter(Boolean)
+                      .join(' ')
+                      .toLowerCase()
+                      .includes(needle),
+              );
+    }, [leads, query]);
+
     const open = leads.filter(
-        (lead) => lead.status !== 'converted' && lead.status !== 'lost',
+        (lead) => lead.status !== 'converted' && lead.status !== 'archived',
     ).length;
     const converted = leads.filter(
         (lead) => lead.status === 'converted',
@@ -40,14 +54,16 @@ export default function LeadsIndex({ leads, statuses }: Props) {
                         </Link>
                     </Button>
                 </div>
-                <DataTable
-                    columns={columns}
-                    data={leads}
-                    filterColumn="name"
-                    filterPlaceholder="Filtrer par nom…"
-                    columnLabels={leadColumnLabels}
-                    frame="panel"
-                />
+                <div className="pb-4">
+                    <Input
+                        aria-label="Filtrer les leads"
+                        placeholder="Filtrer par nom, e-mail, téléphone ou ville…"
+                        value={query}
+                        onChange={(event) => setQuery(event.target.value)}
+                        className="bg-background max-w-sm"
+                    />
+                </div>
+                <LeadKanban leads={filtered} statuses={statuses} />
             </div>
         </>
     );
@@ -56,6 +72,6 @@ export default function LeadsIndex({ leads, statuses }: Props) {
 LeadsIndex.layout = {
     breadcrumbs: [
         { title: 'Leads', href: leadsIndex() },
-        { title: 'Liste', href: leadsIndex() },
+        { title: 'Kanban', href: leadsIndex() },
     ],
 };

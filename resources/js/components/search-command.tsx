@@ -45,7 +45,7 @@ const destinations: Destination[] = [
     },
     {
         title: 'Leads',
-        keywords: 'prospects clients statut suivi',
+        keywords: 'kanban prospects clients statut suivi',
         url: leadsIndex().url,
         icon: Contact,
     },

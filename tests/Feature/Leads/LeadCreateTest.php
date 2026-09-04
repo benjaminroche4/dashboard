@@ -47,7 +47,7 @@ test('any staff member can add a lead, which starts as new and is broadcast', fu
 
     $lead = Lead::query()->sole();
     expect($lead->fullName())->toBe('Léa Durand')
-        ->and($lead->status)->toBe(LeadStatus::New)
+        ->and($lead->status)->toBe(LeadStatus::Todo)
         ->and($lead->budget_cents)->toBe(250_000)
         ->and($lead->arrival_at?->toDateString())->toBe('2026-11-01')
         ->and($lead->created_by)->toBe($user->id);

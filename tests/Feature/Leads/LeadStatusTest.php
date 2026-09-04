@@ -17,10 +17,10 @@ test('staff can move a lead to another status, which dates the last contact', fu
 
     $this->actingAs(User::factory()->create())
         ->from(route('leads.index'))
-        ->patch(route('leads.status', $lead), ['status' => 'contacted'])
+        ->patch(route('leads.status', $lead), ['status' => 'in_progress'])
         ->assertRedirect(route('leads.index'));
 
-    expect($lead->fresh()?->status)->toBe(LeadStatus::Contacted)
+    expect($lead->fresh()?->status)->toBe(LeadStatus::InProgress)
         ->and($lead->fresh()?->last_contacted_at)->not->toBeNull();
     Event::assertDispatched(DashboardUpdated::class);
 });
@@ -32,5 +32,5 @@ test('an unknown status is rejected', function (): void {
         ->patch(route('leads.status', $lead), ['status' => 'vip'])
         ->assertSessionHasErrors('status');
 
-    expect($lead->fresh()?->status)->toBe(LeadStatus::New);
+    expect($lead->fresh()?->status)->toBe(LeadStatus::Todo);
 });

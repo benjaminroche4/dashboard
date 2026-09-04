@@ -20,12 +20,12 @@ describe('LeadStatusMenu', () => {
             }),
         );
         await user.click(
-            await screen.findByRole('menuitemradio', { name: 'Contacté' }),
+            await screen.findByRole('menuitemradio', { name: 'En cours' }),
         );
 
         expect(patch).toHaveBeenCalledWith(
             '/leads/1/status',
-            { status: 'contacted' },
+            { status: 'in_progress' },
             expect.objectContaining({ preserveScroll: true }),
         );
     });
@@ -41,7 +41,7 @@ describe('LeadStatusMenu', () => {
             }),
         );
         await user.click(
-            await screen.findByRole('menuitemradio', { name: 'Nouveau' }),
+            await screen.findByRole('menuitemradio', { name: 'À traiter' }),
         );
 
         expect(patch).not.toHaveBeenCalled();

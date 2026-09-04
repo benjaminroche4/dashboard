@@ -35,7 +35,7 @@ class LeadFactory extends Factory
             'origin_city' => fake()->city(),
             'source' => fake()->randomElement(LeadSource::cases()),
             'message' => fake()->optional()->sentence(12),
-            'status' => LeadStatus::New,
+            'status' => LeadStatus::Todo,
             'last_contacted_at' => null,
         ];
     }
@@ -44,7 +44,7 @@ class LeadFactory extends Factory
     {
         return $this->state(fn (): array => [
             'status' => $status,
-            'last_contacted_at' => $status === LeadStatus::New ? null : now()->subDays(fake()->numberBetween(0, 10)),
+            'last_contacted_at' => $status === LeadStatus::Todo ? null : now()->subDays(fake()->numberBetween(0, 10)),
         ]);
     }
 

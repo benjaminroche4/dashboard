@@ -34,14 +34,14 @@ test('CreateLead stores a new lead and UpdateLeadStatus moves it on', function (
         'first_name' => 'Ana', 'last_name' => 'Silva', 'email' => 'ana@example.com', 'offer' => Offer::Accompagne->value,
     ]));
 
-    expect($lead->status)->toBe(LeadStatus::New)->and($lead->offer)->toBe(Offer::Accompagne);
+    expect($lead->status)->toBe(LeadStatus::Todo)->and($lead->offer)->toBe(Offer::Accompagne);
 
-    (new UpdateLeadStatus)->handle($lead, LeadStatus::InDiscussion);
-    (new UpdateLeadStatus)->handle($lead, LeadStatus::InDiscussion);
+    (new UpdateLeadStatus)->handle($lead, LeadStatus::QuoteSent);
+    (new UpdateLeadStatus)->handle($lead, LeadStatus::QuoteSent);
 
-    expect($lead->fresh()?->status)->toBe(LeadStatus::InDiscussion)
-        ->and(LeadStatus::InDiscussion->isClosed())->toBeFalse()
-        ->and(LeadStatus::Lost->isClosed())->toBeTrue();
+    expect($lead->fresh()?->status)->toBe(LeadStatus::QuoteSent)
+        ->and(LeadStatus::QuoteSent->isClosed())->toBeFalse()
+        ->and(LeadStatus::Archived->isClosed())->toBeTrue();
     Event::assertDispatchedTimes(DashboardUpdated::class, 2);
 });
 

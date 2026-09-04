@@ -21,7 +21,7 @@ final class UpdateLeadStatus
 
         $lead->status = $status;
 
-        if ($status !== LeadStatus::New) {
+        if ($status !== LeadStatus::Todo) {
             $lead->last_contacted_at = now();
         }
 

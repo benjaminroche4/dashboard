@@ -14,8 +14,8 @@ export function makeLead(overrides: Partial<Lead> = {}): Lead {
         currency: 'EUR',
         origin_city: 'Genève',
         source_label: 'Recommandation',
-        status: 'new',
-        status_label: 'Nouveau',
+        status: 'todo',
+        status_label: 'À traiter',
         last_contacted_at: null,
         created_at: '2026-09-04T10:00:00+00:00',
         created_by: 'Admin',
@@ -24,9 +24,9 @@ export function makeLead(overrides: Partial<Lead> = {}): Lead {
 }
 
 export const leadStatuses: LeadStatusOption[] = [
-    { value: 'new', label: 'Nouveau' },
-    { value: 'contacted', label: 'Contacté' },
-    { value: 'in_discussion', label: 'En discussion' },
+    { value: 'todo', label: 'À traiter' },
+    { value: 'in_progress', label: 'En cours' },
+    { value: 'quote_sent', label: 'Devis envoyé' },
     { value: 'converted', label: 'Converti' },
-    { value: 'lost', label: 'Perdu' },
+    { value: 'archived', label: 'Archivé' },
 ];

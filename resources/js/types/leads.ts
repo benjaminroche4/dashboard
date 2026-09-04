@@ -1,11 +1,11 @@
 import type { Currency, OfferValue } from '@/types/invoices';
 
 export type LeadStatus =
-    | 'new'
-    | 'contacted'
-    | 'in_discussion'
+    | 'todo'
+    | 'in_progress'
+    | 'quote_sent'
     | 'converted'
-    | 'lost';
+    | 'archived';
 
 export type LeadSource =
     | 'website'

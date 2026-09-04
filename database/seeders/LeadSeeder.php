@@ -16,9 +16,9 @@ final class LeadSeeder extends Seeder
     public function run(): void
     {
         Lead::factory()->count(5)->create();
-        Lead::factory()->count(4)->status(LeadStatus::Contacted)->create();
-        Lead::factory()->count(3)->status(LeadStatus::InDiscussion)->create();
+        Lead::factory()->count(4)->status(LeadStatus::InProgress)->create();
+        Lead::factory()->count(3)->status(LeadStatus::QuoteSent)->create();
         Lead::factory()->count(4)->converted()->create();
-        Lead::factory()->count(2)->status(LeadStatus::Lost)->create();
+        Lead::factory()->count(2)->status(LeadStatus::Archived)->create();
     }
 }

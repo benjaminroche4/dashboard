@@ -74,7 +74,7 @@ export default function LeadsCreate({
                         </h1>
                         <p className="text-muted-foreground text-sm">
                             Qualifiez un prospect en quelques champs, il rejoint
-                            la liste des leads avec le statut « Nouveau ».
+                            le kanban des leads dans « À traiter ».
                         </p>
                     </div>
                     <div className="flex items-center gap-2">

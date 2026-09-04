@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('origin_city')->nullable();
             $table->string('source')->default('website');
             $table->text('message')->nullable();
-            $table->string('status')->default('new')->index();
+            $table->string('status')->default('todo')->index();
             $table->timestamp('last_contacted_at')->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();

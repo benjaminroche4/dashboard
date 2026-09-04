@@ -17,13 +17,14 @@ import type { Lead, LeadStatus, LeadStatusOption } from '@/types';
 
 // Couleurs personnalisées (pattern « Custom Colors » de shadcn Badge).
 export const leadStatusClasses: Record<LeadStatus, string> = {
-    new: 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300',
-    contacted: 'bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
-    in_discussion:
+    todo: 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300',
+    in_progress: 'bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
+    quote_sent:
         'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
     converted:
         'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300',
-    lost: 'bg-neutral-100 text-neutral-600 dark:bg-neutral-900 dark:text-neutral-400',
+    archived:
+        'bg-neutral-100 text-neutral-600 dark:bg-neutral-900 dark:text-neutral-400',
 };
 
 /**

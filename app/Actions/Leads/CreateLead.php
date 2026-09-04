@@ -19,7 +19,7 @@ final class CreateLead
     {
         $lead = Lead::query()->create([
             ...$data->toArray(),
-            'status' => LeadStatus::New,
+            'status' => LeadStatus::Todo,
             'created_by' => $by?->id,
         ]);
 

@@ -45,7 +45,7 @@ const navGroups: NavGroup[] = [
                 href: '#',
                 icon: Contact,
                 items: [
-                    { title: 'Liste des leads', href: leadsIndex() },
+                    { title: 'Kanban des leads', href: leadsIndex() },
                     { title: 'Converting Machine', href: leadsCreate() },
                     { title: 'Factures', href: invoicesIndex() },
                 ],
