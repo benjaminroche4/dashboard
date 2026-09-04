@@ -16,6 +16,27 @@ type Props = {
     statuses: LeadStatusOption[];
 };
 
+// Une teinte par colonne, en clair comme en sombre.
+const columnClasses: Record<LeadStatus, string> = {
+    todo: 'border-purple-200 bg-purple-50/70 dark:border-purple-900 dark:bg-purple-950/40',
+    in_progress:
+        'border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/40',
+    quote_sent:
+        'border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/40',
+    converted:
+        'border-green-200 bg-green-50/70 dark:border-green-900 dark:bg-green-950/40',
+    archived:
+        'border-neutral-200 bg-neutral-100/70 dark:border-neutral-800 dark:bg-neutral-900/40',
+};
+
+const columnTitleClasses: Record<LeadStatus, string> = {
+    todo: 'text-purple-700 dark:text-purple-300',
+    in_progress: 'text-sky-700 dark:text-sky-300',
+    quote_sent: 'text-amber-700 dark:text-amber-300',
+    converted: 'text-green-700 dark:text-green-300',
+    archived: 'text-neutral-600 dark:text-neutral-400',
+};
+
 /**
  * Kanban des leads : une colonne par statut, glisser-déposer pour changer
  * de colonne (mise à jour optimiste, retour arrière si le serveur refuse).
@@ -75,7 +96,7 @@ export function LeadKanban({ leads, statuses }: Props) {
         <div
             role="list"
             aria-label="Kanban des leads"
-            className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-4"
+            className="-mx-4 flex min-h-0 flex-1 snap-x gap-4 overflow-x-auto px-4 pb-4"
         >
             {statuses.map((status) => {
                 const column = items.filter(
@@ -104,20 +125,26 @@ export function LeadKanban({ leads, statuses }: Props) {
                         }}
                         onDrop={(event) => onDrop(event, status)}
                         className={cn(
-                            'bg-sidebar flex w-72 shrink-0 snap-start flex-col rounded-xl border transition-colors',
+                            'flex min-w-72 flex-1 shrink-0 snap-start flex-col rounded-xl border transition-[box-shadow,transform]',
+                            columnClasses[status.value],
                             overColumn === status.value &&
                                 draggingId !== null &&
-                                'border-primary/40 bg-accent',
+                                'ring-primary/30 ring-2',
                         )}
                     >
                         <header className="flex items-center justify-between px-3 pt-3 pb-2">
-                            <h2 className="text-sm font-medium">
+                            <h2
+                                className={cn(
+                                    'text-sm font-medium',
+                                    columnTitleClasses[status.value],
+                                )}
+                            >
                                 {status.label}
                             </h2>
                             <Badge
                                 variant="secondary"
                                 className={cn(
-                                    'rounded-full px-2',
+                                    'bg-background/80 rounded-full px-2',
                                     leadStatusClasses[status.value],
                                 )}
                                 aria-label={`${column.length} lead(s)`}

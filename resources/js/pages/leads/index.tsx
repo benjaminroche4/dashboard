@@ -39,7 +39,7 @@ export default function LeadsIndex({ leads, statuses }: Props) {
     return (
         <>
             <Head title="Leads" />
-            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-10">
+            <div className="flex w-full flex-1 flex-col px-4 pb-6">
                 <div className="flex items-end justify-between pt-8 pb-6">
                     <div>
                         <h1 className="text-lg font-medium">Leads</h1>
