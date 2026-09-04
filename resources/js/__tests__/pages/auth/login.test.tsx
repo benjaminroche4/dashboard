@@ -72,10 +72,20 @@ describe('Login page', () => {
 describe('Login page layout', () => {
     it('shows the illustration on the right column', () => {
         const { container } = render(<Login />);
-        const image = container.querySelector('img');
+        const image = container.querySelector('img[src="/images/login.svg"]');
 
-        expect(image).toHaveAttribute('src', '/images/login.svg');
+        expect(image).toBeInTheDocument();
         expect(image).toHaveClass('rounded-3xl', 'size-full', 'object-cover');
         expect(image?.parentElement).toHaveClass('lg:h-svh', 'lg:sticky');
+    });
+});
+
+describe('Login page logo', () => {
+    it('shows the small rounded logo', () => {
+        render(<Login />);
+        const logo = screen.getByAltText('Dashboard');
+
+        expect(logo).toHaveAttribute('src', '/images/logo.jpg');
+        expect(logo).toHaveClass('size-10', 'rounded-md');
     });
 });

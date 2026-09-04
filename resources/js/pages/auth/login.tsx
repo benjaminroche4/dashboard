@@ -1,5 +1,4 @@
 import { Head } from '@inertiajs/react';
-import AppLogoIcon from '@/components/app-logo-icon';
 import LoginForm from '@/components/login-form';
 
 type Props = {
@@ -14,10 +13,11 @@ export default function Login({ status }: Props) {
             <div className="bg-background grid min-h-svh lg:grid-cols-2">
                 <div className="flex items-center justify-center p-6 md:p-10">
                     <div className="w-full max-w-xs space-y-8">
-                        <div className="flex items-center gap-2">
-                            <AppLogoIcon className="text-foreground size-7 fill-current" />
-                            <span className="font-medium">Dashboard</span>
-                        </div>
+                        <img
+                            src="/images/logo.jpg"
+                            alt="Dashboard"
+                            className="size-10 rounded-md"
+                        />
                         <div className="space-y-1">
                             <h1 className="text-2xl font-medium tracking-tight text-balance">
                                 Log in to your account
