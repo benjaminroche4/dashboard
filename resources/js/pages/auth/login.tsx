@@ -30,7 +30,7 @@ export default function Login({ status }: Props) {
                     </div>
                 </div>
 
-                <div className="hidden p-4 lg:block">
+                <div className="hidden p-4 lg:sticky lg:top-0 lg:block lg:h-svh">
                     <img
                         src="/images/login.svg"
                         alt=""

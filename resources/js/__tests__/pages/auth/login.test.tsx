@@ -76,5 +76,6 @@ describe('Login page layout', () => {
 
         expect(image).toHaveAttribute('src', '/images/login.svg');
         expect(image).toHaveClass('rounded-3xl', 'size-full', 'object-cover');
+        expect(image?.parentElement).toHaveClass('lg:h-svh', 'lg:sticky');
     });
 });
