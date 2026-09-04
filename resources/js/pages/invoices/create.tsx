@@ -18,6 +18,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { formatMoney } from '@/lib/format';
@@ -380,6 +381,8 @@ export default function InvoicesCreate({
                             </div>
                         </section>
 
+                        <Separator />
+
                         <section className="grid gap-5">
                             <h2 className="text-base font-medium">
                                 Conditions
@@ -467,6 +470,8 @@ export default function InvoicesCreate({
                                 </div>
                             </div>
                         </section>
+
+                        <Separator />
 
                         <section className="grid gap-5">
                             <div className="flex items-center justify-between">
@@ -644,6 +649,8 @@ export default function InvoicesCreate({
                             </ol>
                         </section>
 
+                        <Separator />
+
                         <section className="grid gap-5">
                             <div>
                                 <h2 className="text-base font-medium">
@@ -702,6 +709,8 @@ export default function InvoicesCreate({
                                 </div>
                             </div>
                         </section>
+
+                        <Separator />
 
                         <section className="grid gap-2">
                             <Label htmlFor="notes">
