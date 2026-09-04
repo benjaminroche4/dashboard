@@ -30,8 +30,8 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
-/** Habillage du tableau : bordure arrondie (défaut), à plat, ou panneau gris façon sidebar. */
-export type DataTableFrame = 'bordered' | 'flat' | 'panel';
+/** Habillage du tableau : bordure arrondie (défaut) ou panneau gris façon sidebar. */
+export type DataTableFrame = 'bordered' | 'panel';
 
 const frames: Record<
     DataTableFrame,
@@ -42,12 +42,6 @@ const frames: Record<
         table: 'overflow-hidden rounded-md border',
         toolbar: 'pb-4',
         footer: 'py-4',
-    },
-    flat: {
-        wrapper: '',
-        table: 'border-y',
-        toolbar: 'py-3',
-        footer: 'py-3',
     },
     panel: {
         wrapper: 'bg-sidebar rounded-xl border p-2',
