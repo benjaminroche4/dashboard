@@ -1,6 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Plus, Trash2 } from 'lucide-react';
 import type { FormEvent } from 'react';
+import { DatePicker } from '@/components/date-picker';
 import InputError from '@/components/input-error';
 import { InvoicePreview } from '@/components/invoices/invoice-preview';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ type Props = {
     company: Company;
     offers: Offer[];
     currencies: { value: Currency; label: string }[];
+    vatRates: { value: number; label: string }[];
     defaults: {
         currency: Currency;
         vat_rate: number;
@@ -58,6 +60,7 @@ export default function InvoicesCreate({
     company,
     offers,
     currencies,
+    vatRates,
     defaults,
 }: Props) {
     const firstOffer = offers[0]?.value ?? 'accompagne';
@@ -145,7 +148,7 @@ export default function InvoicesCreate({
         <>
             <Head title="Nouvelle facture" />
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4">
-                <div className="flex items-end justify-between pt-6 pb-4">
+                <div className="flex items-end justify-between pt-8 pb-6">
                     <div>
                         <h1 className="text-lg font-medium">
                             Nouvelle facture
@@ -170,14 +173,14 @@ export default function InvoicesCreate({
                     </div>
                 </div>
 
-                <div className="grid gap-4 pb-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <div className="grid gap-8 pb-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                     <form
                         id="invoice-form"
                         onSubmit={submit}
                         className="grid gap-8"
                         data-test="invoice-form"
                     >
-                        <section className="grid gap-4">
+                        <section className="grid gap-5">
                             <h2 className="text-base font-medium">Client</h2>
                             <div className="grid gap-2">
                                 <Label htmlFor="client_name">Nom</Label>
@@ -197,7 +200,7 @@ export default function InvoicesCreate({
                                 />
                                 <InputError message={form.errors.client_name} />
                             </div>
-                            <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="grid gap-5 sm:grid-cols-2">
                                 <div className="grid gap-2">
                                     <Label htmlFor="client_email">E-mail</Label>
                                     <Input
@@ -241,11 +244,11 @@ export default function InvoicesCreate({
                             </div>
                         </section>
 
-                        <section className="grid gap-4">
+                        <section className="grid gap-5">
                             <h2 className="text-base font-medium">
                                 Conditions
                             </h2>
-                            <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="grid gap-5 sm:grid-cols-2">
                                 <div className="grid gap-2">
                                     <Label htmlFor="currency">Devise</Label>
                                     <Select
@@ -276,20 +279,30 @@ export default function InvoicesCreate({
                                     />
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="vat_rate">TVA (%)</Label>
-                                    <Input
-                                        id="vat_rate"
-                                        name="vat_rate"
-                                        className="bg-background"
-                                        inputMode="decimal"
+                                    <Label htmlFor="vat_rate">TVA</Label>
+                                    <Select
                                         value={form.data.vat_rate}
-                                        onChange={(e) =>
-                                            form.setData(
-                                                'vat_rate',
-                                                e.target.value,
-                                            )
+                                        onValueChange={(value) =>
+                                            form.setData('vat_rate', value)
                                         }
-                                    />
+                                    >
+                                        <SelectTrigger
+                                            id="vat_rate"
+                                            className="bg-background w-full"
+                                        >
+                                            <SelectValue placeholder="Taux de TVA" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {vatRates.map((rate) => (
+                                                <SelectItem
+                                                    key={rate.value}
+                                                    value={String(rate.value)}
+                                                >
+                                                    {rate.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                     <InputError
                                         message={form.errors.vat_rate}
                                     />
@@ -298,19 +311,13 @@ export default function InvoicesCreate({
                                     <Label htmlFor="issued_at">
                                         Date d'émission
                                     </Label>
-                                    <Input
+                                    <DatePicker
                                         id="issued_at"
-                                        name="issued_at"
-                                        className="bg-background"
-                                        type="date"
+                                        aria-label="Date d'émission"
                                         value={form.data.issued_at}
-                                        onChange={(e) =>
-                                            form.setData(
-                                                'issued_at',
-                                                e.target.value,
-                                            )
+                                        onChange={(iso) =>
+                                            form.setData('issued_at', iso)
                                         }
-                                        required
                                     />
                                     <InputError
                                         message={form.errors.issued_at}
@@ -318,26 +325,20 @@ export default function InvoicesCreate({
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="due_at">Échéance</Label>
-                                    <Input
+                                    <DatePicker
                                         id="due_at"
-                                        name="due_at"
-                                        className="bg-background"
-                                        type="date"
+                                        aria-label="Échéance"
                                         value={form.data.due_at}
-                                        onChange={(e) =>
-                                            form.setData(
-                                                'due_at',
-                                                e.target.value,
-                                            )
+                                        onChange={(iso) =>
+                                            form.setData('due_at', iso)
                                         }
-                                        required
                                     />
                                     <InputError message={form.errors.due_at} />
                                 </div>
                             </div>
                         </section>
 
-                        <section className="grid gap-4">
+                        <section className="grid gap-5">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <h2 className="text-base font-medium">
@@ -358,7 +359,7 @@ export default function InvoicesCreate({
                                 </Button>
                             </div>
                             <InputError message={form.errors.items} />
-                            <ol role="list" className="grid gap-3">
+                            <ol role="list" className="grid gap-4">
                                 {form.data.items.map((line, index) => {
                                     const lineTotal = Math.round(
                                         toNumber(line.quantity) *
@@ -368,7 +369,7 @@ export default function InvoicesCreate({
                                     return (
                                         <li
                                             key={index}
-                                            className="bg-background grid gap-4 rounded-lg border p-4"
+                                            className="bg-background grid gap-5 rounded-lg border p-5"
                                             data-test="invoice-line"
                                         >
                                             <div className="flex items-center justify-between">

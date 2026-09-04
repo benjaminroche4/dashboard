@@ -26,8 +26,8 @@ export default function InvoicesIndex({ invoices }: Props) {
     return (
         <>
             <Head title="Factures" />
-            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4">
-                <div className="flex items-end justify-between pt-6 pb-4">
+            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-10">
+                <div className="flex items-end justify-between pt-8 pb-6">
                     <div>
                         <h1 className="text-lg font-medium">Factures</h1>
                         <p className="text-muted-foreground text-sm">

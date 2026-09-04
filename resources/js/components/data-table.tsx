@@ -44,10 +44,10 @@ const frames: Record<
         footer: 'py-4',
     },
     panel: {
-        wrapper: 'bg-sidebar rounded-xl border p-2',
+        wrapper: 'bg-sidebar rounded-xl border p-3',
         table: 'bg-background overflow-hidden rounded-lg border',
-        toolbar: 'px-2 py-2',
-        footer: 'px-2 pt-3 pb-1',
+        toolbar: 'px-1 pb-4 pt-1',
+        footer: 'px-1 pt-4 pb-1',
     },
 };
 

@@ -84,6 +84,11 @@ const props = {
         { value: 'CHF' as const, label: 'Franc suisse (CHF)' },
         { value: 'EUR' as const, label: 'Euro (EUR)' },
     ],
+    vatRates: [
+        { value: 8.1, label: '8,1 % · taux normal' },
+        { value: 2.6, label: '2,6 % · taux réduit' },
+        { value: 0, label: '0 % · exonéré / export' },
+    ],
     defaults: {
         currency: 'CHF' as const,
         vat_rate: 8.1,
@@ -130,6 +135,25 @@ describe('Invoice creation page', () => {
                 'Offre Confié',
             ),
         ).toBeInTheDocument();
+    });
+
+    it('offers the VAT rates in a dropdown with the Swiss rate preselected', () => {
+        render(<InvoicesCreate {...props} />);
+
+        expect(screen.getByRole('combobox', { name: 'TVA' })).toHaveTextContent(
+            '8,1 % · taux normal',
+        );
+    });
+
+    it('shows the dates in French through the date pickers', () => {
+        render(<InvoicesCreate {...props} />);
+
+        expect(
+            screen.getByRole('button', { name: "Date d'émission" }),
+        ).toHaveTextContent('4 septembre 2026');
+        expect(
+            screen.getByRole('button', { name: 'Échéance' }),
+        ).toHaveTextContent('4 octobre 2026');
     });
 
     it('adds and removes lines', async () => {
