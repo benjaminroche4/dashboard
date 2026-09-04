@@ -1,3 +1,4 @@
+import { usePage } from '@inertiajs/react';
 import { Activity, Keyboard, Users } from 'lucide-react';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
@@ -10,6 +11,8 @@ import {
     SheetTitle,
 } from '@/components/ui/sheet';
 import { useInitials } from '@/hooks/use-initials';
+import { cn } from '@/lib/utils';
+import { staffRoleLabels } from '@/types/auth';
 import { useOnlineStaff } from '@/hooks/use-online-staff';
 import {
     describeEvent,
@@ -50,41 +53,79 @@ function Section({
 }
 
 function OnlineSection() {
-    const members = useOnlineStaff();
+    const online = useOnlineStaff();
+    const { staff, auth } = usePage().props;
     const getInitials = useInitials();
+    const onlineIds = new Set(online.map((member) => member.id));
+
+    // Annuaire complet, connectés d'abord, puis par nom.
+    const members = [...staff].sort((a, b) => {
+        const delta = Number(onlineIds.has(b.id)) - Number(onlineIds.has(a.id));
+
+        return delta !== 0 ? delta : a.name.localeCompare(b.name, 'fr');
+    });
 
     return (
         <Section
             icon={Users}
-            title="En ligne"
+            title="Membres"
             aside={
                 <span className="text-muted-foreground ml-auto tabular-nums">
-                    {members.length}
+                    {onlineIds.size} / {members.length} en ligne
                 </span>
             }
         >
             {members.length === 0 ? (
                 <p className="text-muted-foreground px-2 py-1.5 text-sm">
-                    Personne d'autre pour le moment.
+                    Aucun membre.
                 </p>
             ) : (
                 <ul role="list" className="space-y-1">
-                    {members.map((member) => (
-                        <li
-                            key={member.id}
-                            className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex h-8 items-center gap-2 rounded-md px-2 text-sm transition-colors"
-                        >
-                            <span className="relative">
-                                <Avatar className="size-7 rounded-md">
-                                    <AvatarFallback className="rounded-md text-xs">
-                                        {getInitials(member.name)}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <span className="ring-sidebar absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full bg-emerald-500 ring-2" />
-                            </span>
-                            <span className="truncate">{member.name}</span>
-                        </li>
-                    ))}
+                    {members.map((member) => {
+                        const isOnline = onlineIds.has(member.id);
+
+                        return (
+                            <li
+                                key={member.id}
+                                className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex h-9 items-center gap-2 rounded-md px-2 text-sm transition-colors"
+                                data-online={isOnline}
+                            >
+                                <span className="relative">
+                                    <Avatar className="size-7 rounded-md">
+                                        <AvatarFallback className="rounded-md text-xs">
+                                            {getInitials(member.name)}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <span
+                                        role="img"
+                                        aria-label={
+                                            isOnline ? 'En ligne' : 'Hors ligne'
+                                        }
+                                        className={cn(
+                                            'ring-sidebar absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2',
+                                            isOnline
+                                                ? 'bg-emerald-500'
+                                                : 'bg-neutral-400',
+                                        )}
+                                    />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block truncate">
+                                        {member.name}
+                                        {member.id === auth.user.id && (
+                                            <span className="text-muted-foreground">
+                                                {' '}
+                                                (vous)
+                                            </span>
+                                        )}
+                                    </span>
+                                    <span className="text-muted-foreground block truncate text-xs">
+                                        {staffRoleLabels[member.role]}
+                                    </span>
+                                </span>
+                            </li>
+                        );
+                    })}
                 </ul>
             )}
         </Section>

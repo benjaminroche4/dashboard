@@ -18,6 +18,18 @@ vi.mock('@/hooks/use-staff-channel', () => ({
     },
 }));
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }));
+vi.mock('@inertiajs/react', () => ({
+    usePage: () => ({
+        props: {
+            auth: { user: { id: 1, name: 'Admin' } },
+            staff: [
+                { id: 1, name: 'Admin', role: 'admin' },
+                { id: 2, name: 'Admin Deux', role: 'admin' },
+                { id: 3, name: 'Claire Dubois', role: 'manager' },
+            ],
+        },
+    }),
+}));
 
 import { InfoSidebar } from '@/components/info-sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -38,24 +50,29 @@ describe('InfoSidebar', () => {
         state.listener = null;
     });
 
-    it('lists online members with a presence dot', () => {
-        state.members = [
-            { id: 1, name: 'Admin' },
-            { id: 2, name: 'Admin Deux' },
-        ];
+    it('lists every staff member with their live status, online first', () => {
+        state.members = [{ id: 3, name: 'Claire Dubois' }];
         renderSidebar();
 
-        expect(screen.getByText('Admin')).toBeInTheDocument();
-        expect(screen.getByText('Admin Deux')).toBeInTheDocument();
-        expect(screen.getByText('2')).toBeInTheDocument();
+        const rows = screen
+            .getAllByRole('listitem')
+            .filter((li) => li.hasAttribute('data-online'));
+
+        expect(rows).toHaveLength(3);
+        expect(rows[0]).toHaveTextContent('Claire Dubois');
+        expect(rows[0]).toHaveTextContent('Manager');
+        expect(rows[0].querySelector('[aria-label="En ligne"]')).not.toBeNull();
+        expect(
+            rows[1].querySelector('[aria-label="Hors ligne"]'),
+        ).not.toBeNull();
+        expect(screen.getByText('1 / 3 en ligne')).toBeInTheDocument();
+        expect(screen.getByText('(vous)')).toBeInTheDocument();
     });
 
     it('shows empty states and the shortcuts', () => {
         renderSidebar();
 
-        expect(
-            screen.getByText("Personne d'autre pour le moment."),
-        ).toBeInTheDocument();
+        expect(screen.getByText('0 / 3 en ligne')).toBeInTheDocument();
         expect(
             screen.getByText(
                 'Les actions des autres membres apparaîtront ici.',

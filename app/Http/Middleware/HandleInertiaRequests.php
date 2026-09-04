@@ -48,6 +48,18 @@ class HandleInertiaRequests extends Middleware
                     'viewPulse' => $request->user()?->can('viewPulse') ?? false,
                 ],
             ],
+            // Annuaire du staff (pour l'état connecté / hors ligne du panneau d'informations).
+            'staff' => fn (): array => $request->user() === null
+                ? []
+                : User::query()
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'role'])
+                    ->map(fn (User $member): array => [
+                        'id' => $member->id,
+                        'name' => $member->name,
+                        'role' => $member->role->value,
+                    ])
+                    ->all(),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

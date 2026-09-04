@@ -1,4 +1,4 @@
-import type { Auth } from '@/types/auth';
+import type { Auth, StaffDirectoryEntry } from '@/types/auth';
 
 declare module 'react' {
     interface InputHTMLAttributes<T> {
@@ -11,6 +11,7 @@ declare module '@inertiajs/core' {
         sharedPageProps: {
             name: string;
             auth: Auth;
+            staff: StaffDirectoryEntry[];
             sidebarOpen: boolean;
             [key: string]: unknown;
         };

@@ -19,6 +19,13 @@ export type User = {
     [key: string]: unknown;
 };
 
+/** Entrée de l'annuaire du staff partagé avec le front. */
+export type StaffDirectoryEntry = {
+    id: number;
+    name: string;
+    role: StaffRole;
+};
+
 export type Permissions = {
     manageStaff: boolean;
     viewPulse: boolean;

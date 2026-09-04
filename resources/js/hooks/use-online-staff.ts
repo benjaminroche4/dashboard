@@ -1,37 +1,25 @@
-import { usePresenceChannel } from '@laravel/echo-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
+import {
+    ensurePresenceJoined,
+    getPresenceSnapshot,
+    subscribePresence,
+    type PresenceMember,
+} from '@/lib/presence-store';
 
-export type OnlineStaffMember = { id: number; name: string };
+export type OnlineStaffMember = PresenceMember;
 
 /**
- * Liste des membres du staff actuellement connectés au canal de présence.
+ * Membres du staff actuellement connectés au canal de présence.
+ * Partagé entre tous les composants, mis à jour en direct.
  */
 export function useOnlineStaff(): OnlineStaffMember[] {
-    const { channel } = usePresenceChannel('staff');
-    const [members, setMembers] = useState<OnlineStaffMember[]>([]);
-
     useEffect(() => {
-        const presence = channel();
+        ensurePresenceJoined();
+    }, []);
 
-        if (!presence) {
-            return;
-        }
-
-        presence
-            .here((here: OnlineStaffMember[]) => setMembers(here))
-            .joining((member: OnlineStaffMember) =>
-                setMembers((current) =>
-                    current.some((m) => m.id === member.id)
-                        ? current
-                        : [...current, member],
-                ),
-            )
-            .leaving((member: OnlineStaffMember) =>
-                setMembers((current) =>
-                    current.filter((m) => m.id !== member.id),
-                ),
-            );
-    }, [channel]);
-
-    return members;
+    return useSyncExternalStore(
+        subscribePresence,
+        getPresenceSnapshot,
+        getPresenceSnapshot,
+    );
 }
