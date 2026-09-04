@@ -174,7 +174,7 @@ export default function InvoicesCreate({
                     <form
                         id="invoice-form"
                         onSubmit={submit}
-                        className="bg-sidebar grid gap-6 rounded-xl border p-4"
+                        className="grid gap-8"
                         data-test="invoice-form"
                     >
                         <section className="grid gap-4">
