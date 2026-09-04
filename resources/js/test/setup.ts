@@ -11,6 +11,9 @@ class ResizeObserverStub {
 
 vi.stubGlobal('ResizeObserver', ResizeObserverStub);
 
+// jsdom n'implémente pas scrollIntoView (utilisé par cmdk).
+Element.prototype.scrollIntoView = vi.fn();
+
 // jsdom n'implémente pas matchMedia (utilisé pour prefers-reduced-motion).
 vi.stubGlobal(
     'matchMedia',
