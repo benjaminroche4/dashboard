@@ -1,10 +1,12 @@
 import { router } from '@inertiajs/react';
 import {
+    Contact,
     FileText,
     LayoutGrid,
     Palette,
     Search,
     ShieldCheck,
+    Sparkles,
     UserCircle,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -20,6 +22,7 @@ import {
 import { dashboard } from '@/routes';
 import { edit as editAppearance } from '@/routes/appearance';
 import { index as invoicesIndex } from '@/routes/invoices';
+import { create as leadsCreate, index as leadsIndex } from '@/routes/leads';
 import { edit as editProfile } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
 
@@ -39,6 +42,18 @@ const destinations: Destination[] = [
         url: dashboard().url,
         icon: LayoutGrid,
         shortcut: '⌘D',
+    },
+    {
+        title: 'Leads',
+        keywords: 'prospects clients statut suivi',
+        url: leadsIndex().url,
+        icon: Contact,
+    },
+    {
+        title: 'Converting Machine',
+        keywords: 'lead prospect nouveau formulaire qualification',
+        url: leadsCreate().url,
+        icon: Sparkles,
     },
     {
         title: 'Factures',

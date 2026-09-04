@@ -94,6 +94,14 @@ Echo est configuré dans `resources/js/app.tsx` via `configureEcho({ broadcaster
 - **Validation locale** : `validateInvoiceForm()` (même fichier) bloque l'envoi du formulaire et affiche les erreurs avec les mêmes clés que Laravel ; les erreurs serveur priment toujours.
 - Les clés vivent dans `.env` (jamais commité). Sur Laravel Cloud, les ajouter aux variables d'environnement, `VITE_*` étant lues au build.
 
+## Leads (Converting Machine)
+
+- Modèle `Lead` (`app/Models/Lead.php`), enums `LeadStatus` (`new` → `contacted` → `in_discussion` → `converted` | `lost`, libres : le staff choisit) et `LeadSource`. Un lead porte contact, offre visée, date d'arrivée, budget mensuel en centimes + devise, ville d'origine, source, message.
+- Deux entrées dans la sidebar sous **Leads** : « Liste des leads » (`leads/index`, Data Table avec badge de statut cliquable `LeadStatusMenu` → route `leads.status`, PATCH) et « Converting Machine » (`leads/create`, formulaire de qualification saisi par le staff). Pas de page publique : la règle « seul `/login` est public » reste vraie.
+- Flux : `StoreLeadRequest` (nom + prénom obligatoires, e-mail **ou** téléphone) → `LeadData` → `CreateLead` (statut `new`, `DashboardUpdated`). Changement de statut : `UpdateLeadStatusRequest` → `UpdateLeadStatus` (date `last_contacted_at`, `DashboardUpdated`).
+- Droits : `LeadPolicy`, tout le staff consulte, crée et fait avancer ; seuls les admins suppriment.
+- Fixtures : `LeadFactory` (états `status()`, `converted()`), `LeadSeeder`, côté front `resources/js/test/fixtures/lead.ts`.
+
 ## Architecture et conventions
 
 Ces règles sont **vérifiées par `tests/Architecture/ArchitectureTest.php`** (pest-plugin-arch). Une violation casse la suite.

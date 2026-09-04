@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { index as invoicesIndex } from '@/routes/invoices';
+import { create as leadsCreate, index as leadsIndex } from '@/routes/leads';
 import type { NavGroup } from '@/types';
 
 // Les pages hors tableau de bord ne sont pas encore créées : liens en attente.
@@ -43,7 +44,11 @@ const navGroups: NavGroup[] = [
                 title: 'Leads',
                 href: '#',
                 icon: Contact,
-                items: [{ title: 'Factures', href: invoicesIndex() }],
+                items: [
+                    { title: 'Liste des leads', href: leadsIndex() },
+                    { title: 'Converting Machine', href: leadsCreate() },
+                    { title: 'Factures', href: invoicesIndex() },
+                ],
             },
             { title: 'Rapports', href: '#', icon: ChartPie },
             { title: 'Calendrier', href: '#', icon: Calendar },

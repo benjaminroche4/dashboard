@@ -282,5 +282,7 @@
     "Cette facture ne peut pas être marquée payée depuis le statut « :status ».": "Cette facture ne peut pas être marquée payée depuis le statut « :status ».",
     "Facture :number envoyée avec le PDF à :email.": "Facture :number envoyée avec le PDF à :email.",
     "Facture :number envoyée à :email (sans PDF, DocRaptor non configuré).": "Facture :number envoyée à :email (sans PDF, DocRaptor non configuré).",
-    "Facture :number marquée payée.": "Facture :number marquée payée."
+    "Facture :number marquée payée.": "Facture :number marquée payée.",
+    "Lead :name ajouté.": "Lead :name ajouté.",
+    ":name est maintenant « :status ».": ":name est maintenant « :status »."
 }
