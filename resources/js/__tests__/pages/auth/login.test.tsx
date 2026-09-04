@@ -147,6 +147,6 @@ describe('Login page logo', () => {
 
         expect(logo).toHaveAttribute('src', '/images/logo.jpg');
         expect(logo).toHaveClass('size-10', 'rounded-md');
-        expect(logo.parentElement?.parentElement).toHaveClass('p-px');
+        expect(logo.parentElement).toHaveClass('shimmer-border');
     });
 });

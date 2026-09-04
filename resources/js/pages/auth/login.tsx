@@ -15,7 +15,7 @@ export default function Login({ status }: Props) {
             <div className="bg-background grid min-h-svh lg:grid-cols-2">
                 <div className="flex items-center justify-center p-6 md:p-10">
                     <div className="animate-in fade-in w-full max-w-sm space-y-8 duration-500">
-                        <ShimmerBorder radiusClassName="rounded-[9px]">
+                        <ShimmerBorder className="rounded-md">
                             <img
                                 src="/images/logo.jpg"
                                 alt="Dashboard"
