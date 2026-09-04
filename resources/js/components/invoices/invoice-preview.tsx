@@ -22,7 +22,7 @@ export function InvoicePreview({
     return (
         <article
             aria-label="Aperçu de la facture"
-            className="bg-background text-foreground flex aspect-[1/1.3] w-full flex-col gap-8 overflow-hidden rounded-xl border p-8 text-sm shadow-sm"
+            className="bg-background text-foreground flex aspect-[1/1.3] w-full flex-col gap-8 overflow-hidden rounded-lg border p-8 text-sm"
         >
             <header className="flex items-start justify-between gap-6">
                 <div className="space-y-1">

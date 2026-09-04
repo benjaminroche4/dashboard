@@ -144,344 +144,23 @@ export default function InvoicesCreate({
     return (
         <>
             <Head title="Nouvelle facture" />
-            <div className="mx-auto grid w-full max-w-7xl gap-6 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <form
-                    onSubmit={submit}
-                    className="flex flex-col gap-8"
-                    data-test="invoice-form"
-                >
-                    <section className="grid gap-4">
-                        <h2 className="text-base font-medium">Client</h2>
-                        <div className="grid gap-2">
-                            <Label htmlFor="client_name">Nom</Label>
-                            <Input
-                                id="client_name"
-                                name="client_name"
-                                value={form.data.client_name}
-                                onChange={(e) =>
-                                    form.setData('client_name', e.target.value)
-                                }
-                                required
-                                autoFocus
-                            />
-                            <InputError message={form.errors.client_name} />
-                        </div>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="grid gap-2">
-                                <Label htmlFor="client_email">E-mail</Label>
-                                <Input
-                                    id="client_email"
-                                    name="client_email"
-                                    type="email"
-                                    value={form.data.client_email}
-                                    onChange={(e) =>
-                                        form.setData(
-                                            'client_email',
-                                            e.target.value,
-                                        )
-                                    }
-                                />
-                                <InputError
-                                    message={form.errors.client_email}
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="client_address">Adresse</Label>
-                                <Textarea
-                                    id="client_address"
-                                    name="client_address"
-                                    rows={3}
-                                    value={form.data.client_address}
-                                    onChange={(e) =>
-                                        form.setData(
-                                            'client_address',
-                                            e.target.value,
-                                        )
-                                    }
-                                />
-                                <InputError
-                                    message={form.errors.client_address}
-                                />
-                            </div>
-                        </div>
-                    </section>
-
-                    <section className="grid gap-4">
-                        <h2 className="text-base font-medium">Conditions</h2>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="grid gap-2">
-                                <Label htmlFor="currency">Devise</Label>
-                                <Select
-                                    value={form.data.currency}
-                                    onValueChange={(value) =>
-                                        setCurrency(value as Currency)
-                                    }
-                                >
-                                    <SelectTrigger
-                                        id="currency"
-                                        className="w-full"
-                                    >
-                                        <SelectValue placeholder="Devise" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {currencies.map((currency) => (
-                                            <SelectItem
-                                                key={currency.value}
-                                                value={currency.value}
-                                            >
-                                                {currency.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <InputError message={form.errors.currency} />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="vat_rate">TVA (%)</Label>
-                                <Input
-                                    id="vat_rate"
-                                    name="vat_rate"
-                                    inputMode="decimal"
-                                    value={form.data.vat_rate}
-                                    onChange={(e) =>
-                                        form.setData('vat_rate', e.target.value)
-                                    }
-                                />
-                                <InputError message={form.errors.vat_rate} />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="issued_at">
-                                    Date d'émission
-                                </Label>
-                                <Input
-                                    id="issued_at"
-                                    name="issued_at"
-                                    type="date"
-                                    value={form.data.issued_at}
-                                    onChange={(e) =>
-                                        form.setData(
-                                            'issued_at',
-                                            e.target.value,
-                                        )
-                                    }
-                                    required
-                                />
-                                <InputError message={form.errors.issued_at} />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="due_at">Échéance</Label>
-                                <Input
-                                    id="due_at"
-                                    name="due_at"
-                                    type="date"
-                                    value={form.data.due_at}
-                                    onChange={(e) =>
-                                        form.setData('due_at', e.target.value)
-                                    }
-                                    required
-                                />
-                                <InputError message={form.errors.due_at} />
-                            </div>
-                        </div>
-                    </section>
-
-                    <section className="grid gap-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h2 className="text-base font-medium">
-                                    Lignes
-                                </h2>
-                                <p className="text-muted-foreground text-sm">
-                                    Une ligne par offre facturée.
-                                </p>
-                            </div>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={addLine}
-                            >
-                                <Plus />
-                                Ajouter une ligne
-                            </Button>
-                        </div>
-                        <InputError message={form.errors.items} />
-                        <ol role="list" className="grid gap-3">
-                            {form.data.items.map((line, index) => {
-                                const lineTotal = Math.round(
-                                    toNumber(line.quantity) *
-                                        toCents(line.unit_price),
-                                );
-
-                                return (
-                                    <li
-                                        key={index}
-                                        className="bg-sidebar grid gap-4 rounded-xl border p-4"
-                                        data-test="invoice-line"
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-muted-foreground text-xs font-medium uppercase">
-                                                Ligne {index + 1}
-                                            </p>
-                                            {form.data.items.length > 1 && (
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="text-muted-foreground hover:text-destructive size-7"
-                                                    aria-label={`Supprimer la ligne ${index + 1}`}
-                                                    onClick={() =>
-                                                        removeLine(index)
-                                                    }
-                                                >
-                                                    <Trash2 className="size-4" />
-                                                </Button>
-                                            )}
-                                        </div>
-
-                                        <RadioGroup
-                                            aria-label={`Offre ligne ${index + 1}`}
-                                            value={line.offer}
-                                            onValueChange={(value) =>
-                                                setOffer(
-                                                    index,
-                                                    value as OfferValue,
-                                                )
-                                            }
-                                            className="grid gap-3 sm:grid-cols-2"
-                                        >
-                                            {offers.map((offer) => (
-                                                <Label
-                                                    key={offer.value}
-                                                    htmlFor={`line-${index}-${offer.value}`}
-                                                    className="bg-background has-data-[state=checked]:border-primary has-data-[state=checked]:ring-primary/20 hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-3 font-normal transition-colors has-data-[state=checked]:ring-2"
-                                                >
-                                                    <RadioGroupItem
-                                                        id={`line-${index}-${offer.value}`}
-                                                        value={offer.value}
-                                                        className="mt-0.5"
-                                                    />
-                                                    <span className="grid gap-0.5">
-                                                        <span className="font-medium">
-                                                            {offer.label}
-                                                        </span>
-                                                        <span className="text-muted-foreground text-xs">
-                                                            {formatMoney(
-                                                                offer.prices[
-                                                                    form.data
-                                                                        .currency
-                                                                ],
-                                                                form.data
-                                                                    .currency,
-                                                            )}{' '}
-                                                            par défaut
-                                                        </span>
-                                                    </span>
-                                                </Label>
-                                            ))}
-                                        </RadioGroup>
-                                        <InputError
-                                            message={lineError(index, 'offer')}
-                                        />
-
-                                        <div className="grid gap-3 sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:items-end">
-                                            <div className="grid gap-1.5">
-                                                <Label
-                                                    htmlFor={`line-${index}-quantity`}
-                                                >
-                                                    Quantité
-                                                </Label>
-                                                <Input
-                                                    id={`line-${index}-quantity`}
-                                                    aria-label={`Quantité ligne ${index + 1}`}
-                                                    inputMode="decimal"
-                                                    className="bg-background"
-                                                    value={line.quantity}
-                                                    onChange={(e) =>
-                                                        setLine(index, {
-                                                            quantity:
-                                                                e.target.value,
-                                                        })
-                                                    }
-                                                />
-                                                <InputError
-                                                    message={lineError(
-                                                        index,
-                                                        'quantity',
-                                                    )}
-                                                />
-                                            </div>
-                                            <div className="grid gap-1.5">
-                                                <Label
-                                                    htmlFor={`line-${index}-price`}
-                                                >
-                                                    Prix unitaire (
-                                                    {form.data.currency})
-                                                </Label>
-                                                <Input
-                                                    id={`line-${index}-price`}
-                                                    aria-label={`Prix unitaire ligne ${index + 1}`}
-                                                    inputMode="decimal"
-                                                    className="bg-background"
-                                                    placeholder="0.00"
-                                                    value={line.unit_price}
-                                                    onChange={(e) =>
-                                                        setLine(index, {
-                                                            unit_price:
-                                                                e.target.value,
-                                                        })
-                                                    }
-                                                />
-                                                <InputError
-                                                    message={lineError(
-                                                        index,
-                                                        'unit_price',
-                                                    )}
-                                                />
-                                            </div>
-                                            <div className="grid gap-1.5 text-right">
-                                                <span className="text-muted-foreground text-sm">
-                                                    Total ligne
-                                                </span>
-                                                <span
-                                                    className="h-9 leading-9 font-medium tabular-nums"
-                                                    data-test="line-total"
-                                                >
-                                                    {formatMoney(
-                                                        lineTotal,
-                                                        form.data.currency,
-                                                    )}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </li>
-                                );
-                            })}
-                        </ol>
-                    </section>
-
-                    <section className="grid gap-2">
-                        <Label htmlFor="notes">
-                            Notes (affichées sur la facture)
-                        </Label>
-                        <Textarea
-                            id="notes"
-                            name="notes"
-                            rows={3}
-                            value={form.data.notes}
-                            onChange={(e) =>
-                                form.setData('notes', e.target.value)
-                            }
-                        />
-                        <InputError message={form.errors.notes} />
-                    </section>
-
-                    <div className="flex items-center justify-end gap-2">
+            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4">
+                <div className="flex items-end justify-between pt-6 pb-4">
+                    <div>
+                        <h1 className="text-lg font-medium">
+                            Nouvelle facture
+                        </h1>
+                        <p className="text-muted-foreground text-sm">
+                            L'aperçu se met à jour au fur et à mesure.
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2">
                         <Button type="button" variant="ghost" asChild>
                             <Link href={invoicesIndex()}>Annuler</Link>
                         </Button>
                         <Button
                             type="submit"
+                            form="invoice-form"
                             disabled={form.processing}
                             data-test="invoice-submit"
                         >
@@ -489,15 +168,383 @@ export default function InvoicesCreate({
                             Créer la facture
                         </Button>
                     </div>
-                </form>
+                </div>
 
-                <aside className="lg:sticky lg:top-4 lg:self-start">
-                    <InvoicePreview
-                        form={form.data}
-                        company={company}
-                        offers={offers}
-                    />
-                </aside>
+                <div className="grid gap-4 pb-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                    <form
+                        id="invoice-form"
+                        onSubmit={submit}
+                        className="bg-sidebar grid gap-6 rounded-xl border p-4"
+                        data-test="invoice-form"
+                    >
+                        <section className="grid gap-4">
+                            <h2 className="text-base font-medium">Client</h2>
+                            <div className="grid gap-2">
+                                <Label htmlFor="client_name">Nom</Label>
+                                <Input
+                                    id="client_name"
+                                    name="client_name"
+                                    className="bg-background"
+                                    value={form.data.client_name}
+                                    onChange={(e) =>
+                                        form.setData(
+                                            'client_name',
+                                            e.target.value,
+                                        )
+                                    }
+                                    required
+                                    autoFocus
+                                />
+                                <InputError message={form.errors.client_name} />
+                            </div>
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="client_email">E-mail</Label>
+                                    <Input
+                                        id="client_email"
+                                        name="client_email"
+                                        className="bg-background"
+                                        type="email"
+                                        value={form.data.client_email}
+                                        onChange={(e) =>
+                                            form.setData(
+                                                'client_email',
+                                                e.target.value,
+                                            )
+                                        }
+                                    />
+                                    <InputError
+                                        message={form.errors.client_email}
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="client_address">
+                                        Adresse
+                                    </Label>
+                                    <Textarea
+                                        id="client_address"
+                                        name="client_address"
+                                        className="bg-background"
+                                        rows={3}
+                                        value={form.data.client_address}
+                                        onChange={(e) =>
+                                            form.setData(
+                                                'client_address',
+                                                e.target.value,
+                                            )
+                                        }
+                                    />
+                                    <InputError
+                                        message={form.errors.client_address}
+                                    />
+                                </div>
+                            </div>
+                        </section>
+
+                        <section className="grid gap-4">
+                            <h2 className="text-base font-medium">
+                                Conditions
+                            </h2>
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="currency">Devise</Label>
+                                    <Select
+                                        value={form.data.currency}
+                                        onValueChange={(value) =>
+                                            setCurrency(value as Currency)
+                                        }
+                                    >
+                                        <SelectTrigger
+                                            id="currency"
+                                            className="bg-background w-full"
+                                        >
+                                            <SelectValue placeholder="Devise" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {currencies.map((currency) => (
+                                                <SelectItem
+                                                    key={currency.value}
+                                                    value={currency.value}
+                                                >
+                                                    {currency.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <InputError
+                                        message={form.errors.currency}
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="vat_rate">TVA (%)</Label>
+                                    <Input
+                                        id="vat_rate"
+                                        name="vat_rate"
+                                        className="bg-background"
+                                        inputMode="decimal"
+                                        value={form.data.vat_rate}
+                                        onChange={(e) =>
+                                            form.setData(
+                                                'vat_rate',
+                                                e.target.value,
+                                            )
+                                        }
+                                    />
+                                    <InputError
+                                        message={form.errors.vat_rate}
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="issued_at">
+                                        Date d'émission
+                                    </Label>
+                                    <Input
+                                        id="issued_at"
+                                        name="issued_at"
+                                        className="bg-background"
+                                        type="date"
+                                        value={form.data.issued_at}
+                                        onChange={(e) =>
+                                            form.setData(
+                                                'issued_at',
+                                                e.target.value,
+                                            )
+                                        }
+                                        required
+                                    />
+                                    <InputError
+                                        message={form.errors.issued_at}
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="due_at">Échéance</Label>
+                                    <Input
+                                        id="due_at"
+                                        name="due_at"
+                                        className="bg-background"
+                                        type="date"
+                                        value={form.data.due_at}
+                                        onChange={(e) =>
+                                            form.setData(
+                                                'due_at',
+                                                e.target.value,
+                                            )
+                                        }
+                                        required
+                                    />
+                                    <InputError message={form.errors.due_at} />
+                                </div>
+                            </div>
+                        </section>
+
+                        <section className="grid gap-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h2 className="text-base font-medium">
+                                        Lignes
+                                    </h2>
+                                    <p className="text-muted-foreground text-sm">
+                                        Une ligne par offre facturée.
+                                    </p>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={addLine}
+                                >
+                                    <Plus />
+                                    Ajouter une ligne
+                                </Button>
+                            </div>
+                            <InputError message={form.errors.items} />
+                            <ol role="list" className="grid gap-3">
+                                {form.data.items.map((line, index) => {
+                                    const lineTotal = Math.round(
+                                        toNumber(line.quantity) *
+                                            toCents(line.unit_price),
+                                    );
+
+                                    return (
+                                        <li
+                                            key={index}
+                                            className="bg-background grid gap-4 rounded-lg border p-4"
+                                            data-test="invoice-line"
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-muted-foreground text-xs font-medium uppercase">
+                                                    Ligne {index + 1}
+                                                </p>
+                                                {form.data.items.length > 1 && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="text-muted-foreground hover:text-destructive size-7"
+                                                        aria-label={`Supprimer la ligne ${index + 1}`}
+                                                        onClick={() =>
+                                                            removeLine(index)
+                                                        }
+                                                    >
+                                                        <Trash2 className="size-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
+
+                                            <RadioGroup
+                                                aria-label={`Offre ligne ${index + 1}`}
+                                                value={line.offer}
+                                                onValueChange={(value) =>
+                                                    setOffer(
+                                                        index,
+                                                        value as OfferValue,
+                                                    )
+                                                }
+                                                className="grid gap-3 sm:grid-cols-2"
+                                            >
+                                                {offers.map((offer) => (
+                                                    <Label
+                                                        key={offer.value}
+                                                        htmlFor={`line-${index}-${offer.value}`}
+                                                        className="bg-muted/40 has-data-[state=checked]:border-primary has-data-[state=checked]:ring-primary/20 hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-3 font-normal transition-colors has-data-[state=checked]:ring-2"
+                                                    >
+                                                        <RadioGroupItem
+                                                            id={`line-${index}-${offer.value}`}
+                                                            value={offer.value}
+                                                            className="mt-0.5"
+                                                        />
+                                                        <span className="grid gap-0.5">
+                                                            <span className="font-medium">
+                                                                {offer.label}
+                                                            </span>
+                                                            <span className="text-muted-foreground text-xs">
+                                                                {formatMoney(
+                                                                    offer
+                                                                        .prices[
+                                                                        form
+                                                                            .data
+                                                                            .currency
+                                                                    ],
+                                                                    form.data
+                                                                        .currency,
+                                                                )}{' '}
+                                                                par défaut
+                                                            </span>
+                                                        </span>
+                                                    </Label>
+                                                ))}
+                                            </RadioGroup>
+                                            <InputError
+                                                message={lineError(
+                                                    index,
+                                                    'offer',
+                                                )}
+                                            />
+
+                                            <div className="grid gap-3 sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:items-end">
+                                                <div className="grid gap-1.5">
+                                                    <Label
+                                                        htmlFor={`line-${index}-quantity`}
+                                                    >
+                                                        Quantité
+                                                    </Label>
+                                                    <Input
+                                                        id={`line-${index}-quantity`}
+                                                        aria-label={`Quantité ligne ${index + 1}`}
+                                                        inputMode="decimal"
+                                                        className="bg-background"
+                                                        value={line.quantity}
+                                                        onChange={(e) =>
+                                                            setLine(index, {
+                                                                quantity:
+                                                                    e.target
+                                                                        .value,
+                                                            })
+                                                        }
+                                                    />
+                                                    <InputError
+                                                        message={lineError(
+                                                            index,
+                                                            'quantity',
+                                                        )}
+                                                    />
+                                                </div>
+                                                <div className="grid gap-1.5">
+                                                    <Label
+                                                        htmlFor={`line-${index}-price`}
+                                                    >
+                                                        Prix unitaire (
+                                                        {form.data.currency})
+                                                    </Label>
+                                                    <Input
+                                                        id={`line-${index}-price`}
+                                                        aria-label={`Prix unitaire ligne ${index + 1}`}
+                                                        inputMode="decimal"
+                                                        className="bg-background"
+                                                        placeholder="0.00"
+                                                        value={line.unit_price}
+                                                        onChange={(e) =>
+                                                            setLine(index, {
+                                                                unit_price:
+                                                                    e.target
+                                                                        .value,
+                                                            })
+                                                        }
+                                                    />
+                                                    <InputError
+                                                        message={lineError(
+                                                            index,
+                                                            'unit_price',
+                                                        )}
+                                                    />
+                                                </div>
+                                                <div className="grid gap-1.5 text-right">
+                                                    <span className="text-muted-foreground text-sm">
+                                                        Total ligne
+                                                    </span>
+                                                    <span
+                                                        className="h-9 leading-9 font-medium tabular-nums"
+                                                        data-test="line-total"
+                                                    >
+                                                        {formatMoney(
+                                                            lineTotal,
+                                                            form.data.currency,
+                                                        )}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </li>
+                                    );
+                                })}
+                            </ol>
+                        </section>
+
+                        <section className="grid gap-2">
+                            <Label htmlFor="notes">
+                                Notes (affichées sur la facture)
+                            </Label>
+                            <Textarea
+                                id="notes"
+                                name="notes"
+                                className="bg-background"
+                                rows={3}
+                                value={form.data.notes}
+                                onChange={(e) =>
+                                    form.setData('notes', e.target.value)
+                                }
+                            />
+                            <InputError message={form.errors.notes} />
+                        </section>
+                    </form>
+
+                    <aside className="bg-sidebar rounded-xl border p-2 lg:sticky lg:top-4 lg:self-start">
+                        <InvoicePreview
+                            form={form.data}
+                            company={company}
+                            offers={offers}
+                        />
+                    </aside>
+                </div>
             </div>
         </>
     );
