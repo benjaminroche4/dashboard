@@ -142,82 +142,59 @@
     }
 }
 
-/* Liseré lumineux animé (voir components/shimmer-border.tsx). */
-@property --shimmer-angle {
-    syntax: '<angle>';
-    inherits: false;
-    initial-value: 0deg;
-}
-
-@keyframes shimmer-rotate {
-    to {
-        --shimmer-angle: 360deg;
+/* Reflet qui balaie le logo, avec un halo léger qui respire (voir components/shimmer-logo.tsx). */
+@keyframes shimmer-sweep {
+    0%,
+    55% {
+        transform: translateX(-160%) skewX(-18deg);
+    }
+    100% {
+        transform: translateX(160%) skewX(-18deg);
     }
 }
 
-@utility shimmer-border {
-    --shimmer-color: #a3243f;
-    --shimmer-highlight: #ffd9e0;
-    --shimmer-width: 1.5px;
+@keyframes shimmer-breathe {
+    0%,
+    100% {
+        box-shadow: 0 0 0 0
+            color-mix(in oklab, var(--shimmer-glow) 0%, transparent);
+    }
+    50% {
+        box-shadow: 0 0 14px 2px
+            color-mix(in oklab, var(--shimmer-glow) 28%, transparent);
+    }
+}
+
+@utility shimmer-logo {
+    --shimmer-glow: #a3243f;
     position: relative;
-    isolation: isolate;
+    overflow: hidden;
+    animation: shimmer-breathe 4.5s ease-in-out infinite;
 
-    /* Anneau : dégradé conique découpé au masque pour ne garder que la bordure. */
-    &::before {
-        content: '';
-        position: absolute;
-        inset: calc(-1 * var(--shimmer-width));
-        border-radius: inherit;
-        padding: var(--shimmer-width);
-        background:
-            conic-gradient(
-                from var(--shimmer-angle),
-                transparent 0deg,
-                transparent 200deg,
-                var(--shimmer-color) 260deg,
-                var(--shimmer-highlight) 300deg,
-                var(--shimmer-color) 340deg,
-                transparent 360deg
-            ),
-            color-mix(in oklab, var(--foreground) 12%, transparent);
-        mask:
-            linear-gradient(#000 0 0) content-box,
-            linear-gradient(#000 0 0);
-        mask-composite: exclude;
-        animation: shimmer-rotate 2.8s linear infinite;
-        pointer-events: none;
-        z-index: 1;
-    }
-
-    /* Halo : la même course, floutée, très légère. */
     &::after {
         content: '';
         position: absolute;
-        inset: calc(-3 * var(--shimmer-width));
-        border-radius: inherit;
-        background: conic-gradient(
-            from var(--shimmer-angle),
-            transparent 0deg,
-            transparent 220deg,
-            var(--shimmer-color) 300deg,
-            transparent 360deg
+        inset: 0;
+        width: 45%;
+        background: linear-gradient(
+            to right,
+            transparent,
+            rgb(255 255 255 / 0.55),
+            transparent
         );
-        filter: blur(6px);
-        opacity: 0.45;
-        animation: shimmer-rotate 2.8s linear infinite;
+        animation: shimmer-sweep 4.5s ease-in-out infinite;
         pointer-events: none;
-        z-index: -1;
     }
 
     @media (prefers-reduced-motion: reduce) {
-        &::before,
+        animation: none;
+
         &::after {
-            animation: none;
+            display: none;
         }
     }
 }
 
-.dark .shimmer-border {
-    --shimmer-color: #e11d48;
-    --shimmer-highlight: #ffffff;
+.dark .shimmer-logo {
+    --shimmer-glow: #f43f5e;
 }
