@@ -1,10 +1,15 @@
 const currencyFormatters = new Map<string, Intl.NumberFormat>();
 
+/** Locale par devise : CHF à la suisse (1 234.50), EUR à la française (1 234,50). */
+function localeFor(currency: string): string {
+    return currency === 'CHF' ? 'fr-CH' : 'fr-FR';
+}
+
 export function formatMoney(cents: number, currency = 'EUR'): string {
     let formatter = currencyFormatters.get(currency);
 
     if (!formatter) {
-        formatter = new Intl.NumberFormat('fr-FR', {
+        formatter = new Intl.NumberFormat(localeFor(currency), {
             style: 'currency',
             currency,
             maximumFractionDigits: 2,
@@ -26,4 +31,21 @@ export function formatDate(iso: string): string {
     const [year, month, day] = iso.split('-').map(Number);
 
     return dateFormatter.format(new Date(year, month - 1, day));
+}
+
+const longDateFormatter = new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+});
+
+/** « 4 septembre 2026 ». Retourne une chaîne vide si la date est invalide. */
+export function formatLongDate(iso: string): string {
+    const [year, month, day] = iso.split('-').map(Number);
+
+    if (!year || !month || !day) {
+        return '';
+    }
+
+    return longDateFormatter.format(new Date(year, month - 1, day));
 }

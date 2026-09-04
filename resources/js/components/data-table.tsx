@@ -76,7 +76,7 @@ export function DataTable<TData, TValue>({
 
     return (
         <div className="w-full">
-            <div className="flex items-center gap-2 py-4">
+            <div className="flex items-center gap-2 pb-4">
                 {filterColumn && (
                     <Input
                         placeholder={filterPlaceholder}

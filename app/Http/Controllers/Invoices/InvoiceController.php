@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Invoices;
 
+use App\Actions\Invoices\CreateInvoice;
+use App\Data\InvoiceData;
+use App\Enums\Currency;
 use App\Enums\InvoiceStatus;
+use App\Enums\Offer;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Invoices\StoreInvoiceRequest;
 use App\Models\Invoice;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -29,7 +35,7 @@ class InvoiceController extends Controller
                 'client_name' => $invoice->client_name,
                 'client_email' => $invoice->client_email,
                 'amount_cents' => $invoice->amount_cents,
-                'currency' => $invoice->currency,
+                'currency' => $invoice->currency->value,
                 'status' => $invoice->status->value,
                 'status_label' => $invoice->status->label(),
                 'issued_at' => $invoice->issued_at->toDateString(),
@@ -44,5 +50,42 @@ class InvoiceController extends Controller
                 ->map(fn (InvoiceStatus $status): array => ['value' => $status->value, 'label' => $status->label()])
                 ->all(),
         ]);
+    }
+
+    public function create(): Response
+    {
+        $this->authorize('create', Invoice::class);
+
+        return Inertia::render('invoices/create', [
+            'company' => config('company'),
+            'offers' => collect(Offer::cases())
+                ->map(fn (Offer $offer): array => [
+                    'value' => $offer->value,
+                    'label' => $offer->label(),
+                    'description' => $offer->description(),
+                    'prices' => collect(Currency::cases())
+                        ->mapWithKeys(fn (Currency $currency): array => [$currency->value => $offer->defaultPriceCents($currency)])
+                        ->all(),
+                ])
+                ->all(),
+            'currencies' => collect(Currency::cases())
+                ->map(fn (Currency $currency): array => ['value' => $currency->value, 'label' => $currency->label()])
+                ->all(),
+            'defaults' => [
+                'currency' => config('company.default_currency'),
+                'vat_rate' => config('company.default_vat_rate'),
+                'issued_at' => now()->toDateString(),
+                'due_at' => now()->addDays((int) config('company.default_payment_terms_days'))->toDateString(),
+            ],
+        ]);
+    }
+
+    public function store(StoreInvoiceRequest $request, CreateInvoice $createInvoice): RedirectResponse
+    {
+        $invoice = $createInvoice->handle(InvoiceData::from($request->validated()), $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Facture :number créée.', ['number' => $invoice->number])]);
+
+        return to_route('invoices.index');
     }
 }

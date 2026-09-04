@@ -273,5 +273,6 @@
     "You've been invited to join :teamName": "You've been invited to join :teamName",
     "Vous avez été déconnecté.": "Vous avez été déconnecté.",
     "Votre session a expiré, veuillez vous reconnecter.": "Votre session a expiré, veuillez vous reconnecter.",
-    "Votre session a expiré, veuillez réessayer.": "Votre session a expiré, veuillez réessayer."
+    "Votre session a expiré, veuillez réessayer.": "Votre session a expiré, veuillez réessayer.",
+    "Facture :number créée.": "Facture :number créée."
 }

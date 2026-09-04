@@ -1,10 +1,15 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
+import { Plus } from 'lucide-react';
 import { DataTable } from '@/components/data-table';
+import { Button } from '@/components/ui/button';
 import {
     invoiceColumnLabels,
     invoiceColumns,
 } from '@/components/invoices/columns';
-import { index as invoicesIndex } from '@/routes/invoices';
+import {
+    create as invoicesCreate,
+    index as invoicesIndex,
+} from '@/routes/invoices';
 import type { Invoice } from '@/types';
 
 type Props = {
@@ -17,6 +22,15 @@ export default function InvoicesIndex({ invoices }: Props) {
         <>
             <Head title="Factures" />
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4">
+                <div className="flex items-center justify-between pt-6 pb-2">
+                    <h1 className="text-lg font-medium">Factures</h1>
+                    <Button asChild>
+                        <Link href={invoicesCreate()}>
+                            <Plus />
+                            Nouvelle facture
+                        </Link>
+                    </Button>
+                </div>
                 <DataTable
                     columns={invoiceColumns}
                     data={invoices}

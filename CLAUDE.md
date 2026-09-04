@@ -76,6 +76,15 @@ Quand un membre du staff fait une action, les autres membres connectés doivent 
 
 Echo est configuré dans `resources/js/app.tsx` via `configureEcho({ broadcaster: 'reverb' })` et lit les variables `VITE_REVERB_*`.
 
+## Factures (relocation à Paris)
+
+- Société suisse : devises `CHF` ou `EUR` (`App\Enums\Currency`), TVA par défaut 8,1 %, coordonnées et prix par défaut dans `config/company.php` (surchargés par les variables `COMPANY_*` et `OFFER_*` de `.env`).
+- Deux offres seulement : `App\Enums\Offer` (`accompagne`, `confie`). Une ligne de facture = offre + quantité + prix unitaire en centimes, la description est générée par l'enum.
+- Création : `StoreInvoiceRequest` → `InvoiceData` / `InvoiceLineData` (totaux calculés dans le DTO) → `CreateInvoice` (numéro `F-AAAA-NNNN` séquentiel par année, transaction, `DashboardUpdated`).
+- Page `invoices/create` : formulaire `useForm` Inertia avec aperçu en direct (`InvoicePreview`), calcul des totaux partagé dans `resources/js/lib/invoice-totals.ts` avec les mêmes arrondis que le PHP. Le formulaire saisit des unités, le `transform` envoie des centimes.
+- Liste `invoices/index` : Data Table shadcn (TanStack v8), 50 lignes par page, pagination masquée en dessous.
+- Droits : `InvoicePolicy`, tout le staff consulte, managers et admins créent et modifient, admins suppriment.
+
 ## Architecture et conventions
 
 Ces règles sont **vérifiées par `tests/Architecture/ArchitectureTest.php`** (pest-plugin-arch). Une violation casse la suite.
