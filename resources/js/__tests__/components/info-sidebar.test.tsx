@@ -95,26 +95,26 @@ describe('InfoSidebar', () => {
         ).toBeLessThan(items.findIndex((text) => text?.startsWith('Admin 2')));
     });
 
-    it('closes from its own button', async () => {
+    it('closes from the sheet close button', async () => {
         const user = userEvent.setup();
         const onOpenChange = renderSidebar();
 
-        await user.click(
-            screen.getByRole('button', { name: 'Fermer le panneau' }),
-        );
+        await user.click(screen.getByRole('button', { name: /close/i }));
 
         expect(onOpenChange).toHaveBeenCalledWith(false);
     });
 });
 
-describe('InfoSidebar layout', () => {
-    it('collapses to zero width when closed instead of overlaying', () => {
+describe('InfoSidebar as a sheet', () => {
+    it('renders nothing while closed and a dialog when open', () => {
         renderSidebar(false);
-        const aside = screen.getByLabelText("Panneau d'informations", {
-            selector: 'aside',
-        });
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
 
-        expect(aside).toHaveClass('w-0');
-        expect(aside).toHaveAttribute('data-state', 'closed');
+    it('opens as a right-side dialog', () => {
+        renderSidebar(true);
+        expect(
+            screen.getByRole('dialog', { name: 'Informations' }),
+        ).toHaveClass('right-0');
     });
 });

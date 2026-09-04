@@ -1,10 +1,15 @@
-import { Activity, Keyboard, Users, X } from 'lucide-react';
+import { Activity, Keyboard, Users } from 'lucide-react';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet';
 import { useInitials } from '@/hooks/use-initials';
-import { cn } from '@/lib/utils';
 import { useOnlineStaff } from '@/hooks/use-online-staff';
 import {
     describeEvent,
@@ -34,7 +39,7 @@ function Section({
 }) {
     return (
         <section className="flex flex-col gap-1 px-2 py-2">
-            <h2 className="text-sidebar-foreground/70 flex h-8 items-center px-2 text-xs font-medium">
+            <h2 className="text-muted-foreground flex h-8 items-center px-2 text-xs font-medium">
                 <Icon className="mr-2 size-4" />
                 {title}
                 {aside}
@@ -151,8 +156,8 @@ function ShortcutsSection() {
 }
 
 /**
- * Panneau d'informations à droite, dans le flux de la page : il pousse le
- * contenu au lieu de le recouvrir. Largeur animée, masqué sur mobile.
+ * Panneau d'informations : un Sheet shadcn qui glisse depuis la droite
+ * par-dessus la page. Ouverture pilotée par le layout.
  */
 export function InfoSidebar({
     open,
@@ -162,36 +167,20 @@ export function InfoSidebar({
     onOpenChange: (open: boolean) => void;
 }) {
     return (
-        <aside
-            aria-label="Panneau d'informations"
-            aria-hidden={!open}
-            data-state={open ? 'open' : 'closed'}
-            className={cn(
-                'text-sidebar-foreground hidden shrink-0 overflow-hidden transition-[width] duration-200 ease-linear md:block',
-                open ? 'w-72' : 'w-0',
-            )}
-        >
-            <div className="flex h-svh w-72 flex-col py-2 pr-2">
-                <div className="bg-sidebar flex h-full flex-col overflow-hidden rounded-xl border">
-                    <div className="flex items-center justify-between border-b px-4 py-3">
-                        <p className="text-sm font-medium">Informations</p>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-7"
-                            aria-label="Fermer le panneau"
-                            onClick={() => onOpenChange(false)}
-                        >
-                            <X className="size-4" />
-                        </Button>
-                    </div>
-                    <div className="flex-1 overflow-y-auto">
-                        <OnlineSection />
-                        <ActivitySection />
-                        <ShortcutsSection />
-                    </div>
+        <Sheet open={open} onOpenChange={onOpenChange}>
+            <SheetContent side="right" className="w-80 gap-0 p-0 sm:max-w-sm">
+                <SheetHeader className="border-b">
+                    <SheetTitle>Informations</SheetTitle>
+                    <SheetDescription>
+                        Membres en ligne, activité et raccourcis.
+                    </SheetDescription>
+                </SheetHeader>
+                <div className="flex-1 overflow-y-auto py-2">
+                    <OnlineSection />
+                    <ActivitySection />
+                    <ShortcutsSection />
                 </div>
-            </div>
-        </aside>
+            </SheetContent>
+        </Sheet>
     );
 }
