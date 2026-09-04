@@ -120,3 +120,41 @@ describe('NavMain branch animation', () => {
         expect(trigger.querySelector('svg.rotate-180')).not.toBeNull();
     });
 });
+
+describe('NavMain closed branches', () => {
+    it('keeps a branch closed when none of its links is the current page', () => {
+        vi.doMock('@/hooks/use-current-url', () => ({
+            useCurrentUrl: () => ({ isCurrentUrl: () => false }),
+        }));
+
+        render(
+            <TooltipProvider>
+                <SidebarProvider>
+                    <NavMain
+                        groups={[
+                            {
+                                label: 'Gestion',
+                                items: [
+                                    {
+                                        title: 'Équipe',
+                                        href: '#',
+                                        icon: Users,
+                                        items: [
+                                            { title: 'Membres', href: '/team' },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ]}
+                    />
+                </SidebarProvider>
+            </TooltipProvider>,
+        );
+
+        expect(screen.getByRole('button', { name: /Équipe/ })).toHaveAttribute(
+            'data-state',
+            'closed',
+        );
+        expect(screen.queryByRole('link', { name: 'Membres' })).toBeNull();
+    });
+});

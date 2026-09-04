@@ -28,7 +28,7 @@ function NavBadge({ value }: { value: NavItem['badge'] }) {
 
     return (
         <>
-            <SidebarMenuBadge className="bg-sidebar-primary text-sidebar-primary-foreground size-5 rounded-full px-0 transition-colors">
+            <SidebarMenuBadge className="bg-sidebar-primary text-sidebar-primary-foreground peer-hover/menu-button:bg-sidebar-primary-foreground peer-hover/menu-button:text-sidebar-primary peer-data-[active=true]/menu-button:bg-sidebar-primary-foreground peer-data-[active=true]/menu-button:text-sidebar-primary size-5 rounded-full px-0 transition-colors duration-150">
                 {value}
             </SidebarMenuBadge>
             {/* Mode icône : le compteur devient un point sur l'icône. */}
@@ -73,7 +73,8 @@ function NavBranch({ item }: { item: NavItem }) {
     return (
         <Collapsible
             asChild
-            defaultOpen={item.isActive || hasActiveChild}
+            // Fermé par défaut, sauf si la page courante est un sous-lien.
+            defaultOpen={hasActiveChild}
             className="group/collapsible"
         >
             <SidebarMenuItem>

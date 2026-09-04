@@ -47,7 +47,6 @@ const navGroups: NavGroup[] = [
                 title: 'Personnes',
                 href: '#',
                 icon: Users,
-                isActive: true,
                 items: [
                     { title: "Vue d'ensemble", href: '#' },
                     { title: 'Employés', href: '#' },
