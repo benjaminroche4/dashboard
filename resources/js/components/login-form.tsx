@@ -134,10 +134,6 @@ export default function LoginForm({
                     <PasskeyVerify separator="Ou" separatorPosition="above" />
                 </div>
             )}
-
-            <p className="text-muted-foreground text-center text-xs text-pretty">
-                Accès réservé au staff. Les connexions sont journalisées.
-            </p>
         </div>
     );
 }

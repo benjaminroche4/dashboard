@@ -20,11 +20,11 @@ export default function Login({ status }: Props) {
                         />
                         <div className="space-y-1">
                             <h1 className="text-2xl font-medium tracking-tight text-balance">
-                                Bon retour
+                                Connectez-vous à votre compte
                             </h1>
                             <p className="text-muted-foreground text-sm text-pretty">
-                                Espace staff Dashboard. Connectez-vous pour
-                                accéder au backoffice.
+                                Saisissez votre e-mail et votre mot de passe
+                                pour continuer
                             </p>
                         </div>
                         <LoginForm status={status} />

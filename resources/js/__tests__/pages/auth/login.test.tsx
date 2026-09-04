@@ -87,7 +87,7 @@ describe('Login page', () => {
         );
     });
 
-    it('puts the passkey button after the form and shows the privacy note', () => {
+    it('puts the passkey button after the form', () => {
         const page = renderVisible();
         const form = page
             .getByRole('button', { name: 'Connexion' })
@@ -99,7 +99,6 @@ describe('Login page', () => {
             form!.compareDocumentPosition(passkey) &
                 Node.DOCUMENT_POSITION_FOLLOWING,
         ).toBeTruthy();
-        expect(page.getByText(/Accès réservé au staff/)).toBeInTheDocument();
     });
 
     it('uses no positive tabIndex so the tab order follows the DOM', () => {
@@ -112,13 +111,13 @@ describe('Login page', () => {
         ).toHaveLength(0);
     });
 
-    it('greets the staff with a personalised title', () => {
+    it('shows the login title and hint', () => {
         const page = renderVisible();
 
         expect(page.getByRole('heading', { level: 1 })).toHaveTextContent(
-            'Bon retour',
+            'Connectez-vous à votre compte',
         );
-        expect(page.getByText(/Espace staff Dashboard/)).toBeInTheDocument();
+        expect(page.getByText(/Saisissez votre e-mail/)).toBeInTheDocument();
     });
 
     it('offers passkey login', () => {
