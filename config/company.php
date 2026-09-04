@@ -30,7 +30,17 @@ return [
     'default_payment_terms_days' => (int) env('COMPANY_PAYMENT_TERMS_DAYS', 30),
 
     // Pays proposés pour l'adresse du client (le premier est présélectionné).
-    'countries' => ['Suisse', 'France', 'Allemagne', 'Italie', 'Belgique', 'Luxembourg', 'Royaume-Uni', 'États-Unis', 'Autre'],
+    'countries' => [
+        ['code' => 'CH', 'name' => 'Suisse'],
+        ['code' => 'FR', 'name' => 'France'],
+        ['code' => 'DE', 'name' => 'Allemagne'],
+        ['code' => 'IT', 'name' => 'Italie'],
+        ['code' => 'BE', 'name' => 'Belgique'],
+        ['code' => 'LU', 'name' => 'Luxembourg'],
+        ['code' => 'GB', 'name' => 'Royaume-Uni'],
+        ['code' => 'US', 'name' => 'États-Unis'],
+        ['code' => null, 'name' => 'Autre'],
+    ],
 
     // Prix unitaires par défaut des offres, en centimes, par devise. À ajuster.
     'offers' => [

@@ -84,7 +84,11 @@ const props = {
         { value: 'CHF' as const, label: 'Franc suisse (CHF)' },
         { value: 'EUR' as const, label: 'Euro (EUR)' },
     ],
-    countries: ['Suisse', 'France', 'Autre'],
+    countries: [
+        { code: 'CH', name: 'Suisse' },
+        { code: 'FR', name: 'France' },
+        { code: null, name: 'Autre' },
+    ],
     vatRates: [
         { value: 8.1, label: '8,1 % · taux normal' },
         { value: 2.6, label: '2,6 % · taux réduit' },
@@ -150,20 +154,23 @@ describe('Invoice creation page', () => {
         render(<InvoicesCreate {...props} />);
 
         expect(
-            screen.getByRole('button', { name: "Date d'émission" }),
-        ).toHaveTextContent('4 septembre 2026');
-        expect(
-            screen.getByRole('button', { name: 'Échéance' }),
-        ).toHaveTextContent('4 octobre 2026');
+            screen.getByRole('textbox', { name: "Date d'émission" }),
+        ).toHaveValue('4 septembre 2026');
+        expect(screen.getByRole('textbox', { name: 'Échéance' })).toHaveValue(
+            '4 octobre 2026',
+        );
     });
 
     it('has a structured address with the country preselected', async () => {
         const user = userEvent.setup();
         render(<InvoicesCreate {...props} />);
 
-        expect(
-            screen.getByRole('combobox', { name: 'Pays' }),
-        ).toHaveTextContent('Suisse');
+        const country = screen.getByRole('combobox', { name: 'Pays' });
+        expect(country).toHaveTextContent('Suisse');
+        expect(country.querySelector('[data-country="CH"]')).toHaveClass(
+            'fi-ch',
+            'rounded-full',
+        );
 
         await user.type(screen.getByLabelText('Adresse'), 'Rue du Rhône 1');
         await user.type(screen.getByLabelText('Code postal'), '1204');

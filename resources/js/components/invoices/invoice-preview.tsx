@@ -38,9 +38,6 @@ export function InvoicePreview({
                     <p className="text-muted-foreground">
                         {company.email} · {company.phone}
                     </p>
-                    <p className="text-muted-foreground">
-                        {company.vat_number}
-                    </p>
                 </div>
                 <div className="text-right">
                     <p className="text-2xl font-semibold tracking-tight">

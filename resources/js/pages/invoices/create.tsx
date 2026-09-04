@@ -1,6 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Plus, Trash2 } from 'lucide-react';
 import type { FormEvent } from 'react';
+import { CountryFlag } from '@/components/country-flag';
 import { DatePicker } from '@/components/date-picker';
 import InputError from '@/components/input-error';
 import { InvoicePreview } from '@/components/invoices/invoice-preview';
@@ -22,6 +23,7 @@ import { toCents, toNumber } from '@/lib/invoice-totals';
 import { index as invoicesIndex, store } from '@/routes/invoices';
 import type {
     Company,
+    CountryOption,
     Currency,
     InvoiceForm,
     InvoiceLineForm,
@@ -34,7 +36,7 @@ type Props = {
     offers: Offer[];
     currencies: { value: Currency; label: string }[];
     vatRates: { value: number; label: string }[];
-    countries: string[];
+    countries: CountryOption[];
     defaults: {
         currency: Currency;
         vat_rate: number;
@@ -78,7 +80,7 @@ export default function InvoicesCreate({
         client_street: '',
         client_postal_code: '',
         client_city: '',
-        client_country: countries[0] ?? '',
+        client_country: countries[0]?.name ?? '',
         currency: defaults.currency,
         vat_rate: String(defaults.vat_rate),
         issued_at: defaults.issued_at,
@@ -309,10 +311,13 @@ export default function InvoicesCreate({
                                         <SelectContent>
                                             {countries.map((country) => (
                                                 <SelectItem
-                                                    key={country}
-                                                    value={country}
+                                                    key={country.name}
+                                                    value={country.name}
                                                 >
-                                                    {country}
+                                                    <CountryFlag
+                                                        code={country.code}
+                                                    />
+                                                    {country.name}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>

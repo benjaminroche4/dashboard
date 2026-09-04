@@ -67,3 +67,9 @@ export type InvoiceForm = {
     notes: string;
     items: InvoiceLineForm[];
 };
+
+export type CountryOption = {
+    /** Code ISO 3166-1 alpha-2, null pour « Autre ». */
+    code: string | null;
+    name: string;
+};

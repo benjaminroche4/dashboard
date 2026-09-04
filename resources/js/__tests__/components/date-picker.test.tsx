@@ -1,10 +1,20 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { DatePicker } from '@/components/date-picker';
+import { DatePicker, parseTypedDate } from '@/components/date-picker';
+
+describe('parseTypedDate', () => {
+    it('accepts French long dates, slashes and ISO', () => {
+        expect(parseTypedDate('4 septembre 2026')?.getMonth()).toBe(8);
+        expect(parseTypedDate('04/09/2026')?.getDate()).toBe(4);
+        expect(parseTypedDate('2026-09-04')?.getFullYear()).toBe(2026);
+        expect(parseTypedDate('n importe quoi')).toBeUndefined();
+        expect(parseTypedDate('')).toBeUndefined();
+    });
+});
 
 describe('DatePicker', () => {
-    it('shows the ISO value formatted in French', () => {
+    it('shows the ISO value formatted in French in the input', () => {
         render(
             <DatePicker
                 value="2026-09-04"
@@ -13,31 +23,25 @@ describe('DatePicker', () => {
             />,
         );
 
-        expect(screen.getByRole('button', { name: 'Date' })).toHaveTextContent(
+        expect(screen.getByRole('textbox', { name: 'Date' })).toHaveValue(
             '4 septembre 2026',
         );
     });
 
-    it('shows the placeholder when empty and opens a calendar', async () => {
+    it('emits an ISO date when a valid date is typed', async () => {
         const user = userEvent.setup();
         const onChange = vi.fn();
-        render(
-            <DatePicker
-                value=""
-                onChange={onChange}
-                aria-label="Date"
-                placeholder="Choisir"
-            />,
+        render(<DatePicker value="" onChange={onChange} aria-label="Date" />);
+
+        await user.type(
+            screen.getByRole('textbox', { name: 'Date' }),
+            '15/09/2026',
         );
 
-        const trigger = screen.getByRole('button', { name: 'Date' });
-        expect(trigger).toHaveTextContent('Choisir');
-
-        await user.click(trigger);
-        expect(await screen.findByRole('grid')).toBeInTheDocument();
+        expect(onChange).toHaveBeenLastCalledWith('2026-09-15');
     });
 
-    it('emits an ISO date when a day is picked', async () => {
+    it('opens the calendar from the button and emits the picked day', async () => {
         const user = userEvent.setup();
         const onChange = vi.fn();
         render(
@@ -48,7 +52,9 @@ describe('DatePicker', () => {
             />,
         );
 
-        await user.click(screen.getByRole('button', { name: 'Date' }));
+        await user.click(
+            screen.getByRole('button', { name: 'Ouvrir le calendrier' }),
+        );
         await user.click(
             await screen.findByRole('button', { name: /15 septembre 2026/ }),
         );
