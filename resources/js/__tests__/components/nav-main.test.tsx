@@ -112,8 +112,8 @@ describe('NavMain branch animation', () => {
             screen.getByRole('link', { name: 'Employés' }),
         ].map((link) => link.closest('li'));
 
-        expect(links[0]).toHaveStyle({ animationDelay: '60ms' });
-        expect(links[1]).toHaveStyle({ animationDelay: '120ms' });
+        expect(links[0]).toHaveStyle({ animationDelay: '40ms' });
+        expect(links[1]).toHaveStyle({ animationDelay: '80ms' });
         expect(links[0]).toHaveClass('animate-in', 'fade-in');
 
         const trigger = screen.getByRole('button', { name: /Personnes/ });

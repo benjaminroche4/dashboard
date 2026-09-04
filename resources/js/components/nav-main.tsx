@@ -42,7 +42,7 @@ function NavBadge({ value }: { value: NavItem['badge'] }) {
 
 // Survol : toute la ligne réagit, fond doux et texte renforcé, sans saut.
 const hoverClasses =
-    'transition-[background-color,color,transform] duration-150 ease-out hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground active:scale-[0.99] data-[active=true]:bg-sidebar-accent';
+    'transition-colors duration-150 ease-out hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent';
 
 function NavLeaf({ item }: { item: NavItem }) {
     const { isCurrentUrl } = useCurrentUrl();
@@ -87,18 +87,18 @@ function NavBranch({ item }: { item: NavItem }) {
                         {item.icon && <item.icon />}
                         <span>{item.title}</span>
                         {/* Fermé : pointe vers le bas. Ouvert : tourne dans l'autre sens, vers le haut. */}
-                        <ChevronUp className="ml-auto rotate-180 transition-transform duration-300 ease-out group-data-[state=open]/collapsible:rotate-0" />
+                        <ChevronUp className="ml-auto rotate-180 transition-transform duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] group-data-[state=open]/collapsible:rotate-0" />
                     </SidebarMenuButton>
                 </CollapsibleTrigger>
-                <CollapsibleContent className="data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up overflow-hidden">
+                <CollapsibleContent className="data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up overflow-hidden ease-[cubic-bezier(0.4,0,0.2,1)]">
                     <SidebarMenuSub>
                         {items.map((sub, index) => (
                             <SidebarMenuSubItem
                                 key={sub.title}
-                                // Les sous-liens apparaissent un à un, de haut en bas.
-                                className="animate-in fade-in slide-in-from-left-2 fill-mode-backwards duration-300"
+                                // Les sous-liens apparaissent un à un, en fondu avec un léger glissement vertical.
+                                className="animate-in fade-in slide-in-from-top-1 fill-mode-backwards duration-200 ease-out"
                                 style={{
-                                    animationDelay: `${60 + index * 60}ms`,
+                                    animationDelay: `${40 + index * 40}ms`,
                                 }}
                             >
                                 <SidebarMenuSubButton
