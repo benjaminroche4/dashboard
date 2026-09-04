@@ -166,18 +166,20 @@ describe('drawAsciiFrame', () => {
             cellSize: 10,
             charset: ' .:#',
             inkOpacity: 0.5,
-            amplitude: 0.28,
+            amplitude: 0.16,
         };
 
-        // À t = 3,5 s × (10 / 21), la bande de balayage est exactement sur la ligne 0.
+        // À t = 6 s × (6 / 13), la bande de balayage est exactement sur la ligne 0.
         drawAsciiFrame(
             ctx as unknown as CanvasRenderingContext2D,
             image,
             grid,
-            { ...options, time: (3.5 * 10) / 21 },
+            {
+                ...options,
+                time: (6 * 6) / 13,
+            },
         );
 
-        const alpha = Number(/\/ ([\d.]+)\)/.exec(ctx.fillStyle)?.[1]);
-        expect(alpha).toBeGreaterThanOrEqual(0.9);
+        expect(ctx.fillStyle).toBe('rgb(200 200 200 / 0.85)');
     });
 });
