@@ -106,3 +106,15 @@ describe('InfoSidebar', () => {
         expect(onOpenChange).toHaveBeenCalledWith(false);
     });
 });
+
+describe('InfoSidebar layout', () => {
+    it('collapses to zero width when closed instead of overlaying', () => {
+        renderSidebar(false);
+        const aside = screen.getByLabelText("Panneau d'informations", {
+            selector: 'aside',
+        });
+
+        expect(aside).toHaveClass('w-0');
+        expect(aside).toHaveAttribute('data-state', 'closed');
+    });
+});
