@@ -112,7 +112,7 @@ describe('Invoice creation page', () => {
             '2500',
         );
 
-        await user.type(screen.getByLabelText('Nom'), 'Acme SA');
+        await user.type(screen.getByLabelText('Nom / Prénom'), 'Acme SA');
         await user.clear(screen.getByLabelText('Quantité ligne 1'));
         await user.type(screen.getByLabelText('Quantité ligne 1'), '2');
 
@@ -206,7 +206,7 @@ describe('Invoice creation page', () => {
         const user = userEvent.setup();
         render(<InvoicesCreate {...props} />);
 
-        await user.type(screen.getByLabelText('Nom'), 'Acme SA');
+        await user.type(screen.getByLabelText('Nom / Prénom'), 'Acme SA');
         await user.click(
             screen.getByRole('button', { name: 'Créer la facture' }),
         );

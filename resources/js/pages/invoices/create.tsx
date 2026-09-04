@@ -191,7 +191,9 @@ export default function InvoicesCreate({
                             <h2 className="text-base font-medium">Client</h2>
                             <div className="grid gap-5 sm:grid-cols-2">
                                 <div className="grid gap-2">
-                                    <Label htmlFor="client_name">Nom</Label>
+                                    <Label htmlFor="client_name">
+                                        Nom / Prénom
+                                    </Label>
                                     <Input
                                         id="client_name"
                                         name="client_name"
