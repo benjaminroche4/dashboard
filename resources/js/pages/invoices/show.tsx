@@ -9,7 +9,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { formatMoney } from '@/lib/format';
 import { invoiceToForm } from '@/lib/invoice-to-form';
 import { cn } from '@/lib/utils';
-import { index as invoicesIndex, pdf, send, show } from '@/routes/invoices';
+import { index as invoicesIndex, pdf, send } from '@/routes/invoices';
 import type {
     Company,
     InvoiceDetail,
@@ -237,13 +237,11 @@ export default function InvoicesShow({
     );
 }
 
-InvoicesShow.layout = (page: { props: Props }) => ({
+// Objet et non fonction : Inertia v3 traiterait une fonction comme un composant de layout.
+InvoicesShow.layout = {
     breadcrumbs: [
         { title: 'Leads', href: '#' },
         { title: 'Factures', href: invoicesIndex() },
-        {
-            title: page.props.invoice.number,
-            href: show({ invoice: page.props.invoice.id }),
-        },
+        { title: 'Détail', href: '#' },
     ],
-});
+};
