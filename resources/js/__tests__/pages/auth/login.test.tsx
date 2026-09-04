@@ -29,36 +29,52 @@ vi.mock('@inertiajs/react', async (importOriginal) => ({
 
 import Login from '@/pages/auth/login';
 
+function renderVisible(props: { status?: string } = {}) {
+    render(<Login {...props} />);
+
+    return screen;
+}
+
 describe('Login page', () => {
     it('renders the email, password and remember fields', () => {
-        render(<Login />);
+        const page = renderVisible();
 
-        expect(screen.getByLabelText('Email address')).toBeRequired();
-        expect(screen.getByLabelText('Password')).toBeRequired();
-        expect(screen.getByLabelText('Remember me')).toBeInTheDocument();
+        expect(page.getByLabelText('Email address')).toBeRequired();
+        expect(page.getByLabelText('Password')).toBeRequired();
+        expect(page.getByLabelText('Remember me')).toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Log in' }),
+            page.getByRole('button', { name: 'Log in' }),
         ).toBeInTheDocument();
     });
 
     it('does not offer registration or password reset', () => {
-        render(<Login />);
+        const page = renderVisible();
 
-        expect(screen.queryByText(/sign up/i)).not.toBeInTheDocument();
+        expect(page.queryByText(/sign up/i)).not.toBeInTheDocument();
         expect(
-            screen.queryByText(/forgot your password/i),
+            page.queryByText(/forgot your password/i),
         ).not.toBeInTheDocument();
     });
 
     it('shows the status message when provided', () => {
-        render(<Login status="Session expired" />);
+        const page = renderVisible({ status: 'Session expired' });
 
-        expect(screen.getByText('Session expired')).toBeInTheDocument();
+        expect(page.getByText('Session expired')).toBeInTheDocument();
     });
 
     it('offers passkey login', () => {
-        render(<Login />);
+        const page = renderVisible();
 
-        expect(screen.getByTestId('passkey-verify')).toBeInTheDocument();
+        expect(page.getByTestId('passkey-verify')).toBeInTheDocument();
+    });
+});
+
+describe('Login page layout', () => {
+    it('shows the illustration on the right column', () => {
+        const { container } = render(<Login />);
+        const image = container.querySelector('img');
+
+        expect(image).toHaveAttribute('src', '/images/login.svg');
+        expect(image).toHaveClass('rounded-3xl', 'size-full', 'object-cover');
     });
 });

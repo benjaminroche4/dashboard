@@ -1,13 +1,6 @@
-import { Form, Head } from '@inertiajs/react';
-import InputError from '@/components/input-error';
-import PasswordInput from '@/components/password-input';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
-import { store } from '@/routes/login';
-import PasskeyVerify from '@/components/passkey-verify';
+import { Head } from '@inertiajs/react';
+import AppLogoIcon from '@/components/app-logo-icon';
+import LoginForm from '@/components/login-form';
 
 type Props = {
     status?: string;
@@ -18,78 +11,33 @@ export default function Login({ status }: Props) {
         <>
             <Head title="Log in" />
 
-            <PasskeyVerify />
-
-            <Form
-                {...store.form()}
-                resetOnSuccess={['password']}
-                className="flex flex-col gap-6"
-            >
-                {({ processing, errors }) => (
-                    <>
-                        <div className="grid gap-6">
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    name="email"
-                                    required
-                                    autoFocus
-                                    tabIndex={1}
-                                    autoComplete="email"
-                                    placeholder="email@example.com"
-                                />
-                                <InputError message={errors.email} />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="password">Password</Label>
-                                <PasswordInput
-                                    id="password"
-                                    name="password"
-                                    required
-                                    tabIndex={2}
-                                    autoComplete="current-password"
-                                    placeholder="Password"
-                                />
-                                <InputError message={errors.password} />
-                            </div>
-
-                            <div className="flex items-center space-x-3">
-                                <Checkbox
-                                    id="remember"
-                                    name="remember"
-                                    tabIndex={3}
-                                />
-                                <Label htmlFor="remember">Remember me</Label>
-                            </div>
-
-                            <Button
-                                type="submit"
-                                className="mt-4 w-full"
-                                tabIndex={4}
-                                disabled={processing}
-                                data-test="login-button"
-                            >
-                                {processing && <Spinner />}
-                                Log in
-                            </Button>
+            <div className="bg-background grid min-h-svh lg:grid-cols-2">
+                <div className="flex items-center justify-center p-6 md:p-10">
+                    <div className="w-full max-w-xs space-y-8">
+                        <div className="flex items-center gap-2">
+                            <AppLogoIcon className="text-foreground size-7 fill-current" />
+                            <span className="font-medium">Dashboard</span>
                         </div>
-                    </>
-                )}
-            </Form>
-
-            {status && (
-                <div className="mb-4 text-center text-sm font-medium text-green-600">
-                    {status}
+                        <div className="space-y-1">
+                            <h1 className="text-2xl font-medium tracking-tight text-balance">
+                                Log in to your account
+                            </h1>
+                            <p className="text-muted-foreground text-sm text-pretty">
+                                Enter your email and password below to log in
+                            </p>
+                        </div>
+                        <LoginForm status={status} />
+                    </div>
                 </div>
-            )}
+
+                <div className="hidden p-4 lg:block">
+                    <img
+                        src="/images/login.svg"
+                        alt=""
+                        className="size-full rounded-3xl object-cover"
+                    />
+                </div>
+            </div>
         </>
     );
 }
-
-Login.layout = {
-    title: 'Log in to your account',
-    description: 'Enter your email and password below to log in',
-};
