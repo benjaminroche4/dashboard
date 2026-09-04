@@ -16,7 +16,7 @@ export default function InvoicesIndex({ invoices }: Props) {
     return (
         <>
             <Head title="Factures" />
-            <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4">
+            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4">
                 <DataTable
                     columns={invoiceColumns}
                     data={invoices}
