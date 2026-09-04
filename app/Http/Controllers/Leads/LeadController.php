@@ -168,7 +168,7 @@ class LeadController extends Controller
     public function updateStatus(UpdateLeadStatusRequest $request, Lead $lead, UpdateLeadStatus $updateLeadStatus): RedirectResponse
     {
         $position = $request->validated('position');
-        $lead = $updateLeadStatus->handle(
+        $updateLeadStatus->handle(
             $lead,
             LeadStatus::from($request->validated('status')),
             $position === null ? null : (int) $position,

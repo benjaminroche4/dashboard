@@ -18,7 +18,7 @@ return new class extends Migration
 
         // Les leads existants gardent leur ordre actuel (plus récent en haut).
         $position = [];
-        foreach (DB::table('leads')->orderByDesc('created_at')->orderByDesc('id')->get(['id', 'status']) as $lead) {
+        foreach (DB::table('leads')->latest()->orderByDesc('id')->get(['id', 'status']) as $lead) {
             $position[$lead->status] = ($position[$lead->status] ?? -1) + 1;
             DB::table('leads')->where('id', $lead->id)->update(['position' => $position[$lead->status]]);
         }
