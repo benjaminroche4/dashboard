@@ -28,6 +28,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $origin_city
  * @property LeadSource $source
  * @property string|null $message
+ * @property int|null $score
  * @property LeadStatus $status
  * @property CarbonInterface|null $last_contacted_at
  * @property int|null $created_by
@@ -36,7 +37,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 #[Fillable([
     'first_name', 'last_name', 'email', 'phone', 'offer', 'arrival_at', 'budget_cents', 'currency',
-    'origin_city', 'source', 'message', 'status', 'last_contacted_at', 'created_by',
+    'origin_city', 'source', 'message', 'score', 'status', 'last_contacted_at', 'created_by',
 ])]
 class Lead extends Model
 {
@@ -52,6 +53,7 @@ class Lead extends Model
             'offer' => Offer::class,
             'arrival_at' => 'date',
             'budget_cents' => 'integer',
+            'score' => 'integer',
             'currency' => Currency::class,
             'source' => LeadSource::class,
             'status' => LeadStatus::class,

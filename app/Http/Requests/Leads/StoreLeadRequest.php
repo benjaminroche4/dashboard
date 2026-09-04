@@ -36,6 +36,7 @@ class StoreLeadRequest extends FormRequest
             'origin_city' => ['nullable', 'string', 'max:120'],
             'source' => ['nullable', Rule::enum(LeadSource::class)],
             'message' => ['nullable', 'string', 'max:5000'],
+            'score' => ['nullable', 'integer', 'between:1,5'],
         ];
     }
 
@@ -56,6 +57,7 @@ class StoreLeadRequest extends FormRequest
             'origin_city' => "ville d'origine",
             'source' => 'source',
             'message' => 'message',
+            'score' => 'qualité du lead',
         ];
     }
 

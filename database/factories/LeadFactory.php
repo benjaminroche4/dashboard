@@ -35,6 +35,7 @@ class LeadFactory extends Factory
             'origin_city' => fake()->city(),
             'source' => fake()->randomElement(LeadSource::cases()),
             'message' => fake()->optional()->sentence(12),
+            'score' => fake()->optional(0.8)->numberBetween(1, 5),
             'status' => LeadStatus::Todo,
             'last_contacted_at' => null,
         ];

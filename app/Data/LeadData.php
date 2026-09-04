@@ -27,6 +27,7 @@ final readonly class LeadData
         public ?string $originCity,
         public LeadSource $source,
         public ?string $message,
+        public ?int $score = null,
     ) {}
 
     /**
@@ -46,6 +47,7 @@ final readonly class LeadData
             originCity: $data['origin_city'] ?? null,
             source: LeadSource::from($data['source'] ?? LeadSource::Website->value),
             message: $data['message'] ?? null,
+            score: isset($data['score']) ? (int) $data['score'] : null,
         );
     }
 
@@ -66,6 +68,7 @@ final readonly class LeadData
             'origin_city' => $this->originCity,
             'source' => $this->source,
             'message' => $this->message,
+            'score' => $this->score,
         ];
     }
 }

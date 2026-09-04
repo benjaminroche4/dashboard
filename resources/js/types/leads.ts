@@ -27,6 +27,9 @@ export type Lead = {
     currency: Currency;
     origin_city: string | null;
     source_label: string;
+    message: string | null;
+    /** Qualité estimée, de 1 à 5. */
+    score: number | null;
     status: LeadStatus;
     status_label: string;
     last_contacted_at: string | null;
@@ -49,4 +52,5 @@ export type LeadForm = {
     origin_city: string;
     source: LeadSource;
     message: string;
+    score: number | null;
 };

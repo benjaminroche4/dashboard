@@ -88,6 +88,8 @@ describe('Converting Machine page', () => {
         await user.type(screen.getByLabelText('E-mail'), 'lea@example.com');
         await user.click(screen.getByRole('radio', { name: 'Confié' }));
         await user.type(screen.getByLabelText('Budget mensuel'), '2500');
+        await user.click(screen.getByRole('radio', { name: '4 sur 5' }));
+        expect(screen.getByText('4 / 5')).toBeInTheDocument();
         await user.click(
             screen.getByRole('button', { name: 'Ajouter le lead' }),
         );

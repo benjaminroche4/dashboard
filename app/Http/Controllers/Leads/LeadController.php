@@ -44,6 +44,8 @@ class LeadController extends Controller
                 'currency' => $lead->currency->value,
                 'origin_city' => $lead->origin_city,
                 'source_label' => $lead->source->label(),
+                'message' => $lead->message,
+                'score' => $lead->score,
                 'status' => $lead->status->value,
                 'status_label' => $lead->status->label(),
                 'last_contacted_at' => $lead->last_contacted_at?->toIso8601String(),

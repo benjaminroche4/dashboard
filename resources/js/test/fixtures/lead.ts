@@ -14,6 +14,8 @@ export function makeLead(overrides: Partial<Lead> = {}): Lead {
         currency: 'EUR',
         origin_city: 'Genève',
         source_label: 'Recommandation',
+        message: 'Arrive avec sa famille, cherche un 3 pièces.',
+        score: 4,
         status: 'todo',
         status_label: 'À traiter',
         last_contacted_at: null,

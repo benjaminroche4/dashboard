@@ -96,7 +96,7 @@ Echo est configuré dans `resources/js/app.tsx` via `configureEcho({ broadcaster
 
 ## Leads (Converting Machine)
 
-- Modèle `Lead` (`app/Models/Lead.php`), enums `LeadStatus` (`todo` À traiter, `in_progress` En cours, `quote_sent` Devis envoyé, `converted`, `archived` ; transitions libres) et `LeadSource`. Un lead porte contact, offre visée, date d'arrivée, budget mensuel en centimes + devise, ville d'origine, source, message.
+- Modèle `Lead` (`app/Models/Lead.php`), enums `LeadStatus` (`todo` À traiter, `in_progress` En cours, `quote_sent` Devis envoyé, `converted`, `archived` ; transitions libres) et `LeadSource`. Un lead porte contact, offre visée, date d'arrivée, budget mensuel en centimes + devise, ville d'origine, source, message, qualité `score` (1 à 5, étoile sur la carte).
 - Deux entrées dans la sidebar sous **Leads** : « Kanban des leads » (`leads/index`, `LeadKanban` : une colonne par statut, glisser-déposer natif HTML5 avec mise à jour optimiste, badge `LeadStatusMenu` sur chaque carte pour le clavier et le mobile ; les deux passent par la route `leads.status`, PATCH) et « Converting Machine » (`leads/create`, formulaire de qualification saisi par le staff). Pas de page publique : la règle « seul `/login` est public » reste vraie.
 - Flux : `StoreLeadRequest` (nom + prénom obligatoires, e-mail **ou** téléphone) → `LeadData` → `CreateLead` (statut `new`, `DashboardUpdated`). Changement de statut : `UpdateLeadStatusRequest` → `UpdateLeadStatus` (date `last_contacted_at`, `DashboardUpdated`).
 - Droits : `LeadPolicy`, tout le staff consulte, crée et fait avancer ; seuls les admins suppriment.

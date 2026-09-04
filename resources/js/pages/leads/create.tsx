@@ -1,4 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { Star } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { DatePicker } from '@/components/date-picker';
 import InputError from '@/components/input-error';
@@ -17,6 +18,7 @@ import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { toCents } from '@/lib/invoice-totals';
+import { cn } from '@/lib/utils';
 import { index as leadsIndex, store } from '@/routes/leads';
 import type { Currency, LeadForm, LeadSource, OfferValue } from '@/types';
 
@@ -48,6 +50,7 @@ export default function LeadsCreate({
         origin_city: '',
         source: sources[0]?.value ?? 'website',
         message: '',
+        score: null,
     });
     const errors = form.errors as Record<string, string | undefined>;
 
@@ -332,6 +335,60 @@ export default function LeadsCreate({
                                 </SelectContent>
                             </Select>
                             <InputError message={errors.source} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label id="score-label">Qualité du lead</Label>
+                            <div
+                                role="radiogroup"
+                                aria-labelledby="score-label"
+                                className="flex items-center gap-1"
+                            >
+                                {[1, 2, 3, 4, 5].map((value) => {
+                                    const active =
+                                        form.data.score !== null &&
+                                        value <= form.data.score;
+
+                                    return (
+                                        <button
+                                            key={value}
+                                            type="button"
+                                            role="radio"
+                                            aria-checked={
+                                                form.data.score === value
+                                            }
+                                            aria-label={`${value} sur 5`}
+                                            onClick={() =>
+                                                form.setData(
+                                                    'score',
+                                                    form.data.score === value
+                                                        ? null
+                                                        : value,
+                                                )
+                                            }
+                                            className={cn(
+                                                'rounded-md p-1 transition-colors',
+                                                active
+                                                    ? 'text-amber-500'
+                                                    : 'text-muted-foreground/40 hover:text-amber-400',
+                                            )}
+                                        >
+                                            <Star
+                                                className={cn(
+                                                    'size-6',
+                                                    active && 'fill-current',
+                                                )}
+                                                aria-hidden
+                                            />
+                                        </button>
+                                    );
+                                })}
+                                <span className="text-muted-foreground ml-2 text-sm">
+                                    {form.data.score === null
+                                        ? 'Non évaluée'
+                                        : `${form.data.score} / 5`}
+                                </span>
+                            </div>
+                            <InputError message={errors.score} />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="message">Message</Label>

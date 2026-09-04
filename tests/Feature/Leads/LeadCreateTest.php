@@ -42,6 +42,7 @@ test('any staff member can add a lead, which starts as new and is broadcast', fu
             'origin_city' => 'Genève',
             'source' => 'referral',
             'message' => 'Arrive avec sa famille.',
+            'score' => 4,
         ])
         ->assertRedirect(route('leads.index'));
 
@@ -49,6 +50,7 @@ test('any staff member can add a lead, which starts as new and is broadcast', fu
     expect($lead->fullName())->toBe('Léa Durand')
         ->and($lead->status)->toBe(LeadStatus::Todo)
         ->and($lead->budget_cents)->toBe(250_000)
+        ->and($lead->score)->toBe(4)
         ->and($lead->arrival_at?->toDateString())->toBe('2026-11-01')
         ->and($lead->created_by)->toBe($user->id);
 

@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { CalendarDays, MapPin } from 'lucide-react';
+import { Star } from 'lucide-react';
 import { useEffect, useState, type DragEvent } from 'react';
 import {
     LeadStatusMenu,
@@ -182,6 +182,27 @@ export function LeadKanban({ leads, statuses }: Props) {
     );
 }
 
+// Couleur d'accent par statut (avatar).
+const statusSoft: Record<LeadStatus, string> = {
+    todo: 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-200',
+    in_progress: 'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-200',
+    quote_sent:
+        'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200',
+    converted:
+        'bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-200',
+    archived:
+        'bg-neutral-200 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300',
+};
+
+function initials(name: string): string {
+    return name
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? '')
+        .join('');
+}
+
 function LeadCard({
     lead,
     statuses,
@@ -195,6 +216,22 @@ function LeadCard({
     onDragStart: (event: DragEvent) => void;
     onDragEnd: () => void;
 }) {
+    const contact = [lead.email, lead.phone].filter(Boolean).join(' · ');
+    const budget =
+        lead.budget_cents === null
+            ? null
+            : formatMoney(lead.budget_cents, lead.currency);
+    const rows: { label: string; value: string }[] = [
+        { label: 'Offre', value: lead.offer_label ?? '—' },
+        { label: 'Budget', value: budget ? `${budget} / mois` : '—' },
+        {
+            label: 'Arrivée',
+            value: lead.arrival_at ? formatDate(lead.arrival_at) : '—',
+        },
+        { label: 'Ville', value: lead.origin_city ?? '—' },
+        { label: 'Source', value: lead.source_label },
+    ];
+
     return (
         <article
             draggable
@@ -203,57 +240,68 @@ function LeadCard({
             aria-label={lead.name}
             data-test="lead-card"
             className={cn(
-                'bg-background grid min-w-0 cursor-grab gap-2 overflow-hidden rounded-lg border p-3 text-sm shadow-xs transition-opacity active:cursor-grabbing',
+                'bg-background grid min-w-0 cursor-grab gap-3 overflow-hidden rounded-lg border p-3 text-sm shadow-xs transition-opacity active:cursor-grabbing',
                 dragging && 'opacity-40',
             )}
         >
-            <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                    <p className="truncate font-medium">{lead.name}</p>
+            <div className="flex min-w-0 items-center gap-3">
+                <span
+                    aria-hidden
+                    className={cn(
+                        'flex size-10 shrink-0 items-center justify-center rounded-md text-xs font-semibold',
+                        statusSoft[lead.status],
+                    )}
+                >
+                    {initials(lead.name)}
+                </span>
+                <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                        <p className="truncate font-medium">{lead.name}</p>
+                        {lead.score !== null && (
+                            <span
+                                className="flex shrink-0 items-center gap-0.5 text-xs font-medium text-amber-600 tabular-nums dark:text-amber-400"
+                                aria-label={`Qualité ${lead.score} sur 5`}
+                                title={`Qualité ${lead.score} sur 5`}
+                            >
+                                <Star
+                                    className="size-3.5 fill-current"
+                                    aria-hidden
+                                />
+                                {lead.score}
+                            </span>
+                        )}
+                    </div>
                     <p className="text-muted-foreground truncate text-xs">
-                        {[lead.email, lead.phone].filter(Boolean).join(' · ')}
+                        {contact}
                     </p>
                 </div>
-                {lead.offer_label && (
-                    <Badge
-                        variant="outline"
-                        className="max-w-[45%] shrink-0 truncate"
-                    >
-                        {lead.offer_label}
-                    </Badge>
-                )}
-            </div>
-            <dl className="text-muted-foreground grid gap-1 text-xs">
-                {lead.arrival_at && (
-                    <div className="flex min-w-0 items-center gap-1.5">
-                        <CalendarDays
-                            className="size-3.5 shrink-0"
-                            aria-hidden
-                        />
-                        <dt className="sr-only">Arrivée</dt>
-                        <dd className="truncate">
-                            Arrive le {formatDate(lead.arrival_at)}
-                        </dd>
-                    </div>
-                )}
-                {lead.origin_city && (
-                    <div className="flex min-w-0 items-center gap-1.5">
-                        <MapPin className="size-3.5 shrink-0" aria-hidden />
-                        <dt className="sr-only">Ville d'origine</dt>
-                        <dd className="truncate">{lead.origin_city}</dd>
-                    </div>
-                )}
-            </dl>
-            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 pt-1">
-                <span className="min-w-0 truncate tabular-nums">
-                    {lead.budget_cents === null
-                        ? ''
-                        : `${formatMoney(lead.budget_cents, lead.currency)} / mois`}
-                </span>
                 <div className="max-w-full shrink-0">
                     <LeadStatusMenu lead={lead} statuses={statuses} />
                 </div>
             </div>
+            <dl className="grid min-w-0 grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
+                {rows.map((row) => (
+                    <div key={row.label} className="contents">
+                        <dt className="text-muted-foreground truncate">
+                            {row.label}
+                        </dt>
+                        <dd className="truncate text-right tabular-nums">
+                            {row.value}
+                        </dd>
+                    </div>
+                ))}
+            </dl>
+            {lead.message && (
+                <p className="text-muted-foreground line-clamp-2 border-t pt-2 text-xs">
+                    {lead.message}
+                </p>
+            )}
+            <p className="text-muted-foreground truncate border-t pt-2 text-xs">
+                {lead.created_at
+                    ? `Ajouté le ${formatDate(lead.created_at.slice(0, 10))}`
+                    : 'Ajouté'}
+                {lead.created_by ? ` par ${lead.created_by}` : ''}
+            </p>
         </article>
     );
 }
