@@ -3,18 +3,6 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { Notifications } from '@/components/notifications';
 
-function visible(): HTMLElement {
-    const option = document.querySelector<HTMLElement>(
-        '[data-uidotsh-option]:not([hidden])',
-    );
-
-    if (!option) {
-        throw new Error('Aucune variante visible');
-    }
-
-    return option;
-}
-
 describe('Notifications', () => {
     it('shows an empty state when there is nothing to read', async () => {
         const user = userEvent.setup();
@@ -28,21 +16,26 @@ describe('Notifications', () => {
         expect(
             await screen.findByText('Aucune notification pour le moment.'),
         ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /Tout marquer comme lu/ }),
+        ).toBeNull();
     });
 
-    // Pendant la comparaison de variantes (picker ui.sh), le panneau est ouvert par défaut.
-    it('counts unread notifications and lists them with their author', async () => {
+    it('lists notifications with author, coloured kind icon and read state', async () => {
+        const user = userEvent.setup();
         render(
             <Notifications
                 items={[
                     {
                         id: 1,
+                        kind: 'order',
                         actor: { name: 'Admin 2' },
                         title: 'a expédié la commande #1042',
                         at: 'il y a 2 min',
                     },
                     {
                         id: 2,
+                        kind: 'staff',
                         actor: { name: 'Claire Dubois' },
                         title: 'a rejoint le staff',
                         at: 'hier',
@@ -57,46 +50,52 @@ describe('Notifications', () => {
         });
         expect(trigger).toHaveTextContent('1');
 
-        await screen.findByText('1 non lue(s)', {
-            selector: ':not([hidden] *)',
-        });
+        await user.click(trigger);
 
-        const panel = within(visible());
+        const list = await screen.findByRole('list');
+        const rows = within(list).getAllByRole('listitem');
+
+        expect(rows).toHaveLength(2);
+        expect(rows[0]).toHaveTextContent(
+            'Admin 2 a expédié la commande #1042',
+        );
+        expect(rows[0].querySelector('span')).toHaveClass('bg-sky-100');
         expect(
-            panel.getByRole('button', { name: 'Tout marquer comme lu' }),
-        ).toBeEnabled();
-        expect(panel.getAllByRole('img', { name: 'Non lue' })).toHaveLength(1);
-        expect(panel.getAllByRole('img', { name: 'Lue' })).toHaveLength(1);
-        expect(panel.getByText('Admin 2')).toBeInTheDocument();
-        expect(
-            panel.getByText('a expédié la commande #1042'),
+            within(rows[0]).getByRole('img', { name: 'Non lue' }),
         ).toBeInTheDocument();
-        expect(panel.getByText('Claire Dubois')).toBeInTheDocument();
+        expect(rows[1].querySelector('span')).toHaveClass('bg-emerald-100');
+        expect(
+            within(rows[1]).getByRole('img', { name: 'Lue' }),
+        ).toBeInTheDocument();
+
+        expect(screen.getByText('1 non lue(s)')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: /Tout marquer comme lu/ }),
+        ).toBeEnabled();
     });
 
-    it('exposes exactly one visible variant to the picker', async () => {
+    it('disables the mark-all action when everything is read', async () => {
+        const user = userEvent.setup();
         render(
             <Notifications
                 items={[
                     {
                         id: 1,
-                        actor: { name: 'Admin' },
-                        title: 'a fait',
-                        at: 'now',
+                        actor: { name: 'Système' },
+                        title: 'a terminé la sauvegarde',
+                        at: 'lundi',
+                        read: true,
                     },
                 ]}
             />,
         );
 
-        await screen.findByText('Notifications', {
-            selector: ':not([hidden] *)',
-        });
+        await user.click(screen.getByRole('button', { name: 'Notifications' }));
 
         expect(
-            document.querySelectorAll('[data-uidotsh-option]:not([hidden])'),
-        ).toHaveLength(1);
-        expect(document.querySelectorAll('[data-uidotsh-option]')).toHaveLength(
-            15,
-        );
+            await screen.findByRole('button', {
+                name: /Tout marquer comme lu/,
+            }),
+        ).toBeDisabled();
     });
 });

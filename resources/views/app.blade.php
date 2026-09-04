@@ -45,6 +45,5 @@
     </head>
     <body class="font-sans antialiased">
         <x-inertia::app />
-        <script src="https://ui.sh/ui-picker.js"></script>
     </body>
 </html>
