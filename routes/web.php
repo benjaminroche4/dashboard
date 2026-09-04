@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Invoices\InvoiceController;
+use App\Http\Controllers\Places\PlacesController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -13,6 +14,11 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('invoices/create', [InvoiceController::class, 'create'])->name('invoices.create');
     Route::post('invoices', [InvoiceController::class, 'store'])->name('invoices.store');
     Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
+
+    Route::middleware('throttle:60,1')->group(function (): void {
+        Route::get('places/suggest', [PlacesController::class, 'suggest'])->name('places.suggest');
+        Route::get('places/details', [PlacesController::class, 'details'])->name('places.details');
+    });
 });
 
 require __DIR__.'/settings.php';

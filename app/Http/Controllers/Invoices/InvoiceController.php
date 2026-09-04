@@ -75,6 +75,7 @@ class InvoiceController extends Controller
                 ->all(),
             'vatRates' => config('company.vat_rates'),
             'countries' => config('company.countries'),
+            'nextNumber' => CreateInvoice::nextNumber(),
             'defaults' => [
                 'currency' => config('company.default_currency'),
                 'vat_rate' => config('company.default_vat_rate'),

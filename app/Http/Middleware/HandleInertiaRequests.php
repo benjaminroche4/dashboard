@@ -60,6 +60,9 @@ class HandleInertiaRequests extends Middleware
                         'role' => $member->role->value,
                     ])
                     ->all(),
+            'features' => [
+                'addressAutocomplete' => (bool) config('services.google.maps_key'),
+            ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

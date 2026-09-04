@@ -11,13 +11,13 @@ test('the PDF is generated through DocRaptor and downloaded', function (): void 
     config()->set('services.docraptor.test_mode', true);
     Http::fake(['api.docraptor.com/*' => Http::response('%PDF-1.4 fake', 200)]);
 
-    $invoice = Invoice::factory()->create(['number' => 'F-2026-0042', 'client_name' => 'Acme SA']);
+    $invoice = Invoice::factory()->create(['number' => 'RP-27042', 'client_name' => 'Acme SA']);
 
     $this->actingAs(User::factory()->create())
         ->get(route('invoices.pdf', $invoice))
         ->assertOk()
         ->assertHeader('Content-Type', 'application/pdf')
-        ->assertHeader('Content-Disposition', 'attachment; filename="facture-F-2026-0042.pdf"')
+        ->assertHeader('Content-Disposition', 'attachment; filename="facture-RP-27042.pdf"')
         ->assertSee('%PDF-1.4 fake', false);
 
     Http::assertSent(function ($request): bool {
@@ -28,7 +28,7 @@ test('the PDF is generated through DocRaptor and downloaded', function (): void 
             && $body['test'] === true
             && $body['document_type'] === 'pdf'
             && str_contains((string) $body['document_content'], 'Acme SA')
-            && str_contains((string) $body['document_content'], 'F-2026-0042')
+            && str_contains((string) $body['document_content'], 'RP-27042')
             && str_contains((string) $body['document_content'], 'data:image/jpeg;base64,');
     });
 });

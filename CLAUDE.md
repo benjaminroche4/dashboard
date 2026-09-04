@@ -85,7 +85,8 @@ Echo est configuré dans `resources/js/app.tsx` via `configureEcho({ broadcaster
 - Liste `invoices/index` : Data Table shadcn (TanStack v8), 50 lignes par page, pagination masquée en dessous.
 - Droits : `InvoicePolicy`, tout le staff consulte, managers et admins créent et modifient, admins suppriment.
 - **PDF** : route `invoices.pdf`, vue Blade `resources/views/invoices/pdf.blade.php` rendue puis envoyée à DocRaptor (`App\Services\DocRaptor`, clé `DOC_RAPTOR_KEY`, `DOC_RAPTOR_TEST_MODE=true` ajoute un filigrane sans facturation). Les tests simulent l'API avec `Http::fake`.
-- **Adresse** : autocomplétion Google Places (API « New ») dans `AddressAutocomplete`, clé `VITE_GOOGLE_MAPS_API_KEY` (exposée au navigateur : la restreindre par référent HTTP et aux API Places). Sans clé, le champ est un simple texte.
+- **Adresse** : autocomplétion Google Places via le proxy Laravel (`PlacesController`, routes `places.suggest` et `places.details`, `App\Services\GooglePlaces`, clé serveur `GOOGLE_MAPS_API_KEY`, jamais exposée). Le front (`AddressAutocomplete`) reçoit `features.addressAutocomplete` en prop partagée ; sans clé, le champ est un simple texte.
+- **Numéros de facture** : `config('company.invoice_prefix')` (`RP-27`, 27 = agent immobilier) + séquence à 3 chiffres minimum (`CreateInvoice::nextNumber()`), affiché à l'avance dans l'aperçu.
 - Les clés vivent dans `.env` (jamais commité). Sur Laravel Cloud, les ajouter aux variables d'environnement, `VITE_*` étant lues au build.
 
 ## Architecture et conventions

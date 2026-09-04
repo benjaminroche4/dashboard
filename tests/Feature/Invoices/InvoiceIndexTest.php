@@ -13,7 +13,7 @@ test('guests are redirected to the login page', function (): void {
 
 test('staff can list every invoice, newest first', function (): void {
     Invoice::factory()->count(3)->create(['issued_at' => now()->subDays(10)]);
-    $latest = Invoice::factory()->paid()->create(['issued_at' => now(), 'number' => 'F-2026-LATEST']);
+    $latest = Invoice::factory()->paid()->create(['issued_at' => now(), 'number' => 'RP-27500']);
 
     $this->actingAs(User::factory()->create())
         ->get(route('invoices.index'))

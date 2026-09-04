@@ -8,18 +8,15 @@ const { post, transform } = vi.hoisted(() => ({
     transform: vi.fn(),
 }));
 
-// Pas de clé Google en test : le champ Adresse est un simple champ texte.
-vi.mock('@/lib/google-places', async (importOriginal) => ({
-    ...(await importOriginal<typeof import('@/lib/google-places')>()),
-    googleMapsApiKey: () => '',
-}));
-
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@inertiajs/react')>();
 
     return {
         ...actual,
         Head: () => null,
+        usePage: () => ({
+            props: { features: { addressAutocomplete: false } },
+        }),
         Link: ({ href, children }: { href: unknown; children: ReactNode }) => (
             <a
                 href={
@@ -100,6 +97,7 @@ const props = {
         { value: 2.6, label: '2,6 % · taux réduit' },
         { value: 0, label: '0 % · exonéré / export' },
     ],
+    nextNumber: 'RP-27054',
     defaults: {
         currency: 'CHF' as const,
         vat_rate: 8.1,
@@ -123,6 +121,7 @@ describe('Invoice creation page', () => {
         await user.type(screen.getByLabelText('Quantité ligne 1'), '2');
 
         const preview = within(screen.getByLabelText('Aperçu de la facture'));
+        expect(preview.getByText('RP-27054')).toBeInTheDocument();
         expect(preview.getByText('Acme SA')).toBeInTheDocument();
         expect(preview.getByText('Offre Accompagné')).toBeInTheDocument();
         // 2 × 2500 = 5000 ; TVA 8,1 % = 405 ; total 5405

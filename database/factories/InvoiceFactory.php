@@ -39,7 +39,7 @@ class InvoiceFactory extends Factory
         $vat = (int) round($subtotal * $vatRate / 100);
 
         return [
-            'number' => sprintf('F-%s-%04d', $issuedAt->format('Y'), fake()->unique()->numberBetween(1, 9999)),
+            'number' => sprintf('RP-27%03d', fake()->unique()->numberBetween(1, 999)),
             'client_name' => fake()->company(),
             'client_email' => fake()->companyEmail(),
             'client_street' => fake()->streetAddress(),

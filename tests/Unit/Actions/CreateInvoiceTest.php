@@ -33,7 +33,7 @@ test('it stores the invoice with computed totals, the creator, and broadcasts to
 
     $invoice = (new CreateInvoice)->handle(InvoiceData::from(createInvoicePayload()), $creator);
 
-    expect($invoice->number)->toBe('F-2026-0001')
+    expect($invoice->number)->toBe('RP-27001')
         ->and($invoice->subtotal_cents)->toBe(30_000)
         ->and($invoice->vat_cents)->toBe(2_430)
         ->and($invoice->amount_cents)->toBe(32_430)
@@ -42,17 +42,25 @@ test('it stores the invoice with computed totals, the creator, and broadcasts to
         ->and($invoice->items)->toHaveCount(1);
 
     Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->resource === 'invoices'
-        && $event->message === 'a créé la facture F-2026-0001');
+        && $event->message === 'a créé la facture RP-27001');
 });
 
-test('numbers are sequential per issue year', function (): void {
+test('numbers follow the RP-27 prefix and a growing sequence', function (): void {
     Event::fake([DashboardUpdated::class]);
-    Invoice::factory()->create(['number' => 'F-2026-0041', 'issued_at' => '2026-01-10']);
-    Invoice::factory()->create(['number' => 'F-2025-0999', 'issued_at' => '2025-12-10']);
+    Invoice::factory()->create(['number' => 'RP-27053']);
+    Invoice::factory()->create(['number' => 'RP-27009']);
 
     $next = (new CreateInvoice)->handle(InvoiceData::from(createInvoicePayload()));
-    $lastYear = (new CreateInvoice)->handle(InvoiceData::from(createInvoicePayload(['issued_at' => '2025-12-20', 'due_at' => '2026-01-20'])));
+    $after = (new CreateInvoice)->handle(InvoiceData::from(createInvoicePayload()));
 
-    expect($next->number)->toBe('F-2026-0042')
-        ->and($lastYear->number)->toBe('F-2025-1000');
+    expect($next->number)->toBe('RP-27054')
+        ->and($after->number)->toBe('RP-27055')
+        ->and(CreateInvoice::nextNumber())->toBe('RP-27056');
+});
+
+test('the sequence keeps growing past three digits', function (): void {
+    Event::fake([DashboardUpdated::class]);
+    Invoice::factory()->create(['number' => 'RP-27999']);
+
+    expect((new CreateInvoice)->handle(InvoiceData::from(createInvoicePayload()))->number)->toBe('RP-271000');
 });

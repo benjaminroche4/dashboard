@@ -3,20 +3,11 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const google = vi.hoisted(() => ({
-    key: 'test-key',
-    fetch: vi.fn(),
+const places = vi.hoisted(() => ({ fetch: vi.fn() }));
+
+vi.mock('@/lib/google-places', () => ({
+    fetchPlaceSuggestions: places.fetch,
 }));
-
-vi.mock('@/lib/google-places', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@/lib/google-places')>();
-
-    return {
-        ...actual,
-        googleMapsApiKey: () => google.key,
-        fetchPlaceSuggestions: google.fetch,
-    };
-});
 
 import { AddressAutocomplete } from '@/components/address-autocomplete';
 
@@ -24,15 +15,18 @@ import { AddressAutocomplete } from '@/components/address-autocomplete';
 function Controlled({
     onChange,
     onSelect,
+    enabled = true,
 }: {
     onChange: (value: string) => void;
     onSelect: (address: unknown) => void;
+    enabled?: boolean;
 }) {
     const [value, setValue] = useState('');
 
     return (
         <AddressAutocomplete
             value={value}
+            enabled={enabled}
             onChange={(next) => {
                 setValue(next);
                 onChange(next);
@@ -52,30 +46,31 @@ const resolved = {
 
 describe('AddressAutocomplete', () => {
     beforeEach(() => {
-        google.key = 'test-key';
-        google.fetch.mockReset();
+        places.fetch.mockReset();
     });
 
-    it('is a plain input when no API key is configured', () => {
-        google.key = '';
+    it('is a plain input when the feature is disabled', async () => {
+        const user = userEvent.setup();
         render(
-            <AddressAutocomplete
-                value=""
+            <Controlled
                 onChange={vi.fn()}
                 onSelect={vi.fn()}
+                enabled={false}
             />,
         );
 
-        expect(
-            screen.getByPlaceholderText('Rue et numéro'),
-        ).not.toHaveAttribute('role');
+        const input = screen.getByPlaceholderText('Rue et numéro');
+        expect(input).not.toHaveAttribute('role');
+
+        await user.type(input, 'Rue des Alpes');
+        expect(places.fetch).not.toHaveBeenCalled();
     });
 
     it('suggests addresses after typing and fills the address on selection', async () => {
         const user = userEvent.setup();
         const onChange = vi.fn();
         const onSelect = vi.fn();
-        google.fetch.mockResolvedValue([
+        places.fetch.mockResolvedValue([
             {
                 id: 'p1',
                 main: 'Rue des Alpes 5',
@@ -91,7 +86,7 @@ describe('AddressAutocomplete', () => {
         const option = await screen.findByRole('option', {
             name: /Rue des Alpes 5/,
         });
-        expect(google.fetch).toHaveBeenLastCalledWith(
+        expect(places.fetch).toHaveBeenLastCalledWith(
             'Rue des',
             ['ch', 'fr'],
             expect.any(Object),
@@ -107,7 +102,7 @@ describe('AddressAutocomplete', () => {
     it('supports keyboard navigation and Enter', async () => {
         const user = userEvent.setup();
         const onSelect = vi.fn();
-        google.fetch.mockResolvedValue([
+        places.fetch.mockResolvedValue([
             {
                 id: 'a',
                 main: 'A',

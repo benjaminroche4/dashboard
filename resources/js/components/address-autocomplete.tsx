@@ -3,7 +3,6 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import {
     fetchPlaceSuggestions,
-    googleMapsApiKey,
     type PlaceSuggestion,
     type PlacesSession,
     type ResolvedAddress,
@@ -15,6 +14,8 @@ type Props = {
     value: string;
     onChange: (value: string) => void;
     onSelect: (address: ResolvedAddress) => void;
+    /** Faux quand la clé Google n'est pas configurée : champ texte ordinaire. */
+    enabled?: boolean;
     /** Codes pays (ISO alpha-2) qui restreignent la recherche. */
     regionCodes?: string[];
     placeholder?: string;
@@ -22,19 +23,18 @@ type Props = {
 };
 
 /**
- * Champ d'adresse avec suggestions Google Places.
- * Sans clé configurée, c'est un champ texte ordinaire.
+ * Champ d'adresse avec suggestions Google Places (via le proxy Laravel).
  */
 export function AddressAutocomplete({
     id,
     value,
     onChange,
     onSelect,
+    enabled = true,
     regionCodes = ['ch', 'fr'],
     placeholder = 'Rue et numéro',
     className,
 }: Props) {
-    const enabled = googleMapsApiKey() !== '';
     const listId = useId();
     const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
     const [open, setOpen] = useState(false);
@@ -90,10 +90,7 @@ export function AddressAutocomplete({
                 setActive(0);
                 setOpen(results.length > 0);
             } catch (error) {
-                console.warn(
-                    'Autocomplétion Google Places indisponible',
-                    error,
-                );
+                console.warn('Autocomplétion d’adresse indisponible', error);
                 setSuggestions([]);
                 setOpen(false);
             } finally {
@@ -162,13 +159,15 @@ export function AddressAutocomplete({
                     }
                 }}
             />
-            <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 -translate-y-1/2">
-                {loading ? (
-                    <Loader2 className="size-4 animate-spin" />
-                ) : (
-                    <MapPin className="size-4" />
-                )}
-            </span>
+            {enabled && (
+                <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 -translate-y-1/2">
+                    {loading ? (
+                        <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                        <MapPin className="size-4" />
+                    )}
+                </span>
+            )}
 
             {open && suggestions.length > 0 && (
                 <ul

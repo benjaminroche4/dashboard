@@ -1,39 +1,87 @@
-import { describe, expect, it } from 'vitest';
-import { parseAddressComponents } from '@/lib/google-places';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fetchPlaceSuggestions } from '@/lib/google-places';
 
-const component = (types: string[], longText: string, shortText = longText) =>
-    ({
-        types,
-        longText,
-        shortText,
-    }) as unknown as google.maps.places.AddressComponent;
+function fakeFetch(routes: Record<string, unknown>) {
+    return vi.fn(async (url: string) => {
+        const path = new URL(url, 'http://localhost').pathname;
+        const body = routes[path];
 
-describe('parseAddressComponents', () => {
-    it('rebuilds street, postal code, city and country from Google components', () => {
-        const address = parseAddressComponents([
-            component(['street_number'], '5'),
-            component(['route'], 'Rue des Alpes'),
-            component(['locality', 'political'], 'Genève'),
-            component(['postal_code'], '1201'),
-            component(['country', 'political'], 'Suisse', 'CH'),
-        ]);
+        return {
+            ok: body !== undefined,
+            status: body === undefined ? 404 : 200,
+            json: async () => body,
+        };
+    });
+}
 
-        expect(address).toEqual({
-            street: '5 Rue des Alpes',
-            postalCode: '1201',
-            city: 'Genève',
-            countryCode: 'CH',
-            countryName: 'Suisse',
-        });
+describe('fetchPlaceSuggestions', () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
     });
 
-    it('tolerates missing pieces', () => {
-        expect(parseAddressComponents(null)).toEqual({
-            street: '',
-            postalCode: '',
-            city: '',
-            countryCode: null,
-            countryName: '',
+    it('queries the Laravel proxy with a session token and resolves details', async () => {
+        const fetchMock = fakeFetch({
+            '/places/suggest': {
+                suggestions: [
+                    {
+                        id: 'p1',
+                        main: 'Rue des Alpes 5',
+                        secondary: '1201 Genève, Suisse',
+                    },
+                ],
+            },
+            '/places/details': {
+                address: {
+                    street: '5 Rue des Alpes',
+                    postalCode: '1201',
+                    city: 'Genève',
+                    countryCode: 'CH',
+                    countryName: 'Suisse',
+                },
+            },
         });
+        vi.stubGlobal('fetch', fetchMock);
+
+        const session = {};
+        const suggestions = await fetchPlaceSuggestions(
+            'Rue des',
+            ['ch', 'fr'],
+            session,
+        );
+
+        expect(suggestions).toHaveLength(1);
+        expect(suggestions[0].main).toBe('Rue des Alpes 5');
+
+        const suggestUrl = new URL(
+            fetchMock.mock.calls[0][0] as string,
+            'http://localhost',
+        );
+        expect(suggestUrl.searchParams.get('input')).toBe('Rue des');
+        expect(suggestUrl.searchParams.getAll('regions[]')).toEqual([
+            'ch',
+            'fr',
+        ]);
+        const token = suggestUrl.searchParams.get('session');
+        expect(token).toBeTruthy();
+
+        const address = await suggestions[0].resolve();
+        expect(address.city).toBe('Genève');
+
+        const detailsUrl = new URL(
+            fetchMock.mock.calls[1][0] as string,
+            'http://localhost',
+        );
+        expect(detailsUrl.searchParams.get('place_id')).toBe('p1');
+        expect(detailsUrl.searchParams.get('session')).toBe(token);
+        // La session est consommée après le détail.
+        expect((session as { token?: string }).token).toBeUndefined();
+    });
+
+    it('throws on a non-2xx answer', async () => {
+        vi.stubGlobal('fetch', fakeFetch({}));
+
+        await expect(fetchPlaceSuggestions('Rue', ['ch'], {})).rejects.toThrow(
+            'Places : 404',
+        );
     });
 });

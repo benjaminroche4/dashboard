@@ -12,6 +12,7 @@ declare module '@inertiajs/core' {
             name: string;
             auth: Auth;
             staff: StaffDirectoryEntry[];
+            features: { addressAutocomplete: boolean };
             sidebarOpen: boolean;
             [key: string]: unknown;
         };

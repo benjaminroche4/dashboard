@@ -20,7 +20,7 @@ final class CreateInvoice
     public function handle(InvoiceData $data, ?User $creator = null): Invoice
     {
         $invoice = DB::transaction(fn (): Invoice => Invoice::create([
-            'number' => $this->nextNumber($data->issuedAt->year),
+            'number' => self::nextNumber(),
             'client_name' => $data->clientName,
             'client_email' => $data->clientEmail,
             'client_street' => $data->clientStreet,
@@ -47,17 +47,19 @@ final class CreateInvoice
     }
 
     /**
-     * F-AAAA-NNNN, séquentiel par année d'émission.
+     * Prochain numéro : préfixe (RP-27) + séquence sur 3 chiffres minimum, ex. RP-27054.
      */
-    private function nextNumber(int $year): string
+    public static function nextNumber(): string
     {
+        $prefix = (string) config('company.invoice_prefix', 'RP-27');
+
         $last = Invoice::query()
-            ->where('number', 'like', "F-{$year}-%")
+            ->where('number', 'like', $prefix.'%')
             ->orderByDesc('number')
             ->value('number');
 
-        $sequence = $last === null ? 0 : (int) substr((string) $last, -4);
+        $sequence = $last === null ? 0 : (int) substr((string) $last, strlen($prefix));
 
-        return sprintf('F-%d-%04d', $year, $sequence + 1);
+        return sprintf('%s%03d', $prefix, $sequence + 1);
     }
 }

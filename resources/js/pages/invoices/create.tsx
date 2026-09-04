@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { Plus, Trash2 } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { AddressAutocomplete } from '@/components/address-autocomplete';
@@ -38,6 +38,8 @@ type Props = {
     currencies: { value: Currency; label: string }[];
     vatRates: { value: number; label: string }[];
     countries: CountryOption[];
+    /** Numéro que recevra la facture à sa création (affiché dans l'aperçu). */
+    nextNumber: string;
     defaults: {
         currency: Currency;
         vat_rate: number;
@@ -82,8 +84,10 @@ export default function InvoicesCreate({
     currencies,
     vatRates,
     countries,
+    nextNumber,
     defaults,
 }: Props) {
+    const { features } = usePage().props;
     const firstOffer = offers[0]?.value ?? 'accompagne';
     const emptyLine = (currency: Currency): InvoiceLineForm => ({
         offer: firstOffer,
@@ -253,6 +257,7 @@ export default function InvoicesCreate({
                                 <Label htmlFor="client_street">Adresse</Label>
                                 <AddressAutocomplete
                                     id="client_street"
+                                    enabled={features.addressAutocomplete}
                                     value={form.data.client_street}
                                     onChange={(street) =>
                                         form.setData('client_street', street)
@@ -647,6 +652,7 @@ export default function InvoicesCreate({
                             form={form.data}
                             company={company}
                             offers={offers}
+                            number={nextNumber}
                         />
                     </aside>
                 </div>

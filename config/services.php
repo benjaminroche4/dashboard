@@ -37,6 +37,11 @@ return [
         ],
     ],
 
+    'google' => [
+        // Clé serveur Google Maps Platform (Places API). Jamais exposée au navigateur.
+        'maps_key' => env('GOOGLE_MAPS_API_KEY'),
+    ],
+
     'docraptor' => [
         'key' => env('DOC_RAPTOR_KEY'),
         'test_mode' => (bool) env('DOC_RAPTOR_TEST_MODE', true),

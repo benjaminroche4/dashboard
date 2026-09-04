@@ -43,7 +43,7 @@ test('the creation page provides company details, currencies and Swiss defaults'
             ->has('currencies', 2)
             ->where('currencies.0.value', 'CHF')
             ->where('currencies.1.value', 'EUR')
-            ->where('defaults.currency', 'CHF')
+            ->where('defaults.currency', 'EUR')
             ->where('defaults.vat_rate', 8.1)
             ->where('defaults.issued_at', now()->toDateString())
             ->where('defaults.due_at', now()->addDays(30)->toDateString()));
@@ -67,7 +67,7 @@ test('managers can create an invoice in euros and are sent back to the list', fu
 
     $invoice = Invoice::sole();
 
-    expect($invoice->number)->toBe('F-2026-0001')
+    expect($invoice->number)->toBe('RP-27001')
         ->and($invoice->currency->value)->toBe('EUR')
         ->and($invoice->amount_cents)->toBe(30_000)
         ->and($invoice->vat_cents)->toBe(0)

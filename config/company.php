@@ -17,6 +17,9 @@ return [
     'iban' => env('COMPANY_IBAN', 'CH00 0000 0000 0000 0000 0'),
     'bank' => env('COMPANY_BANK', 'Banque Exemple SA'),
 
+    // Préfixe des numéros de facture : RP + code activité (27 = agent immobilier), puis séquence.
+    'invoice_prefix' => env('COMPANY_INVOICE_PREFIX', 'RP-27'),
+
     // Taux de TVA suisse ordinaire, en pourcentage.
     'default_vat_rate' => (float) env('COMPANY_DEFAULT_VAT_RATE', 8.1),
 
@@ -26,7 +29,7 @@ return [
         ['value' => 2.6, 'label' => '2,6 % · taux réduit'],
         ['value' => 0.0, 'label' => '0 % · exonéré / export'],
     ],
-    'default_currency' => env('COMPANY_DEFAULT_CURRENCY', 'CHF'),
+    'default_currency' => env('COMPANY_DEFAULT_CURRENCY', 'EUR'),
     'default_payment_terms_days' => (int) env('COMPANY_PAYMENT_TERMS_DAYS', 30),
 
     // Pays proposés pour l'adresse du client (le premier est présélectionné).
