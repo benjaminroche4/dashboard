@@ -11,7 +11,8 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { pdf, send, show } from '@/routes/invoices';
+import { downloadInvoicePdf } from '@/lib/download-invoice-pdf';
+import { send, show } from '@/routes/invoices';
 import type { Invoice } from '@/types';
 
 /**
@@ -39,14 +40,12 @@ export function InvoiceRowActions({ invoice }: { invoice: Invoice }) {
                             Voir la facture
                         </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                        <a
-                            href={pdf({ invoice: invoice.id }).url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            Télécharger le PDF
-                        </a>
+                    <DropdownMenuItem
+                        onClick={() =>
+                            downloadInvoicePdf(invoice.id, invoice.number)
+                        }
+                    >
+                        Télécharger le PDF
                     </DropdownMenuItem>
                     <DropdownMenuItem
                         onClick={() =>

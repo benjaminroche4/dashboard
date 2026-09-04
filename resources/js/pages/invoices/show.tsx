@@ -7,9 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { formatMoney } from '@/lib/format';
+import { downloadInvoicePdf } from '@/lib/download-invoice-pdf';
 import { invoiceToForm } from '@/lib/invoice-to-form';
 import { cn } from '@/lib/utils';
-import { index as invoicesIndex, pdf, send } from '@/routes/invoices';
+import { index as invoicesIndex, send } from '@/routes/invoices';
 import type {
     Company,
     InvoiceDetail,
@@ -97,15 +98,14 @@ export default function InvoicesShow({
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" asChild>
-                            <a
-                                href={pdf({ invoice: invoice.id }).url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                <Download />
-                                PDF
-                            </a>
+                        <Button
+                            variant="outline"
+                            onClick={() =>
+                                downloadInvoicePdf(invoice.id, invoice.number)
+                            }
+                        >
+                            <Download />
+                            PDF
                         </Button>
                         {invoice.can_send && (
                             <Button

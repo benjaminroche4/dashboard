@@ -77,10 +77,7 @@ describe('Invoice detail page', () => {
                 'Jean Dupont',
             ),
         ).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /PDF/ })).toHaveAttribute(
-            'href',
-            '/invoices/1/pdf',
-        );
+        expect(screen.getByRole('button', { name: 'PDF' })).toBeInTheDocument();
     });
 
     it('offers to send a draft and posts to the send route', async () => {

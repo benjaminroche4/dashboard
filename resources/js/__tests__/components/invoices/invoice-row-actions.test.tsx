@@ -42,7 +42,7 @@ describe('InvoiceRowActions', () => {
         ).toHaveAttribute('href', '/invoices/1');
         expect(
             screen.getByRole('menuitem', { name: 'Télécharger le PDF' }),
-        ).toHaveAttribute('href', '/invoices/1/pdf');
+        ).toBeInTheDocument();
         expect(
             screen.getByRole('menuitem', { name: 'Envoyer au client' }),
         ).toHaveAttribute('aria-disabled', 'true');
