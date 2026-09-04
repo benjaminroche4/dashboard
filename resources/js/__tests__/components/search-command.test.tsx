@@ -25,7 +25,9 @@ describe('SearchCommand', () => {
         await user.click(screen.getByRole('button', { name: 'Rechercher' }));
 
         expect(
-            await screen.findByPlaceholderText('Rechercher une page…'),
+            await screen.findByPlaceholderText(
+                'Rechercher une page ou un lead…',
+            ),
         ).toBeInTheDocument();
         expect(screen.getByText('Sécurité')).toBeInTheDocument();
 
@@ -41,7 +43,46 @@ describe('SearchCommand', () => {
         await user.keyboard('{Meta>}k{/Meta}');
 
         expect(
-            await screen.findByPlaceholderText('Rechercher une page…'),
+            await screen.findByPlaceholderText(
+                'Rechercher une page ou un lead…',
+            ),
         ).toBeInTheDocument();
+    });
+
+    it('searches leads on the server after two characters and navigates to one', async () => {
+        const user = userEvent.setup();
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async () => ({
+                ok: true,
+                json: async () => [
+                    {
+                        id: 7,
+                        name: 'Zoé Martin',
+                        email: 'zoe@example.com',
+                        status_label: 'En cours',
+                        url: '/leads/7',
+                    },
+                ],
+            })),
+        );
+        render(<SearchCommand />);
+
+        await user.click(screen.getByRole('button', { name: 'Rechercher' }));
+        await user.type(
+            await screen.findByPlaceholderText(
+                'Rechercher une page ou un lead…',
+            ),
+            'zo',
+        );
+
+        await user.click(await screen.findByText('Zoé Martin'));
+
+        expect(fetch).toHaveBeenCalledWith(
+            expect.stringContaining('/leads/search?q=zo'),
+            expect.objectContaining({ credentials: 'same-origin' }),
+        );
+        expect(visit).toHaveBeenCalledWith('/leads/7');
+        vi.unstubAllGlobals();
     });
 });

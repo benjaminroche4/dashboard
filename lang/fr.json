@@ -284,5 +284,6 @@
     "Facture :number envoyée à :email (sans PDF, DocRaptor non configuré).": "Facture :number envoyée à :email (sans PDF, DocRaptor non configuré).",
     "Facture :number marquée payée.": "Facture :number marquée payée.",
     "Lead :name ajouté.": "Lead :name ajouté.",
-    ":name est maintenant « :status ».": ":name est maintenant « :status »."
+    ":name est maintenant « :status ».": ":name est maintenant « :status ».",
+    "Lead :name mis à jour.": "Lead :name mis à jour."
 }

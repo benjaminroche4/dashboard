@@ -1,9 +1,9 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { patch } = vi.hoisted(() => ({ patch: vi.fn() }));
+const { patch, visit } = vi.hoisted(() => ({ patch: vi.fn(), visit: vi.fn() }));
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
@@ -14,12 +14,16 @@ vi.mock('@inertiajs/react', () => ({
         href: { url: string };
         children: ReactNode;
     }) => <a href={href.url}>{children}</a>,
-    router: { patch },
+    router: { patch, visit },
 }));
 
 import LeadsIndex from '@/pages/leads/index';
 import { leadStatuses, makeLead } from '@/test/fixtures/lead';
 
+const offers = [
+    { value: 'accompagne' as const, label: 'Accompagné', description: '' },
+    { value: 'confie' as const, label: 'Confié', description: '' },
+];
 const leads = [
     makeLead(),
     makeLead({
@@ -27,6 +31,7 @@ const leads = [
         name: 'Marc Petit',
         status: 'converted',
         status_label: 'Converti',
+        score: 2,
     }),
     makeLead({
         id: 3,
@@ -38,8 +43,16 @@ const leads = [
 ];
 
 describe('Leads kanban page', () => {
-    it('shows one column per status with its cards and the Converting Machine button', () => {
-        render(<LeadsIndex leads={leads} statuses={leadStatuses} />);
+    beforeEach(() => localStorage.clear());
+
+    it('shows one column per status, column totals and a collapsed archive', () => {
+        render(
+            <LeadsIndex
+                leads={leads}
+                statuses={leadStatuses}
+                offers={offers}
+            />,
+        );
 
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
             'Leads',
@@ -48,65 +61,105 @@ describe('Leads kanban page', () => {
             screen.getByText('3 lead(s) · 1 en cours · 1 converti(s)'),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('link', { name: 'Converting Machine' }),
-        ).toHaveAttribute('href', '/leads/create');
+            screen.getAllByRole('listitem', {
+                name: /À traiter|En cours|Devis envoyé|Converti|Archivé/,
+            }),
+        ).toHaveLength(5);
 
-        const columns = screen.getAllByRole('listitem', {
-            name: /À traiter|En cours|Devis envoyé|Converti|Archivé/,
-        });
-        expect(columns).toHaveLength(5);
+        const todo = screen.getByRole('listitem', { name: 'À traiter' });
+        expect(within(todo).getByText('Léa Durand')).toBeInTheDocument();
         expect(
-            within(
-                screen.getByRole('listitem', { name: 'À traiter' }),
-            ).getByText('Léa Durand'),
-        ).toBeInTheDocument();
-        expect(
-            within(
-                screen.getByRole('listitem', { name: 'Converti' }),
-            ).getByText('Marc Petit'),
-        ).toBeInTheDocument();
+            todo.querySelector('[data-test="column-stats"]'),
+        ).toHaveTextContent(/2.500,00.*4/);
         expect(
             within(
                 screen.getByRole('listitem', { name: 'En cours' }),
             ).getByText('Déposez un lead ici'),
         ).toBeInTheDocument();
+
+        const archived = screen.getByRole('listitem', { name: 'Archivé' });
+        expect(archived).toHaveAttribute('data-collapsed');
+        expect(
+            within(archived).queryByText('Nina Roy'),
+        ).not.toBeInTheDocument();
     });
 
-    it('filters cards by name', async () => {
+    it('expands the archive column and remembers it', async () => {
         const user = userEvent.setup();
-        render(<LeadsIndex leads={leads} statuses={leadStatuses} />);
+        render(
+            <LeadsIndex
+                leads={leads}
+                statuses={leadStatuses}
+                offers={offers}
+            />,
+        );
 
-        await user.type(screen.getByLabelText('Filtrer les leads'), 'nina');
+        await user.click(
+            screen.getByRole('button', { name: 'Déplier Archivé (1)' }),
+        );
 
-        expect(screen.getByText('Nina Roy')).toBeInTheDocument();
-        expect(screen.queryByText('Léa Durand')).not.toBeInTheDocument();
+        expect(
+            within(screen.getByRole('listitem', { name: 'Archivé' })).getByText(
+                'Nina Roy',
+            ),
+        ).toBeInTheDocument();
+        expect(localStorage.getItem('leads.kanban.archived-open')).toBe('1');
     });
 
-    it('moves a card to another column on drop and patches its status', () => {
-        patch.mockClear();
-        render(<LeadsIndex leads={leads} statuses={leadStatuses} />);
-
-        const card = screen.getByRole('article', { name: 'Léa Durand' });
-        const target = screen.getByRole('listitem', { name: 'Devis envoyé' });
-        const store: Record<string, string> = {};
-        const dataTransfer = {
-            setData: (type: string, value: string) => {
-                store[type] = value;
-            },
-            getData: (type: string) => store[type] ?? '',
-            effectAllowed: 'all',
-            dropEffect: 'none',
-        };
-
-        fireEvent.dragStart(card, { dataTransfer });
-        fireEvent.dragOver(target, { dataTransfer });
-        fireEvent.drop(target, { dataTransfer });
-
-        expect(within(target).getByText('Léa Durand')).toBeInTheDocument();
-        expect(patch).toHaveBeenCalledWith(
-            '/leads/1/status',
-            { status: 'quote_sent' },
-            expect.objectContaining({ preserveScroll: true }),
+    it('filters cards by text and by minimum score', async () => {
+        const user = userEvent.setup();
+        render(
+            <LeadsIndex
+                leads={leads}
+                statuses={leadStatuses}
+                offers={offers}
+            />,
         );
+
+        await user.type(screen.getByLabelText('Filtrer les leads'), 'marc');
+        expect(screen.getByText('Marc Petit')).toBeInTheDocument();
+        expect(screen.queryByText('Léa Durand')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Réinitialiser' }));
+        await user.click(
+            screen.getByRole('combobox', { name: 'Note minimale' }),
+        );
+        await user.click(
+            await screen.findByRole('option', { name: /4 et plus/ }),
+        );
+
+        expect(screen.getByText('Léa Durand')).toBeInTheDocument();
+        expect(screen.queryByText('Marc Petit')).not.toBeInTheDocument();
+    });
+
+    it('opens the lead detail when a card is clicked', async () => {
+        const user = userEvent.setup();
+        render(
+            <LeadsIndex
+                leads={leads}
+                statuses={leadStatuses}
+                offers={offers}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Léa Durand' }));
+
+        expect(visit).toHaveBeenCalledWith('/leads/1');
+    });
+
+    it('shows an empty state with a call to the Converting Machine', () => {
+        render(
+            <LeadsIndex leads={[]} statuses={leadStatuses} offers={offers} />,
+        );
+
+        expect(
+            screen.getByText('Aucun lead pour le moment'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'Ouvrir la Converting Machine' }),
+        ).toHaveAttribute('href', '/leads/create');
+        expect(
+            screen.queryByRole('list', { name: 'Kanban des leads' }),
+        ).not.toBeInTheDocument();
     });
 });

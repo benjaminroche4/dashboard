@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Leads;
 
-use App\Enums\LeadStatus;
 use App\Models\Lead;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
-class UpdateLeadStatusRequest extends FormRequest
+class StoreLeadNoteRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -25,10 +23,7 @@ class UpdateLeadStatusRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'status' => ['required', Rule::enum(LeadStatus::class)],
-            'position' => ['nullable', 'integer', 'min:0'],
-        ];
+        return ['body' => ['required', 'string', 'max:5000']];
     }
 
     /**
@@ -36,6 +31,6 @@ class UpdateLeadStatusRequest extends FormRequest
      */
     public function attributes(): array
     {
-        return ['status' => 'statut', 'position' => 'position'];
+        return ['body' => 'note'];
     }
 }

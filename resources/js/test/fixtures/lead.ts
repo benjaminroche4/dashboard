@@ -1,4 +1,4 @@
-import type { Lead, LeadStatusOption } from '@/types';
+import type { Lead, LeadDetail, LeadStatusOption } from '@/types';
 
 /** Miroir de LeadFactory : lead nouveau, offre Accompagné, budget 2 500 EUR. */
 export function makeLead(overrides: Partial<Lead> = {}): Lead {
@@ -18,6 +18,7 @@ export function makeLead(overrides: Partial<Lead> = {}): Lead {
         score: 4,
         status: 'todo',
         status_label: 'À traiter',
+        position: 0,
         last_contacted_at: null,
         created_at: '2026-09-04T10:00:00+00:00',
         created_by: 'Admin',
@@ -32,3 +33,16 @@ export const leadStatuses: LeadStatusOption[] = [
     { value: 'converted', label: 'Converti' },
     { value: 'archived', label: 'Archivé' },
 ];
+
+export function makeLeadDetail(
+    overrides: Partial<LeadDetail> = {},
+): LeadDetail {
+    return {
+        ...makeLead(),
+        first_name: 'Léa',
+        last_name: 'Durand',
+        source: 'referral',
+        updated_at: '2026-09-04T10:00:00+00:00',
+        ...overrides,
+    } as LeadDetail;
+}

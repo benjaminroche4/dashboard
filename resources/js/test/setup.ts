@@ -32,3 +32,17 @@ vi.stubGlobal(
 afterEach(() => {
     cleanup();
 });
+
+// Radix Select : jsdom n'implémente pas la capture de pointeur.
+for (const method of [
+    'hasPointerCapture',
+    'setPointerCapture',
+    'releasePointerCapture',
+] as const) {
+    if (!(method in Element.prototype)) {
+        Object.defineProperty(Element.prototype, method, {
+            configurable: true,
+            value: vi.fn(() => false),
+        });
+    }
+}

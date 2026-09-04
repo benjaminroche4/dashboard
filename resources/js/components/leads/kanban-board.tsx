@@ -1,19 +1,43 @@
+import {
+    DndContext,
+    DragOverlay,
+    KeyboardSensor,
+    PointerSensor,
+    TouchSensor,
+    closestCorners,
+    useDroppable,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+    type DragOverEvent,
+    type DragStartEvent,
+} from '@dnd-kit/core';
+import {
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { router } from '@inertiajs/react';
-import { Clock, Star } from 'lucide-react';
-import { useEffect, useState, type DragEvent } from 'react';
+import { Archive, ChevronLeft, Clock, Star } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
     LeadStatusMenu,
     leadStatusClasses,
 } from '@/components/leads/lead-status-menu';
 import { Badge } from '@/components/ui/badge';
 import { formatDate, formatMoney } from '@/lib/format';
+import { applyMove, columnOf, columnStats } from '@/lib/kanban';
 import { cn } from '@/lib/utils';
-import { status as leadStatusRoute } from '@/routes/leads';
+import { show as leadShow, status as leadStatusRoute } from '@/routes/leads';
 import type { Lead, LeadStatus, LeadStatusOption } from '@/types';
 
 type Props = {
     leads: Lead[];
     statuses: LeadStatusOption[];
+    /** Faux quand un tri autre que manuel est actif : on change de colonne, pas d'ordre. */
+    reorderable?: boolean;
 };
 
 // Une teinte par colonne, en clair comme en sombre.
@@ -37,152 +61,6 @@ const columnTitleClasses: Record<LeadStatus, string> = {
     archived: 'text-neutral-600 dark:text-neutral-400',
 };
 
-/**
- * Kanban des leads : une colonne par statut, glisser-déposer pour changer
- * de colonne (mise à jour optimiste, retour arrière si le serveur refuse).
- * Le badge de chaque carte reste utilisable au clavier et sur mobile.
- */
-export function LeadKanban({ leads, statuses }: Props) {
-    const [items, setItems] = useState(leads);
-    const [draggingId, setDraggingId] = useState<number | null>(null);
-    const [overColumn, setOverColumn] = useState<LeadStatus | null>(null);
-
-    // Les props Inertia font foi dès qu'elles changent (rechargement temps réel).
-    useEffect(() => setItems(leads), [leads]);
-
-    const moveTo = (id: number, status: LeadStatusOption) => {
-        const lead = items.find((candidate) => candidate.id === id);
-
-        if (!lead || lead.status === status.value) {
-            return;
-        }
-
-        setItems((current) =>
-            current.map((candidate) =>
-                candidate.id === id
-                    ? {
-                          ...candidate,
-                          status: status.value,
-                          status_label: status.label,
-                      }
-                    : candidate,
-            ),
-        );
-        router.patch(
-            leadStatusRoute({ lead: id }).url,
-            { status: status.value },
-            { preserveScroll: true, onError: () => setItems(leads) },
-        );
-    };
-
-    const onDragStart = (event: DragEvent, id: number) => {
-        event.dataTransfer.setData('text/plain', String(id));
-        event.dataTransfer.effectAllowed = 'move';
-        setDraggingId(id);
-    };
-
-    const onDrop = (event: DragEvent, status: LeadStatusOption) => {
-        event.preventDefault();
-        const id = Number(event.dataTransfer.getData('text/plain'));
-        setOverColumn(null);
-        setDraggingId(null);
-
-        if (Number.isInteger(id) && id > 0) {
-            moveTo(id, status);
-        }
-    };
-
-    return (
-        <div
-            role="list"
-            aria-label="Kanban des leads"
-            className="-mx-4 flex min-h-0 flex-1 snap-x gap-4 overflow-x-auto px-4 pb-4"
-        >
-            {statuses.map((status) => {
-                const column = items.filter(
-                    (lead) => lead.status === status.value,
-                );
-
-                return (
-                    <section
-                        key={status.value}
-                        role="listitem"
-                        aria-label={status.label}
-                        data-status={status.value}
-                        onDragOver={(event) => {
-                            event.preventDefault();
-                            event.dataTransfer.dropEffect = 'move';
-                            setOverColumn(status.value);
-                        }}
-                        onDragLeave={(event) => {
-                            if (
-                                !event.currentTarget.contains(
-                                    event.relatedTarget as Node | null,
-                                )
-                            ) {
-                                setOverColumn(null);
-                            }
-                        }}
-                        onDrop={(event) => onDrop(event, status)}
-                        className={cn(
-                            'flex min-w-72 flex-1 shrink-0 snap-start flex-col rounded-xl border transition-[box-shadow,transform]',
-                            columnClasses[status.value],
-                            overColumn === status.value &&
-                                draggingId !== null &&
-                                'ring-primary/30 ring-2',
-                        )}
-                    >
-                        <header className="flex items-center justify-between px-3 pt-3 pb-2">
-                            <h2
-                                className={cn(
-                                    'text-sm font-medium',
-                                    columnTitleClasses[status.value],
-                                )}
-                            >
-                                {status.label}
-                            </h2>
-                            <Badge
-                                variant="secondary"
-                                className={cn(
-                                    'bg-background/80 rounded-full px-2',
-                                    leadStatusClasses[status.value],
-                                )}
-                                aria-label={`${column.length} lead(s)`}
-                            >
-                                {column.length}
-                            </Badge>
-                        </header>
-                        <ol className="flex min-h-24 flex-1 flex-col gap-2 px-2 pb-2">
-                            {column.map((lead) => (
-                                <li key={lead.id}>
-                                    <LeadCard
-                                        lead={lead}
-                                        statuses={statuses}
-                                        dragging={draggingId === lead.id}
-                                        onDragStart={(event) =>
-                                            onDragStart(event, lead.id)
-                                        }
-                                        onDragEnd={() => {
-                                            setDraggingId(null);
-                                            setOverColumn(null);
-                                        }}
-                                    />
-                                </li>
-                            ))}
-                            {column.length === 0 && (
-                                <li className="text-muted-foreground flex flex-1 items-center justify-center rounded-lg border border-dashed p-4 text-center text-xs">
-                                    Déposez un lead ici
-                                </li>
-                            )}
-                        </ol>
-                    </section>
-                );
-            })}
-        </div>
-    );
-}
-
-// Couleur d'accent par statut (avatar).
 const statusSoft: Record<LeadStatus, string> = {
     todo: 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-200',
     in_progress: 'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-200',
@@ -194,6 +72,378 @@ const statusSoft: Record<LeadStatus, string> = {
         'bg-neutral-200 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300',
 };
 
+const ARCHIVE_KEY = 'leads.kanban.archived-open';
+
+function readArchiveOpen(): boolean {
+    try {
+        return localStorage.getItem(ARCHIVE_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
+
+const cardId = (id: number) => `lead-${id}`;
+const columnId = (status: LeadStatus) => `column-${status}`;
+
+/**
+ * Kanban des leads : une colonne par statut, glisser-déposer (souris, tactile,
+ * clavier) pour changer de colonne et d'ordre, mise à jour optimiste et
+ * retour arrière si le serveur refuse. La colonne Archivé est repliée par défaut.
+ */
+export function LeadKanban({ leads, statuses, reorderable = true }: Props) {
+    const [items, setItems] = useState(leads);
+    const [activeId, setActiveId] = useState<number | null>(null);
+    const [archivedOpen, setArchivedOpen] = useState(readArchiveOpen);
+
+    // Les props Inertia font foi dès qu'elles changent (rechargement temps réel).
+    useEffect(() => setItems(leads), [leads]);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+        useSensor(TouchSensor, {
+            activationConstraint: { delay: 180, tolerance: 8 },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        }),
+    );
+
+    const toggleArchive = () => {
+        setArchivedOpen((open) => {
+            try {
+                localStorage.setItem(ARCHIVE_KEY, open ? '0' : '1');
+            } catch {
+                // Stockage indisponible : l'état reste en mémoire.
+            }
+
+            return !open;
+        });
+    };
+
+    const statusOf = (dndId: string | number): LeadStatusOption | undefined => {
+        const key = String(dndId);
+
+        if (key.startsWith('column-')) {
+            return statuses.find(
+                (status) => status.value === key.replace('column-', ''),
+            );
+        }
+
+        const lead = items.find((candidate) => cardId(candidate.id) === key);
+
+        return statuses.find((status) => status.value === lead?.status);
+    };
+
+    /** Index visé dans la colonne : celui de la carte survolée, sinon la fin. */
+    const indexOf = (dndId: string | number, status: LeadStatus): number => {
+        const column = columnOf(items, status);
+        const key = String(dndId);
+        const index = column.findIndex((lead) => cardId(lead.id) === key);
+
+        return index === -1 ? column.length : index;
+    };
+
+    const onDragStart = ({ active }: DragStartEvent) => {
+        setActiveId(Number(String(active.id).replace('lead-', '')));
+    };
+
+    const onDragOver = ({ active, over }: DragOverEvent) => {
+        if (!over) {
+            return;
+        }
+
+        const id = Number(String(active.id).replace('lead-', ''));
+        const target = statusOf(over.id);
+        const current = items.find((lead) => lead.id === id);
+
+        if (!target || !current || current.status === target.value) {
+            return;
+        }
+
+        // Changement de colonne en direct pour que la carte suive le curseur.
+        setItems((state) =>
+            applyMove(state, id, target, indexOf(over.id, target.value)),
+        );
+    };
+
+    const onDragEnd = ({ active, over }: DragEndEvent) => {
+        setActiveId(null);
+
+        if (!over) {
+            setItems(leads);
+
+            return;
+        }
+
+        const id = Number(String(active.id).replace('lead-', ''));
+        const target = statusOf(over.id);
+        const original = leads.find((lead) => lead.id === id);
+
+        if (!target || !original) {
+            return;
+        }
+
+        const index = reorderable
+            ? indexOf(over.id, target.value)
+            : original.status === target.value
+              ? original.position
+              : 0;
+        const next = applyMove(items, id, target, index);
+        const moved = next.find((lead) => lead.id === id);
+
+        if (
+            !moved ||
+            (moved.status === original.status &&
+                moved.position === original.position)
+        ) {
+            setItems(leads);
+
+            return;
+        }
+
+        setItems(next);
+        router.patch(
+            leadStatusRoute({ lead: id }).url,
+            { status: moved.status, position: moved.position },
+            { preserveScroll: true, onError: () => setItems(leads) },
+        );
+    };
+
+    const active =
+        activeId === null ? null : items.find((lead) => lead.id === activeId);
+
+    return (
+        <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={onDragStart}
+            onDragOver={onDragOver}
+            onDragEnd={onDragEnd}
+            onDragCancel={() => {
+                setActiveId(null);
+                setItems(leads);
+            }}
+        >
+            <div
+                role="list"
+                aria-label="Kanban des leads"
+                className="-mx-4 flex min-h-0 flex-1 snap-x gap-4 overflow-x-auto px-4 pb-4"
+            >
+                {statuses.map((status) => {
+                    const column = columnOf(items, status.value);
+                    const collapsed =
+                        status.value === 'archived' && !archivedOpen;
+
+                    return (
+                        <KanbanColumn
+                            key={status.value}
+                            status={status}
+                            leads={column}
+                            collapsed={collapsed}
+                            onToggle={
+                                status.value === 'archived'
+                                    ? toggleArchive
+                                    : undefined
+                            }
+                        >
+                            {column.map((lead) => (
+                                <SortableCard
+                                    key={lead.id}
+                                    lead={lead}
+                                    statuses={statuses}
+                                    dragging={activeId === lead.id}
+                                />
+                            ))}
+                        </KanbanColumn>
+                    );
+                })}
+            </div>
+            <DragOverlay dropAnimation={{ duration: 180, easing: 'ease-out' }}>
+                {active ? (
+                    <LeadCard lead={active} statuses={statuses} overlay />
+                ) : null}
+            </DragOverlay>
+        </DndContext>
+    );
+}
+
+function KanbanColumn({
+    status,
+    leads,
+    collapsed,
+    onToggle,
+    children,
+}: {
+    status: LeadStatusOption;
+    leads: Lead[];
+    collapsed: boolean;
+    onToggle?: () => void;
+    children: ReactNode;
+}) {
+    const { setNodeRef, isOver } = useDroppable({
+        id: columnId(status.value),
+        data: { status: status.value },
+    });
+    const stats = columnStats(leads);
+
+    if (collapsed) {
+        return (
+            <section
+                ref={setNodeRef}
+                role="listitem"
+                aria-label={status.label}
+                data-status={status.value}
+                data-collapsed
+                className={cn(
+                    'flex w-12 shrink-0 snap-start flex-col items-center gap-3 rounded-xl border py-3 transition-[box-shadow]',
+                    columnClasses[status.value],
+                    isOver && 'ring-primary/30 ring-2',
+                )}
+            >
+                <button
+                    type="button"
+                    onClick={onToggle}
+                    aria-label={`Déplier ${status.label} (${stats.count})`}
+                    aria-expanded={false}
+                    className={cn(
+                        'flex flex-col items-center gap-2 rounded-md p-1 text-xs font-medium',
+                        columnTitleClasses[status.value],
+                    )}
+                >
+                    <Archive className="size-4" aria-hidden />
+                    <span className="[writing-mode:vertical-rl]">
+                        {status.label}
+                    </span>
+                    <Badge
+                        variant="secondary"
+                        className={cn(
+                            'bg-background/80 rounded-full px-2',
+                            leadStatusClasses[status.value],
+                        )}
+                    >
+                        {stats.count}
+                    </Badge>
+                </button>
+            </section>
+        );
+    }
+
+    return (
+        <section
+            ref={setNodeRef}
+            role="listitem"
+            aria-label={status.label}
+            data-status={status.value}
+            className={cn(
+                'flex min-w-72 flex-1 shrink-0 snap-start flex-col rounded-xl border transition-[box-shadow]',
+                columnClasses[status.value],
+                isOver && 'ring-primary/30 ring-2',
+            )}
+        >
+            <header className="grid gap-1 px-3 pt-3 pb-2">
+                <div className="flex items-center justify-between gap-2">
+                    <h2
+                        className={cn(
+                            'truncate text-sm font-medium',
+                            columnTitleClasses[status.value],
+                        )}
+                    >
+                        {status.label}
+                    </h2>
+                    <div className="flex shrink-0 items-center gap-1">
+                        <Badge
+                            variant="secondary"
+                            className={cn(
+                                'bg-background/80 rounded-full px-2',
+                                leadStatusClasses[status.value],
+                            )}
+                            aria-label={`${stats.count} lead(s)`}
+                        >
+                            {stats.count}
+                        </Badge>
+                        {onToggle && (
+                            <button
+                                type="button"
+                                onClick={onToggle}
+                                aria-label={`Replier ${status.label}`}
+                                aria-expanded
+                                className="text-muted-foreground hover:bg-background/60 rounded-md p-1"
+                            >
+                                <ChevronLeft className="size-4" aria-hidden />
+                            </button>
+                        )}
+                    </div>
+                </div>
+                <p
+                    className="text-muted-foreground truncate text-xs tabular-nums"
+                    data-test="column-stats"
+                >
+                    {stats.budgets.length === 0
+                        ? 'Aucun budget'
+                        : stats.budgets
+                              .map((budget) =>
+                                  formatMoney(budget.cents, budget.currency),
+                              )
+                              .join(' + ')}
+                    {stats.averageScore !== null && (
+                        <>
+                            {' · '}
+                            <Star
+                                className="inline size-3 fill-current align-[-1px] text-amber-500"
+                                aria-hidden
+                            />{' '}
+                            {stats.averageScore.toLocaleString('fr-FR')}
+                        </>
+                    )}
+                </p>
+            </header>
+            <SortableContext
+                items={leads.map((lead) => cardId(lead.id))}
+                strategy={verticalListSortingStrategy}
+            >
+                <ol
+                    role="list"
+                    className="flex min-h-24 flex-1 flex-col gap-2 px-2 pb-2"
+                >
+                    {children}
+                    {leads.length === 0 && (
+                        <li className="text-muted-foreground flex flex-1 items-center justify-center rounded-lg border border-dashed p-4 text-center text-xs">
+                            Déposez un lead ici
+                        </li>
+                    )}
+                </ol>
+            </SortableContext>
+        </section>
+    );
+}
+
+function SortableCard({
+    lead,
+    statuses,
+    dragging,
+}: {
+    lead: Lead;
+    statuses: LeadStatusOption[];
+    dragging: boolean;
+}) {
+    const { attributes, listeners, setNodeRef, transform, transition } =
+        useSortable({ id: cardId(lead.id), data: { status: lead.status } });
+
+    return (
+        <li
+            ref={setNodeRef}
+            style={{ transform: CSS.Transform.toString(transform), transition }}
+            className={cn(dragging && 'opacity-40')}
+        >
+            <LeadCard
+                lead={lead}
+                statuses={statuses}
+                handleProps={{ ...attributes, ...listeners }}
+            />
+        </li>
+    );
+}
+
 function initials(name: string): string {
     return name
         .split(/\s+/)
@@ -203,18 +453,16 @@ function initials(name: string): string {
         .join('');
 }
 
-function LeadCard({
+export function LeadCard({
     lead,
     statuses,
-    dragging,
-    onDragStart,
-    onDragEnd,
+    handleProps = {},
+    overlay = false,
 }: {
     lead: Lead;
     statuses: LeadStatusOption[];
-    dragging: boolean;
-    onDragStart: (event: DragEvent) => void;
-    onDragEnd: () => void;
+    handleProps?: Record<string, unknown>;
+    overlay?: boolean;
 }) {
     const contact = lead.email ?? lead.phone ?? '';
     const budget =
@@ -234,14 +482,17 @@ function LeadCard({
 
     return (
         <article
-            draggable
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
+            {...handleProps}
             aria-label={lead.name}
             data-test="lead-card"
+            onClick={() => {
+                if (!overlay) {
+                    router.visit(leadShow({ lead: lead.id }).url);
+                }
+            }}
             className={cn(
-                'bg-background grid min-w-0 cursor-grab gap-3 overflow-hidden rounded-lg border p-3 text-sm shadow-xs transition-opacity active:cursor-grabbing',
-                dragging && 'opacity-40',
+                'bg-background grid min-w-0 cursor-grab gap-3 overflow-hidden rounded-lg border p-3 text-sm shadow-xs outline-none select-none focus-visible:ring-2 active:cursor-grabbing',
+                overlay && 'cursor-grabbing shadow-lg',
             )}
         >
             <div className="flex min-w-0 items-center gap-3">
@@ -260,7 +511,12 @@ function LeadCard({
                         {contact}
                     </p>
                 </div>
-                <div className="max-w-full shrink-0">
+                <div
+                    className="max-w-full shrink-0"
+                    onClick={(event) => event.stopPropagation()}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => event.stopPropagation()}
+                >
                     <LeadStatusMenu lead={lead} statuses={statuses} />
                 </div>
             </div>

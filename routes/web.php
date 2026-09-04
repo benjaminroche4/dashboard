@@ -12,9 +12,14 @@ Route::get('/', fn () => to_route(Auth::check() ? 'dashboard' : 'login'))->name(
 Route::middleware(['auth'])->group(function (): void {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
     Route::get('leads', [LeadController::class, 'index'])->name('leads.index');
+    Route::get('leads/search', [LeadController::class, 'search'])->middleware('throttle:60,1')->name('leads.search');
     Route::get('leads/create', [LeadController::class, 'create'])->name('leads.create');
     Route::post('leads', [LeadController::class, 'store'])->name('leads.store');
+    Route::get('leads/{lead}', [LeadController::class, 'show'])->name('leads.show');
+    Route::get('leads/{lead}/edit', [LeadController::class, 'edit'])->name('leads.edit');
+    Route::put('leads/{lead}', [LeadController::class, 'update'])->name('leads.update');
     Route::patch('leads/{lead}/status', [LeadController::class, 'updateStatus'])->name('leads.status');
+    Route::post('leads/{lead}/notes', [LeadController::class, 'storeNote'])->name('leads.notes.store');
 
     Route::get('invoices', [InvoiceController::class, 'index'])->name('invoices.index');
     Route::get('invoices/create', [InvoiceController::class, 'create'])->name('invoices.create');

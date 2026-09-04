@@ -1,10 +1,11 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState, type ReactNode } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { post, transform } = vi.hoisted(() => ({
+const { post, put, transform } = vi.hoisted(() => ({
     post: vi.fn(),
+    put: vi.fn(),
     transform: vi.fn(),
 }));
 
@@ -36,6 +37,7 @@ function useFormStub(initial: Record<string, unknown>) {
             setDataState((current) => ({ ...current, [key]: value })),
         transform,
         post,
+        put,
     };
 }
 
@@ -66,6 +68,8 @@ const props = {
 };
 
 describe('Converting Machine page', () => {
+    beforeEach(() => vi.clearAllMocks());
+
     it('renders the three sections and posts the lead with the budget in cents', async () => {
         const user = userEvent.setup();
         render(<LeadsCreate {...props} />);
@@ -106,5 +110,46 @@ describe('Converting Machine page', () => {
         expect(payload.budget_cents).toBe(250_000);
         expect(payload.offer).toBeNull();
         expect(payload.arrival_at).toBeNull();
+    });
+
+    it('edits an existing lead and puts to the update route', async () => {
+        const user = userEvent.setup();
+        render(
+            <LeadsCreate
+                {...props}
+                lead={{
+                    id: 7,
+                    name: 'Léa Durand',
+                    first_name: 'Léa',
+                    last_name: 'Durand',
+                    email: 'lea@example.com',
+                    phone: '',
+                    offer: 'confie',
+                    arrival_at: '2026-11-01',
+                    budget: '2500',
+                    currency: 'EUR',
+                    origin_city: 'Genève',
+                    source: 'referral',
+                    message: '',
+                    score: 4,
+                }}
+            />,
+        );
+
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+            'Modifier Léa Durand',
+        );
+        expect(screen.getByLabelText('Prénom')).toHaveValue('Léa');
+        expect(screen.getByRole('radio', { name: 'Confié' })).toBeChecked();
+        expect(screen.getByText('4 / 5')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Annuler' })).toHaveAttribute(
+            'href',
+            '/leads/7',
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+        expect(put).toHaveBeenCalledWith('/leads/7');
+        expect(post).not.toHaveBeenCalled();
     });
 });

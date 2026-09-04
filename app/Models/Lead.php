@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property int $id
@@ -30,6 +31,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $message
  * @property int|null $score
  * @property LeadStatus $status
+ * @property int $position
  * @property CarbonInterface|null $last_contacted_at
  * @property int|null $created_by
  * @property CarbonInterface|null $created_at
@@ -37,7 +39,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 #[Fillable([
     'first_name', 'last_name', 'email', 'phone', 'offer', 'arrival_at', 'budget_cents', 'currency',
-    'origin_city', 'source', 'message', 'score', 'status', 'last_contacted_at', 'created_by',
+    'origin_city', 'source', 'message', 'score', 'status', 'position', 'last_contacted_at', 'created_by',
 ])]
 class Lead extends Model
 {
@@ -67,6 +69,22 @@ class Lead extends Model
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * @return HasMany<LeadStatusChange, $this>
+     */
+    public function statusChanges(): HasMany
+    {
+        return $this->hasMany(LeadStatusChange::class)->oldest()->orderBy('id');
+    }
+
+    /**
+     * @return HasMany<LeadNote, $this>
+     */
+    public function notes(): HasMany
+    {
+        return $this->hasMany(LeadNote::class)->latest()->orderByDesc('id');
     }
 
     public function fullName(): string

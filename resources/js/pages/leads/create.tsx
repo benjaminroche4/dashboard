@@ -19,39 +19,67 @@ import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { toCents } from '@/lib/invoice-totals';
 import { cn } from '@/lib/utils';
-import { index as leadsIndex, store } from '@/routes/leads';
-import type { Currency, LeadForm, LeadSource, OfferValue } from '@/types';
+import {
+    index as leadsIndex,
+    show as leadShow,
+    store,
+    update,
+} from '@/routes/leads';
+import type {
+    Currency,
+    LeadEditable,
+    LeadForm,
+    LeadSource,
+    OfferValue,
+} from '@/types';
 
 type Props = {
     offers: { value: OfferValue; label: string; description: string }[];
     sources: { value: LeadSource; label: string }[];
     currencies: { value: Currency; label: string }[];
     defaultCurrency: Currency;
+    /** Présent en mode modification. */
+    lead?: LeadEditable;
 };
 
+/** Ne garde que les champs du formulaire (sans id ni nom composé). */
+function toForm(lead: LeadEditable): LeadForm {
+    const { id: _id, name: _name, ...form } = lead;
+
+    return form;
+}
+
 /**
- * Converting Machine : le formulaire de qualification d'un prospect.
+ * Converting Machine : le formulaire de qualification d'un prospect,
+ * aussi utilisé pour modifier un lead existant.
  */
 export default function LeadsCreate({
     offers,
     sources,
     currencies,
     defaultCurrency,
+    lead,
 }: Props) {
-    const form = useForm<LeadForm>({
-        first_name: '',
-        last_name: '',
-        email: '',
-        phone: '',
-        offer: '',
-        arrival_at: '',
-        budget: '',
-        currency: defaultCurrency,
-        origin_city: '',
-        source: sources[0]?.value ?? 'website',
-        message: '',
-        score: null,
-    });
+    const editing = lead !== undefined;
+    const form = useForm<LeadForm>(
+        lead
+            ? { ...toForm(lead) }
+            : {
+                  first_name: '',
+                  last_name: '',
+                  email: '',
+                  phone: '',
+                  offer: '',
+                  arrival_at: '',
+                  budget: '',
+                  currency: defaultCurrency,
+                  origin_city: '',
+                  source: sources[0]?.value ?? 'website',
+                  message: '',
+                  score: null,
+              },
+    );
+
     const errors = form.errors as Record<string, string | undefined>;
 
     const submit = (event: FormEvent) => {
@@ -63,26 +91,43 @@ export default function LeadsCreate({
             budget_cents:
                 data.budget.trim() === '' ? null : toCents(data.budget),
         }));
-        form.post(store().url);
+        if (lead) {
+            form.put(update({ lead: lead.id }).url);
+        } else {
+            form.post(store().url);
+        }
     };
 
     return (
         <>
-            <Head title="Converting Machine" />
+            <Head
+                title={editing ? `Modifier ${lead.name}` : 'Converting Machine'}
+            />
             <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 pb-10">
                 <div className="flex items-end justify-between pt-8 pb-6">
                     <div>
                         <h1 className="text-lg font-medium">
-                            Converting Machine
+                            {editing
+                                ? `Modifier ${lead.name}`
+                                : 'Converting Machine'}
                         </h1>
                         <p className="text-muted-foreground text-sm">
-                            Qualifiez un prospect en quelques champs, il rejoint
-                            le kanban des leads dans « À traiter ».
+                            {editing
+                                ? 'Le statut et la place dans le kanban ne changent pas.'
+                                : 'Qualifiez un prospect en quelques champs, il rejoint le kanban des leads dans « À traiter ».'}
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
                         <Button type="button" variant="ghost" asChild>
-                            <Link href={leadsIndex()}>Annuler</Link>
+                            <Link
+                                href={
+                                    lead
+                                        ? leadShow({ lead: lead.id })
+                                        : leadsIndex()
+                                }
+                            >
+                                Annuler
+                            </Link>
                         </Button>
                         <Button
                             type="submit"
@@ -90,7 +135,7 @@ export default function LeadsCreate({
                             disabled={form.processing}
                         >
                             {form.processing && <Spinner />}
-                            Ajouter le lead
+                            {editing ? 'Enregistrer' : 'Ajouter le lead'}
                         </Button>
                     </div>
                 </div>

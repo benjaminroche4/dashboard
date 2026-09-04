@@ -32,6 +32,8 @@ export type Lead = {
     score: number | null;
     status: LeadStatus;
     status_label: string;
+    /** Ordre manuel dans la colonne du kanban. */
+    position: number;
     last_contacted_at: string | null;
     created_at: string | null;
     created_by: string | null;
@@ -54,3 +56,37 @@ export type LeadForm = {
     message: string;
     score: number | null;
 };
+
+export type LeadDetail = Lead & {
+    first_name: string;
+    last_name: string;
+    source: LeadSource;
+    updated_at: string | null;
+};
+
+export type LeadNote = {
+    id: number;
+    body: string;
+    by: string | null;
+    at: string | null;
+};
+
+export type LeadStatusChange = {
+    id: number;
+    from: string | null;
+    to: string;
+    to_status: LeadStatus;
+    by: string | null;
+    at: string;
+};
+
+export type LeadOfferOption = {
+    value: OfferValue;
+    label: string;
+    description: string;
+};
+
+/** Lead pré-rempli pour la modification (Converting Machine en mode édition). */
+export type LeadEditable = LeadForm & { id: number; name: string };
+
+export type LeadSortKey = 'manual' | 'score' | 'arrival' | 'created';

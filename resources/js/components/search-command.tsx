@@ -10,6 +10,7 @@ import {
     UserCircle,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { search as leadsSearch } from '@/routes/leads';
 import {
     CommandDialog,
     CommandEmpty,
@@ -25,6 +26,14 @@ import { index as invoicesIndex } from '@/routes/invoices';
 import { create as leadsCreate, index as leadsIndex } from '@/routes/leads';
 import { edit as editProfile } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
+
+type LeadHit = {
+    id: number;
+    name: string;
+    email: string | null;
+    status_label: string;
+    url: string;
+};
 
 type Destination = {
     title: string;
@@ -105,6 +114,37 @@ export function SearchCommand() {
         return () => window.removeEventListener('keydown', onKeyDown);
     }, []);
 
+    const [query, setQuery] = useState('');
+    const [leads, setLeads] = useState<LeadHit[]>([]);
+
+    // Recherche de leads côté serveur, avec un léger délai pour ne pas spammer.
+    useEffect(() => {
+        const needle = query.trim();
+
+        if (needle.length < 2) {
+            setLeads([]);
+
+            return;
+        }
+
+        const controller = new AbortController();
+        const timer = setTimeout(() => {
+            fetch(leadsSearch({ query: { q: needle } }).url, {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json' },
+                signal: controller.signal,
+            })
+                .then((response) => (response.ok ? response.json() : []))
+                .then((hits: LeadHit[]) => setLeads(hits))
+                .catch(() => undefined);
+        }, 200);
+
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+        };
+    }, [query]);
+
     const go = useCallback((url: string) => {
         setOpen(false);
         router.visit(url);
@@ -132,9 +172,32 @@ export function SearchCommand() {
                 title="Recherche"
                 description="Naviguer dans le backoffice"
             >
-                <CommandInput placeholder="Rechercher une page…" />
+                <CommandInput
+                    placeholder="Rechercher une page ou un lead…"
+                    value={query}
+                    onValueChange={setQuery}
+                />
                 <CommandList>
                     <CommandEmpty>Aucun résultat.</CommandEmpty>
+                    {leads.length > 0 && (
+                        <CommandGroup heading="Leads">
+                            {leads.map((lead) => (
+                                <CommandItem
+                                    key={lead.id}
+                                    value={`lead ${lead.name} ${lead.email ?? ''}`}
+                                    onSelect={() => go(lead.url)}
+                                >
+                                    <Contact />
+                                    <span className="truncate">
+                                        {lead.name}
+                                    </span>
+                                    <span className="text-muted-foreground ml-auto truncate text-xs">
+                                        {lead.status_label}
+                                    </span>
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    )}
                     <CommandGroup heading="Pages">
                         {destinations.map((destination) => (
                             <CommandItem
