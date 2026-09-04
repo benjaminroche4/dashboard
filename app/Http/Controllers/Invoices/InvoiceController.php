@@ -71,6 +71,7 @@ class InvoiceController extends Controller
             'currencies' => collect(Currency::cases())
                 ->map(fn (Currency $currency): array => ['value' => $currency->value, 'label' => $currency->label()])
                 ->all(),
+            'vatRates' => config('company.vat_rates'),
             'defaults' => [
                 'currency' => config('company.default_currency'),
                 'vat_rate' => config('company.default_vat_rate'),

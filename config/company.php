@@ -19,6 +19,14 @@ return [
 
     // Taux de TVA suisse ordinaire, en pourcentage.
     'default_vat_rate' => (float) env('COMPANY_DEFAULT_VAT_RATE', 8.1),
+
+    // Taux proposés dans le formulaire (Suisse 2024+, plus l'exonération).
+    'vat_rates' => [
+        ['value' => 8.1, 'label' => '8,1 % · taux normal'],
+        ['value' => 3.8, 'label' => '3,8 % · hébergement'],
+        ['value' => 2.6, 'label' => '2,6 % · taux réduit'],
+        ['value' => 0.0, 'label' => '0 % · exonéré / export'],
+    ],
     'default_currency' => env('COMPANY_DEFAULT_CURRENCY', 'CHF'),
     'default_payment_terms_days' => (int) env('COMPANY_PAYMENT_TERMS_DAYS', 30),
 
