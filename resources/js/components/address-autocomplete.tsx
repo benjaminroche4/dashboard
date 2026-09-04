@@ -2,19 +2,13 @@ import { Loader2, MapPin } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import {
+    fetchPlaceSuggestions,
     googleMapsApiKey,
-    loadGooglePlaces,
-    parseAddressComponents,
+    type PlaceSuggestion,
+    type PlacesSession,
     type ResolvedAddress,
 } from '@/lib/google-places';
 import { cn } from '@/lib/utils';
-
-type Suggestion = {
-    id: string;
-    main: string;
-    secondary: string;
-    toPlace: () => google.maps.places.Place;
-};
 
 type Props = {
     id?: string;
@@ -28,7 +22,7 @@ type Props = {
 };
 
 /**
- * Champ d'adresse avec suggestions Google Places (API « New »).
+ * Champ d'adresse avec suggestions Google Places.
  * Sans clé configurée, c'est un champ texte ordinaire.
  */
 export function AddressAutocomplete({
@@ -42,13 +36,13 @@ export function AddressAutocomplete({
 }: Props) {
     const enabled = googleMapsApiKey() !== '';
     const listId = useId();
-    const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+    const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [active, setActive] = useState(0);
-    const sessionToken =
-        useRef<google.maps.places.AutocompleteSessionToken | null>(null);
+    const session = useRef<PlacesSession>({});
     const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const requestId = useRef(0);
     const containerRef = useRef<HTMLDivElement>(null);
 
     // Ferme la liste au clic à l'extérieur.
@@ -77,40 +71,24 @@ export function AddressAutocomplete({
         }
 
         timer.current = setTimeout(async () => {
+            const current = ++requestId.current;
             setLoading(true);
 
             try {
-                const places = await loadGooglePlaces();
-                sessionToken.current ??= new places.AutocompleteSessionToken();
-
-                const { suggestions: results } =
-                    await places.AutocompleteSuggestion.fetchAutocompleteSuggestions(
-                        {
-                            input,
-                            sessionToken: sessionToken.current,
-                            language: 'fr',
-                            includedRegionCodes: regionCodes,
-                        },
-                    );
-
-                setSuggestions(
-                    results
-                        .filter((result) => result.placePrediction)
-                        .map((result) => {
-                            const prediction = result.placePrediction!;
-
-                            return {
-                                id: prediction.placeId,
-                                main:
-                                    prediction.mainText?.text ??
-                                    prediction.text.text,
-                                secondary: prediction.secondaryText?.text ?? '',
-                                toPlace: () => prediction.toPlace(),
-                            };
-                        }),
+                const results = await fetchPlaceSuggestions(
+                    input,
+                    regionCodes,
+                    session.current,
                 );
+
+                // Ignore une réponse arrivée après une saisie plus récente.
+                if (current !== requestId.current) {
+                    return;
+                }
+
+                setSuggestions(results);
                 setActive(0);
-                setOpen(true);
+                setOpen(results.length > 0);
             } catch (error) {
                 console.warn(
                     'Autocomplétion Google Places indisponible',
@@ -119,26 +97,27 @@ export function AddressAutocomplete({
                 setSuggestions([]);
                 setOpen(false);
             } finally {
-                setLoading(false);
+                if (current === requestId.current) {
+                    setLoading(false);
+                }
             }
         }, 250);
     };
 
-    const choose = async (suggestion: Suggestion) => {
+    const choose = async (suggestion: PlaceSuggestion) => {
         setOpen(false);
         setLoading(true);
 
         try {
-            const place = suggestion.toPlace();
-            await place.fetchFields({ fields: ['addressComponents'] });
-            const address = parseAddressComponents(place.addressComponents);
+            const address = await suggestion.resolve();
 
             onChange(address.street || suggestion.main);
             onSelect(address);
-        } catch {
+        } catch (error) {
+            console.warn('Détail de l’adresse indisponible', error);
             onChange(suggestion.main);
         } finally {
-            sessionToken.current = null;
+            session.current = {};
             setLoading(false);
         }
     };
@@ -167,14 +146,12 @@ export function AddressAutocomplete({
 
                     if (event.key === 'ArrowDown') {
                         event.preventDefault();
-                        setActive(
-                            (current) => (current + 1) % suggestions.length,
-                        );
+                        setActive((index) => (index + 1) % suggestions.length);
                     } else if (event.key === 'ArrowUp') {
                         event.preventDefault();
                         setActive(
-                            (current) =>
-                                (current - 1 + suggestions.length) %
+                            (index) =>
+                                (index - 1 + suggestions.length) %
                                 suggestions.length,
                         );
                     } else if (event.key === 'Enter') {

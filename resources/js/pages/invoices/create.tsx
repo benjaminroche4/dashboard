@@ -530,16 +530,10 @@ export default function InvoicesCreate({
                                                             </span>
                                                             <span className="text-muted-foreground text-xs">
                                                                 {formatMoney(
-                                                                    offer
-                                                                        .prices[
-                                                                        form
-                                                                            .data
-                                                                            .currency
-                                                                    ],
-                                                                    form.data
-                                                                        .currency,
-                                                                )}{' '}
-                                                                par défaut
+                                                                    offer.prices
+                                                                        .EUR,
+                                                                    'EUR',
+                                                                )}
                                                             </span>
                                                         </span>
                                                     </Label>

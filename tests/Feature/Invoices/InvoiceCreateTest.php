@@ -84,7 +84,7 @@ test('the request is validated in French', function (): void {
             'client_name' => '',
             'currency' => 'USD',
             'due_at' => '2026-01-01',
-            'items' => [['offer' => 'premium', 'quantity' => 0, 'unit_price_cents' => -1]],
+            'items' => [['offer' => 'premium', 'quantity' => -1, 'unit_price_cents' => -1]],
         ]))
         ->assertRedirect(route('invoices.create'))
         ->assertSessionHasErrors([

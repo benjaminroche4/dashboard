@@ -1,11 +1,11 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const google = vi.hoisted(() => ({
     key: 'test-key',
     fetch: vi.fn(),
-    fetchFields: vi.fn(),
 }));
 
 vi.mock('@/lib/google-places', async (importOriginal) => {
@@ -14,17 +14,11 @@ vi.mock('@/lib/google-places', async (importOriginal) => {
     return {
         ...actual,
         googleMapsApiKey: () => google.key,
-        loadGooglePlaces: async () => ({
-            AutocompleteSessionToken: class {},
-            AutocompleteSuggestion: {
-                fetchAutocompleteSuggestions: google.fetch,
-            },
-        }),
+        fetchPlaceSuggestions: google.fetch,
     };
 });
 
 import { AddressAutocomplete } from '@/components/address-autocomplete';
-import { useState } from 'react';
 
 // Le champ est contrôlé : on garde l'état comme le ferait le formulaire.
 function Controlled({
@@ -48,31 +42,18 @@ function Controlled({
     );
 }
 
-function suggestion(
-    id: string,
-    main: string,
-    secondary: string,
-    components: unknown[],
-) {
-    return {
-        placePrediction: {
-            placeId: id,
-            text: { text: `${main}, ${secondary}` },
-            mainText: { text: main },
-            secondaryText: { text: secondary },
-            toPlace: () => ({
-                fetchFields: google.fetchFields,
-                addressComponents: components,
-            }),
-        },
-    };
-}
+const resolved = {
+    street: '5 Rue des Alpes',
+    postalCode: '1201',
+    city: 'Genève',
+    countryCode: 'CH',
+    countryName: 'Suisse',
+};
 
 describe('AddressAutocomplete', () => {
     beforeEach(() => {
         google.key = 'test-key';
         google.fetch.mockReset();
-        google.fetchFields.mockReset().mockResolvedValue(undefined);
     });
 
     it('is a plain input when no API key is configured', () => {
@@ -94,29 +75,14 @@ describe('AddressAutocomplete', () => {
         const user = userEvent.setup();
         const onChange = vi.fn();
         const onSelect = vi.fn();
-        google.fetch.mockResolvedValue({
-            suggestions: [
-                suggestion('p1', 'Rue des Alpes 5', '1201 Genève, Suisse', [
-                    { types: ['street_number'], longText: '5', shortText: '5' },
-                    {
-                        types: ['route'],
-                        longText: 'Rue des Alpes',
-                        shortText: 'Rue des Alpes',
-                    },
-                    {
-                        types: ['postal_code'],
-                        longText: '1201',
-                        shortText: '1201',
-                    },
-                    {
-                        types: ['locality'],
-                        longText: 'Genève',
-                        shortText: 'Genève',
-                    },
-                    { types: ['country'], longText: 'Suisse', shortText: 'CH' },
-                ]),
-            ],
-        });
+        google.fetch.mockResolvedValue([
+            {
+                id: 'p1',
+                main: 'Rue des Alpes 5',
+                secondary: '1201 Genève, Suisse',
+                resolve: async () => resolved,
+            },
+        ]);
 
         render(<Controlled onChange={onChange} onSelect={onSelect} />);
 
@@ -125,25 +91,47 @@ describe('AddressAutocomplete', () => {
         const option = await screen.findByRole('option', {
             name: /Rue des Alpes 5/,
         });
-        expect(google.fetch).toHaveBeenCalledWith(
-            expect.objectContaining({
-                input: 'Rue des',
-                language: 'fr',
-                includedRegionCodes: ['ch', 'fr'],
-            }),
+        expect(google.fetch).toHaveBeenLastCalledWith(
+            'Rue des',
+            ['ch', 'fr'],
+            expect.any(Object),
         );
 
         await user.click(option);
 
-        await waitFor(() =>
-            expect(onSelect).toHaveBeenCalledWith({
-                street: '5 Rue des Alpes',
-                postalCode: '1201',
-                city: 'Genève',
-                countryCode: 'CH',
-                countryName: 'Suisse',
-            }),
-        );
+        await waitFor(() => expect(onSelect).toHaveBeenCalledWith(resolved));
         expect(onChange).toHaveBeenLastCalledWith('5 Rue des Alpes');
+        expect(screen.queryByRole('listbox')).toBeNull();
+    });
+
+    it('supports keyboard navigation and Enter', async () => {
+        const user = userEvent.setup();
+        const onSelect = vi.fn();
+        google.fetch.mockResolvedValue([
+            {
+                id: 'a',
+                main: 'A',
+                secondary: '',
+                resolve: async () => resolved,
+            },
+            {
+                id: 'b',
+                main: 'B',
+                secondary: '',
+                resolve: async () => ({ ...resolved, street: 'B' }),
+            },
+        ]);
+
+        render(<Controlled onChange={vi.fn()} onSelect={onSelect} />);
+
+        await user.type(screen.getByRole('combobox'), 'Rue');
+        await screen.findByRole('option', { name: 'A' });
+        await user.keyboard('{ArrowDown}{Enter}');
+
+        await waitFor(() =>
+            expect(onSelect).toHaveBeenCalledWith(
+                expect.objectContaining({ street: 'B' }),
+            ),
+        );
     });
 });

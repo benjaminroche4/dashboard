@@ -39,7 +39,7 @@ class StoreInvoiceRequest extends FormRequest
             'notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.offer' => ['required', Rule::enum(Offer::class)],
-            'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
+            'items.*.quantity' => ['required', 'numeric', 'min:0'],
             'items.*.unit_price_cents' => ['required', 'integer', 'min:0'],
         ];
     }
