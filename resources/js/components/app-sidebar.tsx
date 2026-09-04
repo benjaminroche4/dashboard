@@ -4,8 +4,8 @@ import {
     ChartPie,
     ClipboardCheck,
     ClipboardList,
+    Contact,
     LayoutGrid,
-    Users,
 } from 'lucide-react';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -39,14 +39,10 @@ const navGroups: NavGroup[] = [
         label: 'Gestion',
         items: [
             {
-                title: 'Personnes',
+                title: 'Leads',
                 href: '#',
-                icon: Users,
-                items: [
-                    { title: "Vue d'ensemble", href: '#' },
-                    { title: 'Employés', href: '#' },
-                    { title: 'Équipes', href: '#' },
-                ],
+                icon: Contact,
+                items: [{ title: 'Factures', href: '#' }],
             },
             { title: 'Rapports', href: '#', icon: ChartPie },
             { title: 'Calendrier', href: '#', icon: Calendar },
