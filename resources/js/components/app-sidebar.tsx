@@ -4,16 +4,12 @@ import {
     Calendar,
     ChartPie,
     ChevronsUpDown,
-    CircleHelp,
     ClipboardCheck,
     ClipboardList,
     LayoutGrid,
-    PanelsTopLeft,
-    Settings,
     Users,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
-import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -22,15 +18,12 @@ import {
     SidebarFooter,
     SidebarHeader,
     SidebarMenu,
-    SidebarMenuAction,
     SidebarMenuButton,
     SidebarMenuItem,
     SidebarSeparator,
-    useSidebar,
 } from '@/components/ui/sidebar';
-import { dashboard, home } from '@/routes';
-import { edit as editProfile } from '@/routes/profile';
-import type { NavGroup, NavItem } from '@/types';
+import { dashboard } from '@/routes';
+import type { NavGroup } from '@/types';
 
 // Les pages hors tableau de bord ne sont pas encore créées : liens en attente.
 const navGroups: NavGroup[] = [
@@ -44,7 +37,7 @@ const navGroups: NavGroup[] = [
                 badge: 3,
             },
             { title: 'Projets', href: '#', icon: ClipboardList },
-            { title: 'Notifications', href: '#', icon: Bell, badge: '+8' },
+            { title: 'Notifications', href: '#', icon: Bell, badge: 8 },
         ],
     },
     {
@@ -68,20 +61,8 @@ const navGroups: NavGroup[] = [
     },
 ];
 
-const footerNavItems: NavItem[] = [
-    { title: 'Paramètres', href: editProfile(), icon: Settings },
-    { title: 'Aide et guide', href: '#', icon: CircleHelp },
-    {
-        title: 'Ouvrir dans le navigateur',
-        href: home(),
-        icon: PanelsTopLeft,
-        external: true,
-    },
-];
-
+// Le bouton replier/déplier vit dans l'en-tête de page (SidebarTrigger), pas ici.
 function SidebarBrand() {
-    const { toggleSidebar } = useSidebar();
-
     return (
         <SidebarMenu>
             <SidebarMenuItem>
@@ -91,13 +72,6 @@ function SidebarBrand() {
                         <ChevronsUpDown className="text-muted-foreground size-4" />
                     </Link>
                 </SidebarMenuButton>
-                <SidebarMenuAction
-                    onClick={toggleSidebar}
-                    aria-label="Replier ou déplier la barre latérale"
-                    className="top-3.5"
-                >
-                    <PanelsTopLeft />
-                </SidebarMenuAction>
             </SidebarMenuItem>
         </SidebarMenu>
     );
@@ -116,7 +90,6 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

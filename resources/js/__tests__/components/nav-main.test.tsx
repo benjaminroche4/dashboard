@@ -102,3 +102,21 @@ describe('NavMain', () => {
         ).toHaveAttribute('data-active', 'false');
     });
 });
+
+describe('NavMain branch animation', () => {
+    it('staggers the sub-links and rotates the chevron when open', () => {
+        renderNav();
+
+        const links = [
+            screen.getByRole('link', { name: "Vue d'ensemble" }),
+            screen.getByRole('link', { name: 'Employés' }),
+        ].map((link) => link.closest('li'));
+
+        expect(links[0]).toHaveStyle({ animationDelay: '60ms' });
+        expect(links[1]).toHaveStyle({ animationDelay: '120ms' });
+        expect(links[0]).toHaveClass('animate-in', 'fade-in');
+
+        const trigger = screen.getByRole('button', { name: /Personnes/ });
+        expect(trigger.querySelector('svg.rotate-180')).not.toBeNull();
+    });
+});

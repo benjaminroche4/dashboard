@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronUp } from 'lucide-react';
 import {
     Collapsible,
     CollapsibleContent,
@@ -28,7 +28,7 @@ function NavBadge({ value }: { value: NavItem['badge'] }) {
 
     return (
         <>
-            <SidebarMenuBadge className="bg-sidebar-primary text-sidebar-primary-foreground h-[18px] min-w-[18px] rounded-full px-1">
+            <SidebarMenuBadge className="bg-sidebar-primary text-sidebar-primary-foreground size-5 rounded-full px-0 transition-colors">
                 {value}
             </SidebarMenuBadge>
             {/* Mode icône : le compteur devient un point sur l'icône. */}
@@ -40,6 +40,10 @@ function NavBadge({ value }: { value: NavItem['badge'] }) {
     );
 }
 
+// Survol : toute la ligne réagit, fond doux et texte renforcé, sans saut.
+const hoverClasses =
+    'transition-[background-color,color,transform] duration-150 ease-out hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground active:scale-[0.99] data-[active=true]:bg-sidebar-accent';
+
 function NavLeaf({ item }: { item: NavItem }) {
     const { isCurrentUrl } = useCurrentUrl();
 
@@ -49,6 +53,7 @@ function NavLeaf({ item }: { item: NavItem }) {
                 asChild
                 isActive={isCurrentUrl(item.href)}
                 tooltip={{ children: item.title }}
+                className={hoverClasses}
             >
                 <Link href={item.href} prefetch>
                     {item.icon && <item.icon />}
@@ -76,19 +81,29 @@ function NavBranch({ item }: { item: NavItem }) {
                     <SidebarMenuButton
                         tooltip={{ children: item.title }}
                         isActive={hasActiveChild}
+                        className={hoverClasses}
                     >
                         {item.icon && <item.icon />}
                         <span>{item.title}</span>
-                        <ChevronDown className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-180" />
+                        {/* Fermé : pointe vers le bas. Ouvert : tourne dans l'autre sens, vers le haut. */}
+                        <ChevronUp className="ml-auto rotate-180 transition-transform duration-300 ease-out group-data-[state=open]/collapsible:rotate-0" />
                     </SidebarMenuButton>
                 </CollapsibleTrigger>
-                <CollapsibleContent>
+                <CollapsibleContent className="data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up overflow-hidden">
                     <SidebarMenuSub>
-                        {items.map((sub) => (
-                            <SidebarMenuSubItem key={sub.title}>
+                        {items.map((sub, index) => (
+                            <SidebarMenuSubItem
+                                key={sub.title}
+                                // Les sous-liens apparaissent un à un, de haut en bas.
+                                className="animate-in fade-in slide-in-from-left-2 fill-mode-backwards duration-300"
+                                style={{
+                                    animationDelay: `${60 + index * 60}ms`,
+                                }}
+                            >
                                 <SidebarMenuSubButton
                                     asChild
                                     isActive={isCurrentUrl(sub.href)}
+                                    className={hoverClasses}
                                 >
                                     <Link href={sub.href} prefetch>
                                         <span>{sub.title}</span>

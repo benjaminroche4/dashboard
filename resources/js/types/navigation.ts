@@ -11,12 +11,10 @@ export type NavItem = {
     href: NonNullable<InertiaLinkProps['href']>;
     icon?: LucideIcon | null;
     isActive?: boolean;
-    /** Compteur affiché à droite (pastille pleine), point discret en mode icône. */
-    badge?: string | number;
+    /** Compteur affiché à droite (pastille ronde), point discret en mode icône. */
+    badge?: number;
     /** Sous-entrées (menu dépliable). */
     items?: NavSubItem[];
-    /** Lien externe ouvert dans un nouvel onglet. */
-    external?: boolean;
 };
 
 export type NavSubItem = {
