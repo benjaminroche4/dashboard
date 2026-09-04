@@ -1,9 +1,7 @@
 import { render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import AsciiHalftone, {
-    drawAsciiFrame,
     renderAsciiHalftone,
-    type AsciiGrid,
 } from '@/components/ascii-halftone';
 
 // jsdom n'a pas de canvas : le composant doit retomber sur l'image brute.
@@ -42,12 +40,50 @@ describe('renderAsciiHalftone', () => {
         vi.restoreAllMocks();
     });
 
-    it('draws the photo, maps darkness to characters and lightens the ink', () => {
-        // Grille 2x1 : une cellule blanche (vide), une cellule sombre (dense).
+    function makeCtx() {
+        const log: string[] = [];
+        const ctx = {
+            log,
+            fillStyle: '',
+            font: '',
+            filter: '',
+            textAlign: '',
+            textBaseline: '',
+            imageSmoothingEnabled: true,
+            globalAlpha: 1,
+            globalCompositeOperation: 'source-over',
+            clearRect: vi.fn(),
+            fillRect: vi.fn(function (this: { fillStyle: string }) {
+                log.push(`rect:${this.fillStyle}`);
+            }),
+            fillText: vi.fn(function (
+                this: { fillStyle: string },
+                char: string,
+            ) {
+                log.push(`text:${char}:${this.fillStyle}`);
+            }),
+            drawImage: vi.fn(
+                function (this: {
+                    globalAlpha: number;
+                    globalCompositeOperation: string;
+                }) {
+                    log.push(
+                        `image:${this.globalCompositeOperation}:${this.globalAlpha}`,
+                    );
+                },
+            ),
+        };
+
+        return ctx;
+    }
+
+    it('paints each cell with its colour, a black glyph by luminance, then the multiply overlay', () => {
+        // Grille 2x1 : une cellule blanche (glyphe vide), une cellule très sombre (glyphe dense).
         const pixels = new Uint8ClampedArray([
-            255, 255, 255, 255, 40, 20, 10, 255,
+            255, 255, 255, 255, 30, 20, 10, 255,
         ]);
         const sampler = {
+            filter: '',
             drawImage: vi.fn(),
             getImageData: vi.fn(() => ({ data: pixels })),
         };
@@ -60,126 +96,36 @@ describe('renderAsciiHalftone', () => {
                 }) as unknown as HTMLCanvasElement,
         );
 
-        const clearRect = vi.fn();
-        const drawImage = vi.fn();
-        const fillText = vi.fn();
-        const composites: string[] = [];
-        const ctx = {
-            clearRect,
-            drawImage,
-            fillText,
-            fillStyle: '',
-            font: '',
-            filter: '',
-            textAlign: '',
-            textBaseline: '',
-            set globalCompositeOperation(value: string) {
-                composites.push(value);
-            },
-            get globalCompositeOperation() {
-                return composites.at(-1) ?? 'source-over';
-            },
-        } as unknown as CanvasRenderingContext2D;
+        const ctx = makeCtx();
 
         renderAsciiHalftone(
-            ctx,
+            ctx as unknown as CanvasRenderingContext2D,
             { width: 200, height: 100 } as HTMLImageElement,
             {
-                width: 20,
-                height: 10,
-                cellSize: 10,
-                charset: ' .#',
-                inkOpacity: 0.5,
+                width: 16,
+                height: 13,
+                cellWidth: 8,
+                cellRatio: 0.6,
+                ramp: ' .:1TX#',
             },
         );
 
-        // La photo est dessinée intacte, la cellule blanche (espace) est ignorée,
-        // la cellule sombre reçoit le glyphe dense dans une encre éclaircie.
-        expect(clearRect).toHaveBeenCalledWith(0, 0, 20, 10);
-        expect(drawImage).toHaveBeenCalledTimes(1);
-        expect(fillText).toHaveBeenCalledTimes(1);
-        // La fusion se fait en lumière douce, puis le mode normal est rétabli.
-        expect(composites).toContain('soft-light');
-        expect(ctx.globalCompositeOperation).toBe('source-over');
-        expect(fillText).toHaveBeenCalledWith('#', 15, 5);
-        expect(ctx.fillStyle).toBe('rgb(201 196 194 / 0.5)');
+        // Contraste +20 % appliqué à l'échantillonnage, puis retiré.
+        expect(sampler.drawImage).toHaveBeenCalledTimes(1);
         expect(sampler.getImageData).toHaveBeenCalledWith(0, 0, 2, 1);
-    });
-});
 
-describe('drawAsciiFrame', () => {
-    const grid: AsciiGrid = {
-        cols: 1,
-        rows: 1,
-        cells: [{ x: 0, y: 0, darkness: 0.5, ink: '200 200 200' }],
-        offsetX: 5,
-        offsetY: 5,
-    };
-    const image = { width: 10, height: 10 } as HTMLImageElement;
+        // Police = hauteur de cellule (8 / 0.6), sans lissage pour la grille.
+        expect(ctx.font).toMatch(/^13\.33\d*px /);
+        expect(ctx.log).toEqual([
+            'rect:rgb(255 255 255)',
+            'rect:rgb(30 20 10)',
+            'text:X:rgb(0 0 0 / 0.8)',
+            'image:multiply:0.25',
+        ]);
 
-    function makeCtx() {
-        return {
-            clearRect: vi.fn(),
-            drawImage: vi.fn(),
-            fillText: vi.fn(),
-            fillStyle: '',
-            font: '',
-            textAlign: '',
-            textBaseline: '',
-        };
-    }
-
-    it('is static when the amplitude is zero', () => {
-        const ctx = makeCtx();
-        const options = {
-            width: 10,
-            height: 10,
-            cellSize: 10,
-            charset: ' .:#',
-            inkOpacity: 0.5,
-            amplitude: 0,
-        };
-
-        drawAsciiFrame(
-            ctx as unknown as CanvasRenderingContext2D,
-            image,
-            grid,
-            options,
-        );
-        const first = ctx.fillStyle;
-        drawAsciiFrame(
-            ctx as unknown as CanvasRenderingContext2D,
-            image,
-            grid,
-            { ...options, time: 3 },
-        );
-
-        expect(ctx.fillStyle).toBe(first);
-        expect(ctx.fillStyle).toBe('rgb(200 200 200 / 0.5)');
-    });
-
-    it('brightens the ink when the sweep passes over the cell', () => {
-        const ctx = makeCtx();
-        const options = {
-            width: 10,
-            height: 10,
-            cellSize: 10,
-            charset: ' .:#',
-            inkOpacity: 0.5,
-            amplitude: 0.16,
-        };
-
-        // À t = 6 s × (6 / 13), la bande de balayage est exactement sur la ligne 0.
-        drawAsciiFrame(
-            ctx as unknown as CanvasRenderingContext2D,
-            image,
-            grid,
-            {
-                ...options,
-                time: (6 * 6) / 13,
-            },
-        );
-
-        expect(ctx.fillStyle).toBe('rgb(200 200 200 / 0.85)');
+        // État du contexte rétabli après le rendu.
+        expect(ctx.globalAlpha).toBe(1);
+        expect(ctx.globalCompositeOperation).toBe('source-over');
+        expect(ctx.imageSmoothingEnabled).toBe(true);
     });
 });

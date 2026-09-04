@@ -32,7 +32,6 @@ export default function Login({ status }: Props) {
                     </div>
                 </div>
 
-                {/* Photo en bichromie dans le bordeaux du logo, plus sombre en thème dark. */}
                 <div className="hidden p-4 lg:sticky lg:top-0 lg:block lg:h-svh">
                     <AsciiHalftone
                         src="/images/login.jpg"
