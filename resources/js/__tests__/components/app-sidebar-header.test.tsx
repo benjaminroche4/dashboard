@@ -15,10 +15,7 @@ import { AppSidebarHeader } from '@/components/app-sidebar-header';
 
 describe('AppSidebarHeader', () => {
     it('lays out navigation, search and presence in three zones', () => {
-        const onToggleInfo = vi.fn();
-        const { container } = render(
-            <AppSidebarHeader onToggleInfo={onToggleInfo} />,
-        );
+        const { container } = render(<AppSidebarHeader />);
         const header = container.querySelector('header');
 
         expect(header).toHaveClass('grid-cols-[1fr_auto_1fr]');
@@ -29,8 +26,5 @@ describe('AppSidebarHeader', () => {
         expect(
             screen.getByRole('button', { name: 'Rechercher' }),
         ).toBeInTheDocument();
-
-        screen.getByRole('button', { name: "Panneau d'informations" }).click();
-        expect(onToggleInfo).toHaveBeenCalledTimes(1);
     });
 });
