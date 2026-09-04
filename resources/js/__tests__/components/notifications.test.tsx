@@ -1,7 +1,19 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { Notifications } from '@/components/notifications';
+
+function visible(): HTMLElement {
+    const option = document.querySelector<HTMLElement>(
+        '[data-uidotsh-option]:not([hidden])',
+    );
+
+    if (!option) {
+        throw new Error('Aucune variante visible');
+    }
+
+    return option;
+}
 
 describe('Notifications', () => {
     it('shows an empty state when there is nothing to read', async () => {
@@ -18,13 +30,24 @@ describe('Notifications', () => {
         ).toBeInTheDocument();
     });
 
-    it('counts unread notifications and lists them', async () => {
-        const user = userEvent.setup();
+    // Pendant la comparaison de variantes (picker ui.sh), le panneau est ouvert par défaut.
+    it('counts unread notifications and lists them with their author', async () => {
         render(
             <Notifications
                 items={[
-                    { id: 1, title: 'Commande expédiée', at: 'il y a 2 min' },
-                    { id: 2, title: 'Nouveau membre', at: 'hier', read: true },
+                    {
+                        id: 1,
+                        actor: { name: 'Admin 2' },
+                        title: 'a expédié la commande #1042',
+                        at: 'il y a 2 min',
+                    },
+                    {
+                        id: 2,
+                        actor: { name: 'Claire Dubois' },
+                        title: 'a rejoint le staff',
+                        at: 'hier',
+                        read: true,
+                    },
                 ]}
             />,
         );
@@ -34,12 +57,41 @@ describe('Notifications', () => {
         });
         expect(trigger).toHaveTextContent('1');
 
-        await user.click(trigger);
+        await screen.findByText('1 non lue(s)', {
+            selector: ':not([hidden] *)',
+        });
+
+        const panel = within(visible());
+        expect(panel.getByText('Admin 2')).toBeInTheDocument();
+        expect(
+            panel.getByText('a expédié la commande #1042'),
+        ).toBeInTheDocument();
+        expect(panel.getByText('Claire Dubois')).toBeInTheDocument();
+    });
+
+    it('exposes exactly one visible variant to the picker', async () => {
+        render(
+            <Notifications
+                items={[
+                    {
+                        id: 1,
+                        actor: { name: 'Admin' },
+                        title: 'a fait',
+                        at: 'now',
+                    },
+                ]}
+            />,
+        );
+
+        await screen.findByText('Notifications', {
+            selector: ':not([hidden] *)',
+        });
 
         expect(
-            await screen.findByText('Commande expédiée'),
-        ).toBeInTheDocument();
-        expect(screen.getByText('Nouveau membre')).toBeInTheDocument();
-        expect(screen.getByText('1 non lue(s)')).toBeInTheDocument();
+            document.querySelectorAll('[data-uidotsh-option]:not([hidden])'),
+        ).toHaveLength(1);
+        expect(document.querySelectorAll('[data-uidotsh-option]')).toHaveLength(
+            15,
+        );
     });
 });
