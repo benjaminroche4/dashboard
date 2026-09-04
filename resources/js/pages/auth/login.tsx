@@ -1,4 +1,5 @@
 import { Head } from '@inertiajs/react';
+import AsciiImage from '@/components/ascii-image';
 import LoginForm from '@/components/login-form';
 
 type Props = {
@@ -32,10 +33,9 @@ export default function Login({ status }: Props) {
                 </div>
 
                 <div className="hidden p-4 lg:sticky lg:top-0 lg:block lg:h-svh">
-                    <img
-                        src="/images/login.svg"
-                        alt=""
-                        className="size-full rounded-3xl object-cover"
+                    <AsciiImage
+                        src="/images/login.jpg"
+                        className="size-full rounded-3xl"
                     />
                 </div>
             </div>
