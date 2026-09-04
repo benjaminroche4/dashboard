@@ -57,18 +57,18 @@ export function LeadStatusMenu({
             <DropdownMenuTrigger
                 aria-label={`Changer le statut de ${lead.name}`}
                 disabled={pending}
-                className="rounded-full outline-none focus-visible:ring-2"
+                className="max-w-full rounded-full outline-none focus-visible:ring-2"
             >
                 <Badge
                     variant="secondary"
                     data-status={lead.status}
                     className={cn(
-                        'cursor-pointer gap-1 pr-1.5',
+                        'max-w-full cursor-pointer gap-1 pr-1.5',
                         leadStatusClasses[lead.status],
                     )}
                 >
-                    {lead.status_label}
-                    <ChevronDown className="size-3 opacity-70" />
+                    <span className="truncate">{lead.status_label}</span>
+                    <ChevronDown className="size-3 shrink-0 opacity-70" />
                 </Badge>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">

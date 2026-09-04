@@ -203,7 +203,7 @@ function LeadCard({
             aria-label={lead.name}
             data-test="lead-card"
             className={cn(
-                'bg-background grid cursor-grab gap-2 rounded-lg border p-3 text-sm shadow-xs transition-opacity active:cursor-grabbing',
+                'bg-background grid min-w-0 cursor-grab gap-2 overflow-hidden rounded-lg border p-3 text-sm shadow-xs transition-opacity active:cursor-grabbing',
                 dragging && 'opacity-40',
             )}
         >
@@ -215,34 +215,44 @@ function LeadCard({
                     </p>
                 </div>
                 {lead.offer_label && (
-                    <Badge variant="outline" className="shrink-0">
+                    <Badge
+                        variant="outline"
+                        className="max-w-[45%] shrink-0 truncate"
+                    >
                         {lead.offer_label}
                     </Badge>
                 )}
             </div>
             <dl className="text-muted-foreground grid gap-1 text-xs">
                 {lead.arrival_at && (
-                    <div className="flex items-center gap-1.5">
-                        <CalendarDays className="size-3.5" aria-hidden />
+                    <div className="flex min-w-0 items-center gap-1.5">
+                        <CalendarDays
+                            className="size-3.5 shrink-0"
+                            aria-hidden
+                        />
                         <dt className="sr-only">Arrivée</dt>
-                        <dd>Arrive le {formatDate(lead.arrival_at)}</dd>
+                        <dd className="truncate">
+                            Arrive le {formatDate(lead.arrival_at)}
+                        </dd>
                     </div>
                 )}
                 {lead.origin_city && (
-                    <div className="flex items-center gap-1.5">
-                        <MapPin className="size-3.5" aria-hidden />
+                    <div className="flex min-w-0 items-center gap-1.5">
+                        <MapPin className="size-3.5 shrink-0" aria-hidden />
                         <dt className="sr-only">Ville d'origine</dt>
-                        <dd>{lead.origin_city}</dd>
+                        <dd className="truncate">{lead.origin_city}</dd>
                     </div>
                 )}
             </dl>
-            <div className="flex items-center justify-between gap-2 pt-1">
-                <span className="tabular-nums">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 pt-1">
+                <span className="min-w-0 truncate tabular-nums">
                     {lead.budget_cents === null
                         ? ''
                         : `${formatMoney(lead.budget_cents, lead.currency)} / mois`}
                 </span>
-                <LeadStatusMenu lead={lead} statuses={statuses} />
+                <div className="max-w-full shrink-0">
+                    <LeadStatusMenu lead={lead} statuses={statuses} />
+                </div>
             </div>
         </article>
     );
