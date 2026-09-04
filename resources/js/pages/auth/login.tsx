@@ -33,13 +33,11 @@ export default function Login({ status }: Props) {
 
                 {/* Photo en bichromie dans le bordeaux du logo, plus sombre en thème dark. */}
                 <div className="hidden p-4 lg:sticky lg:top-0 lg:block lg:h-svh">
-                    <div className="size-full overflow-hidden rounded-3xl bg-[#731a2f] dark:bg-[#3b0d18]">
-                        <img
-                            src="/images/login.jpg"
-                            alt=""
-                            className="size-full object-cover opacity-90 mix-blend-luminosity grayscale"
-                        />
-                    </div>
+                    <img
+                        src="/images/login.jpg"
+                        alt=""
+                        className="size-full rounded-3xl object-cover"
+                    />
                 </div>
             </div>
         </>
