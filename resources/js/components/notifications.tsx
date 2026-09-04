@@ -2,6 +2,9 @@ import {
     Bell,
     BellOff,
     Check,
+    CheckCheck,
+    CircleCheck,
+    CircleDot,
     Database,
     FileBarChart,
     KeyRound,
@@ -96,6 +99,29 @@ function KindIcon({
         >
             <Icon className="size-4" />
         </span>
+    );
+}
+
+/** Icône d'état : point pour une notification non lue, coche pour une lue. */
+function ReadState({
+    read,
+    className,
+}: {
+    read?: boolean;
+    className?: string;
+}) {
+    const Icon = read ? CircleCheck : CircleDot;
+
+    return (
+        <Icon
+            aria-label={read ? 'Lue' : 'Non lue'}
+            role="img"
+            className={cn(
+                'inline size-3 shrink-0 align-[-2px]',
+                read ? 'text-muted-foreground/70' : 'text-primary',
+                className,
+            )}
+        />
     );
 }
 
@@ -197,13 +223,39 @@ function Header({
             )}
         >
             <p className="text-sm font-medium">Notifications</p>
-            {action ??
-                (unread > 0 && (
-                    <span className="text-muted-foreground text-xs">
-                        {unread} non lue(s)
-                    </span>
-                ))}
+            {action ?? (
+                <div className="flex items-center gap-3">
+                    {unread > 0 && (
+                        <span className="text-muted-foreground text-xs">
+                            {unread} non lue(s)
+                        </span>
+                    )}
+                    <MarkAllRead disabled={unread === 0} />
+                </div>
+            )}
         </div>
+    );
+}
+
+function MarkAllRead({
+    disabled = false,
+    className,
+}: {
+    disabled?: boolean;
+    className?: string;
+}) {
+    return (
+        <button
+            type="button"
+            disabled={disabled}
+            className={cn(
+                'text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs transition-colors disabled:pointer-events-none disabled:opacity-50',
+                className,
+            )}
+        >
+            <CheckCheck className="size-3.5" />
+            Tout marquer comme lu
+        </button>
     );
 }
 
@@ -240,7 +292,7 @@ function NotificationList({
                                 </p>
                             )}
                             <p className="text-muted-foreground mt-1 text-xs">
-                                {item.at}
+                                {item.at} <ReadState read={item.read} />
                             </p>
                         </li>
                     ))}
@@ -266,7 +318,7 @@ function NotificationList({
                                         {item.actor.name}
                                     </span>
                                     <span className="text-muted-foreground shrink-0 text-xs">
-                                        {item.at}
+                                        {item.at} <ReadState read={item.read} />
                                     </span>
                                 </p>
                                 <p className="text-pretty">{item.title}</p>
@@ -311,7 +363,7 @@ function NotificationList({
                                     </span>
                                 </p>
                                 <p className="text-muted-foreground text-xs">
-                                    {item.at}
+                                    {item.at} <ReadState read={item.read} />
                                 </p>
                             </div>
                         </li>
@@ -343,7 +395,7 @@ function NotificationList({
                                     {item.actor.name}
                                 </span>
                                 <span className="text-muted-foreground ml-auto shrink-0 text-xs">
-                                    {item.at}
+                                    {item.at} <ReadState read={item.read} />
                                 </span>
                             </div>
                             <p className="mt-2 text-pretty">{item.title}</p>
@@ -383,7 +435,7 @@ function NotificationList({
                                     {item.title}
                                 </p>
                                 <p className="text-muted-foreground text-xs">
-                                    {item.at}
+                                    {item.at} <ReadState read={item.read} />
                                 </p>
                             </div>
                         </li>
@@ -418,7 +470,8 @@ function NotificationList({
                                                 {item.title}
                                             </p>
                                             <p className="text-muted-foreground text-xs">
-                                                {item.at}
+                                                {item.at}{' '}
+                                                <ReadState read={item.read} />
                                             </p>
                                         </div>
                                         {!item.read && (
@@ -458,7 +511,7 @@ function NotificationList({
                                     </p>
                                 )}
                                 <p className="text-muted-foreground mt-1 text-xs">
-                                    {item.at}
+                                    {item.at} <ReadState read={item.read} />
                                 </p>
                             </div>
                         </li>
@@ -493,7 +546,7 @@ function NotificationList({
                                 </span>
                             </p>
                             <span className="text-muted-foreground shrink-0 text-xs">
-                                {item.at}
+                                {item.at} <ReadState read={item.read} />
                             </span>
                         </li>
                     ))}
@@ -504,14 +557,7 @@ function NotificationList({
             <Option label="Actions au survol" hidden>
                 <Header
                     unread={unread}
-                    action={
-                        <button
-                            type="button"
-                            className="text-muted-foreground hover:text-foreground text-xs"
-                        >
-                            Tout marquer lu
-                        </button>
-                    }
+                    action={<MarkAllRead disabled={unread === 0} />}
                 />
                 <ul role="list" className="max-h-80 divide-y overflow-y-auto">
                     {items.map((item) => (
@@ -531,7 +577,7 @@ function NotificationList({
                                     {item.title}
                                 </p>
                                 <p className="text-muted-foreground text-xs">
-                                    {item.at}
+                                    {item.at} <ReadState read={item.read} />
                                 </p>
                             </div>
                             {!item.read && (
@@ -551,6 +597,10 @@ function NotificationList({
             {/* 10 — Onglets Tous / Non lues */}
             <Option label="Onglets" hidden>
                 <div className="flex items-center gap-1 border-b px-3 pt-2 pb-0">
+                    <MarkAllRead
+                        disabled={unread === 0}
+                        className="order-last ml-auto pb-2"
+                    />
                     <span className="border-primary -mb-px border-b-2 px-2 pb-2 text-sm font-medium">
                         Tous
                     </span>
@@ -578,7 +628,7 @@ function NotificationList({
                                     {item.title}
                                 </p>
                                 <p className="text-muted-foreground text-xs">
-                                    {item.at}
+                                    {item.at} <ReadState read={item.read} />
                                 </p>
                             </div>
                             {!item.read && (
@@ -620,7 +670,7 @@ function NotificationList({
                                     </p>
                                 )}
                                 <p className="text-muted-foreground mt-1 text-xs">
-                                    {item.at}
+                                    {item.at} <ReadState read={item.read} />
                                 </p>
                             </div>
                         </li>
@@ -632,11 +682,10 @@ function NotificationList({
             <Option label="En-tête plein" hidden>
                 <div className="bg-primary text-primary-foreground flex items-center justify-between rounded-t-md px-4 py-3">
                     <p className="text-sm font-medium">Notifications</p>
-                    {unread > 0 && (
-                        <span className="bg-primary-foreground/15 rounded-full px-2 py-0.5 text-xs tabular-nums">
-                            {unread} non lue(s)
-                        </span>
-                    )}
+                    <MarkAllRead
+                        disabled={unread === 0}
+                        className="text-primary-foreground/80 hover:text-primary-foreground"
+                    />
                 </div>
                 <ul role="list" className="max-h-80 divide-y overflow-y-auto">
                     {items.map((item) => (
@@ -653,7 +702,7 @@ function NotificationList({
                                     {item.title}
                                 </p>
                                 <p className="text-muted-foreground text-xs">
-                                    {item.at}
+                                    {item.at} <ReadState read={item.read} />
                                 </p>
                             </div>
                             {!item.read && (
@@ -682,7 +731,7 @@ function NotificationList({
                                     <span className="text-foreground font-medium">
                                         {item.actor.name}
                                     </span>{' '}
-                                    · {item.at}
+                                    · {item.at} <ReadState read={item.read} />
                                 </p>
                                 <div
                                     className={cn(
@@ -721,7 +770,7 @@ function NotificationList({
                     {items.map((item) => (
                         <li key={item.id} className="text-sm">
                             <p className="text-muted-foreground text-xs">
-                                {item.at}
+                                {item.at} <ReadState read={item.read} />
                             </p>
                             <p
                                 className={cn(
@@ -768,7 +817,7 @@ function NotificationList({
                                     </Badge>
                                 )}
                                 <span className="text-muted-foreground ml-auto shrink-0 text-xs">
-                                    {item.at}
+                                    {item.at} <ReadState read={item.read} />
                                 </span>
                             </div>
                             <p className="mt-1.5 text-pretty">{item.title}</p>

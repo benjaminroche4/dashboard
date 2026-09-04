@@ -62,6 +62,11 @@ describe('Notifications', () => {
         });
 
         const panel = within(visible());
+        expect(
+            panel.getByRole('button', { name: 'Tout marquer comme lu' }),
+        ).toBeEnabled();
+        expect(panel.getAllByRole('img', { name: 'Non lue' })).toHaveLength(1);
+        expect(panel.getAllByRole('img', { name: 'Lue' })).toHaveLength(1);
         expect(panel.getByText('Admin 2')).toBeInTheDocument();
         expect(
             panel.getByText('a expédié la commande #1042'),
