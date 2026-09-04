@@ -68,7 +68,7 @@ Quand un membre du staff fait une action, les autres membres connectés doivent 
 
 1. Côté PHP, après la mutation, dispatcher `App\Events\DashboardUpdated::dispatch('<resource>', [...payload], 'a expédié la commande #42')`.
    L'événement embarque l'acteur (utilisateur connecté) et le message, et part sur le canal de présence `staff` (autorisation dans `routes/channels.php`), nom `dashboard.updated`. Le message est une phrase à la 3e personne sans sujet : le front la préfixe du nom de l'acteur.
-2. Côté React, `<RealtimeStaff />` est monté une fois dans le header du layout authentifié : pour chaque événement d'un **autre** membre, il affiche un toast sonner « Admin 2 a expédié la commande #42 » puis recharge les props Inertia de la page courante. Les événements de l'utilisateur courant sont ignorés.
+2. Côté React, `<RealtimeStaff />` est monté une fois dans le header du layout authentifié : pour chaque événement d'un **autre** membre, il affiche un toast « Admin 2 a expédié la commande #42 » puis recharge les props Inertia de la page courante. Les événements de l'utilisateur courant sont ignorés.
    Une page qui veut un rechargement ciblé ou une mise à jour optimiste appelle `useStaffChannel({ only: ['orders'], notify: false, onEvent })` (`resources/js/hooks/use-staff-channel.ts`).
 3. `<OnlineStaff />` (header) affiche les avatars des membres connectés via `useOnlineStaff()` (canal de présence).
 4. Créer un événement dédié seulement si le payload devient métier (ex. `OrderShipped`). Il doit alors implémenter `ShouldBroadcast` et diffuser sur `PresenceChannel('staff')`.
@@ -112,6 +112,7 @@ Ces règles sont **vérifiées par `tests/Architecture/ArchitectureTest.php`** (
 - Pas de logique dans les modèles hors relations, casts, scopes et accessors.
 - Typage strict partout : types de retour PHP, `declare` de propriétés, TS `strict` sans `any`.
 - Pages Inertia dans `resources/js/pages/<domaine>/<page>.tsx` (kebab-case). Layouts choisis dans `resources/js/app.tsx`.
+- **Toasts** : composant shadcn `Toast` (Base UI, `resources/js/components/ui/toast.tsx`, `<Toaster />` monté dans `app.tsx`). Ne jamais appeler le gestionnaire directement : passer par `notify` (`resources/js/lib/toast.ts`) : `notify.success/info/warning/error(titre, description?)`, et pour une opération longue `const id = notify.loading(...)` puis `notify.resolve(id, ...)` ou `notify.reject(id, ...)` qui font évoluer le même toast. Les tests mockent `@/lib/toast`.
 - Composants shadcn dans `resources/js/components/ui` (ne pas éditer à la main, régénérer avec `npx shadcn add`). Composants applicatifs dans `resources/js/components`.
 - Formulaires : composant `<Form>` d'Inertia + routes Wayfinder (`store.form()`), jamais d'URL en dur.
 - Après ajout ou modification d'une route PHP : `php artisan wayfinder:generate --with-form` (fait automatiquement par Vite en dev).

@@ -1,6 +1,6 @@
 import { router, usePage } from '@inertiajs/react';
 import { useEchoPresence } from '@laravel/echo-react';
-import { toast } from 'sonner';
+import { notify as toaster } from '@/lib/toast';
 
 export type DashboardUpdatedEvent = {
     resource: string;
@@ -47,7 +47,7 @@ export function useStaffChannel({
             }
 
             if (notify) {
-                toast.info(describeEvent(event));
+                toaster.info(describeEvent(event));
             }
 
             onEvent?.(event);

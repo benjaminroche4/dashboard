@@ -162,7 +162,13 @@ export function DataTable<TData, TValue>({
                         {table.getHeaderGroups().map((headerGroup) => (
                             <TableRow key={headerGroup.id}>
                                 {headerGroup.headers.map((header) => (
-                                    <TableHead key={header.id}>
+                                    <TableHead
+                                        key={header.id}
+                                        className={cn(
+                                            header.column.id === 'actions' &&
+                                                'bg-background sticky right-0 z-10',
+                                        )}
+                                    >
                                         {header.isPlaceholder
                                             ? null
                                             : flexRender(
@@ -185,7 +191,14 @@ export function DataTable<TData, TValue>({
                                     }
                                 >
                                     {row.getVisibleCells().map((cell) => (
-                                        <TableCell key={cell.id}>
+                                        <TableCell
+                                            key={cell.id}
+                                            className={cn(
+                                                // Le menu « … » reste visible à droite quand le tableau défile.
+                                                cell.column.id === 'actions' &&
+                                                    'bg-background sticky right-0 z-10 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]',
+                                            )}
+                                        >
                                             {flexRender(
                                                 cell.column.columnDef.cell,
                                                 cell.getContext(),

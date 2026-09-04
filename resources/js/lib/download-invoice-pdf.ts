@@ -1,4 +1,4 @@
-import { toast } from 'sonner';
+import { notify } from '@/lib/toast';
 import { pdf } from '@/routes/invoices';
 
 /**
@@ -9,7 +9,10 @@ export async function downloadInvoicePdf(
     invoiceId: number,
     invoiceNumber: string,
 ): Promise<boolean> {
-    const pending = toast.loading(`Génération du PDF ${invoiceNumber}…`);
+    const pending = notify.loading(
+        `Génération du PDF ${invoiceNumber}…`,
+        'Le téléchargement démarre dès que le fichier est prêt.',
+    );
 
     try {
         const response = await fetch(pdf({ invoice: invoiceId }).url, {
@@ -30,13 +33,14 @@ export async function downloadInvoicePdf(
         link.remove();
         URL.revokeObjectURL(url);
 
-        toast.success(`PDF ${invoiceNumber} téléchargé.`, { id: pending });
+        notify.resolve(pending, `PDF ${invoiceNumber} téléchargé.`);
 
         return true;
     } catch {
-        toast.error(
-            `Impossible de générer le PDF ${invoiceNumber}. Réessayez dans un instant.`,
-            { id: pending },
+        notify.reject(
+            pending,
+            `Impossible de générer le PDF ${invoiceNumber}.`,
+            'Réessayez dans un instant.',
         );
 
         return false;

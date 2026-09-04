@@ -12,7 +12,7 @@ vi.mock('@inertiajs/react', () => ({
     usePage: () => ({ props: { auth: { user: { id: 1 } } } }),
 }));
 vi.mock('@laravel/echo-react', () => ({ useEchoPresence }));
-vi.mock('sonner', () => ({ toast: { info: toastInfo } }));
+vi.mock('@/lib/toast', () => ({ notify: { info: toastInfo } }));
 
 import {
     describeEvent,

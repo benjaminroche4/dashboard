@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const { loading, success, error } = vi.hoisted(() => ({
+const { loading, resolve, reject } = vi.hoisted(() => ({
     loading: vi.fn(() => 'toast-1'),
-    success: vi.fn(),
-    error: vi.fn(),
+    resolve: vi.fn(),
+    reject: vi.fn(),
 }));
 
-vi.mock('sonner', () => ({ toast: { loading, success, error } }));
+vi.mock('@/lib/toast', () => ({ notify: { loading, resolve, reject } }));
 
 import { downloadInvoicePdf } from '@/lib/download-invoice-pdf';
 
@@ -34,10 +34,14 @@ describe('downloadInvoicePdf', () => {
             expect.objectContaining({ credentials: 'same-origin' }),
         );
         expect(click).toHaveBeenCalled();
-        expect(loading).toHaveBeenCalledWith('Génération du PDF RP-27001…');
-        expect(success).toHaveBeenCalledWith('PDF RP-27001 téléchargé.', {
-            id: 'toast-1',
-        });
+        expect(loading).toHaveBeenCalledWith(
+            'Génération du PDF RP-27001…',
+            expect.any(String),
+        );
+        expect(resolve).toHaveBeenCalledWith(
+            'toast-1',
+            'PDF RP-27001 téléchargé.',
+        );
         vi.unstubAllGlobals();
     });
 
@@ -49,9 +53,10 @@ describe('downloadInvoicePdf', () => {
 
         await expect(downloadInvoicePdf(2, 'RP-27002')).resolves.toBe(false);
 
-        expect(error).toHaveBeenCalledWith(
-            expect.stringContaining('Impossible de générer le PDF RP-27002'),
-            { id: 'toast-1' },
+        expect(reject).toHaveBeenCalledWith(
+            'toast-1',
+            'Impossible de générer le PDF RP-27002.',
+            'Réessayez dans un instant.',
         );
         vi.unstubAllGlobals();
     });

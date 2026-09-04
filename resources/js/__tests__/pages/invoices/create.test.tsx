@@ -9,7 +9,7 @@ const { post, transform, toastError } = vi.hoisted(() => ({
     toastError: vi.fn(),
 }));
 
-vi.mock('sonner', () => ({ toast: { error: toastError } }));
+vi.mock('@/lib/toast', () => ({ notify: { error: toastError } }));
 
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@inertiajs/react')>();
@@ -250,6 +250,7 @@ describe('Invoice creation page', () => {
 
         expect(post).not.toHaveBeenCalled();
         expect(toastError).toHaveBeenCalledWith(
+            'Formulaire incomplet',
             'Corrigez les champs signalés avant de créer la facture.',
         );
         expect(

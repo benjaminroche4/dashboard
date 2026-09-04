@@ -1,7 +1,6 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { Plus, Trash2 } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { toast } from 'sonner';
 import { AddressAutocomplete } from '@/components/address-autocomplete';
 import { CountryFlag } from '@/components/country-flag';
 import { DatePicker } from '@/components/date-picker';
@@ -22,6 +21,7 @@ import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { formatMoney } from '@/lib/format';
+import { notify } from '@/lib/toast';
 import {
     toCents,
     toNumber,
@@ -172,7 +172,8 @@ export default function InvoicesCreate({
         setLocalErrors(found);
 
         if (Object.keys(found).length > 0) {
-            toast.error(
+            notify.error(
+                'Formulaire incomplet',
                 'Corrigez les champs signalés avant de créer la facture.',
             );
 
