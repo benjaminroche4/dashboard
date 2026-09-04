@@ -1,7 +1,9 @@
 import { Form } from '@inertiajs/react';
-import InputError from '@/components/input-error';
+import { InfoIcon } from 'lucide-react';
+import AlertError from '@/components/alert-error';
 import PasskeyVerify from '@/components/passkey-verify';
 import PasswordInput from '@/components/password-input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -17,13 +19,16 @@ export type LoginFormProps = {
     labelClassName?: string;
     buttonClassName?: string;
     submitLabel?: string;
-    /** Affiche le bouton passkey au-dessus du formulaire. */
+    /** Affiche le bouton de connexion par clé d'accès après le formulaire. */
     passkey?: boolean;
 };
 
 /**
  * Formulaire de connexion. Toute la logique (routes, erreurs, état) vit ici,
  * les pages ne font que l'habiller.
+ *
+ * Ordre de tabulation : e-mail, mot de passe, se souvenir, connexion, clé d'accès
+ * (ordre du DOM, aucun tabIndex positif).
  */
 export default function LoginForm({
     status,
@@ -36,85 +41,103 @@ export default function LoginForm({
 }: LoginFormProps) {
     return (
         <div className={cn('flex flex-col gap-6', className)}>
-            {passkey && <PasskeyVerify />}
+            {status && (
+                <Alert role="status">
+                    <InfoIcon />
+                    <AlertDescription>{status}</AlertDescription>
+                </Alert>
+            )}
 
             <Form
                 {...store.form()}
                 resetOnSuccess={['password']}
                 className="grid gap-6"
             >
-                {({ processing, errors }) => (
-                    <>
-                        <div className="grid gap-2">
-                            <Label htmlFor="email" className={labelClassName}>
-                                Adresse e-mail
-                            </Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                name="email"
-                                required
-                                autoFocus
-                                tabIndex={1}
-                                autoComplete="email"
-                                placeholder="email@exemple.fr"
-                                className={inputClassName}
-                            />
-                            <InputError message={errors.email} />
-                        </div>
+                {({ processing, errors }) => {
+                    const formErrors = [errors.email, errors.password].filter(
+                        (message): message is string => Boolean(message),
+                    );
 
-                        <div className="grid gap-2">
-                            <Label
-                                htmlFor="password"
-                                className={labelClassName}
+                    return (
+                        <>
+                            {formErrors.length > 0 && (
+                                <AlertError
+                                    errors={formErrors}
+                                    title="Connexion impossible"
+                                />
+                            )}
+
+                            <div className="grid gap-2">
+                                <Label
+                                    htmlFor="email"
+                                    className={labelClassName}
+                                >
+                                    Adresse e-mail
+                                </Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    name="email"
+                                    required
+                                    autoFocus
+                                    autoComplete="email"
+                                    placeholder="email@exemple.fr"
+                                    aria-invalid={Boolean(errors.email)}
+                                    className={inputClassName}
+                                />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label
+                                    htmlFor="password"
+                                    className={labelClassName}
+                                >
+                                    Mot de passe
+                                </Label>
+                                <PasswordInput
+                                    id="password"
+                                    name="password"
+                                    required
+                                    autoComplete="current-password"
+                                    placeholder="Mot de passe"
+                                    aria-invalid={Boolean(errors.password)}
+                                    className={inputClassName}
+                                />
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <Checkbox id="remember" name="remember" />
+                                <Label
+                                    htmlFor="remember"
+                                    className={labelClassName}
+                                >
+                                    Se souvenir de moi
+                                </Label>
+                            </div>
+
+                            <Button
+                                type="submit"
+                                className={cn('mt-2 w-full', buttonClassName)}
+                                disabled={processing}
+                                data-test="login-button"
                             >
-                                Mot de passe
-                            </Label>
-                            <PasswordInput
-                                id="password"
-                                name="password"
-                                required
-                                tabIndex={2}
-                                autoComplete="current-password"
-                                placeholder="Mot de passe"
-                                className={inputClassName}
-                            />
-                            <InputError message={errors.password} />
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                            <Checkbox
-                                id="remember"
-                                name="remember"
-                                tabIndex={3}
-                            />
-                            <Label
-                                htmlFor="remember"
-                                className={labelClassName}
-                            >
-                                Se souvenir de moi
-                            </Label>
-                        </div>
-
-                        <Button
-                            type="submit"
-                            className={cn('mt-2 w-full', buttonClassName)}
-                            tabIndex={4}
-                            disabled={processing}
-                            data-test="login-button"
-                        >
-                            {processing && <Spinner />}
-                            {submitLabel}
-                        </Button>
-                    </>
-                )}
+                                {processing && <Spinner />}
+                                {submitLabel}
+                            </Button>
+                        </>
+                    );
+                }}
             </Form>
 
-            {status && (
-                <p className="text-center text-sm font-medium text-green-600">
-                    {status}
-                </p>
+            {passkey && (
+                <div>
+                    <PasskeyVerify separator="Ou" separatorPosition="above" />
+                </div>
             )}
+
+            <p className="text-muted-foreground text-center text-xs text-pretty">
+                Accès réservé au staff. Les connexions sont journalisées.
+            </p>
         </div>
     );
 }

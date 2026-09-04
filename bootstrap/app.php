@@ -6,11 +6,13 @@ use App\Http\Middleware\EnsureStaffRole;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\NoIndex;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Illuminate\Session\TokenMismatchException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -35,4 +37,29 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request): bool => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // Session expirée sur une page protégée : on l'explique au lieu de renvoyer
+        // silencieusement au login. Un visiteur sans cookie de session ne voit rien.
+        $exceptions->render(function (AuthenticationException $e, Request $request) {
+            if ($request->expectsJson() || $request->is('/')) {
+                return null;
+            }
+
+            $redirect = redirect()->guest(route('login'));
+
+            if ($request->hasCookie(config('session.cookie'))) {
+                $redirect->with('status', __('Votre session a expiré, veuillez vous reconnecter.'));
+            }
+
+            return $redirect;
+        });
+
+        // Jeton CSRF périmé (419) : on revient sur la page avec un message plutôt qu'une erreur.
+        $exceptions->render(function (TokenMismatchException $e, Request $request) {
+            if ($request->expectsJson()) {
+                return null;
+            }
+
+            return back()->with('status', __('Votre session a expiré, veuillez réessayer.'));
+        });
     })->create();

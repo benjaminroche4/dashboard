@@ -270,5 +270,8 @@
     "Yes": "Oui",
     "You are receiving this email because we received a password reset request for your account.": "Vous recevez cet e-mail car nous avons reçu une demande de réinitialisation de mot de passe pour votre compte.",
     "You left the team \":name\"": "You left the team \":name\"",
-    "You've been invited to join :teamName": "You've been invited to join :teamName"
+    "You've been invited to join :teamName": "You've been invited to join :teamName",
+    "Vous avez été déconnecté.": "Vous avez été déconnecté.",
+    "Votre session a expiré, veuillez vous reconnecter.": "Votre session a expiré, veuillez vous reconnecter.",
+    "Votre session a expiré, veuillez réessayer.": "Votre session a expiré, veuillez réessayer."
 }

@@ -15,6 +15,8 @@ type Props = {
     label?: string;
     loadingLabel?: string;
     separator?: string;
+    /** Position du séparateur par rapport au bouton. */
+    separatorPosition?: 'above' | 'below';
 };
 
 export default function PasskeyVerify({
@@ -22,6 +24,7 @@ export default function PasskeyVerify({
     label,
     loadingLabel,
     separator,
+    separatorPosition = 'below',
 }: Props = {}) {
     const { verify, isLoading, error, isSupported } = usePasskeyVerify({
         ...(routes && {
@@ -39,8 +42,22 @@ export default function PasskeyVerify({
         return null;
     }
 
+    const divider = (
+        <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+                <Separator className="w-full" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background text-muted-foreground px-2">
+                    {separator ?? "Ou continuer avec l'e-mail"}
+                </span>
+            </div>
+        </div>
+    );
+
     return (
         <>
+            {separatorPosition === 'above' && divider}
             <div className="grid gap-2">
                 <Button
                     type="button"
@@ -58,17 +75,7 @@ export default function PasskeyVerify({
                     <InputError message={error} className="text-center" />
                 )}
             </div>
-
-            <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                    <Separator className="w-full" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background text-muted-foreground px-2">
-                        {separator ?? "Ou continuer avec l'e-mail"}
-                    </span>
-                </div>
-            </div>
+            {separatorPosition === 'below' && divider}
         </>
     );
 }
