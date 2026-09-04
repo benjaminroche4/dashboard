@@ -17,6 +17,11 @@ export function InvoicePreview({
     number?: string;
 }) {
     const totals = computeInvoiceTotals(form.items, form.vat_rate, offers);
+    const addressLines = [
+        form.client_street,
+        [form.client_postal_code, form.client_city].filter(Boolean).join(' '),
+        form.client_country,
+    ].filter((line) => line.trim() !== '');
     const money = (cents: number) => formatMoney(cents, form.currency);
 
     return (
@@ -58,9 +63,9 @@ export function InvoicePreview({
                     <p className="font-medium">
                         {form.client_name || 'Nom du client'}
                     </p>
-                    {form.client_address && (
+                    {addressLines.length > 0 && (
                         <p className="text-muted-foreground whitespace-pre-line">
-                            {form.client_address}
+                            {addressLines.join('\n')}
                         </p>
                     )}
                     {form.client_email && (

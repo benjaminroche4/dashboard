@@ -20,7 +20,10 @@ final readonly class InvoiceData
     public function __construct(
         public string $clientName,
         public ?string $clientEmail,
-        public ?string $clientAddress,
+        public ?string $clientStreet,
+        public ?string $clientPostalCode,
+        public ?string $clientCity,
+        public ?string $clientCountry,
         public Currency $currency,
         public float $vatRate,
         public CarbonInterface $issuedAt,
@@ -38,7 +41,10 @@ final readonly class InvoiceData
         return new self(
             clientName: $data['client_name'],
             clientEmail: $data['client_email'] ?? null,
-            clientAddress: $data['client_address'] ?? null,
+            clientStreet: $data['client_street'] ?? null,
+            clientPostalCode: $data['client_postal_code'] ?? null,
+            clientCity: $data['client_city'] ?? null,
+            clientCountry: $data['client_country'] ?? null,
             currency: Currency::from($data['currency']),
             vatRate: (float) $data['vat_rate'],
             issuedAt: Date::parse($data['issued_at']),
@@ -47,6 +53,20 @@ final readonly class InvoiceData
             notes: $data['notes'] ?? null,
             status: isset($data['status']) ? InvoiceStatus::from($data['status']) : InvoiceStatus::Draft,
         );
+    }
+
+    /**
+     * Adresse postale sur plusieurs lignes, ou null si rien n'est renseigné.
+     */
+    public function clientAddress(): ?string
+    {
+        $lines = array_filter([
+            $this->clientStreet,
+            trim(($this->clientPostalCode ?? '').' '.($this->clientCity ?? '')),
+            $this->clientCountry,
+        ], fn (?string $line): bool => $line !== null && $line !== '');
+
+        return $lines === [] ? null : implode("\n", $lines);
     }
 
     public function subtotalCents(): int

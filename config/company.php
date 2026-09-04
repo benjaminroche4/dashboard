@@ -29,6 +29,9 @@ return [
     'default_currency' => env('COMPANY_DEFAULT_CURRENCY', 'CHF'),
     'default_payment_terms_days' => (int) env('COMPANY_PAYMENT_TERMS_DAYS', 30),
 
+    // Pays proposés pour l'adresse du client (le premier est présélectionné).
+    'countries' => ['Suisse', 'France', 'Allemagne', 'Italie', 'Belgique', 'Luxembourg', 'Royaume-Uni', 'États-Unis', 'Autre'],
+
     // Prix unitaires par défaut des offres, en centimes, par devise. À ajuster.
     'offers' => [
         'accompagne' => [

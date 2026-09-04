@@ -11,7 +11,10 @@ function invoicePayload(array $overrides = []): array
     return [
         'client_name' => 'Acme SA',
         'client_email' => 'compta@acme.ch',
-        'client_address' => "Rue du Rhône 1\n1204 Genève",
+        'client_street' => 'Rue du Rhône 1',
+        'client_postal_code' => '1204',
+        'client_city' => 'Genève',
+        'client_country' => 'Suisse',
         'currency' => 'CHF',
         'vat_rate' => 8.1,
         'issued_at' => '2026-09-04',
@@ -49,4 +52,9 @@ test('lines carry the offer and its generated description', function (): void {
     expect($data->lines[0]->offer->value)->toBe('accompagne')
         ->and($data->lines[0]->toArray()['description'])->toBe('Offre Accompagné')
         ->and($data->lines[1]->toArray()['description'])->toBe('Offre Confié');
+});
+
+test('it composes the postal address from its parts', function (): void {
+    expect(InvoiceData::from(invoicePayload())->clientAddress())->toBe("Rue du Rhône 1\n1204 Genève\nSuisse")
+        ->and(InvoiceData::from(invoicePayload(['client_street' => null, 'client_postal_code' => null, 'client_city' => null, 'client_country' => null]))->clientAddress())->toBeNull();
 });

@@ -56,7 +56,10 @@ export type InvoiceLineForm = {
 export type InvoiceForm = {
     client_name: string;
     client_email: string;
-    client_address: string;
+    client_street: string;
+    client_postal_code: string;
+    client_city: string;
+    client_country: string;
     currency: Currency;
     vat_rate: string;
     issued_at: string;

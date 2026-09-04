@@ -84,6 +84,7 @@ const props = {
         { value: 'CHF' as const, label: 'Franc suisse (CHF)' },
         { value: 'EUR' as const, label: 'Euro (EUR)' },
     ],
+    countries: ['Suisse', 'France', 'Autre'],
     vatRates: [
         { value: 8.1, label: '8,1 % · taux normal' },
         { value: 2.6, label: '2,6 % · taux réduit' },
@@ -154,6 +155,25 @@ describe('Invoice creation page', () => {
         expect(
             screen.getByRole('button', { name: 'Échéance' }),
         ).toHaveTextContent('4 octobre 2026');
+    });
+
+    it('has a structured address with the country preselected', async () => {
+        const user = userEvent.setup();
+        render(<InvoicesCreate {...props} />);
+
+        expect(
+            screen.getByRole('combobox', { name: 'Pays' }),
+        ).toHaveTextContent('Suisse');
+
+        await user.type(screen.getByLabelText('Adresse'), 'Rue du Rhône 1');
+        await user.type(screen.getByLabelText('Code postal'), '1204');
+        await user.type(screen.getByLabelText('Ville'), 'Genève');
+
+        expect(
+            within(screen.getByLabelText('Aperçu de la facture')).getByText(
+                /Rue du Rhône 1\s+1204 Genève\s+Suisse/,
+            ),
+        ).toBeInTheDocument();
     });
 
     it('adds and removes lines', async () => {

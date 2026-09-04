@@ -72,6 +72,7 @@ class InvoiceController extends Controller
                 ->map(fn (Currency $currency): array => ['value' => $currency->value, 'label' => $currency->label()])
                 ->all(),
             'vatRates' => config('company.vat_rates'),
+            'countries' => config('company.countries'),
             'defaults' => [
                 'currency' => config('company.default_currency'),
                 'vat_rate' => config('company.default_vat_rate'),

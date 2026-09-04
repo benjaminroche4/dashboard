@@ -34,6 +34,7 @@ type Props = {
     offers: Offer[];
     currencies: { value: Currency; label: string }[];
     vatRates: { value: number; label: string }[];
+    countries: string[];
     defaults: {
         currency: Currency;
         vat_rate: number;
@@ -61,6 +62,7 @@ export default function InvoicesCreate({
     offers,
     currencies,
     vatRates,
+    countries,
     defaults,
 }: Props) {
     const firstOffer = offers[0]?.value ?? 'accompagne';
@@ -73,7 +75,10 @@ export default function InvoicesCreate({
     const form = useForm<InvoiceForm>({
         client_name: '',
         client_email: '',
-        client_address: '',
+        client_street: '',
+        client_postal_code: '',
+        client_city: '',
+        client_country: countries[0] ?? '',
         currency: defaults.currency,
         vat_rate: String(defaults.vat_rate),
         issued_at: defaults.issued_at,
@@ -182,25 +187,27 @@ export default function InvoicesCreate({
                     >
                         <section className="grid gap-5">
                             <h2 className="text-base font-medium">Client</h2>
-                            <div className="grid gap-2">
-                                <Label htmlFor="client_name">Nom</Label>
-                                <Input
-                                    id="client_name"
-                                    name="client_name"
-                                    className="bg-background"
-                                    value={form.data.client_name}
-                                    onChange={(e) =>
-                                        form.setData(
-                                            'client_name',
-                                            e.target.value,
-                                        )
-                                    }
-                                    required
-                                    autoFocus
-                                />
-                                <InputError message={form.errors.client_name} />
-                            </div>
                             <div className="grid gap-5 sm:grid-cols-2">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="client_name">Nom</Label>
+                                    <Input
+                                        id="client_name"
+                                        name="client_name"
+                                        className="bg-background"
+                                        value={form.data.client_name}
+                                        onChange={(e) =>
+                                            form.setData(
+                                                'client_name',
+                                                e.target.value,
+                                            )
+                                        }
+                                        required
+                                        autoFocus
+                                    />
+                                    <InputError
+                                        message={form.errors.client_name}
+                                    />
+                                </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="client_email">E-mail</Label>
                                     <Input
@@ -220,25 +227,98 @@ export default function InvoicesCreate({
                                         message={form.errors.client_email}
                                     />
                                 </div>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="client_street">Adresse</Label>
+                                <Input
+                                    id="client_street"
+                                    name="client_street"
+                                    className="bg-background"
+                                    placeholder="Rue et numéro"
+                                    autoComplete="street-address"
+                                    value={form.data.client_street}
+                                    onChange={(e) =>
+                                        form.setData(
+                                            'client_street',
+                                            e.target.value,
+                                        )
+                                    }
+                                />
+                                <InputError
+                                    message={form.errors.client_street}
+                                />
+                            </div>
+                            <div className="grid gap-5 sm:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)]">
                                 <div className="grid gap-2">
-                                    <Label htmlFor="client_address">
-                                        Adresse
+                                    <Label htmlFor="client_postal_code">
+                                        Code postal
                                     </Label>
-                                    <Textarea
-                                        id="client_address"
-                                        name="client_address"
+                                    <Input
+                                        id="client_postal_code"
+                                        name="client_postal_code"
                                         className="bg-background"
-                                        rows={3}
-                                        value={form.data.client_address}
+                                        autoComplete="postal-code"
+                                        value={form.data.client_postal_code}
                                         onChange={(e) =>
                                             form.setData(
-                                                'client_address',
+                                                'client_postal_code',
                                                 e.target.value,
                                             )
                                         }
                                     />
                                     <InputError
-                                        message={form.errors.client_address}
+                                        message={form.errors.client_postal_code}
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="client_city">Ville</Label>
+                                    <Input
+                                        id="client_city"
+                                        name="client_city"
+                                        className="bg-background"
+                                        autoComplete="address-level2"
+                                        value={form.data.client_city}
+                                        onChange={(e) =>
+                                            form.setData(
+                                                'client_city',
+                                                e.target.value,
+                                            )
+                                        }
+                                    />
+                                    <InputError
+                                        message={form.errors.client_city}
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="client_country">Pays</Label>
+                                    <Select
+                                        value={form.data.client_country}
+                                        onValueChange={(value) =>
+                                            form.setData(
+                                                'client_country',
+                                                value,
+                                            )
+                                        }
+                                    >
+                                        <SelectTrigger
+                                            id="client_country"
+                                            className="bg-background w-full"
+                                        >
+                                            <SelectValue placeholder="Pays" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {countries.map((country) => (
+                                                <SelectItem
+                                                    key={country}
+                                                    value={country}
+                                                >
+                                                    {country}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <InputError
+                                        message={form.errors.client_country}
                                     />
                                 </div>
                             </div>

@@ -27,7 +27,10 @@ class StoreInvoiceRequest extends FormRequest
         return [
             'client_name' => ['required', 'string', 'max:255'],
             'client_email' => ['nullable', 'email', 'max:255'],
-            'client_address' => ['nullable', 'string', 'max:1000'],
+            'client_street' => ['nullable', 'string', 'max:255'],
+            'client_postal_code' => ['nullable', 'string', 'max:32'],
+            'client_city' => ['nullable', 'string', 'max:255'],
+            'client_country' => ['nullable', 'string', 'max:64'],
             'currency' => ['required', Rule::enum(Currency::class)],
             'vat_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'issued_at' => ['required', 'date'],
@@ -49,7 +52,10 @@ class StoreInvoiceRequest extends FormRequest
         return [
             'client_name' => 'nom du client',
             'client_email' => 'e-mail du client',
-            'client_address' => 'adresse du client',
+            'client_street' => 'adresse',
+            'client_postal_code' => 'code postal',
+            'client_city' => 'ville',
+            'client_country' => 'pays',
             'currency' => 'devise',
             'vat_rate' => 'taux de TVA',
             'issued_at' => "date d'émission",

@@ -34,7 +34,10 @@ const offers: Offer[] = [
 const form: InvoiceForm = {
     client_name: 'Acme SA',
     client_email: 'compta@acme.ch',
-    client_address: 'Rue du Rhône 1\n1204 Genève',
+    client_street: 'Rue du Rhône 1',
+    client_postal_code: '1204',
+    client_city: 'Genève',
+    client_country: 'Suisse',
     currency: 'CHF',
     vat_rate: '8.1',
     issued_at: '2026-09-04',
@@ -55,6 +58,9 @@ describe('InvoicePreview', () => {
 
         expect(screen.getByText('Relocation In Paris')).toBeInTheDocument();
         expect(screen.getByText('Acme SA')).toBeInTheDocument();
+        expect(
+            screen.getByText(/Rue du Rhône 1\s+1204 Genève\s+Suisse/),
+        ).toBeInTheDocument();
         expect(screen.getByText('Offre Accompagné')).toBeInTheDocument();
         expect(screen.getByText('4 septembre 2026')).toBeInTheDocument();
         expect(screen.getByText('4 octobre 2026')).toBeInTheDocument();

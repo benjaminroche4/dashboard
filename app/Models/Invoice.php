@@ -18,6 +18,10 @@ use Illuminate\Support\Carbon;
  * @property string $number
  * @property string $client_name
  * @property string|null $client_email
+ * @property string|null $client_street
+ * @property string|null $client_postal_code
+ * @property string|null $client_city
+ * @property string|null $client_country
  * @property string|null $client_address
  * @property list<array{offer: string, description: string, quantity: float, unit_price_cents: int}>|null $items
  * @property float $vat_rate
@@ -35,7 +39,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  */
 #[Fillable([
-    'number', 'client_name', 'client_email', 'client_address', 'items', 'vat_rate',
+    'number', 'client_name', 'client_email', 'client_street', 'client_postal_code', 'client_city', 'client_country',
+    'client_address', 'items', 'vat_rate',
     'subtotal_cents', 'vat_cents', 'amount_cents', 'currency', 'status',
     'issued_at', 'due_at', 'paid_at', 'notes', 'created_by',
 ])]

@@ -16,7 +16,10 @@ function validInvoiceInput(array $overrides = []): array
     return [
         'client_name' => 'Acme SA',
         'client_email' => 'compta@acme.ch',
-        'client_address' => "Rue du Rhône 1\n1204 Genève",
+        'client_street' => 'Rue du Rhône 1',
+        'client_postal_code' => '1204',
+        'client_city' => 'Genève',
+        'client_country' => 'Suisse',
         'currency' => 'EUR',
         'vat_rate' => 0,
         'issued_at' => '2026-09-04',
@@ -68,6 +71,8 @@ test('managers can create an invoice in euros and are sent back to the list', fu
         ->and($invoice->currency->value)->toBe('EUR')
         ->and($invoice->amount_cents)->toBe(30_000)
         ->and($invoice->vat_cents)->toBe(0)
+        ->and($invoice->client_city)->toBe('Genève')
+        ->and($invoice->client_address)->toBe("Rue du Rhône 1\n1204 Genève\nSuisse")
         ->and($invoice->notes)->toBe('Merci pour votre confiance.')
         ->and($invoice->created_by)->toBe($manager->id);
 });
