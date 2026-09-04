@@ -12,7 +12,7 @@ export default function Login({ status }: Props) {
 
             <div className="bg-background grid min-h-svh lg:grid-cols-2">
                 <div className="flex items-center justify-center p-6 md:p-10">
-                    <div className="w-full max-w-xs space-y-8">
+                    <div className="w-full max-w-sm space-y-8">
                         <img
                             src="/images/logo.jpg"
                             alt="Dashboard"
