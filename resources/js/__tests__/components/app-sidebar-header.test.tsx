@@ -27,7 +27,7 @@ describe('AppSidebarHeader', () => {
             screen.getByRole('button', { name: 'Rechercher' }),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Notifications' }),
+            screen.getByRole('button', { name: /non lue/ }),
         ).toBeInTheDocument();
     });
 });

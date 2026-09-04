@@ -4,6 +4,7 @@ import { OnlineStaff } from '@/components/online-staff';
 import { RealtimeStaff } from '@/components/realtime-staff';
 import { SearchCommand } from '@/components/search-command';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { sampleNotifications } from '@/data/sample-notifications';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
 /**
@@ -29,7 +30,8 @@ export function AppSidebarHeader({
             <div className="flex items-center justify-end gap-2">
                 <RealtimeStaff />
                 <OnlineStaff />
-                <Notifications />
+                {/* Données d'exemple en attendant le temps réel. */}
+                <Notifications items={sampleNotifications} />
             </div>
         </header>
     );
