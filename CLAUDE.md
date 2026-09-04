@@ -37,7 +37,7 @@ Un hook **pre-commit** (`scripts/hooks/pre-commit`, activé via `core.hooksPath`
 Comptes staff : **pas d'inscription**. Créer un membre avec :
 
 ```
-php artisan staff:create --name="Nom" --email=nom@exemple.com
+php artisan staff:create --name="Nom" --email=nom@exemple.com --role=admin|manager|member
 ```
 
 ## Règles d'accès et SEO
@@ -47,16 +47,26 @@ php artisan staff:create --name="Nom" --email=nom@exemple.com
 - 2FA, passkeys et confirmation de mot de passe restent actifs (côté authentifié uniquement).
 - `App\Http\Middleware\NoIndex` ajoute `X-Robots-Tag: noindex` sur toutes les réponses web, `public/robots.txt` bloque tout, le layout Blade porte `<meta name="robots" content="noindex">`. Ne jamais ajouter de sitemap, d'OpenGraph ni de meta SEO.
 
+## Rôles et autorisations
+
+- Enum `App\Enums\StaffRole` : `admin` > `manager` > `member` (colonne `users.role`, castée). Pour ajouter un rôle : un cas + son label + son rang dans l'enum, puis les règles dans les Policies.
+- Helpers modèle : `$user->isAdmin()`, `$user->hasRole(...$roles)`, `$user->hasRoleAtLeast($role)`.
+- **Policies** dans `app/Policies` (une par modèle, `final`, suffixe `Policy`). `UserPolicy` : seuls les admins gèrent le staff, chacun voit et modifie son propre profil, un admin ne peut ni se supprimer ni changer son propre rôle.
+- **Middleware de route** `role:admin,manager` (`App\Http\Middleware\EnsureStaffRole`) pour restreindre une route entière. Pour une action précise, utiliser la Policy (`$this->authorize()` ou `Gate`).
+- Gates transverses dans `AppServiceProvider::configureGates()` (ex. `viewPulse`).
+- Le front reçoit `auth.user.role` et `auth.can.{manageStaff, viewPulse}` via `HandleInertiaRequests`. Toute nouvelle permission exposée au front s'ajoute là et dans le type `Permissions` de `resources/js/types/auth.ts`. Le front ne décide jamais seul : il masque, le backend refuse.
+
 ## Temps réel (obligatoire pour toute action du backoffice)
 
 Quand un membre du staff fait une action, les autres membres connectés doivent la voir **sans refresh**.
 
-1. Côté PHP, après la mutation, dispatcher `App\Events\DashboardUpdated::dispatch('<resource>', [...payload])`.
-   L'événement est diffusé sur le canal de présence `staff` (autorisation dans `routes/channels.php`), nom d'événement `dashboard.updated`.
-2. Côté React, dans la page concernée : `useStaffChannel(['props', 'à', 'recharger'])` (`resources/js/hooks/use-staff-channel.ts`).
-   Le hook fait un `router.reload({ only })` Inertia à chaque événement. Passer un callback en 2e argument pour un toast (`sonner`) ou une mise à jour optimiste.
-3. Créer un événement dédié seulement si le payload devient métier (ex. `OrderShipped`). Il doit alors implémenter `ShouldBroadcast` et diffuser sur `PresenceChannel('staff')`.
-4. Les événements passent par la **queue** : `make start` lance `queue:listen`. En prod, Laravel Cloud doit avoir un worker.
+1. Côté PHP, après la mutation, dispatcher `App\Events\DashboardUpdated::dispatch('<resource>', [...payload], 'a expédié la commande #42')`.
+   L'événement embarque l'acteur (utilisateur connecté) et le message, et part sur le canal de présence `staff` (autorisation dans `routes/channels.php`), nom `dashboard.updated`. Le message est une phrase à la 3e personne sans sujet : le front la préfixe du nom de l'acteur.
+2. Côté React, `<RealtimeStaff />` est monté une fois dans le header du layout authentifié : pour chaque événement d'un **autre** membre, il affiche un toast sonner « Admin 2 a expédié la commande #42 » puis recharge les props Inertia de la page courante. Les événements de l'utilisateur courant sont ignorés.
+   Une page qui veut un rechargement ciblé ou une mise à jour optimiste appelle `useStaffChannel({ only: ['orders'], notify: false, onEvent })` (`resources/js/hooks/use-staff-channel.ts`).
+3. `<OnlineStaff />` (header) affiche les avatars des membres connectés via `useOnlineStaff()` (canal de présence).
+4. Créer un événement dédié seulement si le payload devient métier (ex. `OrderShipped`). Il doit alors implémenter `ShouldBroadcast` et diffuser sur `PresenceChannel('staff')`.
+5. Les événements passent par la **queue** : `make start` lance `queue:listen`. En prod, Laravel Cloud doit avoir un worker.
 
 Echo est configuré dans `resources/js/app.tsx` via `configureEcho({ broadcaster: 'reverb' })` et lit les variables `VITE_REVERB_*`.
 
@@ -65,6 +75,7 @@ Echo est configuré dans `resources/js/app.tsx` via `configureEcho({ broadcaster
 Ces règles sont **vérifiées par `tests/Architecture/ArchitectureTest.php`** (pest-plugin-arch). Une violation casse la suite.
 
 - `declare(strict_types=1)` dans tout `app/`. Pas de `dd`, `dump`, `env()` hors `config/`.
+- `config/pulse.php` et la migration Pulse sont publiés par le package : exclus de Rector et PHPStan, ne pas les retoucher.
 - **Actions** (`app/Actions/<Domaine>/<Verbe><Nom>.php`) : classe `final`, une méthode `handle()`, injectable, sans dépendance HTTP. Toute logique métier vit là, jamais dans les contrôleurs ni dans les commandes. Exemple : `App\Actions\Staff\CreateStaffMember`.
 - **DTOs** (`app/Data/<Nom>Data.php`) : `final readonly`, constructeur nommé, `from(array)` et `toArray()`. Une Action reçoit un DTO dès qu'elle a plus de deux paramètres. Exemple : `App\Data\StaffMemberData`.
 - **Form Requests** (`app/Http/Requests`, suffixe `Request`) pour toute validation HTTP. Le contrôleur construit le DTO depuis `$request->validated()` et appelle l'Action.
@@ -122,7 +133,7 @@ VITE_REVERB_PORT="${REVERB_PORT}"
 VITE_REVERB_SCHEME="${REVERB_SCHEME}"
 ```
 
-Les variables `VITE_*` sont lues **au build** : toute modification exige un redéploiement. 6. Créer le premier compte staff depuis la console Cloud : `php artisan staff:create --name=... --email=... --password=...` 7. Vérifier après déploiement : `/` redirige vers `/login`, l'en-tête `X-Robots-Tag: noindex` est présent, la connexion websocket (onglet Réseau, `wss://`) est établie une fois connecté.
+Les variables `VITE_*` sont lues **au build** : toute modification exige un redéploiement. 6. Créer le premier compte staff depuis la console Cloud : `php artisan staff:create --name=... --email=... --password=...` 7. Pulse : `PULSE_ENABLED=true` (défaut), et une entrée scheduler ou un process `php artisan pulse:check` pour les collecteurs serveur. Le dashboard `/pulse` est réservé aux admins (gate `viewPulse`). 8. Vérifier après déploiement : `/` redirige vers `/login`, l'en-tête `X-Robots-Tag: noindex` est présent, la connexion websocket (onglet Réseau, `wss://`) est établie une fois connecté.
 
 ## Ce qu'il ne faut pas faire
 

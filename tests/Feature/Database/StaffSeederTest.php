@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\StaffRole;
 use App\Models\User;
 use Database\Seeders\StaffSeeder;
 use Illuminate\Support\Facades\Hash;
@@ -13,6 +14,7 @@ test('the staff seeder creates both admin accounts with the "admin" password', f
         $user = User::where('email', $email)->first();
 
         expect($user)->not->toBeNull()
+            ->and($user->role)->toBe(StaffRole::Admin)
             ->and(Hash::check('admin', $user->password))->toBeTrue();
     }
 });

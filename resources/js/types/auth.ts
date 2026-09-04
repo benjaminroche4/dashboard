@@ -1,7 +1,16 @@
+export type StaffRole = 'admin' | 'manager' | 'member';
+
+export const staffRoleLabels: Record<StaffRole, string> = {
+    admin: 'Administrateur',
+    manager: 'Manager',
+    member: 'Membre',
+};
+
 export type User = {
     id: number;
     name: string;
     email: string;
+    role: StaffRole;
     avatar?: string;
     email_verified_at: string | null;
     two_factor_enabled?: boolean;
@@ -10,8 +19,14 @@ export type User = {
     [key: string]: unknown;
 };
 
+export type Permissions = {
+    manageStaff: boolean;
+    viewPulse: boolean;
+};
+
 export type Auth = {
     user: User;
+    can: Permissions;
 };
 
 export type Passkey = {

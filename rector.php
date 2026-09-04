@@ -16,6 +16,9 @@ return RectorConfig::configure()
     ])
     ->withSkip([
         __DIR__.'/bootstrap/cache',
+        // Fichiers publiés par des packages tiers (Pulse) : non maintenus par nous.
+        __DIR__.'/config/pulse.php',
+        __DIR__.'/database/migrations/2026_09_04_110303_create_pulse_tables.php',
     ])
     ->withPhpSets(php84: true)
     ->withPreparedSets(

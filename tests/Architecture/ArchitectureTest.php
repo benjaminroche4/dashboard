@@ -65,3 +65,13 @@ arch('console commands are final and delegate to actions')
     ->toBeFinal()
     ->toExtend(Command::class)
     ->not->toUse(DB::class);
+
+arch('enums are backed and live in App\\Enums')
+    ->expect('App\\Enums')
+    ->toBeEnums()
+    ->toBeStringBackedEnums();
+
+arch('policies are final and end with Policy')
+    ->expect('App\\Policies')
+    ->toBeFinal()
+    ->toHaveSuffix('Policy');

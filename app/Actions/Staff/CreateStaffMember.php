@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Actions\Staff;
 
 use App\Data\StaffMemberData;
+use App\Enums\StaffRole;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
@@ -26,6 +28,7 @@ final class CreateStaffMember
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'string', Password::defaults()],
+            'role' => ['required', Rule::enum(StaffRole::class)],
         ];
     }
 
@@ -40,6 +43,7 @@ final class CreateStaffMember
             'name' => $data->name,
             'email' => $data->email,
             'password' => Hash::make($data->password),
+            'role' => $data->role,
         ]);
     }
 }

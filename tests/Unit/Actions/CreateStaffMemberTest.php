@@ -2,6 +2,7 @@
 
 use App\Actions\Staff\CreateStaffMember;
 use App\Data\StaffMemberData;
+use App\Enums\StaffRole;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -31,3 +32,9 @@ test('it rejects a duplicate email', function (): void {
 test('it rejects a weak password', function (): void {
     (new CreateStaffMember)->handle(new StaffMemberData('Alice', 'alice@example.com', 'short'));
 })->throws(ValidationException::class);
+
+test('it stores the requested role', function (): void {
+    $user = (new CreateStaffMember)->handle(new StaffMemberData('Alice', 'alice@example.com', 'Sup3r-secret-pass', StaffRole::Manager));
+
+    expect($user->refresh()->role)->toBe(StaffRole::Manager);
+});

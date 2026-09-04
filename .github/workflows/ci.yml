@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, types, tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          extensions: mbstring, intl, sqlite3, pdo_sqlite, bcmath
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          touch database/database.sqlite
+
+      - name: Generate Wayfinder routes
+        run: php artisan wayfinder:generate --with-form --no-interaction
+
+      - name: Lint (Rector, Pint, oxlint)
+        run: |
+          composer lint:check
+          npm run check
+
+      - name: Types (PHPStan, tsc)
+        run: |
+          composer types:check
+          npm run types:check
+
+      - name: Tests (Pest, Vitest)
+        run: |
+          php artisan test
+          npm test
+
+      - name: Build assets
+        run: npm run build

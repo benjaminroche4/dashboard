@@ -1,32 +1,63 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { reload, useEchoPresence } = vi.hoisted(() => ({
+const { reload, useEchoPresence, toastInfo } = vi.hoisted(() => ({
     reload: vi.fn(),
     useEchoPresence: vi.fn(),
+    toastInfo: vi.fn(),
 }));
 
-vi.mock('@inertiajs/react', () => ({ router: { reload } }));
+vi.mock('@inertiajs/react', () => ({
+    router: { reload },
+    usePage: () => ({ props: { auth: { user: { id: 1 } } } }),
+}));
 vi.mock('@laravel/echo-react', () => ({ useEchoPresence }));
+vi.mock('sonner', () => ({ toast: { info: toastInfo } }));
 
-import { useStaffChannel } from '@/hooks/use-staff-channel';
+import {
+    describeEvent,
+    useStaffChannel,
+    type DashboardUpdatedEvent,
+} from '@/hooks/use-staff-channel';
 
-type Listener = (event: {
-    resource: string;
-    payload: Record<string, unknown>;
-    at: string;
-}) => void;
+type Listener = (event: DashboardUpdatedEvent) => void;
 
-const event = { resource: 'orders', payload: { id: 1 }, at: '2026-01-01' };
+const fromOther: DashboardUpdatedEvent = {
+    resource: 'orders',
+    payload: { id: 1 },
+    message: 'a expédié la commande #1',
+    actor: { id: 2, name: 'Admin 2' },
+    at: '2026-01-01',
+};
+
+const fromMe: DashboardUpdatedEvent = {
+    ...fromOther,
+    actor: { id: 1, name: 'Admin' },
+};
 
 function lastListener(): Listener {
     return useEchoPresence.mock.calls.at(-1)?.[2] as Listener;
 }
 
+describe('describeEvent', () => {
+    it('prefixes the message with the actor name', () => {
+        expect(describeEvent(fromOther)).toBe(
+            'Admin 2 a expédié la commande #1',
+        );
+    });
+
+    it('returns the bare message without actor', () => {
+        expect(describeEvent({ ...fromOther, actor: null })).toBe(
+            'a expédié la commande #1',
+        );
+    });
+});
+
 describe('useStaffChannel', () => {
     beforeEach(() => {
         reload.mockClear();
         useEchoPresence.mockClear();
+        toastInfo.mockClear();
     });
 
     it('subscribes to the staff presence channel for dashboard.updated', () => {
@@ -36,32 +67,50 @@ describe('useStaffChannel', () => {
             'staff',
             '.dashboard.updated',
             expect.any(Function),
+            expect.any(Array),
         );
     });
 
-    it('reloads the whole page when no props are specified', () => {
+    it('toasts and reloads the whole page for another member’s action', () => {
         renderHook(() => useStaffChannel());
 
-        lastListener()(event);
+        lastListener()(fromOther);
 
+        expect(toastInfo).toHaveBeenCalledWith(
+            'Admin 2 a expédié la commande #1',
+        );
         expect(reload).toHaveBeenCalledWith({ only: undefined });
     });
 
-    it('reloads only the requested props', () => {
-        renderHook(() => useStaffChannel(['orders', 'stats']));
+    it('ignores the current user’s own actions', () => {
+        const onEvent = vi.fn();
+        renderHook(() => useStaffChannel({ onEvent }));
 
-        lastListener()(event);
+        lastListener()(fromMe);
+
+        expect(toastInfo).not.toHaveBeenCalled();
+        expect(onEvent).not.toHaveBeenCalled();
+        expect(reload).not.toHaveBeenCalled();
+    });
+
+    it('reloads only the requested props', () => {
+        renderHook(() => useStaffChannel({ only: ['orders', 'stats'] }));
+
+        lastListener()(fromOther);
 
         expect(reload).toHaveBeenCalledWith({ only: ['orders', 'stats'] });
     });
 
-    it('forwards the event to the optional callback before reloading', () => {
+    it('can disable the toast and the reload', () => {
         const onEvent = vi.fn();
-        renderHook(() => useStaffChannel([], onEvent));
+        renderHook(() =>
+            useStaffChannel({ notify: false, reload: false, onEvent }),
+        );
 
-        lastListener()(event);
+        lastListener()(fromOther);
 
-        expect(onEvent).toHaveBeenCalledWith(event);
-        expect(reload).toHaveBeenCalledTimes(1);
+        expect(onEvent).toHaveBeenCalledWith(fromOther);
+        expect(toastInfo).not.toHaveBeenCalled();
+        expect(reload).not.toHaveBeenCalled();
     });
 });

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Enums\StaffRole;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -13,10 +14,10 @@ use Illuminate\Database\Seeder;
  */
 final class StaffSeeder extends Seeder
 {
-    /** @var list<array{name: string, email: string}> */
+    /** @var list<array{name: string, email: string, role: StaffRole}> */
     public const array ACCOUNTS = [
-        ['name' => 'Admin', 'email' => 'admin@admin.fr'],
-        ['name' => 'Admin 2', 'email' => 'admin2@admin.fr'],
+        ['name' => 'Admin', 'email' => 'admin@admin.fr', 'role' => StaffRole::Admin],
+        ['name' => 'Admin 2', 'email' => 'admin2@admin.fr', 'role' => StaffRole::Admin],
     ];
 
     public const string PASSWORD = 'admin';
