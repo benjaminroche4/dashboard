@@ -131,11 +131,12 @@ describe('Login page layout', () => {
     it('shows the illustration on the right column', () => {
         const { container } = render(<Login />);
         const image = container.querySelector('img[src="/images/login.jpg"]');
+        const frame = image?.parentElement;
 
         expect(image).toBeInTheDocument();
-        expect(image).toHaveClass('rounded-3xl', 'size-full', 'object-cover');
-        expect(image).not.toHaveClass('grayscale', 'mix-blend-luminosity');
-        expect(image?.parentElement).toHaveClass('lg:h-svh', 'lg:sticky');
+        expect(frame).toHaveClass('rounded-3xl', 'size-full');
+        expect(frame?.querySelector('canvas')).toBeInTheDocument();
+        expect(frame?.parentElement).toHaveClass('lg:h-svh', 'lg:sticky');
     });
 });
 

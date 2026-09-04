@@ -1,4 +1,5 @@
 import { Head } from '@inertiajs/react';
+import AsciiHalftone from '@/components/ascii-halftone';
 import LoginForm from '@/components/login-form';
 
 type Props = {
@@ -33,10 +34,9 @@ export default function Login({ status }: Props) {
 
                 {/* Photo en bichromie dans le bordeaux du logo, plus sombre en thème dark. */}
                 <div className="hidden p-4 lg:sticky lg:top-0 lg:block lg:h-svh">
-                    <img
+                    <AsciiHalftone
                         src="/images/login.jpg"
-                        alt=""
-                        className="size-full rounded-3xl object-cover"
+                        className="size-full rounded-3xl"
                     />
                 </div>
             </div>
