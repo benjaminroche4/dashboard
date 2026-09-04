@@ -63,14 +63,22 @@ describe('renderAsciiHalftone', () => {
         const clearRect = vi.fn();
         const drawImage = vi.fn();
         const fillText = vi.fn();
+        const composites: string[] = [];
         const ctx = {
             clearRect,
             drawImage,
             fillText,
             fillStyle: '',
             font: '',
+            filter: '',
             textAlign: '',
             textBaseline: '',
+            set globalCompositeOperation(value: string) {
+                composites.push(value);
+            },
+            get globalCompositeOperation() {
+                return composites.at(-1) ?? 'source-over';
+            },
         } as unknown as CanvasRenderingContext2D;
 
         renderAsciiHalftone(
@@ -90,8 +98,11 @@ describe('renderAsciiHalftone', () => {
         expect(clearRect).toHaveBeenCalledWith(0, 0, 20, 10);
         expect(drawImage).toHaveBeenCalledTimes(1);
         expect(fillText).toHaveBeenCalledTimes(1);
+        // La fusion se fait en lumière douce, puis le mode normal est rétabli.
+        expect(composites).toContain('soft-light');
+        expect(ctx.globalCompositeOperation).toBe('source-over');
         expect(fillText).toHaveBeenCalledWith('#', 15, 5);
-        expect(ctx.fillStyle).toBe('rgb(169 161 157 / 0.5)');
+        expect(ctx.fillStyle).toBe('rgb(201 196 194 / 0.5)');
         expect(sampler.getImageData).toHaveBeenCalledWith(0, 0, 2, 1);
     });
 });

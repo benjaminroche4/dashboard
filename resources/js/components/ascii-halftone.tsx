@@ -84,9 +84,10 @@ export function sampleAsciiGrid(
             const g = data[i + 1];
             const b = data[i + 2];
             const luma = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-            const lr = Math.round(r + (255 - r) * 0.6);
-            const lg = Math.round(g + (255 - g) * 0.6);
-            const lb = Math.round(b + (255 - b) * 0.6);
+            // Encre claire : en soft-light, elle révèle la lumière de la cellule.
+            const lr = Math.round(r + (255 - r) * 0.75);
+            const lg = Math.round(g + (255 - g) * 0.75);
+            const lb = Math.round(b + (255 - b) * 0.75);
 
             cells.push({
                 x,
@@ -136,7 +137,16 @@ export function drawAsciiFrame(
     const { sx, sy, sw, sh } = coverRect(image, width, height);
 
     ctx.clearRect(0, 0, width, height);
+
+    // Base : la photo légèrement adoucie, les glyphes vont lui rendre son détail.
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.filter = `blur(${Math.max(1, cellSize * 0.18)}px)`;
     ctx.drawImage(image, sx, sy, sw, sh, 0, 0, width, height);
+    ctx.filter = 'none';
+
+    // Glyphes fusionnés en lumière douce : ils éclaircissent la photo là où ils
+    // passent, sans jamais la recouvrir ni l'assombrir.
+    ctx.globalCompositeOperation = 'soft-light';
     ctx.font = `${cellSize}px ${FONT_FAMILY}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -169,6 +179,8 @@ export function drawAsciiFrame(
             grid.offsetY + cell.y * cellSize,
         );
     }
+
+    ctx.globalCompositeOperation = 'source-over';
 }
 
 /**
@@ -202,7 +214,7 @@ export default function AsciiHalftone({
     className,
     cellSize = 9,
     charset = ' .:-=+*#%@',
-    inkOpacity = 0.55,
+    inkOpacity = 0.9,
     animate = true,
 }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
