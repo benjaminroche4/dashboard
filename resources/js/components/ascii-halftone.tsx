@@ -5,33 +5,41 @@ type Props = {
     src: string;
     alt?: string;
     className?: string;
-    /** Largeur d'une cellule en pixels CSS (la hauteur découle du ratio). */
-    cellWidth?: number;
-    /** Ratio largeur / hauteur d'une cellule monospace. */
-    cellRatio?: number;
-    /** Rampe de caractères, du plus clair au plus sombre. */
-    ramp?: string;
+    /** Taille d'une cellule (un caractère) en pixels CSS. */
+    cellSize?: number;
+    /** Caractères du plus clair (peu d'encre) au plus dense. */
+    charset?: string;
+    /** Opacité des caractères (0 à 1). */
+    inkOpacity?: number;
+    /** Anime la trame (ondulation + balayage). Désactivé si prefers-reduced-motion. */
+    animate?: boolean;
 };
 
-export type AsciiHalftoneOptions = {
-    width: number;
-    height: number;
-    cellWidth: number;
-    cellRatio: number;
-    ramp: string;
+export type AsciiCell = {
+    x: number;
+    y: number;
+    darkness: number;
+    ink: string;
+};
+
+export type AsciiGrid = {
+    cols: number;
+    rows: number;
+    cells: AsciiCell[];
+    offsetX: number;
+    offsetY: number;
 };
 
 const FONT_FAMILY =
-    '"JetBrains Mono", "SF Mono", Menlo, "Courier New", Courier, monospace';
-const CONTRAST_BOOST = 1.2;
-const GLYPH_OPACITY = 0.8;
-const OVERLAY_OPACITY = 0.25;
+    'ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace';
+
+type CoverRect = { sx: number; sy: number; sw: number; sh: number };
 
 function coverRect(
     image: { width: number; height: number },
     width: number,
     height: number,
-) {
+): CoverRect {
     const canvasRatio = width / height;
     const imageRatio = image.width / image.height;
     const sw =
@@ -43,50 +51,31 @@ function coverRect(
 }
 
 /**
- * Colored ASCII halftone.
- *
- * 1. La source, contraste +20 %, est réduite à la grille (une couleur moyenne par cellule).
- * 2. Chaque cellule : fond = couleur moyenne (pixelisé, sans lissage),
- *    glyphe noir à 80 % choisi par luminance sur la rampe (clair → sombre).
- * 3. L'image originale est superposée à 25 % en mode multiply pour adoucir la grille.
+ * Échantillonne la photo sur la grille : une luminance et une encre par cellule.
+ * L'encre est la couleur de la cellule tirée vers le blanc, jamais plus sombre.
  */
-export function renderAsciiHalftone(
-    ctx: CanvasRenderingContext2D,
+export function sampleAsciiGrid(
     image: CanvasImageSource & { width: number; height: number },
-    options: AsciiHalftoneOptions,
-): void {
-    const { width, height, cellWidth, cellRatio, ramp } = options;
-    const cellHeight = cellWidth / cellRatio;
-    const cols = Math.max(1, Math.ceil(width / cellWidth));
-    const rows = Math.max(1, Math.ceil(height / cellHeight));
+    options: { width: number; height: number; cellSize: number },
+): AsciiGrid | null {
+    const { width, height, cellSize } = options;
+    const cols = Math.max(1, Math.floor(width / cellSize));
+    const rows = Math.max(1, Math.floor(height / cellSize));
 
-    // 1. Échantillonnage : couleur moyenne par cellule, contraste boosté.
     const sampler = document.createElement('canvas');
     sampler.width = cols;
     sampler.height = rows;
     const sctx = sampler.getContext('2d', { willReadFrequently: true });
 
     if (!sctx) {
-        return;
+        return null;
     }
 
     const { sx, sy, sw, sh } = coverRect(image, width, height);
-    sctx.filter = `contrast(${CONTRAST_BOOST})`;
     sctx.drawImage(image, sx, sy, sw, sh, 0, 0, cols, rows);
-    sctx.filter = 'none';
     const { data } = sctx.getImageData(0, 0, cols, rows);
 
-    // 2. Grille : fond pixelisé + glyphe noir.
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 1;
-    ctx.imageSmoothingEnabled = false;
-    ctx.clearRect(0, 0, width, height);
-    ctx.font = `${cellHeight}px ${FONT_FAMILY}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    const last = ramp.length - 1;
-    const glyphs: { char: string; x: number; y: number }[] = [];
+    const cells: AsciiCell[] = [];
 
     for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
@@ -95,53 +84,138 @@ export function renderAsciiHalftone(
             const g = data[i + 1];
             const b = data[i + 2];
             const luma = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+            // Encre claire : en soft-light, elle révèle la lumière de la cellule.
+            const lr = Math.round(r + (255 - r) * 0.75);
+            const lg = Math.round(g + (255 - g) * 0.75);
+            const lb = Math.round(b + (255 - b) * 0.75);
 
-            ctx.fillStyle = `rgb(${r} ${g} ${b})`;
-            ctx.fillRect(
-                Math.floor(x * cellWidth),
-                Math.floor(y * cellHeight),
-                Math.ceil(cellWidth),
-                Math.ceil(cellHeight),
-            );
-
-            const char = ramp[Math.round((1 - luma) * last)];
-
-            if (char !== ' ') {
-                glyphs.push({
-                    char,
-                    x: (x + 0.5) * cellWidth,
-                    y: (y + 0.5) * cellHeight,
-                });
-            }
+            cells.push({
+                x,
+                y,
+                darkness: 1 - luma,
+                ink: `${lr} ${lg} ${lb}`,
+            });
         }
     }
 
-    ctx.fillStyle = `rgb(0 0 0 / ${GLYPH_OPACITY})`;
+    return {
+        cols,
+        rows,
+        cells,
+        offsetX: (width - cols * cellSize) / 2 + cellSize / 2,
+        offsetY: (height - rows * cellSize) / 2 + cellSize / 2,
+    };
+}
 
-    for (const glyph of glyphs) {
-        ctx.fillText(glyph.char, glyph.x, glyph.y);
+/**
+ * Dessine une frame : la photo intacte, puis la trame ASCII par-dessus.
+ * `time` (secondes) anime l'ondulation et le balayage ; 0 = rendu statique.
+ */
+export function drawAsciiFrame(
+    ctx: CanvasRenderingContext2D,
+    image: CanvasImageSource & { width: number; height: number },
+    grid: AsciiGrid,
+    options: {
+        width: number;
+        height: number;
+        cellSize: number;
+        charset: string;
+        inkOpacity: number;
+        time?: number;
+        amplitude?: number;
+    },
+): void {
+    const {
+        width,
+        height,
+        cellSize,
+        charset,
+        inkOpacity,
+        time = 0,
+        amplitude = 0,
+    } = options;
+    const { sx, sy, sw, sh } = coverRect(image, width, height);
+
+    ctx.clearRect(0, 0, width, height);
+
+    // Base : la photo légèrement adoucie, les glyphes vont lui rendre son détail.
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.filter = `blur(${Math.max(1, cellSize * 0.18)}px)`;
+    ctx.drawImage(image, sx, sy, sw, sh, 0, 0, width, height);
+    ctx.filter = 'none';
+
+    // Glyphes fusionnés en lumière douce : ils éclaircissent la photo là où ils
+    // passent, sans jamais la recouvrir ni l'assombrir.
+    ctx.globalCompositeOperation = 'soft-light';
+    ctx.font = `${cellSize}px ${FONT_FAMILY}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const last = charset.length - 1;
+    // Balayage lumineux : une bande qui descend en boucle (période 6 s).
+    const sweepRow = ((time / 6) % 1) * (grid.rows + 12) - 6;
+
+    for (const cell of grid.cells) {
+        // Ondulation : la densité respire en vague à travers la grille.
+        const wave =
+            amplitude * Math.sin(time * 1.4 + cell.x * 0.35 + cell.y * 0.22);
+        const level = Math.min(1, Math.max(0, cell.darkness + wave));
+        const char = charset[Math.round(level * last)];
+
+        if (char === ' ') {
+            continue;
+        }
+
+        const sweep =
+            amplitude > 0
+                ? Math.max(0, 1 - Math.abs(cell.y - sweepRow) / 6) * 0.35
+                : 0;
+        const alpha = Math.min(1, inkOpacity + sweep);
+
+        ctx.fillStyle = `rgb(${cell.ink} / ${alpha})`;
+        ctx.fillText(
+            char,
+            grid.offsetX + cell.x * cellSize,
+            grid.offsetY + cell.y * cellSize,
+        );
     }
 
-    // 3. Image originale en multiply à 25 % pour adoucir la grille.
-    ctx.globalCompositeOperation = 'multiply';
-    ctx.globalAlpha = OVERLAY_OPACITY;
-    ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(image, sx, sy, sw, sh, 0, 0, width, height);
-    ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
 }
 
 /**
- * Image hero en colored ASCII halftone (canvas 2D, statique).
+ * Rendu statique en une passe (échantillonnage + frame).
+ */
+export function renderAsciiHalftone(
+    ctx: CanvasRenderingContext2D,
+    image: CanvasImageSource & { width: number; height: number },
+    options: {
+        width: number;
+        height: number;
+        cellSize: number;
+        charset: string;
+        inkOpacity: number;
+    },
+): void {
+    const grid = sampleAsciiGrid(image, options);
+
+    if (grid) {
+        drawAsciiFrame(ctx, image, grid, options);
+    }
+}
+
+/**
+ * Photo hero avec trame ASCII superposée et animée (canvas 2D).
  * Sans canvas ou avant le chargement, l'image brute est affichée.
  */
 export default function AsciiHalftone({
     src,
     alt = '',
     className,
-    cellWidth = 8,
-    cellRatio = 0.6,
-    ramp = ' .:1TX#',
+    cellSize = 9,
+    charset = ' .:-=+*#%@',
+    inkOpacity = 0.9,
+    animate = true,
 }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [ready, setReady] = useState(false);
@@ -156,8 +230,36 @@ export default function AsciiHalftone({
 
         let disposed = false;
         let image: HTMLImageElement | null = null;
+        let grid: AsciiGrid | null = null;
+        let size = { width: 0, height: 0, cell: cellSize };
+        let frame = 0;
+        let lastFrameAt = 0;
+        const start = performance.now();
 
-        const draw = () => {
+        const reducedMotion = window.matchMedia(
+            '(prefers-reduced-motion: reduce)',
+        ).matches;
+        const animated = animate && !reducedMotion;
+        const amplitude = animated ? 0.16 : 0;
+
+        const drawFrame = (time: number) => {
+            if (!image || !grid) {
+                return;
+            }
+
+            drawAsciiFrame(ctx, image, grid, {
+                width: size.width,
+                height: size.height,
+                cellSize: size.cell,
+                charset,
+                inkOpacity,
+                time,
+                amplitude,
+            });
+        };
+
+        // Recalcule la grille quand la taille change, puis redessine.
+        const layout = () => {
             if (!image || disposed) {
                 return;
             }
@@ -172,33 +274,51 @@ export default function AsciiHalftone({
 
             canvas.width = width;
             canvas.height = height;
-
-            renderAsciiHalftone(ctx, image, {
+            size = { width, height, cell: cellSize * dpr };
+            grid = sampleAsciiGrid(image, {
                 width,
                 height,
-                cellWidth: cellWidth * dpr,
-                cellRatio,
-                ramp,
+                cellSize: size.cell,
             });
+            drawFrame(0);
             setReady(true);
         };
 
-        const observer = new ResizeObserver(draw);
+        // Boucle limitée à ~24 images par seconde : la trame n'a pas besoin de plus.
+        const loop = (now: number) => {
+            if (disposed) {
+                return;
+            }
+
+            if (now - lastFrameAt >= 1000 / 24) {
+                lastFrameAt = now;
+                drawFrame((now - start) / 1000);
+            }
+
+            frame = requestAnimationFrame(loop);
+        };
+
+        const observer = new ResizeObserver(layout);
         observer.observe(canvas);
 
         const loader = new Image();
         loader.crossOrigin = 'anonymous';
         loader.onload = () => {
             image = loader;
-            draw();
+            layout();
+
+            if (animated) {
+                frame = requestAnimationFrame(loop);
+            }
         };
         loader.src = src;
 
         return () => {
             disposed = true;
+            cancelAnimationFrame(frame);
             observer.disconnect();
         };
-    }, [src, cellWidth, cellRatio, ramp]);
+    }, [src, cellSize, charset, inkOpacity, animate]);
 
     return (
         <div className={cn('relative overflow-hidden', className)}>
