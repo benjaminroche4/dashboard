@@ -7,8 +7,10 @@ type Props = {
     className?: string;
     /** Taille d'une tuile en pixels CSS. */
     pixelSize?: number;
-    /** Rayon (en pixels CSS) du halo où la photo redevient nette autour du curseur. */
+    /** Rayon (en pixels CSS) du halo pixelisé autour du curseur. */
     revealRadius?: number;
+    /** Durée (s) de la résolution des blocs vers la photo nette au chargement. */
+    introDuration?: number;
 };
 
 const VERTEX_SHADER = `
@@ -30,6 +32,7 @@ uniform float u_time;
 uniform vec2 u_mouse;
 uniform float u_mouseActive;
 uniform float u_revealRadius;
+uniform float u_introDuration;
 varying vec2 v_uv;
 
 // Coordonnées "cover" : l'image remplit la surface sans déformation.
@@ -51,37 +54,35 @@ vec3 sampleImage(vec2 uv) {
 void main() {
     vec2 px = v_uv * u_resolution;
 
-    // Distance au curseur, en pixels.
+    // 1. Résolution au chargement : gros blocs -> photo nette (courbe douce).
+    float intro = 1.0 - smoothstep(0.0, 1.0, u_time / u_introDuration);
+    float introSize = u_pixel * 2.5 * intro;
+
+    // 2. Survol : pixelisation légère dans un halo autour du curseur.
     vec2 mousePx = u_mouse * u_resolution;
     float dist = distance(px, mousePx);
-    float reveal = u_mouseActive * (1.0 - smoothstep(u_revealRadius * 0.4, u_revealRadius, dist));
+    float hover = u_mouseActive * (1.0 - smoothstep(u_revealRadius * 0.2, u_revealRadius, dist));
+    float hoverSize = u_pixel * hover;
 
-    // Ondulation lente qui fait respirer la taille des tuiles.
-    float wave = 0.5 + 0.5 * sin(u_time * 0.8 + px.x * 0.006 + px.y * 0.004);
-    float size = u_pixel * mix(0.75, 1.35, wave);
+    float size = max(introSize, hoverSize);
 
-    // Les tuiles rétrécissent en approchant du curseur (transition douce vers le net).
-    size = mix(size, u_pixel * 0.35, reveal);
+    // En dessous de 2 px de bloc, on affiche la photo telle quelle.
+    if (size < 2.0) {
+        gl_FragColor = vec4(sampleImage(v_uv), 1.0);
+        return;
+    }
 
-    vec2 cell = floor(px / size);
-    vec2 cellCenter = (cell + 0.5) * size / u_resolution;
-    vec2 cellUv = fract(px / size);
+    // Grille alignée sur le centre du canvas : les blocs ne "sautent" pas pendant la transition.
+    vec2 centered = px - 0.5 * u_resolution;
+    vec2 cell = floor(centered / size);
+    vec2 cellCenter = ((cell + 0.5) * size + 0.5 * u_resolution) / u_resolution;
 
     vec3 mosaic = sampleImage(cellCenter);
     vec3 sharp = sampleImage(v_uv);
 
-    // Léger relief par tuile : bord un peu plus sombre, cœur légèrement plus clair.
-    vec2 edge = min(cellUv, 1.0 - cellUv);
-    float inner = smoothstep(0.0, 0.12, min(edge.x, edge.y));
-    float bevel = mix(0.82, 1.0, inner) + 0.06 * (cellUv.y - 0.5);
-    mosaic *= bevel;
-
-    // Petite respiration lumineuse par tuile.
-    float twinkle = 0.05 * sin(u_time * 1.5 + cell.x * 1.7 + cell.y * 2.3);
-    mosaic += twinkle;
-
-    vec3 color = mix(mosaic, sharp, reveal);
-    gl_FragColor = vec4(color, 1.0);
+    // Fondu progressif entre blocs et photo pour éviter tout effet d'escalier brutal.
+    float blend = smoothstep(2.0, 6.0, size);
+    gl_FragColor = vec4(mix(sharp, mosaic, blend), 1.0);
 }
 `;
 
@@ -99,16 +100,17 @@ function compile(gl: WebGLRenderingContext, type: number, source: string) {
 }
 
 /**
- * Photo rendue en mosaïque de pixels animée par un shader WebGL.
- * La photo nette se révèle dans un halo autour du curseur.
+ * Photo qui se résout de gros blocs de pixels vers l'image nette au chargement,
+ * puis se pixelise légèrement autour du curseur au survol (shader WebGL).
  * Sans WebGL (ou avant le chargement), l'image brute est affichée.
  */
 export default function PixelImage({
     src,
     alt = '',
     className,
-    pixelSize = 22,
-    revealRadius = 220,
+    pixelSize = 28,
+    revealRadius = 260,
+    introDuration = 2.2,
 }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [ready, setReady] = useState(false);
@@ -154,11 +156,13 @@ export default function PixelImage({
             mouse: gl.getUniformLocation(program, 'u_mouse'),
             mouseActive: gl.getUniformLocation(program, 'u_mouseActive'),
             revealRadius: gl.getUniformLocation(program, 'u_revealRadius'),
+            introDuration: gl.getUniformLocation(program, 'u_introDuration'),
         };
 
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
         gl.uniform1f(uniforms.pixel, pixelSize * dpr);
         gl.uniform1f(uniforms.revealRadius, revealRadius * dpr);
+        gl.uniform1f(uniforms.introDuration, introDuration);
 
         // Position du curseur lissée pour un halo qui suit avec inertie.
         const mouse = { x: 0.5, y: 0.5, targetX: 0.5, targetY: 0.5, active: 0 };
@@ -180,7 +184,7 @@ export default function PixelImage({
         let texture: WebGLTexture | null = null;
         let frame = 0;
         let disposed = false;
-        const start = performance.now();
+        let start = performance.now();
 
         const resize = () => {
             const width = Math.round(canvas.clientWidth * dpr);
@@ -245,6 +249,7 @@ export default function PixelImage({
             gl.uniform1i(uniforms.image, 0);
             gl.uniform2f(uniforms.imageSize, image.width, image.height);
             setReady(true);
+            start = performance.now();
             render();
         };
         image.src = src;
@@ -260,7 +265,7 @@ export default function PixelImage({
             gl.deleteShader(vertex);
             gl.deleteShader(fragment);
         };
-    }, [src, pixelSize, revealRadius]);
+    }, [src, pixelSize, revealRadius, introDuration]);
 
     return (
         <div
