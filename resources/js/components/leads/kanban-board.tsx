@@ -255,22 +255,7 @@ function LeadCard({
                     {initials(lead.name)}
                 </span>
                 <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                        <p className="truncate font-medium">{lead.name}</p>
-                        {lead.score !== null && (
-                            <span
-                                className="flex shrink-0 items-center gap-0.5 text-xs font-medium text-amber-600 tabular-nums dark:text-amber-400"
-                                aria-label={`Qualité ${lead.score} sur 5`}
-                                title={`Qualité ${lead.score} sur 5`}
-                            >
-                                <Star
-                                    className="size-3.5 fill-current"
-                                    aria-hidden
-                                />
-                                {lead.score}
-                            </span>
-                        )}
-                    </div>
+                    <p className="truncate font-medium">{lead.name}</p>
                     <p className="text-muted-foreground truncate text-xs">
                         {contact}
                     </p>
@@ -292,16 +277,28 @@ function LeadCard({
                 ))}
             </dl>
             {lead.message && (
-                <p className="text-muted-foreground line-clamp-2 border-t pt-2 text-xs">
+                <p className="text-muted-foreground line-clamp-2 text-xs">
                     {lead.message}
                 </p>
             )}
-            <p className="text-muted-foreground truncate border-t pt-2 text-xs">
-                {lead.created_at
-                    ? `Ajouté le ${formatDate(lead.created_at.slice(0, 10))}`
-                    : 'Ajouté'}
-                {lead.created_by ? ` par ${lead.created_by}` : ''}
-            </p>
+            <div className="flex min-w-0 items-center justify-between gap-2">
+                <p className="text-muted-foreground truncate text-xs">
+                    {lead.created_at
+                        ? `Ajouté le ${formatDate(lead.created_at.slice(0, 10))}`
+                        : 'Ajouté'}
+                    {lead.created_by ? ` par ${lead.created_by}` : ''}
+                </p>
+                {lead.score !== null && (
+                    <span
+                        className="flex shrink-0 items-center gap-0.5 text-xs font-medium text-amber-600 tabular-nums dark:text-amber-400"
+                        aria-label={`Qualité ${lead.score} sur 5`}
+                        title={`Qualité ${lead.score} sur 5`}
+                    >
+                        <Star className="size-3.5 fill-current" aria-hidden />
+                        {lead.score}
+                    </span>
+                )}
+            </div>
         </article>
     );
 }
