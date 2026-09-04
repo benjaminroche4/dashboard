@@ -42,15 +42,15 @@ return [
         ['code' => null, 'name' => 'Autre'],
     ],
 
-    // Prix unitaires par défaut des offres, en centimes, par devise. À ajuster.
+    // Prix unitaires par défaut des offres, en centimes, par devise (1 190 et 2 190).
     'offers' => [
         'accompagne' => [
-            'CHF' => (int) env('OFFER_ACCOMPAGNE_CHF_CENTS', 250_000),
-            'EUR' => (int) env('OFFER_ACCOMPAGNE_EUR_CENTS', 260_000),
+            'CHF' => (int) env('OFFER_ACCOMPAGNE_CHF_CENTS', 119_000),
+            'EUR' => (int) env('OFFER_ACCOMPAGNE_EUR_CENTS', 119_000),
         ],
         'confie' => [
-            'CHF' => (int) env('OFFER_CONFIE_CHF_CENTS', 450_000),
-            'EUR' => (int) env('OFFER_CONFIE_EUR_CENTS', 470_000),
+            'CHF' => (int) env('OFFER_CONFIE_CHF_CENTS', 219_000),
+            'EUR' => (int) env('OFFER_CONFIE_EUR_CENTS', 219_000),
         ],
     ],
 ];

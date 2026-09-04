@@ -12,8 +12,10 @@ use App\Enums\Offer;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Invoices\StoreInvoiceRequest;
 use App\Models\Invoice;
+use App\Services\DocRaptor;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -89,5 +91,26 @@ class InvoiceController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Facture :number créée.', ['number' => $invoice->number])]);
 
         return to_route('invoices.index');
+    }
+
+    public function pdf(Invoice $invoice): HttpResponse
+    {
+        $this->authorize('view', $invoice);
+
+        $docRaptor = DocRaptor::fromConfig();
+
+        abort_unless($docRaptor->isConfigured(), 503, __('La génération de PDF n\'est pas configurée.'));
+
+        $html = view('invoices.pdf', [
+            'invoice' => $invoice,
+            'company' => config('company'),
+        ])->render();
+
+        $pdf = $docRaptor->pdf($html, "facture-{$invoice->number}.pdf");
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="facture-'.$invoice->number.'.pdf"',
+        ]);
     }
 }

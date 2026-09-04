@@ -125,6 +125,19 @@ describe('Invoices DataTable', () => {
         expect(screen.getByRole('button', { name: 'Suivant' })).toBeEnabled();
     });
 
+    it('offers a PDF download per invoice', async () => {
+        const user = userEvent.setup();
+        renderTable();
+
+        await user.click(
+            screen.getByRole('button', { name: 'Actions pour F-2026-0001' }),
+        );
+
+        expect(
+            await screen.findByRole('menuitem', { name: 'Télécharger le PDF' }),
+        ).toHaveAttribute('href', '/invoices/1/pdf');
+    });
+
     it('shows an empty state', () => {
         renderTable([]);
 

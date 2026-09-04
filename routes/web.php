@@ -12,6 +12,7 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('invoices', [InvoiceController::class, 'index'])->name('invoices.index');
     Route::get('invoices/create', [InvoiceController::class, 'create'])->name('invoices.create');
     Route::post('invoices', [InvoiceController::class, 'store'])->name('invoices.store');
+    Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
 });
 
 require __DIR__.'/settings.php';

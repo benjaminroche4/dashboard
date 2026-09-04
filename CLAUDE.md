@@ -84,6 +84,9 @@ Echo est configuré dans `resources/js/app.tsx` via `configureEcho({ broadcaster
 - Page `invoices/create` : formulaire `useForm` Inertia avec aperçu en direct (`InvoicePreview`), calcul des totaux partagé dans `resources/js/lib/invoice-totals.ts` avec les mêmes arrondis que le PHP. Le formulaire saisit des unités, le `transform` envoie des centimes.
 - Liste `invoices/index` : Data Table shadcn (TanStack v8), 50 lignes par page, pagination masquée en dessous.
 - Droits : `InvoicePolicy`, tout le staff consulte, managers et admins créent et modifient, admins suppriment.
+- **PDF** : route `invoices.pdf`, vue Blade `resources/views/invoices/pdf.blade.php` rendue puis envoyée à DocRaptor (`App\Services\DocRaptor`, clé `DOC_RAPTOR_KEY`, `DOC_RAPTOR_TEST_MODE=true` ajoute un filigrane sans facturation). Les tests simulent l'API avec `Http::fake`.
+- **Adresse** : autocomplétion Google Places (API « New ») dans `AddressAutocomplete`, clé `VITE_GOOGLE_MAPS_API_KEY` (exposée au navigateur : la restreindre par référent HTTP et aux API Places). Sans clé, le champ est un simple texte.
+- Les clés vivent dans `.env` (jamais commité). Sur Laravel Cloud, les ajouter aux variables d'environnement, `VITE_*` étant lues au build.
 
 ## Architecture et conventions
 

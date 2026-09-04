@@ -8,6 +8,12 @@ const { post, transform } = vi.hoisted(() => ({
     transform: vi.fn(),
 }));
 
+// Pas de clé Google en test : le champ Adresse est un simple champ texte.
+vi.mock('@/lib/google-places', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@/lib/google-places')>()),
+    googleMapsApiKey: () => '',
+}));
+
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@inertiajs/react')>();
 

@@ -1,6 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Plus, Trash2 } from 'lucide-react';
 import type { FormEvent } from 'react';
+import { AddressAutocomplete } from '@/components/address-autocomplete';
 import { CountryFlag } from '@/components/country-flag';
 import { DatePicker } from '@/components/date-picker';
 import InputError from '@/components/input-error';
@@ -44,6 +45,22 @@ type Props = {
         due_at: string;
     };
 };
+
+/** Nom du pays de la liste à partir du code ISO renvoyé par Google, sinon « Autre ». */
+function countryNameFor(
+    countries: CountryOption[],
+    code: string | null,
+): string {
+    const match = countries.find(
+        (country) => country.code !== null && country.code === code,
+    );
+
+    return (
+        match?.name ??
+        countries.find((country) => country.code === null)?.name ??
+        ''
+    );
+}
 
 /** Prix par défaut d'une offre dans la devise, en unités (« 2500 »). */
 function defaultPrice(
@@ -234,18 +251,24 @@ export default function InvoicesCreate({
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="client_street">Adresse</Label>
-                                <Input
+                                <AddressAutocomplete
                                     id="client_street"
-                                    name="client_street"
-                                    className="bg-background"
-                                    placeholder="Rue et numéro"
-                                    autoComplete="street-address"
                                     value={form.data.client_street}
-                                    onChange={(e) =>
-                                        form.setData(
-                                            'client_street',
-                                            e.target.value,
-                                        )
+                                    onChange={(street) =>
+                                        form.setData('client_street', street)
+                                    }
+                                    onSelect={(address) =>
+                                        form.setData({
+                                            ...form.data,
+                                            client_street: address.street,
+                                            client_postal_code:
+                                                address.postalCode,
+                                            client_city: address.city,
+                                            client_country: countryNameFor(
+                                                countries,
+                                                address.countryCode,
+                                            ),
+                                        })
                                     }
                                 />
                                 <InputError

@@ -18,5 +18,6 @@ test('default prices come from the company config per currency', function (): vo
     config()->set('company.offers.confie.EUR', 123_456);
 
     expect(Offer::Confie->defaultPriceCents(Currency::EUR))->toBe(123_456)
-        ->and(Offer::Accompagne->defaultPriceCents(Currency::CHF))->toBe(250_000);
+        ->and(Offer::Accompagne->defaultPriceCents(Currency::CHF))->toBe(119_000)
+        ->and(Offer::Confie->defaultPriceCents(Currency::CHF))->toBe(219_000);
 });

@@ -37,4 +37,10 @@ return [
         ],
     ],
 
+    'docraptor' => [
+        'key' => env('DOC_RAPTOR_KEY'),
+        'test_mode' => (bool) env('DOC_RAPTOR_TEST_MODE', true),
+        'endpoint' => 'https://api.docraptor.com/docs',
+    ],
+
 ];

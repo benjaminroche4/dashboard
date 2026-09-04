@@ -12,6 +12,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatDate, formatMoney } from '@/lib/format';
+import { pdf } from '@/routes/invoices';
 import type { Invoice, InvoiceStatus } from '@/types';
 
 export const invoiceColumnLabels: Record<string, string> = {
@@ -183,6 +184,15 @@ export const invoiceColumns: ColumnDef<Invoice>[] = [
                             Copier le numéro
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                            <a
+                                href={pdf({ invoice: invoice.id }).url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                Télécharger le PDF
+                            </a>
+                        </DropdownMenuItem>
                         <DropdownMenuItem disabled>
                             Voir la facture
                         </DropdownMenuItem>
