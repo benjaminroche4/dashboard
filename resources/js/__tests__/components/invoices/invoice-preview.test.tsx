@@ -20,13 +20,13 @@ const offers: Offer[] = [
     {
         value: 'accompagne',
         label: 'Accompagné',
-        description: 'Relocation Paris · Offre Accompagné',
+        description: 'Offre Accompagné',
         prices: { CHF: 250_000, EUR: 260_000 },
     },
     {
         value: 'confie',
         label: 'Confié',
-        description: 'Relocation Paris · Offre Confié',
+        description: 'Offre Confié',
         prices: { CHF: 450_000, EUR: 470_000 },
     },
 ];
@@ -55,9 +55,7 @@ describe('InvoicePreview', () => {
 
         expect(screen.getByText('Relocation In Paris')).toBeInTheDocument();
         expect(screen.getByText('Acme SA')).toBeInTheDocument();
-        expect(
-            screen.getByText('Relocation Paris · Offre Accompagné'),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Offre Accompagné')).toBeInTheDocument();
         expect(screen.getByText('4 septembre 2026')).toBeInTheDocument();
         expect(screen.getByText('4 octobre 2026')).toBeInTheDocument();
         expect(text(container, 'preview-subtotal')).toMatch(/300\.00/);
@@ -95,9 +93,7 @@ describe('InvoicePreview', () => {
         );
 
         expect(screen.getByText('Nom du client')).toBeInTheDocument();
-        expect(
-            screen.getByText('Relocation Paris · Offre Confié'),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Offre Confié')).toBeInTheDocument();
         expect(screen.getByText('Aperçu')).toBeInTheDocument();
     });
 });

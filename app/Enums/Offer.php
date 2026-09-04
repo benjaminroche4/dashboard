@@ -23,8 +23,8 @@ enum Offer: string
     public function description(): string
     {
         return match ($this) {
-            self::Accompagne => 'Relocation Paris · Offre Accompagné',
-            self::Confie => 'Relocation Paris · Offre Confié',
+            self::Accompagne => 'Offre Accompagné',
+            self::Confie => 'Offre Confié',
         };
     }
 

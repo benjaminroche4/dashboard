@@ -47,6 +47,6 @@ test('lines carry the offer and its generated description', function (): void {
     $data = InvoiceData::from(invoicePayload());
 
     expect($data->lines[0]->offer->value)->toBe('accompagne')
-        ->and($data->lines[0]->toArray()['description'])->toBe('Relocation Paris · Offre Accompagné')
-        ->and($data->lines[1]->toArray()['description'])->toBe('Relocation Paris · Offre Confié');
+        ->and($data->lines[0]->toArray()['description'])->toBe('Offre Accompagné')
+        ->and($data->lines[1]->toArray()['description'])->toBe('Offre Confié');
 });

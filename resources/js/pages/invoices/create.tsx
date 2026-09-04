@@ -323,21 +323,20 @@ export default function InvoicesCreate({
                                             <p className="text-muted-foreground text-xs font-medium uppercase">
                                                 Ligne {index + 1}
                                             </p>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                className="text-muted-foreground hover:text-destructive size-7"
-                                                aria-label={`Supprimer la ligne ${index + 1}`}
-                                                onClick={() =>
-                                                    removeLine(index)
-                                                }
-                                                disabled={
-                                                    form.data.items.length === 1
-                                                }
-                                            >
-                                                <Trash2 className="size-4" />
-                                            </Button>
+                                            {form.data.items.length > 1 && (
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="text-muted-foreground hover:text-destructive size-7"
+                                                    aria-label={`Supprimer la ligne ${index + 1}`}
+                                                    onClick={() =>
+                                                        removeLine(index)
+                                                    }
+                                                >
+                                                    <Trash2 className="size-4" />
+                                                </Button>
+                                            )}
                                         </div>
 
                                         <RadioGroup

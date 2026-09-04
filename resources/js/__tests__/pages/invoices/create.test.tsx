@@ -70,13 +70,13 @@ const props = {
         {
             value: 'accompagne' as const,
             label: 'Accompagné',
-            description: 'Relocation Paris · Offre Accompagné',
+            description: 'Offre Accompagné',
             prices: { CHF: 250_000, EUR: 260_000 },
         },
         {
             value: 'confie' as const,
             label: 'Confié',
-            description: 'Relocation Paris · Offre Confié',
+            description: 'Offre Confié',
             prices: { CHF: 450_000, EUR: 470_000 },
         },
     ],
@@ -108,9 +108,7 @@ describe('Invoice creation page', () => {
 
         const preview = within(screen.getByLabelText('Aperçu de la facture'));
         expect(preview.getByText('Acme SA')).toBeInTheDocument();
-        expect(
-            preview.getByText('Relocation Paris · Offre Accompagné'),
-        ).toBeInTheDocument();
+        expect(preview.getByText('Offre Accompagné')).toBeInTheDocument();
         // 2 × 2500 = 5000 ; TVA 8,1 % = 405 ; total 5405
         expect(preview.getByText(/5.405\.00/)).toBeInTheDocument();
         expect(
@@ -129,7 +127,7 @@ describe('Invoice creation page', () => {
         );
         expect(
             within(screen.getByLabelText('Aperçu de la facture')).getByText(
-                'Relocation Paris · Offre Confié',
+                'Offre Confié',
             ),
         ).toBeInTheDocument();
     });
@@ -139,8 +137,8 @@ describe('Invoice creation page', () => {
         render(<InvoicesCreate {...props} />);
 
         expect(
-            screen.getByRole('button', { name: 'Supprimer la ligne 1' }),
-        ).toBeDisabled();
+            screen.queryByRole('button', { name: 'Supprimer la ligne 1' }),
+        ).toBeNull();
 
         await user.click(
             screen.getByRole('button', { name: 'Ajouter une ligne' }),
