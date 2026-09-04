@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install start stop clean fresh build test lint types check
+.PHONY: help install hooks start stop clean fresh build test lint types check refactor
 
 help: ## Liste les commandes
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -11,6 +11,13 @@ install: ## Installe les dépendances PHP + JS, .env, clé, migrations
 	@touch database/database.sqlite
 	php artisan migrate --force
 	npm install
+	sh scripts/install-hooks.sh
+
+hooks: ## Active le hook git pre-commit (make check avant chaque commit)
+	sh scripts/install-hooks.sh
+
+refactor: ## Rector en dry-run (montre ce qui serait modernisé)
+	composer refactor:check
 
 start: ## Lance serveur HTTP + queue + Reverb (websocket) + Vite + logs
 	composer dev
@@ -36,7 +43,7 @@ test: ## Lance les tests PHP (Pest) puis front (Vitest)
 	php artisan test
 	npm test
 
-lint: ## Formate PHP (Pint) + JS/TS
+lint: ## Rector + Pint + oxlint/oxfmt --fix
 	composer lint
 	npm run check:fix
 

@@ -5,16 +5,16 @@ Déployé sur **Laravel Cloud**.
 
 ## Stack
 
-| Couche | Choix |
-|---|---|
-| Backend | Laravel 13, PHP 8.4, Fortify (auth), Reverb (websockets) |
-| Frontend | Inertia v3 + React 19 + TypeScript strict, Vite (vite-plus), Tailwind v4 |
-| UI | shadcn/ui (`resources/js/components/ui`), Lucide icons |
+| Couche        | Choix                                                                              |
+| ------------- | ---------------------------------------------------------------------------------- |
+| Backend       | Laravel 13, PHP 8.4, Fortify (auth), Reverb (websockets)                           |
+| Frontend      | Inertia v3 + React 19 + TypeScript strict, Vite (vite-plus), Tailwind v4           |
+| UI            | shadcn/ui (`resources/js/components/ui`), Lucide icons                             |
 | Routes typées | Wayfinder (`resources/js/routes`, `resources/js/actions`, générés, non versionnés) |
-| Temps réel | Laravel Echo (`@laravel/echo-react`) + Reverb |
-| Tests | Pest (PHP), Vitest + Testing Library (front) |
-| Qualité | Pint, PHPStan/Larastan niveau 7, oxlint + oxfmt (`vp check`), `tsc --noEmit` |
-| DB | SQLite en local, Postgres/MySQL sur Laravel Cloud |
+| Temps réel    | Laravel Echo (`@laravel/echo-react`) + Reverb                                      |
+| Tests         | Pest (PHP), Vitest + Testing Library (front)                                       |
+| Qualité       | Pint, PHPStan/Larastan niveau 7, oxlint + oxfmt (`vp check`), `tsc --noEmit`       |
+| DB            | SQLite en local, Postgres/MySQL sur Laravel Cloud                                  |
 
 ## Commandes (Makefile)
 
@@ -22,13 +22,17 @@ Déployé sur **Laravel Cloud**.
 make install   # composer + npm + .env + clé + migrations
 make start     # serveur HTTP + queue + Reverb + Vite + logs  (= composer dev)
 make clean     # optimize:clear + purge du build Vite
-make fresh     # migrate:fresh --seed (compte local staff@example.com / password)
+make fresh     # migrate:fresh --seed (fixtures : admin@admin.fr et admin2@admin.fr, mdp "admin")
 make test      # Pest puis Vitest
-make lint      # Pint + oxlint/oxfmt --fix
+make lint      # Rector + Pint + oxlint/oxfmt --fix
+make refactor  # Rector en dry-run
+make hooks     # active le hook git pre-commit (fait par make install)
 make types     # PHPStan + tsc
 make check     # lint + types + test — à lancer avant chaque commit
 make build     # build de prod des assets
 ```
+
+Un hook **pre-commit** (`scripts/hooks/pre-commit`, activé via `core.hooksPath`) lance `make check` : un commit rouge est refusé. Ne jamais contourner avec `--no-verify`.
 
 Comptes staff : **pas d'inscription**. Créer un membre avec :
 
@@ -58,8 +62,16 @@ Echo est configuré dans `resources/js/app.tsx` via `configureEcho({ broadcaster
 
 ## Architecture et conventions
 
-- **Actions** (`app/Actions/<Domaine>/<Verbe><Nom>.php`) : une classe, une méthode `handle()`, injectable. Toute logique métier vit là, jamais dans les contrôleurs ni dans les commandes. Exemple : `App\Actions\Staff\CreateStaffMember`.
-- **Contrôleurs** fins : valider (Form Request), appeler une Action, retourner une réponse Inertia ou une redirection.
+Ces règles sont **vérifiées par `tests/Architecture/ArchitectureTest.php`** (pest-plugin-arch). Une violation casse la suite.
+
+- `declare(strict_types=1)` dans tout `app/`. Pas de `dd`, `dump`, `env()` hors `config/`.
+- **Actions** (`app/Actions/<Domaine>/<Verbe><Nom>.php`) : classe `final`, une méthode `handle()`, injectable, sans dépendance HTTP. Toute logique métier vit là, jamais dans les contrôleurs ni dans les commandes. Exemple : `App\Actions\Staff\CreateStaffMember`.
+- **DTOs** (`app/Data/<Nom>Data.php`) : `final readonly`, constructeur nommé, `from(array)` et `toArray()`. Une Action reçoit un DTO dès qu'elle a plus de deux paramètres. Exemple : `App\Data\StaffMemberData`.
+- **Form Requests** (`app/Http/Requests`, suffixe `Request`) pour toute validation HTTP. Le contrôleur construit le DTO depuis `$request->validated()` et appelle l'Action.
+- **Contrôleurs** fins : Form Request, Action, réponse Inertia ou redirection. Jamais de `DB::` ni de `Validator::` dedans.
+- **Enums PHP** (`app/Enums`) pour tout état métier, castés dans le modèle. Jamais de chaînes magiques.
+- **Policies** (`app/Policies`) dès le premier modèle métier, même si tout le staff a les mêmes droits aujourd'hui.
+- **Commandes artisan** `final`, déléguant à une Action.
 - **Événements** dans `app/Events`, **commandes** dans `app/Console/Commands`, **middlewares** dans `app/Http/Middleware`.
 - Si un domaine grossit (plusieurs modèles, règles métier riches), passer à une organisation par domaine `app/Domain/<Contexte>/{Actions,Models,Events,DataTransferObjects}` (DDD léger). Ne pas le faire de manière préventive.
 - Pas de logique dans les modèles hors relations, casts, scopes et accessors.
@@ -71,10 +83,12 @@ Echo est configuré dans `resources/js/app.tsx` via `configureEcho({ broadcaster
 
 ## Tests : chaque fonction et composant est testé
 
-- **PHP (Pest)** : `tests/Unit` pour Actions, Events, Middlewares (sans HTTP), `tests/Feature` pour routes, commandes, canaux de broadcast, auth. `RefreshDatabase` est appliqué à `tests/Feature` via `tests/Pest.php`.
+- **PHP (Pest)** : `tests/Unit` pour Actions, DTOs, Events, Middlewares, factories (sans HTTP), `tests/Feature` pour routes, commandes, seeders, canaux de broadcast, auth, `tests/Architecture` pour les règles de code. `RefreshDatabase` est appliqué à `tests/Feature` via `tests/Pest.php`. Vite est désactivé dans `tests/TestCase.php`.
+- **Fixtures** : chaque entité a sa factory (`database/factories`) avec des états nommés (`staff()`, `withTwoFactor()`), et un seeder dédié (`database/seeders/<Entité>Seeder.php`) appelé par `DatabaseSeeder` en local/testing uniquement. Côté front, l'équivalent vit dans `resources/js/test/fixtures/<entité>.ts` (`makeUser()`), à garder en miroir du seeder.
+- Comptes de dev : `admin@admin.fr` et `admin2@admin.fr`, mot de passe `admin` (`StaffSeeder`). Jamais en production.
 - **Front (Vitest)** : `resources/js/__tests__/` en miroir de `resources/js/` (`lib/`, `components/`, `hooks/`, `pages/`). Ne **jamais** poser un `*.test.tsx` dans `resources/js/pages/`, Inertia le bundlerait.
-  - `<Head>` et `<Form>` d'Inertia sont mockés dans les tests de page (voir `__tests__/pages/auth/login.test.tsx`).
-  - `ResizeObserver` est stubbé dans `resources/js/test/setup.ts` pour Radix.
+    - `<Head>` et `<Form>` d'Inertia sont mockés dans les tests de page (voir `__tests__/pages/auth/login.test.tsx`).
+    - `ResizeObserver` est stubbé dans `resources/js/test/setup.ts` pour Radix.
 - Toute nouvelle Action, événement, hook, composant ou page arrive avec ses tests dans le même commit.
 - `make check` doit être vert avant de considérer une tâche terminée.
 
@@ -108,9 +122,7 @@ VITE_REVERB_PORT="${REVERB_PORT}"
 VITE_REVERB_SCHEME="${REVERB_SCHEME}"
 ```
 
-   Les variables `VITE_*` sont lues **au build** : toute modification exige un redéploiement.
-6. Créer le premier compte staff depuis la console Cloud : `php artisan staff:create --name=... --email=... --password=...`
-7. Vérifier après déploiement : `/` redirige vers `/login`, l'en-tête `X-Robots-Tag: noindex` est présent, la connexion websocket (onglet Réseau, `wss://`) est établie une fois connecté.
+Les variables `VITE_*` sont lues **au build** : toute modification exige un redéploiement. 6. Créer le premier compte staff depuis la console Cloud : `php artisan staff:create --name=... --email=... --password=...` 7. Vérifier après déploiement : `/` redirige vers `/login`, l'en-tête `X-Robots-Tag: noindex` est présent, la connexion websocket (onglet Réseau, `wss://`) est établie une fois connecté.
 
 ## Ce qu'il ne faut pas faire
 
@@ -118,4 +130,12 @@ VITE_REVERB_SCHEME="${REVERB_SCHEME}"
 - Pas de réactivation de l'inscription ou du reset de mot de passe.
 - Pas de logique métier dans les contrôleurs, commandes ou composants React.
 - Pas de mutation côté backoffice sans `DashboardUpdated` (ou événement broadcast dédié).
-- Pas de code sans test, pas de commit sans `make check` vert.
+- Pas de code sans test, pas de commit sans `make check` vert, pas de `--no-verify`.
+- Pas de Repository au-dessus d'Eloquent, pas de couche Service en plus des Actions, pas de CQRS.
+
+## Quand le projet grossit
+
+- Passer à `app/Domain/<Contexte>/{Actions,Models,Events,Data,Policies}` dès que plus de deux modèles interagissent dans un même contexte.
+- Remplacer `DashboardUpdated` par des événements métier nommés (`OrderShipped`) dès qu'un consommateur a besoin du payload.
+- Générer les types TS depuis PHP (`spatie/laravel-typescript-transformer`) quand les props de page se multiplient.
+- Observabilité : Laravel Pulse ou Nightwatch sur Laravel Cloud, `Log::withContext(['staff_id' => ...])` sur chaque requête.

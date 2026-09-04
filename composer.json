@@ -19,6 +19,7 @@
         "laravel/wayfinder": "^0.1.14"
     },
     "require-dev": {
+        "driftingly/rector-laravel": "^2.6",
         "fakerphp/faker": "^1.24",
         "larastan/larastan": "^3.9",
         "laravel/pail": "^1.2.5",
@@ -29,7 +30,8 @@
         "nunomaduro/collision": "^8.9.3",
         "pestphp/pest": "*",
         "pestphp/pest-plugin-laravel": "*",
-        "phpunit/phpunit": "^12.5.23"
+        "phpunit/phpunit": "^12.5.23",
+        "rector/rector": "^2.6"
     },
     "autoload": {
         "psr-4": {
@@ -57,9 +59,11 @@
             "@php artisan dev"
         ],
         "lint": [
+            "rector process",
             "pint --parallel"
         ],
         "lint:check": [
+            "rector process --dry-run",
             "pint --parallel --test"
         ],
         "ci:check": [
@@ -94,14 +98,19 @@
         ],
         "pre-package-uninstall": [
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
+        ],
+        "refactor": [
+            "rector process"
+        ],
+        "refactor:check": [
+            "rector process --dry-run"
         ]
     },
     "extra": {
         "laravel": {
             "dont-discover": [],
             "installer": {
-                "post-create-project": [
-                ]
+                "post-create-project": []
             }
         }
     },

@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Staff;
 
+use App\Data\StaffMemberData;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -12,26 +15,31 @@ use Illuminate\Validation\ValidationException;
  * Action unique responsable de la création d'un membre du staff.
  * Utilisée par la commande staff:create et réutilisable depuis un futur écran admin.
  */
-class CreateStaffMember
+final class CreateStaffMember
 {
+    /**
+     * @return array<string, array<int, mixed>>
+     */
+    public static function rules(): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:'.User::class],
+            'password' => ['required', 'string', Password::defaults()],
+        ];
+    }
+
     /**
      * @throws ValidationException
      */
-    public function handle(string $name, string $email, string $password): User
+    public function handle(StaffMemberData $data): User
     {
-        $validated = Validator::make(
-            ['name' => $name, 'email' => $email, 'password' => $password],
-            [
-                'name' => ['required', 'string', 'max:255'],
-                'email' => ['required', 'string', 'email', 'max:255', 'unique:'.User::class],
-                'password' => ['required', 'string', Password::defaults()],
-            ],
-        )->validate();
+        Validator::make($data->toArray(), self::rules())->validate();
 
         return User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
+            'name' => $data->name,
+            'email' => $data->email,
+            'password' => Hash::make($data->password),
         ]);
     }
 }

@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Console\Commands;
 
 use App\Actions\Staff\CreateStaffMember;
+use App\Data\StaffMemberData;
 use Illuminate\Console\Command;
 use Illuminate\Validation\ValidationException;
 
@@ -13,7 +16,7 @@ use function Laravel\Prompts\text;
  * Le dashboard n'a pas d'inscription publique : les comptes staff
  * sont créés uniquement via cette commande (en local ou sur Laravel Cloud).
  */
-class CreateStaffCommand extends Command
+final class CreateStaffCommand extends Command
 {
     protected $signature = 'staff:create
         {--name= : Nom du membre}
@@ -29,7 +32,7 @@ class CreateStaffCommand extends Command
         $password = $this->option('password') ?? password('Mot de passe', required: true);
 
         try {
-            $user = $createStaffMember->handle($name, $email, $password);
+            $user = $createStaffMember->handle(new StaffMemberData($name, $email, $password));
         } catch (ValidationException $e) {
             foreach ($e->errors() as $messages) {
                 foreach ($messages as $message) {

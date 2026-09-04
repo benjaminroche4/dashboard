@@ -1,8 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Models\User;
 
-test('staff:create creates a user from options', function () {
+test('staff:create creates a user from options', function (): void {
     $this->artisan('staff:create', [
         '--name' => 'Bob',
         '--email' => 'bob@example.com',
@@ -12,7 +14,7 @@ test('staff:create creates a user from options', function () {
     expect(User::where('email', 'bob@example.com')->exists())->toBeTrue();
 });
 
-test('staff:create fails with validation errors', function () {
+test('staff:create fails with validation errors', function (): void {
     $this->artisan('staff:create', [
         '--name' => 'Bob',
         '--email' => 'nope',
@@ -20,10 +22,4 @@ test('staff:create fails with validation errors', function () {
     ])->assertFailed();
 
     expect(User::count())->toBe(0);
-});
-
-test('the seeder only creates the local staff account in the local environment', function () {
-    $this->seed();
-
-    expect(User::where('email', 'staff@example.com')->exists())->toBeFalse();
 });
