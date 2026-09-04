@@ -9,6 +9,8 @@ type Props = {
     cellSize?: number;
     /** Caractères du plus sombre au plus clair. */
     charset?: string;
+    /** Opacité de la photo en filigrane sous la trame (0 = papier blanc, 1 = photo brute). */
+    photoOpacity?: number;
 };
 
 const VERTEX_SHADER = `
@@ -29,6 +31,7 @@ uniform vec2 u_imageSize;
 uniform float u_cell;
 uniform float u_glyphCount;
 uniform float u_time;
+uniform float u_photoOpacity;
 varying vec2 v_uv;
 
 // Coordonnées "cover" : l'image remplit la surface sans déformation.
@@ -54,17 +57,21 @@ void main() {
     // Léger scintillement pour donner vie à la trame.
     float flicker = 0.04 * sin(u_time * 2.0 + cell.x * 0.7 + cell.y * 1.3);
     // Sur fond clair, les zones sombres reçoivent les glyphes les plus denses.
-    // La courbe pow allège la trame : seules les ombres franches reçoivent des glyphes denses.
-    float darkness = pow(clamp(1.0 - luma + flicker, 0.0, 1.0), 1.8);
+    float darkness = pow(clamp(1.0 - luma + flicker, 0.0, 1.0), 1.15);
     float index = floor(clamp(darkness, 0.0, 0.999) * u_glyphCount);
 
     vec2 glyphUv = vec2((index + cellUv.x) / u_glyphCount, 1.0 - cellUv.y);
     float ink = texture2D(u_glyphs, glyphUv).a;
 
-    // Rendu clair : fond blanc, glyphes encrés dans une teinte assombrie de l'image.
-    vec3 ink_color = mix(color, vec3(0.45), 0.5);
-    vec3 paper = vec3(1.0);
-    gl_FragColor = vec4(mix(paper, ink_color, ink * 0.75), 1.0);
+    // Rendu clair en deux couches : la photo en filigrane (lissée, sans trame)
+    // pour garder la lecture de l'image, puis les glyphes colorés par-dessus.
+    vec2 photoUv = coverUv(v_uv);
+    photoUv.y = 1.0 - photoUv.y;
+    vec3 photo = texture2D(u_image, photoUv).rgb;
+    vec3 paper = mix(vec3(1.0), photo, u_photoOpacity);
+
+    vec3 ink_color = mix(color * 0.8, vec3(0.2), 0.3);
+    gl_FragColor = vec4(mix(paper, ink_color, ink * 0.9), 1.0);
 }
 `;
 
@@ -111,8 +118,9 @@ export default function AsciiImage({
     src,
     alt = '',
     className,
-    cellSize = 12,
-    charset = ' .`-:,+=*',
+    cellSize = 10,
+    charset = ' .:-=+*#%@',
+    photoOpacity = 0.35,
 }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [ready, setReady] = useState(false);
@@ -160,6 +168,7 @@ export default function AsciiImage({
             cell: gl.getUniformLocation(program, 'u_cell'),
             glyphCount: gl.getUniformLocation(program, 'u_glyphCount'),
             time: gl.getUniformLocation(program, 'u_time'),
+            photoOpacity: gl.getUniformLocation(program, 'u_photoOpacity'),
         };
 
         const createTexture = (
@@ -201,6 +210,7 @@ export default function AsciiImage({
         gl.uniform1i(uniforms.glyphs, 1);
         gl.uniform1f(uniforms.glyphCount, charset.length);
         gl.uniform1f(uniforms.cell, cellSize * dpr);
+        gl.uniform1f(uniforms.photoOpacity, photoOpacity);
 
         let imageTexture: WebGLTexture | null = null;
         let frame = 0;
@@ -256,7 +266,7 @@ export default function AsciiImage({
             gl.deleteShader(vertex);
             gl.deleteShader(fragment);
         };
-    }, [src, cellSize, charset]);
+    }, [src, cellSize, charset, photoOpacity]);
 
     return (
         <div
