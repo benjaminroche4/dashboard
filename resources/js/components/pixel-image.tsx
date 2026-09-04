@@ -5,12 +5,10 @@ type Props = {
     src: string;
     alt?: string;
     className?: string;
-    /** Taille d'une cellule ASCII en pixels CSS. */
-    cellSize?: number;
-    /** Caractères du plus sombre au plus clair. */
-    charset?: string;
-    /** Opacité de la photo en filigrane sous la trame (0 = papier blanc, 1 = photo brute). */
-    photoOpacity?: number;
+    /** Taille d'une tuile en pixels CSS. */
+    pixelSize?: number;
+    /** Rayon (en pixels CSS) du halo où la photo redevient nette autour du curseur. */
+    revealRadius?: number;
 };
 
 const VERTEX_SHADER = `
@@ -25,13 +23,13 @@ void main() {
 const FRAGMENT_SHADER = `
 precision mediump float;
 uniform sampler2D u_image;
-uniform sampler2D u_glyphs;
 uniform vec2 u_resolution;
 uniform vec2 u_imageSize;
-uniform float u_cell;
-uniform float u_glyphCount;
+uniform float u_pixel;
 uniform float u_time;
-uniform float u_photoOpacity;
+uniform vec2 u_mouse;
+uniform float u_mouseActive;
+uniform float u_revealRadius;
 varying vec2 v_uv;
 
 // Coordonnées "cover" : l'image remplit la surface sans déformation.
@@ -41,37 +39,49 @@ vec2 coverUv(vec2 uv) {
     vec2 scale = canvasRatio > imageRatio
         ? vec2(1.0, imageRatio / canvasRatio)
         : vec2(canvasRatio / imageRatio, 1.0);
-    return (uv - 0.5) * scale + 0.5;
+    vec2 result = (uv - 0.5) * scale + 0.5;
+    result.y = 1.0 - result.y;
+    return result;
+}
+
+vec3 sampleImage(vec2 uv) {
+    return texture2D(u_image, coverUv(uv)).rgb;
 }
 
 void main() {
-    vec2 grid = u_resolution / u_cell;
-    vec2 cell = floor(v_uv * grid);
-    vec2 cellUv = fract(v_uv * grid);
+    vec2 px = v_uv * u_resolution;
 
-    vec2 sampleUv = coverUv((cell + 0.5) / grid);
-    sampleUv.y = 1.0 - sampleUv.y;
-    vec3 color = texture2D(u_image, sampleUv).rgb;
-    float luma = dot(color, vec3(0.299, 0.587, 0.114));
+    // Distance au curseur, en pixels.
+    vec2 mousePx = u_mouse * u_resolution;
+    float dist = distance(px, mousePx);
+    float reveal = u_mouseActive * (1.0 - smoothstep(u_revealRadius * 0.4, u_revealRadius, dist));
 
-    // Léger scintillement pour donner vie à la trame.
-    float flicker = 0.04 * sin(u_time * 2.0 + cell.x * 0.7 + cell.y * 1.3);
-    // Sur fond clair, les zones sombres reçoivent les glyphes les plus denses.
-    float darkness = pow(clamp(1.0 - luma + flicker, 0.0, 1.0), 1.15);
-    float index = floor(clamp(darkness, 0.0, 0.999) * u_glyphCount);
+    // Ondulation lente qui fait respirer la taille des tuiles.
+    float wave = 0.5 + 0.5 * sin(u_time * 0.8 + px.x * 0.006 + px.y * 0.004);
+    float size = u_pixel * mix(0.75, 1.35, wave);
 
-    vec2 glyphUv = vec2((index + cellUv.x) / u_glyphCount, 1.0 - cellUv.y);
-    float ink = texture2D(u_glyphs, glyphUv).a;
+    // Les tuiles rétrécissent en approchant du curseur (transition douce vers le net).
+    size = mix(size, u_pixel * 0.35, reveal);
 
-    // Rendu clair en deux couches : la photo en filigrane (lissée, sans trame)
-    // pour garder la lecture de l'image, puis les glyphes colorés par-dessus.
-    vec2 photoUv = coverUv(v_uv);
-    photoUv.y = 1.0 - photoUv.y;
-    vec3 photo = texture2D(u_image, photoUv).rgb;
-    vec3 paper = mix(vec3(1.0), photo, u_photoOpacity);
+    vec2 cell = floor(px / size);
+    vec2 cellCenter = (cell + 0.5) * size / u_resolution;
+    vec2 cellUv = fract(px / size);
 
-    vec3 ink_color = mix(color * 0.8, vec3(0.2), 0.3);
-    gl_FragColor = vec4(mix(paper, ink_color, ink * 0.9), 1.0);
+    vec3 mosaic = sampleImage(cellCenter);
+    vec3 sharp = sampleImage(v_uv);
+
+    // Léger relief par tuile : bord un peu plus sombre, cœur légèrement plus clair.
+    vec2 edge = min(cellUv, 1.0 - cellUv);
+    float inner = smoothstep(0.0, 0.12, min(edge.x, edge.y));
+    float bevel = mix(0.82, 1.0, inner) + 0.06 * (cellUv.y - 0.5);
+    mosaic *= bevel;
+
+    // Petite respiration lumineuse par tuile.
+    float twinkle = 0.05 * sin(u_time * 1.5 + cell.x * 1.7 + cell.y * 2.3);
+    mosaic += twinkle;
+
+    vec3 color = mix(mosaic, sharp, reveal);
+    gl_FragColor = vec4(color, 1.0);
 }
 `;
 
@@ -88,49 +98,24 @@ function compile(gl: WebGLRenderingContext, type: number, source: string) {
     return gl.getShaderParameter(shader, gl.COMPILE_STATUS) ? shader : null;
 }
 
-function buildGlyphAtlas(charset: string, size: number): HTMLCanvasElement {
-    const atlas = document.createElement('canvas');
-    atlas.width = size * charset.length;
-    atlas.height = size;
-
-    const ctx = atlas.getContext('2d');
-
-    if (ctx) {
-        ctx.clearRect(0, 0, atlas.width, atlas.height);
-        ctx.fillStyle = '#fff';
-        ctx.font = `${Math.round(size * 0.95)}px ui-monospace, Menlo, monospace`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        for (let i = 0; i < charset.length; i++) {
-            ctx.fillText(charset[i], size * i + size / 2, size / 2 + 1);
-        }
-    }
-
-    return atlas;
-}
-
 /**
- * Affiche une image rendue en ASCII art par un shader WebGL.
+ * Photo rendue en mosaïque de pixels animée par un shader WebGL.
+ * La photo nette se révèle dans un halo autour du curseur.
  * Sans WebGL (ou avant le chargement), l'image brute est affichée.
  */
-export default function AsciiImage({
+export default function PixelImage({
     src,
     alt = '',
     className,
-    cellSize = 10,
-    charset = ' .:-=+*#%@',
-    photoOpacity = 0.35,
+    pixelSize = 22,
+    revealRadius = 220,
 }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [ready, setReady] = useState(false);
 
     useEffect(() => {
         const canvas = canvasRef.current;
-        const gl = canvas?.getContext('webgl', {
-            antialias: false,
-            premultipliedAlpha: false,
-        });
+        const gl = canvas?.getContext('webgl', { antialias: false });
 
         if (!canvas || !gl) {
             return;
@@ -162,57 +147,37 @@ export default function AsciiImage({
 
         const uniforms = {
             image: gl.getUniformLocation(program, 'u_image'),
-            glyphs: gl.getUniformLocation(program, 'u_glyphs'),
             resolution: gl.getUniformLocation(program, 'u_resolution'),
             imageSize: gl.getUniformLocation(program, 'u_imageSize'),
-            cell: gl.getUniformLocation(program, 'u_cell'),
-            glyphCount: gl.getUniformLocation(program, 'u_glyphCount'),
+            pixel: gl.getUniformLocation(program, 'u_pixel'),
             time: gl.getUniformLocation(program, 'u_time'),
-            photoOpacity: gl.getUniformLocation(program, 'u_photoOpacity'),
-        };
-
-        const createTexture = (
-            unit: number,
-            source: TexImageSource,
-        ): WebGLTexture | null => {
-            const texture = gl.createTexture();
-            gl.activeTexture(gl.TEXTURE0 + unit);
-            gl.bindTexture(gl.TEXTURE_2D, texture);
-            gl.texParameteri(
-                gl.TEXTURE_2D,
-                gl.TEXTURE_WRAP_S,
-                gl.CLAMP_TO_EDGE,
-            );
-            gl.texParameteri(
-                gl.TEXTURE_2D,
-                gl.TEXTURE_WRAP_T,
-                gl.CLAMP_TO_EDGE,
-            );
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-            gl.texImage2D(
-                gl.TEXTURE_2D,
-                0,
-                gl.RGBA,
-                gl.RGBA,
-                gl.UNSIGNED_BYTE,
-                source,
-            );
-
-            return texture;
+            mouse: gl.getUniformLocation(program, 'u_mouse'),
+            mouseActive: gl.getUniformLocation(program, 'u_mouseActive'),
+            revealRadius: gl.getUniformLocation(program, 'u_revealRadius'),
         };
 
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        const glyphTexture = createTexture(
-            1,
-            buildGlyphAtlas(charset, Math.round(cellSize * dpr * 2)),
-        );
-        gl.uniform1i(uniforms.glyphs, 1);
-        gl.uniform1f(uniforms.glyphCount, charset.length);
-        gl.uniform1f(uniforms.cell, cellSize * dpr);
-        gl.uniform1f(uniforms.photoOpacity, photoOpacity);
+        gl.uniform1f(uniforms.pixel, pixelSize * dpr);
+        gl.uniform1f(uniforms.revealRadius, revealRadius * dpr);
 
-        let imageTexture: WebGLTexture | null = null;
+        // Position du curseur lissée pour un halo qui suit avec inertie.
+        const mouse = { x: 0.5, y: 0.5, targetX: 0.5, targetY: 0.5, active: 0 };
+        let mouseActiveTarget = 0;
+
+        const onMove = (event: PointerEvent) => {
+            const rect = canvas.getBoundingClientRect();
+            mouse.targetX = (event.clientX - rect.left) / rect.width;
+            mouse.targetY = 1 - (event.clientY - rect.top) / rect.height;
+            mouseActiveTarget = 1;
+        };
+        const onLeave = () => {
+            mouseActiveTarget = 0;
+        };
+
+        canvas.addEventListener('pointermove', onMove);
+        canvas.addEventListener('pointerleave', onLeave);
+
+        let texture: WebGLTexture | null = null;
         let frame = 0;
         let disposed = false;
         const start = performance.now();
@@ -235,8 +200,14 @@ export default function AsciiImage({
                 return;
             }
 
+            mouse.x += (mouse.targetX - mouse.x) * 0.12;
+            mouse.y += (mouse.targetY - mouse.y) * 0.12;
+            mouse.active += (mouseActiveTarget - mouse.active) * 0.08;
+
             resize();
             gl.uniform1f(uniforms.time, (performance.now() - start) / 1000);
+            gl.uniform2f(uniforms.mouse, mouse.x, mouse.y);
+            gl.uniform1f(uniforms.mouseActive, mouse.active);
             gl.drawArrays(gl.TRIANGLES, 0, 6);
             frame = requestAnimationFrame(render);
         };
@@ -248,7 +219,29 @@ export default function AsciiImage({
                 return;
             }
 
-            imageTexture = createTexture(0, image);
+            texture = gl.createTexture();
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.texParameteri(
+                gl.TEXTURE_2D,
+                gl.TEXTURE_WRAP_S,
+                gl.CLAMP_TO_EDGE,
+            );
+            gl.texParameteri(
+                gl.TEXTURE_2D,
+                gl.TEXTURE_WRAP_T,
+                gl.CLAMP_TO_EDGE,
+            );
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texImage2D(
+                gl.TEXTURE_2D,
+                0,
+                gl.RGB,
+                gl.RGB,
+                gl.UNSIGNED_BYTE,
+                image,
+            );
             gl.uniform1i(uniforms.image, 0);
             gl.uniform2f(uniforms.imageSize, image.width, image.height);
             setReady(true);
@@ -259,18 +252,19 @@ export default function AsciiImage({
         return () => {
             disposed = true;
             cancelAnimationFrame(frame);
-            gl.deleteTexture(glyphTexture);
-            gl.deleteTexture(imageTexture);
+            canvas.removeEventListener('pointermove', onMove);
+            canvas.removeEventListener('pointerleave', onLeave);
+            gl.deleteTexture(texture);
             gl.deleteBuffer(buffer);
             gl.deleteProgram(program);
             gl.deleteShader(vertex);
             gl.deleteShader(fragment);
         };
-    }, [src, cellSize, charset, photoOpacity]);
+    }, [src, pixelSize, revealRadius]);
 
     return (
         <div
-            className={cn('relative overflow-hidden bg-neutral-950', className)}
+            className={cn('relative overflow-hidden bg-neutral-100', className)}
         >
             <img
                 src={src}

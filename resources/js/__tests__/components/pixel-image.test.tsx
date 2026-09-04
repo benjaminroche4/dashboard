@@ -1,12 +1,12 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import AsciiImage from '@/components/ascii-image';
+import PixelImage from '@/components/pixel-image';
 
 // jsdom n'a pas de WebGL : le composant doit retomber sur l'image brute.
-describe('AsciiImage', () => {
+describe('PixelImage', () => {
     it('renders the raw image plus a canvas overlay', () => {
         const { container } = render(
-            <AsciiImage
+            <PixelImage
                 src="/images/login.jpg"
                 alt="Paris"
                 className="rounded-3xl"
@@ -26,7 +26,7 @@ describe('AsciiImage', () => {
     });
 
     it('keeps the raw image visible while WebGL is unavailable', () => {
-        const { container } = render(<AsciiImage src="/images/login.jpg" />);
+        const { container } = render(<PixelImage src="/images/login.jpg" />);
 
         expect(container.querySelector('img')).not.toHaveClass('opacity-0');
         expect(container.querySelector('canvas')).toHaveClass('opacity-0');
