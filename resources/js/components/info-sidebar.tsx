@@ -72,7 +72,7 @@ function OnlineSection() {
                     {members.map((member) => (
                         <li
                             key={member.id}
-                            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+                            className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex h-8 items-center gap-2 rounded-md px-2 text-sm transition-colors"
                         >
                             <span className="relative">
                                 <Avatar className="size-7 rounded-md">
@@ -140,12 +140,12 @@ function ShortcutsSection() {
                 {shortcuts.map((shortcut) => (
                     <li
                         key={shortcut.keys}
-                        className="flex items-center justify-between gap-2 px-2 py-1 text-sm"
+                        className="flex h-8 items-center justify-between gap-2 rounded-md px-2 text-sm"
                     >
                         <span className="text-muted-foreground truncate">
                             {shortcut.label}
                         </span>
-                        <kbd className="bg-muted text-muted-foreground rounded border px-1.5 py-0.5 font-mono text-[10px]">
+                        <kbd className="bg-muted text-muted-foreground pointer-events-none inline-flex h-5 items-center rounded border px-1.5 font-mono text-[10px] font-medium select-none">
                             {shortcut.keys}
                         </kbd>
                     </li>
