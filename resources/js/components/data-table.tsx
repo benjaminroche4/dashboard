@@ -50,7 +50,7 @@ export function DataTable<TData, TValue>({
     filterColumn,
     filterPlaceholder = 'Filtrer…',
     columnLabels = {},
-    pageSize = 10,
+    pageSize = 50,
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = useState<SortingState>([]);
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -175,24 +175,27 @@ export function DataTable<TData, TValue>({
                     {table.getFilteredRowModel().rows.length} ligne(s)
                     sélectionnée(s).
                 </div>
-                <div className="space-x-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.previousPage()}
-                        disabled={!table.getCanPreviousPage()}
-                    >
-                        Précédent
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.nextPage()}
-                        disabled={!table.getCanNextPage()}
-                    >
-                        Suivant
-                    </Button>
-                </div>
+                {/* Pagination affichée seulement au-delà d'une page. */}
+                {table.getPageCount() > 1 && (
+                    <div className="space-x-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => table.previousPage()}
+                            disabled={!table.getCanPreviousPage()}
+                        >
+                            Précédent
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => table.nextPage()}
+                            disabled={!table.getCanNextPage()}
+                        >
+                            Suivant
+                        </Button>
+                    </div>
+                )}
             </div>
         </div>
     );

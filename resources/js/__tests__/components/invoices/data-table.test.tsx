@@ -99,6 +99,24 @@ describe('Invoices DataTable', () => {
         expect(rows[0]).toHaveTextContent('Globex');
     });
 
+    it('hides the pagination when everything fits on one page', () => {
+        renderTable();
+
+        expect(screen.queryByRole('button', { name: 'Suivant' })).toBeNull();
+    });
+
+    it('shows the pagination beyond 50 rows', () => {
+        const many = Array.from({ length: 51 }, (_, index) => ({
+            ...invoices[0],
+            id: index + 1,
+            number: `F-2026-${String(index + 1).padStart(4, '0')}`,
+        }));
+        renderTable(many);
+
+        expect(screen.getAllByRole('row')).toHaveLength(51);
+        expect(screen.getByRole('button', { name: 'Suivant' })).toBeEnabled();
+    });
+
     it('shows an empty state', () => {
         renderTable([]);
 
