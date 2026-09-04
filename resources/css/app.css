@@ -145,7 +145,7 @@
 /* Reflet qui balaie le logo, avec un halo léger qui respire (voir components/shimmer-logo.tsx). */
 @keyframes shimmer-sweep {
     0%,
-    55% {
+    70% {
         transform: translateX(-160%) skewX(-18deg);
     }
     100% {
@@ -169,20 +169,20 @@
     --shimmer-glow: #a3243f;
     position: relative;
     overflow: hidden;
-    animation: shimmer-breathe 4.5s ease-in-out infinite;
+    animation: shimmer-breathe 7s ease-in-out infinite;
 
     &::after {
         content: '';
         position: absolute;
         inset: 0;
-        width: 45%;
+        width: 40%;
         background: linear-gradient(
             to right,
             transparent,
-            rgb(255 255 255 / 0.55),
+            rgb(255 255 255 / 0.22),
             transparent
         );
-        animation: shimmer-sweep 4.5s ease-in-out infinite;
+        animation: shimmer-sweep 7s ease-in-out infinite;
         pointer-events: none;
     }
 
