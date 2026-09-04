@@ -11,7 +11,7 @@ import {
     type VisibilityState,
 } from '@tanstack/react-table';
 import { ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -28,6 +28,34 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
+
+/** Habillage du tableau : bordure arrondie (défaut), à plat, ou panneau gris façon sidebar. */
+export type DataTableFrame = 'bordered' | 'flat' | 'panel';
+
+const frames: Record<
+    DataTableFrame,
+    { wrapper: string; table: string; toolbar: string; footer: string }
+> = {
+    bordered: {
+        wrapper: '',
+        table: 'overflow-hidden rounded-md border',
+        toolbar: 'pb-4',
+        footer: 'py-4',
+    },
+    flat: {
+        wrapper: '',
+        table: 'border-y',
+        toolbar: 'py-3',
+        footer: 'py-3',
+    },
+    panel: {
+        wrapper: 'bg-sidebar rounded-xl border p-2',
+        table: 'bg-background overflow-hidden rounded-lg border',
+        toolbar: 'px-2 py-2',
+        footer: 'px-2 pt-3 pb-1',
+    },
+};
 
 type DataTableProps<TData, TValue> = {
     columns: ColumnDef<TData, TValue>[];
@@ -38,6 +66,12 @@ type DataTableProps<TData, TValue> = {
     /** Libellés des colonnes pour le menu de visibilité. */
     columnLabels?: Record<string, string>;
     pageSize?: number;
+    /** Titre affiché à gauche de la barre d'outils. */
+    title?: ReactNode;
+    /** Actions affichées à droite de la barre d'outils (ex. bouton Nouvelle facture). */
+    actions?: ReactNode;
+    frame?: DataTableFrame;
+    className?: string;
 };
 
 /**
@@ -51,7 +85,12 @@ export function DataTable<TData, TValue>({
     filterPlaceholder = 'Filtrer…',
     columnLabels = {},
     pageSize = 50,
+    title,
+    actions,
+    frame = 'bordered',
+    className,
 }: DataTableProps<TData, TValue>) {
+    const styles = frames[frame];
     const [sorting, setSorting] = useState<SortingState>([]);
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
     const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
@@ -75,8 +114,9 @@ export function DataTable<TData, TValue>({
     });
 
     return (
-        <div className="w-full">
-            <div className="flex items-center gap-2 pb-4">
+        <div className={cn('w-full', styles.wrapper, className)}>
+            <div className={cn('flex items-center gap-2', styles.toolbar)}>
+                {title && <div className="mr-auto">{title}</div>}
                 {filterColumn && (
                     <Input
                         placeholder={filterPlaceholder}
@@ -95,7 +135,10 @@ export function DataTable<TData, TValue>({
                 )}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="ml-auto">
+                        <Button
+                            variant="outline"
+                            className={cn(!title && 'ml-auto')}
+                        >
                             Colonnes <ChevronDown />
                         </Button>
                     </DropdownMenuTrigger>
@@ -117,8 +160,9 @@ export function DataTable<TData, TValue>({
                             ))}
                     </DropdownMenuContent>
                 </DropdownMenu>
+                {actions}
             </div>
-            <div className="overflow-hidden rounded-md border">
+            <div className={styles.table}>
                 <Table>
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
@@ -169,7 +213,12 @@ export function DataTable<TData, TValue>({
                     </TableBody>
                 </Table>
             </div>
-            <div className="flex items-center justify-end space-x-2 py-4">
+            <div
+                className={cn(
+                    'flex items-center justify-end space-x-2',
+                    styles.footer,
+                )}
+            >
                 <div className="text-muted-foreground flex-1 text-sm">
                     {table.getFilteredSelectedRowModel().rows.length} sur{' '}
                     {table.getFilteredRowModel().rows.length} ligne(s)
