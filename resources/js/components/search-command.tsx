@@ -1,5 +1,6 @@
 import { router } from '@inertiajs/react';
 import {
+    FileText,
     LayoutGrid,
     Palette,
     Search,
@@ -18,6 +19,7 @@ import {
 } from '@/components/ui/command';
 import { dashboard } from '@/routes';
 import { edit as editAppearance } from '@/routes/appearance';
+import { index as invoicesIndex } from '@/routes/invoices';
 import { edit as editProfile } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
 
@@ -37,6 +39,12 @@ const destinations: Destination[] = [
         url: dashboard().url,
         icon: LayoutGrid,
         shortcut: '⌘D',
+    },
+    {
+        title: 'Factures',
+        keywords: 'leads facturation paiement',
+        url: invoicesIndex().url,
+        icon: FileText,
     },
     {
         title: 'Mon compte',

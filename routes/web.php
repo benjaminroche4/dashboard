@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Invoices\InvoiceController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -8,6 +9,7 @@ Route::get('/', fn () => to_route(Auth::check() ? 'dashboard' : 'login'))->name(
 
 Route::middleware(['auth'])->group(function (): void {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::get('invoices', [InvoiceController::class, 'index'])->name('invoices.index');
 });
 
 require __DIR__.'/settings.php';
