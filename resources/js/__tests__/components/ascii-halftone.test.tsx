@@ -1,7 +1,9 @@
 import { render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import AsciiHalftone, {
+    drawAsciiFrame,
     renderAsciiHalftone,
+    type AsciiGrid,
 } from '@/components/ascii-halftone';
 
 // jsdom n'a pas de canvas : le composant doit retomber sur l'image brute.
@@ -91,5 +93,82 @@ describe('renderAsciiHalftone', () => {
         expect(fillText).toHaveBeenCalledWith('#', 15, 5);
         expect(ctx.fillStyle).toBe('rgb(169 161 157 / 0.5)');
         expect(sampler.getImageData).toHaveBeenCalledWith(0, 0, 2, 1);
+    });
+});
+
+describe('drawAsciiFrame', () => {
+    const grid: AsciiGrid = {
+        cols: 1,
+        rows: 1,
+        cells: [{ x: 0, y: 0, darkness: 0.5, ink: '200 200 200' }],
+        offsetX: 5,
+        offsetY: 5,
+    };
+    const image = { width: 10, height: 10 } as HTMLImageElement;
+
+    function makeCtx() {
+        return {
+            clearRect: vi.fn(),
+            drawImage: vi.fn(),
+            fillText: vi.fn(),
+            fillStyle: '',
+            font: '',
+            textAlign: '',
+            textBaseline: '',
+        };
+    }
+
+    it('is static when the amplitude is zero', () => {
+        const ctx = makeCtx();
+        const options = {
+            width: 10,
+            height: 10,
+            cellSize: 10,
+            charset: ' .:#',
+            inkOpacity: 0.5,
+            amplitude: 0,
+        };
+
+        drawAsciiFrame(
+            ctx as unknown as CanvasRenderingContext2D,
+            image,
+            grid,
+            options,
+        );
+        const first = ctx.fillStyle;
+        drawAsciiFrame(
+            ctx as unknown as CanvasRenderingContext2D,
+            image,
+            grid,
+            { ...options, time: 3 },
+        );
+
+        expect(ctx.fillStyle).toBe(first);
+        expect(ctx.fillStyle).toBe('rgb(200 200 200 / 0.5)');
+    });
+
+    it('brightens the ink when the sweep passes over the cell', () => {
+        const ctx = makeCtx();
+        const options = {
+            width: 10,
+            height: 10,
+            cellSize: 10,
+            charset: ' .:#',
+            inkOpacity: 0.5,
+            amplitude: 0.16,
+        };
+
+        // À t = 6 s × (6 / 13), la bande de balayage est exactement sur la ligne 0.
+        drawAsciiFrame(
+            ctx as unknown as CanvasRenderingContext2D,
+            image,
+            grid,
+            {
+                ...options,
+                time: (6 * 6) / 13,
+            },
+        );
+
+        expect(ctx.fillStyle).toBe('rgb(200 200 200 / 0.85)');
     });
 });
