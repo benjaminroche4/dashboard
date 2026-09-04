@@ -54,15 +54,17 @@ void main() {
     // Léger scintillement pour donner vie à la trame.
     float flicker = 0.04 * sin(u_time * 2.0 + cell.x * 0.7 + cell.y * 1.3);
     // Sur fond clair, les zones sombres reçoivent les glyphes les plus denses.
-    float index = floor(clamp(1.0 - luma + flicker, 0.0, 0.999) * u_glyphCount);
+    // La courbe pow allège la trame : seules les ombres franches reçoivent des glyphes denses.
+    float darkness = pow(clamp(1.0 - luma + flicker, 0.0, 1.0), 1.8);
+    float index = floor(clamp(darkness, 0.0, 0.999) * u_glyphCount);
 
     vec2 glyphUv = vec2((index + cellUv.x) / u_glyphCount, 1.0 - cellUv.y);
     float ink = texture2D(u_glyphs, glyphUv).a;
 
     // Rendu clair : fond blanc, glyphes encrés dans une teinte assombrie de l'image.
-    vec3 ink_color = mix(color * 0.7, vec3(0.1), 0.35);
+    vec3 ink_color = mix(color, vec3(0.45), 0.5);
     vec3 paper = vec3(1.0);
-    gl_FragColor = vec4(mix(paper, ink_color, ink), 1.0);
+    gl_FragColor = vec4(mix(paper, ink_color, ink * 0.75), 1.0);
 }
 `;
 
@@ -109,8 +111,8 @@ export default function AsciiImage({
     src,
     alt = '',
     className,
-    cellSize = 10,
-    charset = ' .:-=+*#%@',
+    cellSize = 12,
+    charset = ' .`-:,+=*',
 }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [ready, setReady] = useState(false);
