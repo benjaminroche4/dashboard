@@ -38,8 +38,8 @@ function Section({
     children: ReactNode;
 }) {
     return (
-        <section className="flex flex-col gap-1 px-2 py-2">
-            <h2 className="text-muted-foreground flex h-8 items-center px-2 text-xs font-medium">
+        <section className="flex flex-col gap-1 px-2 py-3">
+            <h2 className="text-sidebar-foreground/70 flex h-8 items-center px-2 text-xs font-medium">
                 <Icon className="mr-2 size-4" />
                 {title}
                 {aside}
