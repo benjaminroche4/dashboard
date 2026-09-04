@@ -1,25 +1,20 @@
-import { Link } from '@inertiajs/react';
 import {
     Bell,
     Calendar,
     ChartPie,
-    ChevronsUpDown,
     ClipboardCheck,
     ClipboardList,
     LayoutGrid,
     Users,
 } from 'lucide-react';
-import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
+import { WorkspaceSwitcher } from '@/components/workspace-switcher';
 import {
     Sidebar,
     SidebarContent,
     SidebarFooter,
     SidebarHeader,
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
     SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
@@ -60,27 +55,11 @@ const navGroups: NavGroup[] = [
     },
 ];
 
-// Le bouton replier/déplier vit dans l'en-tête de page (SidebarTrigger), pas ici.
-function SidebarBrand() {
-    return (
-        <SidebarMenu>
-            <SidebarMenuItem>
-                <SidebarMenuButton size="lg" asChild>
-                    <Link href={dashboard()} prefetch>
-                        <AppLogo />
-                        <ChevronsUpDown className="text-muted-foreground size-4" />
-                    </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-        </SidebarMenu>
-    );
-}
-
 export function AppSidebar() {
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
-                <SidebarBrand />
+                <WorkspaceSwitcher />
             </SidebarHeader>
             <SidebarSeparator className="mx-0 w-auto group-data-[collapsible=icon]:hidden" />
 
