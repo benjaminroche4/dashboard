@@ -168,14 +168,17 @@ export function InfoSidebar({
 }) {
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="right" className="w-80 gap-0 p-0 sm:max-w-sm">
-                <SheetHeader className="border-b">
-                    <SheetTitle>Informations</SheetTitle>
-                    <SheetDescription>
+            <SheetContent
+                side="right"
+                className="bg-sidebar text-sidebar-foreground border-sidebar-border w-80 gap-0 p-0 sm:max-w-sm"
+            >
+                <SheetHeader className="border-sidebar-border border-b px-4 py-3">
+                    <SheetTitle className="text-sm">Informations</SheetTitle>
+                    <SheetDescription className="text-xs">
                         Membres en ligne, activité et raccourcis.
                     </SheetDescription>
                 </SheetHeader>
-                <div className="flex-1 overflow-y-auto py-2">
+                <div className="divide-sidebar-border flex-1 divide-y overflow-y-auto">
                     <OnlineSection />
                     <ActivitySection />
                     <ShortcutsSection />
