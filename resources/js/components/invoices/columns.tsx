@@ -23,15 +23,14 @@ export const invoiceColumnLabels: Record<string, string> = {
     due_at: 'Échéance',
 };
 
-const statusVariant: Record<
-    InvoiceStatus,
-    'default' | 'secondary' | 'destructive' | 'outline'
-> = {
-    paid: 'default',
-    sent: 'secondary',
-    overdue: 'destructive',
-    draft: 'outline',
-    cancelled: 'outline',
+// Couleurs personnalisées (pattern « Custom Colors » de shadcn Badge).
+const statusClasses: Record<InvoiceStatus, string> = {
+    paid: 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300',
+    sent: 'bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
+    overdue: 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300',
+    draft: 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300',
+    cancelled:
+        'bg-neutral-100 text-neutral-600 dark:bg-neutral-900 dark:text-neutral-400',
 };
 
 function SortableHeader({
@@ -113,7 +112,11 @@ export const invoiceColumns: ColumnDef<Invoice>[] = [
         accessorKey: 'status',
         header: 'Statut',
         cell: ({ row }) => (
-            <Badge variant={statusVariant[row.original.status]}>
+            <Badge
+                variant="secondary"
+                data-status={row.original.status}
+                className={statusClasses[row.original.status]}
+            >
                 {row.original.status_label}
             </Badge>
         ),

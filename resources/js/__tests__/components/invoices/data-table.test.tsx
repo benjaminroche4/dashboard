@@ -55,7 +55,15 @@ describe('Invoices DataTable', () => {
 
         const row = screen.getByRole('row', { name: /F-2026-0001/ });
         expect(within(row).getByText('Acme SAS')).toBeInTheDocument();
-        expect(within(row).getByText('Payée')).toBeInTheDocument();
+        expect(within(row).getByText('Payée')).toHaveClass(
+            'bg-green-50',
+            'text-green-700',
+        );
+        expect(
+            within(screen.getByRole('row', { name: /F-2026-0002/ })).getByText(
+                'En retard',
+            ),
+        ).toHaveClass('bg-red-50', 'text-red-700');
         expect(within(row).getByText(/1.200,00.€/)).toBeInTheDocument();
         expect(within(row).getByText('01 sept. 2026')).toBeInTheDocument();
         expect(
