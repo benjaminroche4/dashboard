@@ -6,8 +6,6 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
@@ -35,17 +33,9 @@ export const leadStatusDot: Record<LeadStatus, string> = {
     archived: 'bg-neutral-400',
 };
 
-const hints: Record<LeadStatus, string> = {
-    todo: 'Nouveau, à contacter',
-    in_progress: 'Échanges en cours',
-    quote_sent: 'Proposition envoyée',
-    converted: 'Client signé',
-    archived: 'Sans suite',
-};
-
 /**
- * Badge de statut cliquable : le menu liste chaque statut sous forme de
- * badge coloré, avec sa description et une coche sur le statut actuel.
+ * Badge de statut cliquable : le menu liste les statuts, point de couleur,
+ * libellé et coche sur le statut actuel. Volontairement sobre.
  */
 export function LeadStatusMenu({
     lead,
@@ -88,11 +78,10 @@ export function LeadStatusMenu({
                     <ChevronDown className="size-3 shrink-0 opacity-70" />
                 </Badge>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-60 p-1.5">
-                <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
-                    Déplacer {lead.name} vers
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
+            <DropdownMenuContent
+                align="start"
+                className="w-48 rounded-lg p-1 shadow-md"
+            >
                 {statuses.map((option) => {
                     const current = option.value === lead.status;
 
@@ -101,36 +90,27 @@ export function LeadStatusMenu({
                             key={option.value}
                             aria-current={current ? 'true' : undefined}
                             onSelect={() => change(option.value)}
-                            className={cn(
-                                'items-start gap-2.5 rounded-md py-2',
-                                current && 'bg-accent/60',
-                            )}
+                            className="gap-2.5 rounded-md px-2 py-1.5"
                         >
-                            <span className="grid min-w-0 flex-1 gap-0.5">
-                                <Badge
-                                    variant="secondary"
-                                    className={cn(
-                                        'w-fit gap-1.5 pl-1.5',
-                                        leadStatusClasses[option.value],
-                                    )}
-                                >
-                                    <span
-                                        aria-hidden
-                                        className={cn(
-                                            'size-1.5 rounded-full',
-                                            leadStatusDot[option.value],
-                                        )}
-                                    />
-                                    {option.label}
-                                </Badge>
-                                <span className="text-muted-foreground truncate text-xs">
-                                    {hints[option.value]}
-                                </span>
+                            <span
+                                aria-hidden
+                                className={cn(
+                                    'size-2 shrink-0 rounded-full',
+                                    leadStatusDot[option.value],
+                                )}
+                            />
+                            <span
+                                className={cn(
+                                    'flex-1 truncate text-sm',
+                                    current && 'font-medium',
+                                )}
+                            >
+                                {option.label}
                             </span>
                             <Check
                                 aria-hidden
                                 className={cn(
-                                    'mt-0.5 size-4 shrink-0',
+                                    'size-4 shrink-0',
                                     current ? 'opacity-100' : 'opacity-0',
                                 )}
                             />

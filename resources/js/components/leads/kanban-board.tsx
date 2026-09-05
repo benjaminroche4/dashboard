@@ -359,11 +359,6 @@ export function LeadKanban({
                                     ? toggleArchive
                                     : undefined
                             }
-                            bumpKey={
-                                landed?.status === status.value
-                                    ? landed.key
-                                    : null
-                            }
                         >
                             {column.map((lead) => (
                                 <SortableCard
@@ -400,7 +395,6 @@ function KanbanColumn({
     collapsed,
     dragging,
     onToggle,
-    bumpKey,
     children,
 }: {
     status: LeadStatusOption;
@@ -409,8 +403,6 @@ function KanbanColumn({
     /** Une carte est en cours de déplacement quelque part sur le tableau. */
     dragging: boolean;
     onToggle?: () => void;
-    /** Change quand une carte vient d'arriver : le compteur rebondit. */
-    bumpKey: number | null;
     children: ReactNode;
 }) {
     const { setNodeRef, isOver } = useDroppable({
@@ -490,13 +482,10 @@ function KanbanColumn({
                     </h2>
                     <div className="flex shrink-0 items-center gap-1">
                         <Badge
-                            key={bumpKey ?? 'idle'}
                             variant="secondary"
                             className={cn(
                                 'bg-background/80 rounded-full px-2',
                                 leadStatusClasses[status.value],
-                                bumpKey !== null &&
-                                    'animate-count-bump motion-reduce:animate-none',
                             )}
                             aria-label={`${stats.count} lead(s)`}
                         >

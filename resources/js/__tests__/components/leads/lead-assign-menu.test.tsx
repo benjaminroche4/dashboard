@@ -36,7 +36,7 @@ describe('LeadAssignMenu', () => {
         expect(current).toHaveAttribute('aria-current', 'true');
         expect(
             screen.getByRole('menuitem', { name: /Camille Roy/ }),
-        ).toHaveTextContent('Membre');
+        ).not.toHaveAttribute('aria-current');
 
         await user.click(screen.getByRole('menuitem', { name: /Camille Roy/ }));
 

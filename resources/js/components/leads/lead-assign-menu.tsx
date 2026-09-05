@@ -35,15 +35,9 @@ const palette = [
 
 export const memberTone = (id: number) => palette[id % palette.length];
 
-const roleLabels: Record<string, string> = {
-    admin: 'Administrateur',
-    manager: 'Manager',
-    member: 'Membre',
-};
-
 /**
- * Avatar du responsable, cliquable : le menu liste le staff avec avatar,
- * nom et rôle, une coche sur le responsable actuel, et « Personne ».
+ * Avatar du responsable, cliquable : le menu liste le staff (avatar, nom),
+ * une coche sur le responsable actuel, et « Personne ». Volontairement sobre.
  */
 export function LeadAssignMenu({
     lead,
@@ -107,11 +101,13 @@ export function LeadAssignMenu({
                     </AvatarFallback>
                 </Avatar>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64 p-1.5">
-                <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
-                    Responsable du suivi de {lead.name}
+            <DropdownMenuContent
+                align="end"
+                className="w-52 rounded-lg p-1 shadow-md"
+            >
+                <DropdownMenuLabel className="text-muted-foreground px-2 py-1 text-xs font-normal">
+                    Suivi par
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
                 {staff.map((member) => {
                     const current = member.id === currentId;
 
@@ -120,28 +116,25 @@ export function LeadAssignMenu({
                             key={member.id}
                             aria-current={current ? 'true' : undefined}
                             onSelect={() => change(member.id)}
-                            className={cn(
-                                'gap-2.5 rounded-md py-1.5',
-                                current && 'bg-accent/60',
-                            )}
+                            className="gap-2.5 rounded-md px-2 py-1.5"
                         >
-                            <Avatar className="size-7">
+                            <Avatar className="size-6">
                                 <AvatarFallback
                                     className={cn(
-                                        'text-[11px] font-medium',
+                                        'text-[10px] font-medium',
                                         memberTone(member.id),
                                     )}
                                 >
                                     {initials(member.name)}
                                 </AvatarFallback>
                             </Avatar>
-                            <span className="grid min-w-0 flex-1">
-                                <span className="truncate text-sm">
-                                    {member.name}
-                                </span>
-                                <span className="text-muted-foreground truncate text-xs">
-                                    {roleLabels[member.role] ?? member.role}
-                                </span>
+                            <span
+                                className={cn(
+                                    'flex-1 truncate text-sm',
+                                    current && 'font-medium',
+                                )}
+                            >
+                                {member.name}
                             </span>
                             <Check
                                 aria-hidden
@@ -157,12 +150,19 @@ export function LeadAssignMenu({
                 <DropdownMenuItem
                     aria-current={currentId === null ? 'true' : undefined}
                     onSelect={() => change(null)}
-                    className="gap-2.5 rounded-md py-1.5"
+                    className="gap-2.5 rounded-md px-2 py-1.5"
                 >
-                    <span className="bg-muted text-muted-foreground flex size-7 items-center justify-center rounded-full border border-dashed">
-                        <UserRoundX className="size-3.5" aria-hidden />
+                    <span className="bg-muted text-muted-foreground flex size-6 items-center justify-center rounded-full border border-dashed">
+                        <UserRoundX className="size-3" aria-hidden />
                     </span>
-                    <span className="flex-1 text-sm">Personne</span>
+                    <span
+                        className={cn(
+                            'flex-1 text-sm',
+                            currentId === null && 'font-medium',
+                        )}
+                    >
+                        Personne
+                    </span>
                     <Check
                         aria-hidden
                         className={cn(
