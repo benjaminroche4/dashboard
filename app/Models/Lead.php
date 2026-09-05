@@ -9,11 +9,11 @@ use App\Enums\Furnished;
 use App\Enums\GuarantorType;
 use App\Enums\LeadDuration;
 use App\Enums\LeadLanguage;
-use App\Enums\PropertyType;
-use App\Enums\RecontactChannel;
 use App\Enums\LeadSource;
 use App\Enums\LeadStatus;
 use App\Enums\Offer;
+use App\Enums\PropertyType;
+use App\Enums\RecontactChannel;
 use Carbon\CarbonInterface;
 use Database\Factories\LeadFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 /**
  * @property int $id
@@ -39,7 +40,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property LeadSource $source
  * @property string|null $source_note
  * @property list<int>|null $districts
- * @property \Illuminate\Support\Collection<int, PropertyType>|null $property_types
+ * @property Collection<int, PropertyType>|null $property_types
  * @property LeadDuration|null $duration
  * @property GuarantorType|null $guarantor
  * @property Furnished|null $furnished
