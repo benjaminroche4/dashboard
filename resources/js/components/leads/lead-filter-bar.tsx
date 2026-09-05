@@ -136,7 +136,8 @@ function AssigneeAvatars({
                                     aria-pressed={active}
                                     onClick={() => toggle(id)}
                                     className={cn(
-                                        'rounded-full transition-opacity outline-none focus-visible:ring-2',
+                                        'relative rounded-full transition-[opacity,transform] outline-none hover:z-10 hover:scale-110 focus-visible:z-10 focus-visible:ring-2',
+                                        active && 'z-10 scale-110',
                                         value !== 'all' &&
                                             !active &&
                                             'opacity-40 hover:opacity-80',
@@ -144,7 +145,7 @@ function AssigneeAvatars({
                                 >
                                     <Avatar
                                         className={cn(
-                                            'size-8 ring-2',
+                                            'size-7 ring-2',
                                             active
                                                 ? 'ring-primary'
                                                 : 'ring-background',
@@ -152,7 +153,7 @@ function AssigneeAvatars({
                                     >
                                         <AvatarFallback
                                             className={cn(
-                                                'text-xs font-medium',
+                                                'text-[11px] font-medium',
                                                 memberTone(id),
                                             )}
                                         >
@@ -174,7 +175,8 @@ function AssigneeAvatars({
                                 aria-pressed={value === 'none'}
                                 onClick={() => toggle('none')}
                                 className={cn(
-                                    'rounded-full transition-opacity outline-none focus-visible:ring-2',
+                                    'relative rounded-full transition-[opacity,transform] outline-none hover:z-10 hover:scale-110 focus-visible:z-10 focus-visible:ring-2',
+                                    value === 'none' && 'z-10 scale-110',
                                     value !== 'all' &&
                                         value !== 'none' &&
                                         'opacity-40 hover:opacity-80',
