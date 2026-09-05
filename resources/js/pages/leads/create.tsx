@@ -14,7 +14,6 @@ import InputError from '@/components/input-error';
 import { FormActionBar } from '@/components/form-action-bar';
 import { DistrictMap } from '@/components/leads/district-map';
 import { PhoneInput } from '@/components/phone-input';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -147,7 +146,7 @@ function stepOf(errorKey: string): StepNumber {
     );
 }
 
-/** Indicateur d'étapes : les étapes déjà visitées sont cliquables. */
+/** Indicateur d'étapes, discret : numéro, libellé, filet entre les étapes. */
 function Stepper({
     current,
     visited,
@@ -158,37 +157,61 @@ function Stepper({
     onSelect: (step: StepNumber) => void;
 }) {
     return (
-        <ol
-            role="list"
-            aria-label="Étapes"
-            className="flex flex-wrap items-center gap-2"
-        >
+        <ol role="list" aria-label="Étapes" className="flex items-center gap-3">
             {steps.map((step, index) => {
                 const done = step.number < current;
                 const active = step.number === current;
                 const reachable = visited.has(step.number) || done;
 
                 return (
-                    <li key={step.number} className="flex items-center gap-2">
-                        <Button
+                    <li
+                        key={step.number}
+                        className={cn(
+                            'flex items-center gap-3',
+                            index < steps.length - 1 && 'flex-1',
+                        )}
+                    >
+                        <button
                             type="button"
-                            variant={active ? 'secondary' : 'ghost'}
-                            size="sm"
                             disabled={!reachable}
                             aria-current={active ? 'step' : undefined}
                             onClick={() => onSelect(step.number)}
+                            className={cn(
+                                'flex items-center gap-2 rounded-md text-sm outline-none focus-visible:ring-2 disabled:cursor-default',
+                                active
+                                    ? 'text-foreground font-medium'
+                                    : 'text-muted-foreground',
+                                reachable && !active && 'hover:text-foreground',
+                            )}
                         >
-                            <Badge
-                                variant={active || done ? 'default' : 'outline'}
-                                className="size-5 justify-center rounded-full px-0 tabular-nums"
+                            <span
                                 aria-hidden
+                                className={cn(
+                                    'flex size-6 shrink-0 items-center justify-center rounded-full border text-xs tabular-nums',
+                                    active &&
+                                        'bg-primary text-primary-foreground border-primary',
+                                    done &&
+                                        'bg-primary/10 border-primary/40 text-primary',
+                                )}
                             >
-                                {done ? <Check /> : step.number}
-                            </Badge>
-                            {step.title}
-                        </Button>
+                                {done ? (
+                                    <Check className="size-3.5" />
+                                ) : (
+                                    step.number
+                                )}
+                            </span>
+                            <span className="whitespace-nowrap">
+                                {step.title}
+                            </span>
+                        </button>
                         {index < steps.length - 1 && (
-                            <Separator orientation="vertical" className="h-4" />
+                            <span
+                                aria-hidden
+                                className={cn(
+                                    'h-px flex-1',
+                                    done ? 'bg-primary/40' : 'bg-border',
+                                )}
+                            />
                         )}
                     </li>
                 );
@@ -197,34 +220,23 @@ function Stepper({
     );
 }
 
-/** Ne garde que les champs du formulaire (sans id ni nom composé). */
-function toForm(lead: LeadEditable): LeadForm {
-    const { id: _id, name: _name, ...form } = lead;
-
-    return form;
-}
-
-function Section({
-    step,
+/** Groupe de champs, comme sur la facture : titre, aide, grille. */
+function Group({
     title,
-    description,
+    hint,
     children,
 }: {
-    step: number;
     title: string;
-    description: string;
+    hint?: string;
     children: React.ReactNode;
 }) {
     return (
-        <section aria-labelledby={`section-${step}`} className="grid gap-5">
+        <section className="grid gap-5">
             <div>
-                <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                    Étape {step} sur {steps.length}
-                </p>
-                <h2 id={`section-${step}`} className="text-base font-medium">
-                    {title}
-                </h2>
-                <p className="text-muted-foreground text-sm">{description}</p>
+                <h2 className="text-base font-medium">{title}</h2>
+                {hint && (
+                    <p className="text-muted-foreground text-sm">{hint}</p>
+                )}
             </div>
             {children}
         </section>
@@ -235,12 +247,14 @@ function Field({
     label,
     htmlFor,
     error,
+    hint,
     children,
     className,
 }: {
     label: string;
     htmlFor?: string;
     error?: string;
+    hint?: string;
     children: React.ReactNode;
     className?: string;
 }) {
@@ -248,9 +262,19 @@ function Field({
         <div className={cn('grid gap-2', className)}>
             <Label htmlFor={htmlFor}>{label}</Label>
             {children}
+            {hint && !error && (
+                <p className="text-muted-foreground text-xs">{hint}</p>
+            )}
             <InputError message={error} />
         </div>
     );
+}
+
+/** Ne garde que les champs du formulaire (sans id ni nom composé). */
+function toForm(lead: LeadEditable): LeadForm {
+    const { id: _id, name: _name, ...form } = lead;
+
+    return form;
 }
 
 /**
@@ -314,7 +338,6 @@ export default function LeadsCreate({
     );
     // ⌘/Ctrl+Entrée ou « Enregistrer » : on valide tout, quel que soit l'écran.
     const submitAllRef = useRef(false);
-    const current = steps[step - 1] ?? steps[0];
 
     const goTo = (target: StepNumber) => {
         if (target > step) {
@@ -502,13 +525,15 @@ export default function LeadsCreate({
         }
     };
 
+    const cancelHref = lead ? leadShow({ lead: lead.id }) : leadsIndex();
+
     return (
         <>
             <Head
                 title={editing ? `Modifier ${lead.name}` : 'Converting Machine'}
             />
             <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4">
-                <div className="flex items-end justify-between pt-8 pb-6">
+                <div className="grid gap-6 pt-8 pb-8">
                     <div>
                         <h1 className="text-lg font-medium">
                             {editing
@@ -518,48 +543,31 @@ export default function LeadsCreate({
                         <p className="text-muted-foreground text-sm">
                             {editing
                                 ? 'Le statut et la place dans le kanban ne changent pas.'
-                                : 'Trois étapes, les deux dernières facultatives.'}
+                                : 'Le contact suffit pour créer le lead. Le projet et la qualification peuvent attendre.'}
                         </p>
                     </div>
-                </div>
-                <div className="pb-6">
                     <Stepper current={step} visited={visited} onSelect={goTo} />
                 </div>
 
-                <div className="grid gap-8">
-                    <form
-                        ref={formRef}
-                        id="lead-form"
-                        onSubmit={submit}
-                        noValidate
-                        className="grid content-start gap-6"
-                        data-test="lead-form"
-                    >
-                        {step === 1 && (
-                            <Section
-                                step={1}
-                                title={current.title}
-                                description={current.description}
+                <form
+                    ref={formRef}
+                    id="lead-form"
+                    onSubmit={submit}
+                    noValidate
+                    className="grid gap-8 pb-8"
+                    data-test="lead-form"
+                >
+                    <p className="text-muted-foreground -mb-4 text-xs font-medium tracking-wide uppercase">
+                        Étape {step} sur {steps.length}
+                    </p>
+
+                    {step === 1 && (
+                        <>
+                            <Group
+                                title="Contact"
+                                hint="Un e-mail ou un téléphone suffit pour commencer."
                             >
                                 <div className="grid gap-5 sm:grid-cols-2">
-                                    <Field
-                                        label="Nom"
-                                        htmlFor="last_name"
-                                        error={errors.last_name}
-                                    >
-                                        <Input
-                                            id="last_name"
-                                            name="last_name"
-                                            required
-                                            autoFocus
-                                            autoComplete="off"
-                                            className="bg-background"
-                                            value={form.data.last_name}
-                                            onChange={(e) =>
-                                                set('last_name')(e.target.value)
-                                            }
-                                        />
-                                    </Field>
                                     <Field
                                         label="Prénom"
                                         htmlFor="first_name"
@@ -568,7 +576,7 @@ export default function LeadsCreate({
                                         <Input
                                             id="first_name"
                                             name="first_name"
-                                            required
+                                            autoFocus
                                             autoComplete="off"
                                             className="bg-background"
                                             value={form.data.first_name}
@@ -576,6 +584,22 @@ export default function LeadsCreate({
                                                 set('first_name')(
                                                     e.target.value,
                                                 )
+                                            }
+                                        />
+                                    </Field>
+                                    <Field
+                                        label="Nom"
+                                        htmlFor="last_name"
+                                        error={errors.last_name}
+                                    >
+                                        <Input
+                                            id="last_name"
+                                            name="last_name"
+                                            autoComplete="off"
+                                            className="bg-background"
+                                            value={form.data.last_name}
+                                            onChange={(e) =>
+                                                set('last_name')(e.target.value)
                                             }
                                         />
                                     </Field>
@@ -611,6 +635,7 @@ export default function LeadsCreate({
                                         label="Société"
                                         htmlFor="company"
                                         error={errors.company}
+                                        hint="Facultatif."
                                     >
                                         <Input
                                             id="company"
@@ -708,47 +733,56 @@ export default function LeadsCreate({
                                         </AlertDescription>
                                     </Alert>
                                 )}
-                                <Field
-                                    label="Formule choisie"
-                                    error={errors.offer}
+                            </Group>
+
+                            <Separator />
+
+                            <Group
+                                title="Formule"
+                                hint="Celle que le prospect envisage. Modifiable plus tard."
+                            >
+                                <RadioGroup
+                                    value={form.data.offer}
+                                    onValueChange={(value) =>
+                                        set('offer')(value as OfferValue)
+                                    }
+                                    className="grid gap-3 sm:grid-cols-2"
                                 >
-                                    <RadioGroup
-                                        value={form.data.offer}
-                                        onValueChange={(value) =>
-                                            set('offer')(value as OfferValue)
-                                        }
-                                        className="grid gap-3 sm:grid-cols-2"
-                                    >
-                                        {offers.map((offer) => (
-                                            <Label
-                                                key={offer.value}
-                                                htmlFor={`offer-${offer.value}`}
-                                                className="bg-background has-data-[state=checked]:border-primary flex cursor-pointer items-start gap-3 rounded-lg border p-4 font-normal"
-                                            >
-                                                <RadioGroupItem
-                                                    id={`offer-${offer.value}`}
-                                                    value={offer.value}
-                                                    aria-label={offer.label}
-                                                    className="mt-0.5"
-                                                />
-                                                <span className="grid min-w-0 flex-1 gap-1">
-                                                    <span className="flex items-center justify-between gap-2 font-medium">
-                                                        {offer.label}
-                                                        <span className="text-muted-foreground text-sm font-normal tabular-nums">
-                                                            {formatMoney(
-                                                                offer.price_cents,
-                                                                'EUR',
-                                                            )}
-                                                        </span>
-                                                    </span>
-                                                    <span className="text-muted-foreground text-sm">
-                                                        {offer.summary}
+                                    {offers.map((offer) => (
+                                        <Label
+                                            key={offer.value}
+                                            htmlFor={`offer-${offer.value}`}
+                                            className="bg-background has-data-[state=checked]:border-primary flex cursor-pointer items-start gap-3 rounded-lg border p-4 font-normal"
+                                        >
+                                            <RadioGroupItem
+                                                id={`offer-${offer.value}`}
+                                                value={offer.value}
+                                                aria-label={offer.label}
+                                                className="mt-0.5"
+                                            />
+                                            <span className="grid min-w-0 flex-1 gap-1">
+                                                <span className="flex items-center justify-between gap-2 font-medium">
+                                                    {offer.label}
+                                                    <span className="text-muted-foreground text-sm font-normal tabular-nums">
+                                                        {formatMoney(
+                                                            offer.price_cents,
+                                                            'EUR',
+                                                        )}
                                                     </span>
                                                 </span>
-                                            </Label>
-                                        ))}
-                                    </RadioGroup>
-                                </Field>
+                                                <span className="text-muted-foreground text-sm">
+                                                    {offer.summary}
+                                                </span>
+                                            </span>
+                                        </Label>
+                                    ))}
+                                </RadioGroup>
+                                <InputError message={errors.offer} />
+                            </Group>
+
+                            <Separator />
+
+                            <Group title="Source">
                                 <div className="grid gap-5 sm:grid-cols-2">
                                     <Field
                                         label="Source du lead"
@@ -783,15 +817,15 @@ export default function LeadsCreate({
                                         </Select>
                                     </Field>
                                     <Field
-                                        label="Précision sur la source"
+                                        label="Précision"
                                         htmlFor="source_note"
                                         error={errors.source_note}
+                                        hint="Recommandé par…, campagne…"
                                     >
                                         <Input
                                             id="source_note"
                                             name="source_note"
                                             autoComplete="off"
-                                            placeholder="Recommandé par…, campagne…"
                                             className="bg-background"
                                             value={form.data.source_note}
                                             onChange={(e) =>
@@ -802,27 +836,28 @@ export default function LeadsCreate({
                                         />
                                     </Field>
                                 </div>
-                            </Section>
-                        )}
+                            </Group>
+                        </>
+                    )}
 
-                        {step === 2 && (
-                            <Section
-                                step={2}
-                                title={current.title}
-                                description={current.description}
+                    {step === 2 && (
+                        <>
+                            <Group
+                                title="Budget et calendrier"
+                                hint="Ce que le prospect peut mettre chaque mois, et quand il souhaite emménager."
                             >
-                                <div className="grid gap-5 sm:grid-cols-3">
+                                <div className="grid gap-5 sm:grid-cols-2">
                                     <Field
                                         label="Budget mensuel (€ / mois)"
                                         htmlFor="budget"
                                         error={errors.budget_cents}
-                                        className="sm:col-span-2"
                                     >
                                         <Input
                                             id="budget"
                                             name="budget"
                                             inputMode="decimal"
                                             placeholder="2500"
+                                            autoFocus
                                             aria-invalid={Boolean(
                                                 errors.budget_cents,
                                             )}
@@ -908,15 +943,24 @@ export default function LeadsCreate({
                                             </AlertDescription>
                                         </Alert>
                                     )}
-                                <Field
-                                    label="Quartiers visés"
-                                    error={errors.districts}
-                                >
-                                    <DistrictMap
-                                        value={form.data.districts}
-                                        onChange={set('districts')}
-                                    />
-                                </Field>
+                            </Group>
+
+                            <Separator />
+
+                            <Group
+                                title="Quartiers visés"
+                                hint="Cliquez les arrondissements, ou tout Paris."
+                            >
+                                <DistrictMap
+                                    value={form.data.districts}
+                                    onChange={set('districts')}
+                                />
+                                <InputError message={errors.districts} />
+                            </Group>
+
+                            <Separator />
+
+                            <Group title="Conditions">
                                 <div className="grid gap-5 sm:grid-cols-3">
                                     <Field
                                         label="Durée d'installation"
@@ -1015,22 +1059,26 @@ export default function LeadsCreate({
                                         </Select>
                                     </Field>
                                 </div>
-                                <Field
-                                    label="Ville d'origine"
-                                    htmlFor="origin_city"
-                                    error={errors.origin_city}
-                                >
-                                    <Input
-                                        id="origin_city"
-                                        name="origin_city"
-                                        autoComplete="off"
-                                        className="bg-background"
-                                        value={form.data.origin_city}
-                                        onChange={(e) =>
-                                            set('origin_city')(e.target.value)
-                                        }
-                                    />
-                                </Field>
+                                <div className="grid gap-5 sm:grid-cols-2">
+                                    <Field
+                                        label="Ville d'origine"
+                                        htmlFor="origin_city"
+                                        error={errors.origin_city}
+                                    >
+                                        <Input
+                                            id="origin_city"
+                                            name="origin_city"
+                                            autoComplete="off"
+                                            className="bg-background"
+                                            value={form.data.origin_city}
+                                            onChange={(e) =>
+                                                set('origin_city')(
+                                                    e.target.value,
+                                                )
+                                            }
+                                        />
+                                    </Field>
+                                </div>
                                 <Field
                                     label="Note sur le projet"
                                     htmlFor="message"
@@ -1048,14 +1096,15 @@ export default function LeadsCreate({
                                         }
                                     />
                                 </Field>
-                            </Section>
-                        )}
+                            </Group>
+                        </>
+                    )}
 
-                        {step === 3 && (
-                            <Section
-                                step={3}
-                                title={current.title}
-                                description={current.description}
+                    {step === 3 && (
+                        <>
+                            <Group
+                                title="Qualité du lead"
+                                hint="Votre évaluation, pour prioriser le kanban."
                             >
                                 <div className="grid gap-2">
                                     <Label id="score-label">Note</Label>
@@ -1113,7 +1162,84 @@ export default function LeadsCreate({
                                     </div>
                                     <InputError message={errors.score} />
                                 </div>
-                                <div className="grid gap-5 sm:grid-cols-2">
+                                <Field
+                                    label="Note de qualification"
+                                    htmlFor="qualification_note"
+                                    error={errors.qualification_note}
+                                >
+                                    <Textarea
+                                        id="qualification_note"
+                                        name="qualification_note"
+                                        rows={3}
+                                        className="bg-background"
+                                        placeholder="Motivation, solvabilité, points d'attention…"
+                                        value={form.data.qualification_note}
+                                        onChange={(e) =>
+                                            set('qualification_note')(
+                                                e.target.value,
+                                            )
+                                        }
+                                    />
+                                </Field>
+                            </Group>
+
+                            <Separator />
+
+                            <Group
+                                title="Suite à donner"
+                                hint="Qui suit ce lead, et quand le recontacter."
+                            >
+                                <div className="grid gap-5 sm:grid-cols-3">
+                                    <Field
+                                        label="Suivi par"
+                                        htmlFor="assigned_to"
+                                        error={errors.assigned_to}
+                                    >
+                                        <Select
+                                            value={
+                                                form.data.assigned_to === null
+                                                    ? 'none'
+                                                    : String(
+                                                          form.data.assigned_to,
+                                                      )
+                                            }
+                                            onValueChange={(value) =>
+                                                set('assigned_to')(
+                                                    value === 'none'
+                                                        ? null
+                                                        : Number(value),
+                                                )
+                                            }
+                                        >
+                                            <SelectTrigger
+                                                id="assigned_to"
+                                                aria-label="Suivi par"
+                                                className="bg-background w-full"
+                                            >
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">
+                                                    <UserRound />
+                                                    Personne pour l'instant
+                                                </SelectItem>
+                                                {staff.map((member) => (
+                                                    <SelectItem
+                                                        key={member.id}
+                                                        value={String(
+                                                            member.id,
+                                                        )}
+                                                    >
+                                                        {member.name}
+                                                        {member.id ===
+                                                        auth.user?.id
+                                                            ? ' (moi)'
+                                                            : ''}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </Field>
                                     <Field
                                         label="Recontacter par"
                                         htmlFor="recontact_channel"
@@ -1161,76 +1287,12 @@ export default function LeadsCreate({
                                         />
                                     </Field>
                                 </div>
-                                <Field
-                                    label="Suivi par"
-                                    htmlFor="assigned_to"
-                                    error={errors.assigned_to}
-                                >
-                                    <Select
-                                        value={
-                                            form.data.assigned_to === null
-                                                ? 'none'
-                                                : String(form.data.assigned_to)
-                                        }
-                                        onValueChange={(value) =>
-                                            set('assigned_to')(
-                                                value === 'none'
-                                                    ? null
-                                                    : Number(value),
-                                            )
-                                        }
-                                    >
-                                        <SelectTrigger
-                                            id="assigned_to"
-                                            aria-label="Suivi par"
-                                            className="bg-background w-full sm:max-w-xs"
-                                        >
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none">
-                                                <UserRound />
-                                                Personne pour l'instant
-                                            </SelectItem>
-                                            {staff.map((member) => (
-                                                <SelectItem
-                                                    key={member.id}
-                                                    value={String(member.id)}
-                                                >
-                                                    {member.name}
-                                                    {member.id === auth.user?.id
-                                                        ? ' (moi)'
-                                                        : ''}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </Field>
-                                <Field
-                                    label="Note de qualification\"
-                                    htmlFor="qualification_note"
-                                    error={errors.qualification_note}
-                                >
-                                    <Textarea
-                                        id="qualification_note"
-                                        name="qualification_note"
-                                        rows={3}
-                                        className="bg-background"
-                                        placeholder="Motivation, solvabilité, points d'attention…"
-                                        value={form.data.qualification_note}
-                                        onChange={(e) =>
-                                            set('qualification_note')(
-                                                e.target.value,
-                                            )
-                                        }
-                                    />
-                                </Field>
-                            </Section>
-                        )}
-                    </form>
-                </div>
+                            </Group>
+                        </>
+                    )}
+                </form>
             </div>
-            <FormActionBar>
+            <FormActionBar innerClassName="max-w-3xl">
                 {step > 1 && (
                     <Button
                         type="button"
@@ -1243,11 +1305,7 @@ export default function LeadsCreate({
                     </Button>
                 )}
                 <Button type="button" variant="ghost" asChild>
-                    <Link
-                        href={lead ? leadShow({ lead: lead.id }) : leadsIndex()}
-                    >
-                        Annuler
-                    </Link>
+                    <Link href={cancelHref}>Annuler</Link>
                 </Button>
                 {!editing && step === 2 && (
                     <Button

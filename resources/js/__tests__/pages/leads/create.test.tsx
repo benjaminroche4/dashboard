@@ -173,7 +173,7 @@ describe('Converting Machine page', () => {
             screen.getByRole('heading', { name: 'Contact' }),
         ).toBeInTheDocument();
         expect(
-            screen.queryByRole('heading', { name: 'Projet logement' }),
+            screen.queryByRole('heading', { name: 'Budget et calendrier' }),
         ).not.toBeInTheDocument();
         expect(screen.getByText('Étape 1 sur 3')).toBeInTheDocument();
 
@@ -183,8 +183,9 @@ describe('Converting Machine page', () => {
         await user.click(screen.getByRole('button', { name: 'Continuer' }));
 
         expect(
-            screen.getByRole('heading', { name: 'Projet logement' }),
+            screen.getByRole('heading', { name: 'Budget et calendrier' }),
         ).toBeInTheDocument();
+        expect(screen.getByText('Étape 2 sur 3')).toBeInTheDocument();
         await user.type(
             screen.getByLabelText('Budget mensuel (€ / mois)'),
             '2500',
