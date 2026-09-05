@@ -1,12 +1,4 @@
-import {
-    Bell,
-    Calendar,
-    ChartPie,
-    ClipboardCheck,
-    ClipboardList,
-    Contact,
-    LayoutGrid,
-} from 'lucide-react';
+import { Contact } from 'lucide-react';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { WorkspaceSwitcher } from '@/components/workspace-switcher';
@@ -17,42 +9,24 @@ import {
     SidebarHeader,
     SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
 import { index as invoicesIndex } from '@/routes/invoices';
 import { create as leadsCreate, index as leadsIndex } from '@/routes/leads';
 import type { NavGroup } from '@/types';
 
-// Les pages hors tableau de bord ne sont pas encore créées : liens en attente.
 const navGroups: NavGroup[] = [
-    {
-        label: 'Général',
-        items: [
-            {
-                title: 'Tableau de bord',
-                href: dashboard(),
-                icon: LayoutGrid,
-                badge: 3,
-            },
-            { title: 'Projets', href: '#', icon: ClipboardList },
-            { title: 'Notifications', href: '#', icon: Bell, badge: 8 },
-        ],
-    },
     {
         label: 'Gestion',
         items: [
             {
                 title: 'Leads',
-                href: '#',
+                href: leadsIndex(),
                 icon: Contact,
                 items: [
-                    { title: 'Kanban des leads', href: leadsIndex() },
+                    { title: 'Liste des leads', href: leadsIndex() },
                     { title: 'Converting Machine', href: leadsCreate() },
                     { title: 'Factures', href: invoicesIndex() },
                 ],
             },
-            { title: 'Rapports', href: '#', icon: ChartPie },
-            { title: 'Calendrier', href: '#', icon: Calendar },
-            { title: 'Tâches', href: '#', icon: ClipboardCheck },
         ],
     },
 ];

@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { LayoutGrid, Users } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@inertiajs/react', () => ({
     Link: ({
@@ -67,6 +68,8 @@ function renderNav() {
         </TooltipProvider>,
     );
 }
+
+beforeEach(() => localStorage.clear());
 
 describe('NavMain', () => {
     it('renders one group per section with its label', () => {
@@ -156,5 +159,37 @@ describe('NavMain closed branches', () => {
             'closed',
         );
         expect(screen.queryByRole('link', { name: 'Membres' })).toBeNull();
+    });
+});
+
+describe('NavMain remembered branches', () => {
+    it('persists a closed branch across refreshes even if it holds the current page', async () => {
+        const user = userEvent.setup();
+        const { unmount } = renderNav();
+
+        await user.click(screen.getByRole('button', { name: /Personnes/ }));
+
+        expect(localStorage.getItem('sidebar.branch.Personnes')).toBe('0');
+        unmount();
+
+        renderNav();
+
+        expect(
+            screen.getByRole('button', { name: /Personnes/ }),
+        ).toHaveAttribute('data-state', 'closed');
+    });
+
+    it('reopens a branch the user had opened', async () => {
+        vi.doMock('@/hooks/use-current-url', () => ({
+            useCurrentUrl: () => ({ isCurrentUrl: () => false }),
+        }));
+        localStorage.setItem('sidebar.branch.Personnes', '1');
+
+        renderNav();
+
+        expect(
+            screen.getByRole('button', { name: /Personnes/ }),
+        ).toHaveAttribute('data-state', 'open');
+        expect(screen.getByRole('link', { name: 'Employés' })).toBeVisible();
     });
 });
