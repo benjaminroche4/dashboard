@@ -3,6 +3,8 @@ import { Star } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { DatePicker } from '@/components/date-picker';
 import InputError from '@/components/input-error';
+import { DistrictMap } from '@/components/leads/district-map';
+import { PhoneInput } from '@/components/phone-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +19,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { toCents } from '@/lib/invoice-totals';
 import { cn } from '@/lib/utils';
 import {
@@ -27,17 +30,30 @@ import {
 } from '@/routes/leads';
 import type {
     Currency,
+    Furnished,
+    GuarantorType,
+    LabeledOption,
+    LeadDuration,
     LeadEditable,
     LeadForm,
+    LeadLanguage,
     LeadSource,
     OfferValue,
+    PropertyType,
+    RecontactChannel,
 } from '@/types';
 
 type Props = {
     offers: { value: OfferValue; label: string; description: string }[];
-    sources: { value: LeadSource; label: string }[];
-    currencies: { value: Currency; label: string }[];
+    sources: LabeledOption<LeadSource>[];
+    currencies: LabeledOption<Currency>[];
     defaultCurrency: Currency;
+    languages: LabeledOption<LeadLanguage>[];
+    propertyTypes: LabeledOption<PropertyType>[];
+    durations: LabeledOption<LeadDuration>[];
+    guarantors: LabeledOption<GuarantorType>[];
+    furnishedOptions: LabeledOption<Furnished>[];
+    recontactChannels: LabeledOption<RecontactChannel>[];
     /** Présent en mode modification. */
     lead?: LeadEditable;
 };
@@ -49,6 +65,48 @@ function toForm(lead: LeadEditable): LeadForm {
     return form;
 }
 
+function Section({
+    title,
+    description,
+    children,
+}: {
+    title: string;
+    description: string;
+    children: React.ReactNode;
+}) {
+    return (
+        <section className="grid gap-5">
+            <div>
+                <h2 className="text-base font-medium">{title}</h2>
+                <p className="text-muted-foreground text-sm">{description}</p>
+            </div>
+            {children}
+        </section>
+    );
+}
+
+function Field({
+    label,
+    htmlFor,
+    error,
+    children,
+    className,
+}: {
+    label: string;
+    htmlFor?: string;
+    error?: string;
+    children: React.ReactNode;
+    className?: string;
+}) {
+    return (
+        <div className={cn('grid gap-2', className)}>
+            <Label htmlFor={htmlFor}>{label}</Label>
+            {children}
+            <InputError message={error} />
+        </div>
+    );
+}
+
 /**
  * Converting Machine : le formulaire de qualification d'un prospect,
  * aussi utilisé pour modifier un lead existant.
@@ -58,6 +116,12 @@ export default function LeadsCreate({
     sources,
     currencies,
     defaultCurrency,
+    languages,
+    propertyTypes,
+    durations,
+    guarantors,
+    furnishedOptions,
+    recontactChannels,
     lead,
 }: Props) {
     const editing = lead !== undefined;
@@ -69,18 +133,45 @@ export default function LeadsCreate({
                   last_name: '',
                   email: '',
                   phone: '',
+                  company: '',
+                  language: 'fr',
                   offer: '',
-                  arrival_at: '',
+                  source: sources[0]?.value ?? 'website',
+                  source_note: '',
                   budget: '',
                   currency: defaultCurrency,
+                  arrival_at: '',
                   origin_city: '',
-                  source: sources[0]?.value ?? 'website',
+                  districts: [],
+                  property_types: [],
+                  duration: '',
+                  guarantor: '',
+                  furnished: '',
                   message: '',
                   score: null,
+                  recontact_channel: '',
+                  recontact_at: '',
+                  qualification_note: '',
               },
     );
-
     const errors = form.errors as Record<string, string | undefined>;
+    const set =
+        <K extends keyof LeadForm>(key: K) =>
+        (value: LeadForm[K]) =>
+            form.setData((data) => ({ ...data, [key]: value }));
+    const selectOptions = <T extends string>(
+        options: LabeledOption<T>[],
+        none: string,
+    ) => (
+        <SelectContent>
+            <SelectItem value="none">{none}</SelectItem>
+            {options.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                </SelectItem>
+            ))}
+        </SelectContent>
+    );
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -88,9 +179,16 @@ export default function LeadsCreate({
             ...data,
             offer: data.offer === '' ? null : data.offer,
             arrival_at: data.arrival_at === '' ? null : data.arrival_at,
+            recontact_at: data.recontact_at === '' ? null : data.recontact_at,
+            duration: data.duration === '' ? null : data.duration,
+            guarantor: data.guarantor === '' ? null : data.guarantor,
+            furnished: data.furnished === '' ? null : data.furnished,
+            recontact_channel:
+                data.recontact_channel === '' ? null : data.recontact_channel,
             budget_cents:
                 data.budget.trim() === '' ? null : toCents(data.budget),
         }));
+
         if (lead) {
             form.put(update({ lead: lead.id }).url);
         } else {
@@ -114,7 +212,7 @@ export default function LeadsCreate({
                         <p className="text-muted-foreground text-sm">
                             {editing
                                 ? 'Le statut et la place dans le kanban ne changent pas.'
-                                : 'Qualifiez un prospect en quelques champs, il rejoint le kanban des leads dans « À traiter ».'}
+                                : 'Qualifiez un prospect : contact, projet logement, qualité du lead.'}
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -146,53 +244,51 @@ export default function LeadsCreate({
                     className="grid gap-8"
                     data-test="lead-form"
                 >
-                    <section className="grid gap-5">
-                        <div>
-                            <h2 className="text-base font-medium">Contact</h2>
-                            <p className="text-muted-foreground text-sm">
-                                Un e-mail ou un téléphone suffit.
-                            </p>
-                        </div>
+                    <Section
+                        title="Contact"
+                        description="Un e-mail ou un téléphone suffit pour commencer."
+                    >
                         <div className="grid gap-5 sm:grid-cols-2">
-                            <div className="grid gap-2">
-                                <Label htmlFor="first_name">Prénom</Label>
-                                <Input
-                                    id="first_name"
-                                    name="first_name"
-                                    required
-                                    autoFocus
-                                    autoComplete="off"
-                                    className="bg-background"
-                                    value={form.data.first_name}
-                                    onChange={(e) =>
-                                        form.setData(
-                                            'first_name',
-                                            e.target.value,
-                                        )
-                                    }
-                                />
-                                <InputError message={errors.first_name} />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="last_name">Nom</Label>
+                            <Field
+                                label="Nom"
+                                htmlFor="last_name"
+                                error={errors.last_name}
+                            >
                                 <Input
                                     id="last_name"
                                     name="last_name"
                                     required
+                                    autoFocus
                                     autoComplete="off"
                                     className="bg-background"
                                     value={form.data.last_name}
                                     onChange={(e) =>
-                                        form.setData(
-                                            'last_name',
-                                            e.target.value,
-                                        )
+                                        set('last_name')(e.target.value)
                                     }
                                 />
-                                <InputError message={errors.last_name} />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">E-mail</Label>
+                            </Field>
+                            <Field
+                                label="Prénom"
+                                htmlFor="first_name"
+                                error={errors.first_name}
+                            >
+                                <Input
+                                    id="first_name"
+                                    name="first_name"
+                                    required
+                                    autoComplete="off"
+                                    className="bg-background"
+                                    value={form.data.first_name}
+                                    onChange={(e) =>
+                                        set('first_name')(e.target.value)
+                                    }
+                                />
+                            </Field>
+                            <Field
+                                label="E-mail"
+                                htmlFor="email"
+                                error={errors.email}
+                            >
                                 <Input
                                     id="email"
                                     name="email"
@@ -201,44 +297,69 @@ export default function LeadsCreate({
                                     className="bg-background"
                                     value={form.data.email}
                                     onChange={(e) =>
-                                        form.setData('email', e.target.value)
+                                        set('email')(e.target.value)
                                     }
                                 />
-                                <InputError message={errors.email} />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="phone">Téléphone</Label>
-                                <Input
+                            </Field>
+                            <Field
+                                label="Téléphone"
+                                htmlFor="phone"
+                                error={errors.phone}
+                            >
+                                <PhoneInput
                                     id="phone"
-                                    name="phone"
-                                    type="tel"
+                                    value={form.data.phone}
+                                    onChange={set('phone')}
+                                />
+                            </Field>
+                            <Field
+                                label="Société"
+                                htmlFor="company"
+                                error={errors.company}
+                            >
+                                <Input
+                                    id="company"
+                                    name="company"
                                     autoComplete="off"
                                     className="bg-background"
-                                    value={form.data.phone}
+                                    value={form.data.company}
                                     onChange={(e) =>
-                                        form.setData('phone', e.target.value)
+                                        set('company')(e.target.value)
                                     }
                                 />
-                                <InputError message={errors.phone} />
-                            </div>
+                            </Field>
+                            <Field label="Langue" error={errors.language}>
+                                <ToggleGroup
+                                    type="single"
+                                    variant="outline"
+                                    value={form.data.language}
+                                    onValueChange={(value) => {
+                                        if (value) {
+                                            set('language')(
+                                                value as LeadLanguage,
+                                            );
+                                        }
+                                    }}
+                                    aria-label="Langue"
+                                    className="justify-start"
+                                >
+                                    {languages.map((language) => (
+                                        <ToggleGroupItem
+                                            key={language.value}
+                                            value={language.value}
+                                            className="bg-background px-4"
+                                        >
+                                            {language.label}
+                                        </ToggleGroupItem>
+                                    ))}
+                                </ToggleGroup>
+                            </Field>
                         </div>
-                    </section>
-
-                    <Separator />
-
-                    <section className="grid gap-5">
-                        <div>
-                            <h2 className="text-base font-medium">Projet</h2>
-                            <p className="text-muted-foreground text-sm">
-                                Ce que le prospect cherche à Paris.
-                            </p>
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Offre visée</Label>
+                        <Field label="Formule choisie" error={errors.offer}>
                             <RadioGroup
                                 value={form.data.offer}
                                 onValueChange={(value) =>
-                                    form.setData('offer', value as OfferValue)
+                                    set('offer')(value as OfferValue)
                                 }
                                 className="grid gap-3 sm:grid-cols-2"
                             >
@@ -265,25 +386,70 @@ export default function LeadsCreate({
                                     </Label>
                                 ))}
                             </RadioGroup>
-                            <InputError message={errors.offer} />
-                        </div>
-                        <div className="grid gap-5 sm:grid-cols-3">
-                            <div className="grid gap-2">
-                                <Label htmlFor="arrival_at">
-                                    Date d'arrivée
-                                </Label>
-                                <DatePicker
-                                    id="arrival_at"
-                                    aria-label="Date d'arrivée"
-                                    value={form.data.arrival_at}
-                                    onChange={(value) =>
-                                        form.setData('arrival_at', value)
+                        </Field>
+                        <div className="grid gap-5 sm:grid-cols-2">
+                            <Field
+                                label="Source du lead"
+                                htmlFor="source"
+                                error={errors.source}
+                            >
+                                <Select
+                                    value={form.data.source}
+                                    onValueChange={(value) =>
+                                        set('source')(value as LeadSource)
+                                    }
+                                >
+                                    <SelectTrigger
+                                        id="source"
+                                        aria-label="Source"
+                                        className="bg-background w-full"
+                                    >
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {sources.map((source) => (
+                                            <SelectItem
+                                                key={source.value}
+                                                value={source.value}
+                                            >
+                                                {source.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </Field>
+                            <Field
+                                label="Précision sur la source"
+                                htmlFor="source_note"
+                                error={errors.source_note}
+                            >
+                                <Input
+                                    id="source_note"
+                                    name="source_note"
+                                    autoComplete="off"
+                                    placeholder="Recommandé par…, campagne…"
+                                    className="bg-background"
+                                    value={form.data.source_note}
+                                    onChange={(e) =>
+                                        set('source_note')(e.target.value)
                                     }
                                 />
-                                <InputError message={errors.arrival_at} />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="budget">Budget mensuel</Label>
+                            </Field>
+                        </div>
+                    </Section>
+
+                    <Separator />
+
+                    <Section
+                        title="Projet logement"
+                        description="Ce que le prospect cherche à Paris."
+                    >
+                        <div className="grid gap-5 sm:grid-cols-3">
+                            <Field
+                                label="Budget mensuel"
+                                htmlFor="budget"
+                                error={errors.budget_cents}
+                            >
                                 <Input
                                     id="budget"
                                     name="budget"
@@ -292,26 +458,21 @@ export default function LeadsCreate({
                                     className="bg-background"
                                     value={form.data.budget}
                                     onChange={(e) =>
-                                        form.setData('budget', e.target.value)
+                                        set('budget')(e.target.value)
                                     }
                                 />
-                                <InputError message={errors.budget_cents} />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="currency">Devise</Label>
+                            </Field>
+                            <Field label="Devise" htmlFor="currency">
                                 <Select
                                     value={form.data.currency}
                                     onValueChange={(value) =>
-                                        form.setData(
-                                            'currency',
-                                            value as Currency,
-                                        )
+                                        set('currency')(value as Currency)
                                     }
                                 >
                                     <SelectTrigger
                                         id="currency"
-                                        className="bg-background w-full"
                                         aria-label="Devise"
+                                        className="bg-background w-full"
                                     >
                                         <SelectValue />
                                     </SelectTrigger>
@@ -326,10 +487,150 @@ export default function LeadsCreate({
                                         ))}
                                     </SelectContent>
                                 </Select>
-                            </div>
+                            </Field>
+                            <Field
+                                label="Emménagement souhaité"
+                                htmlFor="arrival_at"
+                                error={errors.arrival_at}
+                            >
+                                <DatePicker
+                                    id="arrival_at"
+                                    aria-label="Emménagement souhaité"
+                                    value={form.data.arrival_at}
+                                    onChange={set('arrival_at')}
+                                />
+                            </Field>
                         </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="origin_city">Ville d'origine</Label>
+                        <Field label="Quartiers visés" error={errors.districts}>
+                            <DistrictMap
+                                value={form.data.districts}
+                                onChange={set('districts')}
+                            />
+                        </Field>
+                        <Field
+                            label="Type de bien"
+                            error={errors.property_types}
+                        >
+                            <ToggleGroup
+                                type="multiple"
+                                variant="outline"
+                                value={form.data.property_types}
+                                onValueChange={(value) =>
+                                    set('property_types')(
+                                        value as PropertyType[],
+                                    )
+                                }
+                                aria-label="Type de bien"
+                                className="flex-wrap justify-start gap-2"
+                            >
+                                {propertyTypes.map((type) => (
+                                    <ToggleGroupItem
+                                        key={type.value}
+                                        value={type.value}
+                                        className="bg-background data-[state=on]:border-primary rounded-md border px-3 first:rounded-md last:rounded-md"
+                                    >
+                                        {type.label}
+                                    </ToggleGroupItem>
+                                ))}
+                            </ToggleGroup>
+                        </Field>
+                        <div className="grid gap-5 sm:grid-cols-3">
+                            <Field
+                                label="Durée d'installation"
+                                htmlFor="duration"
+                                error={errors.duration}
+                            >
+                                <Select
+                                    value={
+                                        form.data.duration === ''
+                                            ? 'none'
+                                            : form.data.duration
+                                    }
+                                    onValueChange={(value) =>
+                                        set('duration')(
+                                            value === 'none'
+                                                ? ''
+                                                : (value as LeadDuration),
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger
+                                        id="duration"
+                                        aria-label="Durée d'installation"
+                                        className="bg-background w-full"
+                                    >
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    {selectOptions(durations, 'À définir')}
+                                </Select>
+                            </Field>
+                            <Field
+                                label="Type de garant"
+                                htmlFor="guarantor"
+                                error={errors.guarantor}
+                            >
+                                <Select
+                                    value={
+                                        form.data.guarantor === ''
+                                            ? 'none'
+                                            : form.data.guarantor
+                                    }
+                                    onValueChange={(value) =>
+                                        set('guarantor')(
+                                            value === 'none'
+                                                ? ''
+                                                : (value as GuarantorType),
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger
+                                        id="guarantor"
+                                        aria-label="Type de garant"
+                                        className="bg-background w-full"
+                                    >
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    {selectOptions(guarantors, 'À définir')}
+                                </Select>
+                            </Field>
+                            <Field
+                                label="Meublé"
+                                htmlFor="furnished"
+                                error={errors.furnished}
+                            >
+                                <Select
+                                    value={
+                                        form.data.furnished === ''
+                                            ? 'none'
+                                            : form.data.furnished
+                                    }
+                                    onValueChange={(value) =>
+                                        set('furnished')(
+                                            value === 'none'
+                                                ? ''
+                                                : (value as Furnished),
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger
+                                        id="furnished"
+                                        aria-label="Meublé"
+                                        className="bg-background w-full"
+                                    >
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    {selectOptions(
+                                        furnishedOptions,
+                                        'À définir',
+                                    )}
+                                </Select>
+                            </Field>
+                        </div>
+                        <Field
+                            label="Ville d'origine"
+                            htmlFor="origin_city"
+                            error={errors.origin_city}
+                        >
                             <Input
                                 id="origin_city"
                                 name="origin_city"
@@ -337,52 +638,35 @@ export default function LeadsCreate({
                                 className="bg-background"
                                 value={form.data.origin_city}
                                 onChange={(e) =>
-                                    form.setData('origin_city', e.target.value)
+                                    set('origin_city')(e.target.value)
                                 }
                             />
-                            <InputError message={errors.origin_city} />
-                        </div>
-                    </section>
+                        </Field>
+                        <Field
+                            label="Note sur le projet"
+                            htmlFor="message"
+                            error={errors.message}
+                        >
+                            <Textarea
+                                id="message"
+                                name="message"
+                                rows={4}
+                                className="bg-background"
+                                placeholder="Besoins, contraintes, contexte…"
+                                value={form.data.message}
+                                onChange={(e) => set('message')(e.target.value)}
+                            />
+                        </Field>
+                    </Section>
 
                     <Separator />
 
-                    <section className="grid gap-5">
-                        <div>
-                            <h2 className="text-base font-medium">Suivi</h2>
-                            <p className="text-muted-foreground text-sm">
-                                D'où vient le lead et ce qu'il vous a dit.
-                            </p>
-                        </div>
-                        <div className="grid gap-2 sm:max-w-xs">
-                            <Label htmlFor="source">Source</Label>
-                            <Select
-                                value={form.data.source}
-                                onValueChange={(value) =>
-                                    form.setData('source', value as LeadSource)
-                                }
-                            >
-                                <SelectTrigger
-                                    id="source"
-                                    className="bg-background w-full"
-                                    aria-label="Source"
-                                >
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {sources.map((source) => (
-                                        <SelectItem
-                                            key={source.value}
-                                            value={source.value}
-                                        >
-                                            {source.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <InputError message={errors.source} />
-                        </div>
+                    <Section
+                        title="Qualité du lead"
+                        description="Votre évaluation et la suite à donner."
+                    >
                         <div className="grid gap-2">
-                            <Label id="score-label">Qualité du lead</Label>
+                            <Label id="score-label">Note</Label>
                             <div
                                 role="radiogroup"
                                 aria-labelledby="score-label"
@@ -403,8 +687,7 @@ export default function LeadsCreate({
                                             }
                                             aria-label={`${value} sur 5`}
                                             onClick={() =>
-                                                form.setData(
-                                                    'score',
+                                                set('score')(
                                                     form.data.score === value
                                                         ? null
                                                         : value,
@@ -435,22 +718,70 @@ export default function LeadsCreate({
                             </div>
                             <InputError message={errors.score} />
                         </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="message">Message</Label>
+                        <div className="grid gap-5 sm:grid-cols-2">
+                            <Field
+                                label="Recontacter par"
+                                htmlFor="recontact_channel"
+                                error={errors.recontact_channel}
+                            >
+                                <Select
+                                    value={
+                                        form.data.recontact_channel === ''
+                                            ? 'none'
+                                            : form.data.recontact_channel
+                                    }
+                                    onValueChange={(value) =>
+                                        set('recontact_channel')(
+                                            value === 'none'
+                                                ? ''
+                                                : (value as RecontactChannel),
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger
+                                        id="recontact_channel"
+                                        aria-label="Recontacter par"
+                                        className="bg-background w-full"
+                                    >
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    {selectOptions(
+                                        recontactChannels,
+                                        'Pas de recontact prévu',
+                                    )}
+                                </Select>
+                            </Field>
+                            <Field
+                                label="Recontacter le"
+                                htmlFor="recontact_at"
+                                error={errors.recontact_at}
+                            >
+                                <DatePicker
+                                    id="recontact_at"
+                                    aria-label="Recontacter le"
+                                    value={form.data.recontact_at}
+                                    onChange={set('recontact_at')}
+                                />
+                            </Field>
+                        </div>
+                        <Field
+                            label="Note de qualification"
+                            htmlFor="qualification_note"
+                            error={errors.qualification_note}
+                        >
                             <Textarea
-                                id="message"
-                                name="message"
-                                rows={4}
+                                id="qualification_note"
+                                name="qualification_note"
+                                rows={3}
                                 className="bg-background"
-                                placeholder="Besoins, contraintes, contexte…"
-                                value={form.data.message}
+                                placeholder="Motivation, solvabilité, points d'attention…"
+                                value={form.data.qualification_note}
                                 onChange={(e) =>
-                                    form.setData('message', e.target.value)
+                                    set('qualification_note')(e.target.value)
                                 }
                             />
-                            <InputError message={errors.message} />
-                        </div>
-                    </section>
+                        </Field>
+                    </Section>
                 </form>
             </div>
         </>

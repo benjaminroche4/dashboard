@@ -33,8 +33,19 @@ function useFormStub(initial: Record<string, unknown>) {
         data,
         errors: {},
         processing: false,
-        setData: (key: string, value: unknown) =>
-            setDataState((current) => ({ ...current, [key]: value })),
+        setData: (
+            keyOrUpdater:
+                | string
+                | ((
+                      current: Record<string, unknown>,
+                  ) => Record<string, unknown>),
+            value?: unknown,
+        ) =>
+            setDataState((current) =>
+                typeof keyOrUpdater === 'function'
+                    ? keyOrUpdater(current)
+                    : { ...current, [keyOrUpdater]: value },
+            ),
         transform,
         post,
         put,
@@ -65,6 +76,20 @@ const props = {
         { value: 'CHF' as const, label: 'Franc suisse (CHF)' },
     ],
     defaultCurrency: 'EUR' as const,
+    languages: [
+        { value: 'fr' as const, label: 'Français' },
+        { value: 'en' as const, label: 'Anglais' },
+    ],
+    propertyTypes: [
+        { value: 'studio' as const, label: 'Studio' },
+        { value: 't2' as const, label: 'T2' },
+    ],
+    durations: [
+        { value: 'long' as const, label: 'Long terme · 12 mois et plus' },
+    ],
+    guarantors: [{ value: 'garantme' as const, label: 'Garantme' }],
+    furnishedOptions: [{ value: 'furnished' as const, label: 'Meublé' }],
+    recontactChannels: [{ value: 'phone' as const, label: 'Téléphone' }],
 };
 
 describe('Converting Machine page', () => {
@@ -81,10 +106,10 @@ describe('Converting Machine page', () => {
             screen.getByRole('heading', { name: 'Contact' }),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('heading', { name: 'Projet' }),
+            screen.getByRole('heading', { name: 'Projet logement' }),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('heading', { name: 'Suivi' }),
+            screen.getByRole('heading', { name: 'Qualité du lead' }),
         ).toBeInTheDocument();
 
         await user.type(screen.getByLabelText('Prénom'), 'Léa');
@@ -92,6 +117,19 @@ describe('Converting Machine page', () => {
         await user.type(screen.getByLabelText('E-mail'), 'lea@example.com');
         await user.click(screen.getByRole('radio', { name: 'Confié' }));
         await user.type(screen.getByLabelText('Budget mensuel'), '2500');
+        await user.type(screen.getByLabelText('Téléphone'), '6 12 34 56 78');
+        await user.click(
+            screen.getByRole('button', { name: '3e arrondissement' }),
+        );
+        await user.click(
+            screen.getByRole('button', { name: '11e arrondissement' }),
+        );
+        expect(screen.getByText('3e, 11e')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Tout Paris' }));
+        expect(
+            screen.getByText('Tout Paris', { selector: 'p' }),
+        ).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'T2' }));
         await user.click(screen.getByRole('radio', { name: '4 sur 5' }));
         expect(screen.getByText('4 / 5')).toBeInTheDocument();
         await user.click(
@@ -105,6 +143,11 @@ describe('Converting Machine page', () => {
         const payload = transformer({
             offer: '',
             arrival_at: '',
+            recontact_at: '',
+            duration: '',
+            guarantor: '',
+            furnished: '',
+            recontact_channel: '',
             budget: '2500',
         });
         expect(payload.budget_cents).toBe(250_000);
@@ -123,15 +166,26 @@ describe('Converting Machine page', () => {
                     first_name: 'Léa',
                     last_name: 'Durand',
                     email: 'lea@example.com',
-                    phone: '',
+                    phone: '+41 79 000 00 00',
+                    company: 'Nestlé',
+                    language: 'en',
                     offer: 'confie',
+                    source: 'referral',
+                    source_note: '',
                     arrival_at: '2026-11-01',
                     budget: '2500',
                     currency: 'EUR',
                     origin_city: 'Genève',
-                    source: 'referral',
+                    districts: [3, 4],
+                    property_types: ['t2'],
+                    duration: 'long',
+                    guarantor: '',
+                    furnished: 'furnished',
                     message: '',
                     score: 4,
+                    recontact_channel: '',
+                    recontact_at: '',
+                    qualification_note: '',
                 }}
             />,
         );
@@ -140,6 +194,15 @@ describe('Converting Machine page', () => {
             'Modifier Léa Durand',
         );
         expect(screen.getByLabelText('Prénom')).toHaveValue('Léa');
+        expect(screen.getByLabelText('Téléphone')).toHaveValue('79 000 00 00');
+        expect(screen.getByLabelText('Société')).toHaveValue('Nestlé');
+        expect(screen.getByText('3e, 4e')).toBeInTheDocument();
+        expect(screen.getByLabelText('Téléphone')).toHaveValue('79 000 00 00');
+        expect(screen.getByLabelText('Société')).toHaveValue('Nestlé');
+        expect(screen.getByText('3e, 4e')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: '3e arrondissement' }),
+        ).toHaveAttribute('aria-pressed', 'true');
         expect(screen.getByRole('radio', { name: 'Confié' })).toBeChecked();
         expect(screen.getByText('4 / 5')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Annuler' })).toHaveAttribute(

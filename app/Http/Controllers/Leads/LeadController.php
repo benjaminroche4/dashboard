@@ -11,6 +11,12 @@ use App\Actions\Leads\UpdateLead;
 use App\Actions\Leads\UpdateLeadStatus;
 use App\Data\LeadData;
 use App\Enums\Currency;
+use App\Enums\Furnished;
+use App\Enums\GuarantorType;
+use App\Enums\LeadDuration;
+use App\Enums\LeadLanguage;
+use App\Enums\PropertyType;
+use App\Enums\RecontactChannel;
 use App\Enums\LeadSource;
 use App\Enums\LeadStatus;
 use App\Enums\Offer;
@@ -173,14 +179,25 @@ class LeadController extends Controller
                 'last_name' => $lead->last_name,
                 'email' => $lead->email ?? '',
                 'phone' => $lead->phone ?? '',
+                'company' => $lead->company ?? '',
+                'language' => $lead->language->value,
                 'offer' => $lead->offer === null ? '' : $lead->offer->value,
+                'source' => $lead->source->value,
+                'source_note' => $lead->source_note ?? '',
                 'arrival_at' => $lead->arrival_at?->toDateString() ?? '',
                 'budget' => $lead->budget_cents === null ? '' : (string) ($lead->budget_cents / 100),
                 'currency' => $lead->currency->value,
                 'origin_city' => $lead->origin_city ?? '',
-                'source' => $lead->source->value,
+                'districts' => $lead->districts ?? [],
+                'property_types' => $lead->property_types?->map(fn (PropertyType $type): string => $type->value)->all() ?? [],
+                'duration' => $lead->duration === null ? '' : $lead->duration->value,
+                'guarantor' => $lead->guarantor === null ? '' : $lead->guarantor->value,
+                'furnished' => $lead->furnished === null ? '' : $lead->furnished->value,
                 'message' => $lead->message ?? '',
                 'score' => $lead->score,
+                'recontact_channel' => $lead->recontact_channel === null ? '' : $lead->recontact_channel->value,
+                'recontact_at' => $lead->recontact_at?->toDateString() ?? '',
+                'qualification_note' => $lead->qualification_note ?? '',
             ],
         ]);
     }
@@ -231,8 +248,20 @@ class LeadController extends Controller
             'currency' => $lead->currency->value,
             'origin_city' => $lead->origin_city,
             'source_label' => $lead->source->label(),
+            'source_note' => $lead->source_note,
+            'company' => $lead->company,
+            'language' => $lead->language->value,
+            'language_label' => $lead->language->label(),
+            'districts' => $lead->districts ?? [],
+            'property_types' => $lead->property_types?->map(fn (PropertyType $type): array => ['value' => $type->value, 'label' => $type->label()])->all() ?? [],
+            'duration_label' => $lead->duration?->label(),
+            'guarantor_label' => $lead->guarantor?->label(),
+            'furnished_label' => $lead->furnished?->label(),
             'message' => $lead->message,
             'score' => $lead->score,
+            'recontact_channel_label' => $lead->recontact_channel?->label(),
+            'recontact_at' => $lead->recontact_at?->toDateString(),
+            'qualification_note' => $lead->qualification_note,
             'status' => $lead->status->value,
             'status_label' => $lead->status->label(),
             'position' => $lead->position,
@@ -259,6 +288,12 @@ class LeadController extends Controller
                 Currency::cases(),
             ),
             'defaultCurrency' => config('company.default_currency'),
+            'languages' => LeadLanguage::options(),
+            'propertyTypes' => PropertyType::options(),
+            'durations' => LeadDuration::options(),
+            'guarantors' => GuarantorType::options(),
+            'furnishedOptions' => Furnished::options(),
+            'recontactChannels' => RecontactChannel::options(),
         ];
     }
 

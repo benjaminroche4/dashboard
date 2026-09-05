@@ -38,6 +38,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatDate, formatMoney } from '@/lib/format';
 import { applyMove, columnOf, columnStats } from '@/lib/kanban';
 import { leadUrgency } from '@/lib/lead-urgency';
+import { describeDistricts } from '@/lib/paris-districts';
 import { cn } from '@/lib/utils';
 import { status as leadStatusRoute } from '@/routes/leads';
 import type { Lead, LeadStatus, LeadStatusOption } from '@/types';
@@ -660,7 +661,17 @@ export function LeadCard({
             label: 'Arrivée',
             value: lead.arrival_at ? formatDate(lead.arrival_at) : '—',
         },
-        { label: 'Ville', value: lead.origin_city ?? '—' },
+        {
+            label: 'Quartiers',
+            value: describeDistricts(lead.districts) ?? '—',
+        },
+        {
+            label: 'Bien',
+            value:
+                lead.property_types.length > 0
+                    ? lead.property_types.map((type) => type.label).join(', ')
+                    : '—',
+        },
         { label: 'Source', value: lead.source_label },
     ];
 
@@ -692,7 +703,7 @@ export function LeadCard({
                 <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{lead.name}</p>
                     <p className="text-muted-foreground truncate text-xs">
-                        {contact}
+                        {[lead.company, contact].filter(Boolean).join(' · ')}
                     </p>
                 </div>
                 <div {...stop} className="flex shrink-0 items-center gap-1.5">

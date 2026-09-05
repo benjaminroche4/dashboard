@@ -29,6 +29,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDate, formatMoney } from '@/lib/format';
 import { leadUrgency } from '@/lib/lead-urgency';
+import { describeDistricts } from '@/lib/paris-districts';
 import { cn } from '@/lib/utils';
 import { edit as leadEdit, index as leadsIndex } from '@/routes/leads';
 import { store as storeNote } from '@/routes/leads/notes';
@@ -110,7 +111,30 @@ export default function LeadsShow({ lead, notes, history, statuses }: Props) {
             value: lead.origin_city ?? 'Non précisée',
             icon: <MapPin className="size-3.5" aria-hidden />,
         },
-        { label: 'Source', value: lead.source_label },
+        {
+            label: 'Quartiers visés',
+            value: describeDistricts(lead.districts) ?? 'Non précisés',
+            icon: <MapPin className="size-3.5" aria-hidden />,
+        },
+        {
+            label: 'Type de bien',
+            value:
+                lead.property_types.length > 0
+                    ? lead.property_types.map((type) => type.label).join(', ')
+                    : 'Non précisé',
+        },
+        {
+            label: "Durée d'installation",
+            value: lead.duration_label ?? 'À définir',
+        },
+        { label: 'Garant', value: lead.guarantor_label ?? 'À définir' },
+        { label: 'Meublé', value: lead.furnished_label ?? 'Indifférent' },
+        {
+            label: 'Source',
+            value: lead.source_note
+                ? `${lead.source_label} · ${lead.source_note}`
+                : lead.source_label,
+        },
         {
             label: 'Dernier contact',
             value: lead.last_contacted_at
@@ -170,6 +194,10 @@ export default function LeadsShow({ lead, notes, history, statuses }: Props) {
                                 </span>
                             </div>
                             <p className="text-muted-foreground text-sm">
+                                {[lead.company, lead.language_label]
+                                    .filter(Boolean)
+                                    .join(' · ')}
+                                {' · '}
                                 {lead.offer_label ?? 'Offre à définir'}
                                 {budget ? ` · ${budget} / mois` : ''}
                                 {' · '}Ajouté le{' '}
@@ -315,7 +343,7 @@ export default function LeadsShow({ lead, notes, history, statuses }: Props) {
                             </dl>
                         </Panel>
 
-                        <Panel title="Message">
+                        <Panel title="Note sur le projet">
                             {lead.message ? (
                                 <p className="bg-background rounded-lg border px-3 py-2.5 text-sm whitespace-pre-line">
                                     {lead.message}
@@ -329,6 +357,32 @@ export default function LeadsShow({ lead, notes, history, statuses }: Props) {
                     </div>
 
                     <aside className="grid content-start gap-6">
+                        <Panel title="Qualification">
+                            <dl className="grid gap-2">
+                                <div className="bg-background grid gap-0.5 rounded-lg border px-3 py-2.5">
+                                    <dt className="text-muted-foreground text-xs">
+                                        Recontact
+                                    </dt>
+                                    <dd className="text-sm font-medium">
+                                        {lead.recontact_channel_label
+                                            ? `${lead.recontact_channel_label}${lead.recontact_at ? ` · le ${formatDate(lead.recontact_at)}` : ''}`
+                                            : 'Aucun recontact prévu'}
+                                    </dd>
+                                </div>
+                                <div className="bg-background grid gap-0.5 rounded-lg border px-3 py-2.5">
+                                    <dt className="text-muted-foreground text-xs">
+                                        Note de qualification
+                                    </dt>
+                                    <dd className="text-sm whitespace-pre-line">
+                                        {lead.qualification_note ?? (
+                                            <span className="text-muted-foreground">
+                                                Aucune.
+                                            </span>
+                                        )}
+                                    </dd>
+                                </div>
+                            </dl>
+                        </Panel>
                         <Panel
                             title="Notes"
                             action={
