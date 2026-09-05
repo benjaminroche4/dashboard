@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Popover,
     PopoverContent,
@@ -357,20 +358,40 @@ export function LeadFilterBar({
                     )}
                 </Button>
             </PopoverTrigger>
-            <PopoverContent align="start" className="grid w-64 gap-3">
-                <div className="grid gap-1.5">
-                    <p className="text-muted-foreground text-xs">Offre</p>
-                    {offerSelect}
+            <PopoverContent align="start" className="w-72 p-0">
+                <div className="flex items-center justify-between border-b px-4 py-3">
+                    <p className="text-sm font-medium">Filtres</p>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground -mr-2 h-7"
+                        disabled={
+                            activeCount === 0 && filters.sort === 'manual'
+                        }
+                        onClick={() =>
+                            onChange({
+                                ...defaultFilters,
+                                query: filters.query,
+                            })
+                        }
+                    >
+                        Tout effacer
+                    </Button>
                 </div>
-                <div className="grid gap-1.5">
-                    <p className="text-muted-foreground text-xs">
-                        Note minimale
-                    </p>
-                    {scoreSelect}
-                </div>
-                <div className="grid gap-1.5">
-                    <p className="text-muted-foreground text-xs">Tri</p>
-                    {sortSelect}
+                <div className="grid gap-4 p-4">
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="filter-offer">Offre</Label>
+                        {offerSelect}
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="filter-score">Note minimale</Label>
+                        {scoreSelect}
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="filter-sort">Tri</Label>
+                        {sortSelect}
+                    </div>
                 </div>
             </PopoverContent>
         </Popover>
