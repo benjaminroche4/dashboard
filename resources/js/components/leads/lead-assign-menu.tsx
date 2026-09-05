@@ -101,11 +101,8 @@ export function LeadAssignMenu({
                     </AvatarFallback>
                 </Avatar>
             </DropdownMenuTrigger>
-            <DropdownMenuContent
-                align="end"
-                className="w-52 rounded-lg p-1 shadow-md"
-            >
-                <DropdownMenuLabel className="text-muted-foreground px-2 py-1 text-xs font-normal">
+            <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
                     Suivi par
                 </DropdownMenuLabel>
                 {staff.map((member) => {
@@ -116,7 +113,6 @@ export function LeadAssignMenu({
                             key={member.id}
                             aria-current={current ? 'true' : undefined}
                             onSelect={() => change(member.id)}
-                            className="gap-2.5 rounded-md px-2 py-1.5"
                         >
                             <Avatar className="size-6">
                                 <AvatarFallback
@@ -150,7 +146,6 @@ export function LeadAssignMenu({
                 <DropdownMenuItem
                     aria-current={currentId === null ? 'true' : undefined}
                     onSelect={() => change(null)}
-                    className="gap-2.5 rounded-md px-2 py-1.5"
                 >
                     <span className="bg-muted text-muted-foreground flex size-6 items-center justify-center rounded-full border border-dashed">
                         <UserRoundX className="size-3" aria-hidden />

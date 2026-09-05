@@ -1,6 +1,7 @@
 import { ArrowUpDown, Check, ChevronDown, Search, Star, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -90,10 +91,7 @@ function FilterChip<T extends string>({
                     aria-hidden
                 />
             </DropdownMenuTrigger>
-            <DropdownMenuContent
-                align={align}
-                className="w-52 rounded-lg p-1 shadow-md"
-            >
+            <DropdownMenuContent align={align} className="w-52">
                 {options.map((option) => {
                     const selected = option.value === value;
 
@@ -102,7 +100,6 @@ function FilterChip<T extends string>({
                             key={option.value}
                             aria-current={selected ? 'true' : undefined}
                             onSelect={() => onChange(option.value)}
-                            className="gap-2.5 rounded-md px-2 py-1.5"
                         >
                             {option.icon}
                             <span
@@ -153,23 +150,23 @@ export function LeadFilterBar({
 
     return (
         <div className="flex flex-wrap items-center gap-2 pb-4">
-            <label className="relative w-full sm:max-w-xs">
-                <span className="sr-only">Filtrer les leads</span>
+            <div className="relative w-full sm:max-w-xs">
                 <Search
                     className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
                     aria-hidden
                 />
-                <input
+                <Input
                     type="search"
                     name="query"
+                    aria-label="Filtrer les leads"
                     placeholder="Rechercher un lead…"
                     value={filters.query}
                     onChange={(event) =>
                         onChange({ query: event.target.value })
                     }
-                    className="bg-background placeholder:text-muted-foreground focus-visible:ring-ring/50 h-8 w-full rounded-full border py-1 pr-3 pl-8 text-sm outline-none focus-visible:ring-2 max-sm:text-base"
+                    className="bg-background h-8 pl-8"
                 />
-            </label>
+            </div>
             <FilterChip
                 label="Responsable"
                 value={filters.assignee}
@@ -196,7 +193,6 @@ export function LeadFilterBar({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-muted-foreground h-8 rounded-full"
                     onClick={() => onChange(defaultFilters)}
                 >
                     <X />

@@ -78,10 +78,7 @@ export function LeadStatusMenu({
                     <ChevronDown className="size-3 shrink-0 opacity-70" />
                 </Badge>
             </DropdownMenuTrigger>
-            <DropdownMenuContent
-                align="start"
-                className="w-48 rounded-lg p-1 shadow-md"
-            >
+            <DropdownMenuContent align="start" className="w-48">
                 {statuses.map((option) => {
                     const current = option.value === lead.status;
 
@@ -90,7 +87,6 @@ export function LeadStatusMenu({
                             key={option.value}
                             aria-current={current ? 'true' : undefined}
                             onSelect={() => change(option.value)}
-                            className="gap-2.5 rounded-md px-2 py-1.5"
                         >
                             <span
                                 aria-hidden

@@ -318,6 +318,11 @@ export function LeadKanban({
 
     const active =
         activeId === null ? null : items.find((lead) => lead.id === activeId);
+    // Tri manuel : ordre des positions ; autre tri : ordre reçu (déjà trié).
+    const columnLeads = (status: LeadStatus) =>
+        reorderable
+            ? columnOf(items, status)
+            : items.filter((lead) => lead.status === status);
 
     return (
         <DndContext
@@ -343,7 +348,7 @@ export function LeadKanban({
                 className="-mx-4 flex min-h-96 snap-x gap-4 overflow-x-auto px-4 pb-4"
             >
                 {statuses.map((status) => {
-                    const column = columnOf(items, status.value);
+                    const column = columnLeads(status.value);
                     const collapsed =
                         status.value === 'archived' && !archivedOpen;
 

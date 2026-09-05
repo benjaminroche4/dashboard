@@ -241,4 +241,32 @@ describe('Leads kanban page', () => {
             screen.queryByRole('list', { name: 'Kanban des leads' }),
         ).not.toBeInTheDocument();
     });
+
+    it('sorts the cards of a column by score when asked', async () => {
+        const user = userEvent.setup();
+        render(
+            <LeadsIndex
+                leads={[
+                    makeLead({ id: 1, name: 'Bas', position: 0, score: 1 }),
+                    makeLead({ id: 2, name: 'Haut', position: 1, score: 5 }),
+                ]}
+                statuses={leadStatuses}
+                offers={offers}
+            />,
+        );
+
+        const names = () =>
+            within(screen.getByRole('listitem', { name: 'À traiter' }))
+                .getAllByRole('button', { name: /^(Bas|Haut)$/ })
+                .map((card) => card.getAttribute('aria-label'));
+
+        expect(names()).toEqual(['Bas', 'Haut']);
+
+        await user.click(screen.getByRole('button', { name: 'Trier' }));
+        await user.click(
+            await screen.findByRole('menuitem', { name: 'Meilleure note' }),
+        );
+
+        expect(names()).toEqual(['Haut', 'Bas']);
+    });
 });
