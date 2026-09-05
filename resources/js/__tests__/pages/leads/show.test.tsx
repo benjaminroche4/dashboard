@@ -15,6 +15,9 @@ vi.mock('@inertiajs/react', () => ({
         children: ReactNode;
     }) => <a href={href.url}>{children}</a>,
     router: { patch },
+    usePage: () => ({
+        props: { staff: [{ id: 1, name: 'Admin', role: 'admin' }] },
+    }),
     useForm: (initial: { body: string }) => {
         const [data, setData] = useState(initial);
 
@@ -80,15 +83,18 @@ describe('Lead detail page', () => {
             'href',
             '/leads/1/edit',
         );
-        expect(screen.getByText(/2.500,00.*\/ mois/)).toBeInTheDocument();
+        expect(screen.getAllByText(/2.500,00.*\/ mois/).length).toBeGreaterThan(
+            0,
+        );
         expect(
             screen.getByText('Arrive avec sa famille, cherche un 3 pièces.'),
         ).toBeInTheDocument();
         expect(screen.getByText('Rappeler mardi.')).toBeInTheDocument();
         expect(screen.getByLabelText('Qualité 4 sur 5')).toBeInTheDocument();
         const history = within(
-            screen.getByRole('heading', { name: 'Historique' })
-                .parentElement as HTMLElement,
+            screen
+                .getByRole('heading', { name: 'Historique' })
+                .closest('section') as HTMLElement,
         );
         expect(history.getAllByRole('listitem')).toHaveLength(2);
         expect(history.getByText('(depuis À traiter)')).toBeInTheDocument();
