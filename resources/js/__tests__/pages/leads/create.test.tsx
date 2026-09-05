@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -178,11 +178,6 @@ describe('Converting Machine page', () => {
         expect(screen.getByText('Étape 1 sur 3')).toBeInTheDocument();
 
         await fillContact(user);
-        expect(
-            within(screen.getByLabelText('Passeport du lead')).getByText(
-                'Léa Durand',
-            ),
-        ).toBeInTheDocument();
         await user.click(screen.getByRole('radio', { name: 'Confié' }));
         await user.type(screen.getByLabelText('Téléphone'), '6 12 34 56 78');
         await user.click(screen.getByRole('button', { name: 'Continuer' }));
@@ -190,18 +185,21 @@ describe('Converting Machine page', () => {
         expect(
             screen.getByRole('heading', { name: 'Projet logement' }),
         ).toBeInTheDocument();
-        await user.type(screen.getByLabelText('Budget mensuel'), '2500');
+        await user.type(
+            screen.getByLabelText('Budget mensuel (€ / mois)'),
+            '2500',
+        );
         await user.click(
             screen.getByRole('button', { name: '3e arrondissement' }),
         );
         await user.click(
             screen.getByRole('button', { name: '11e arrondissement' }),
         );
-        expect(screen.getAllByText('3e, 11e').length).toBeGreaterThan(0);
+        expect(screen.getByText('3e, 11e')).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: 'Tout Paris' }));
         expect(
-            screen.getAllByText('Tout Paris', { selector: 'p, dd' }).length,
-        ).toBeGreaterThan(0);
+            screen.getByText('Tout Paris', { selector: 'p' }),
+        ).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: 'Continuer' }));
 
         expect(
@@ -209,11 +207,6 @@ describe('Converting Machine page', () => {
         ).toBeInTheDocument();
         await user.click(screen.getByRole('radio', { name: '4 sur 5' }));
         expect(screen.getByText('4 / 5')).toBeInTheDocument();
-        expect(
-            screen.getByRole('progressbar', {
-                name: 'Complétude du passeport',
-            }),
-        ).toHaveAttribute('aria-valuenow', '60');
         await user.click(
             screen.getByRole('button', { name: 'Ajouter le lead' }),
         );
@@ -314,11 +307,6 @@ describe('Converting Machine page', () => {
         expect(
             screen.getByRole('button', { name: '3e arrondissement' }),
         ).toHaveAttribute('aria-pressed', 'true');
-        expect(
-            screen.getByRole('progressbar', {
-                name: 'Complétude du passeport',
-            }),
-        ).toHaveAttribute('aria-valuenow', '90');
 
         await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
@@ -390,7 +378,9 @@ describe('Converting Machine page', () => {
         await user.click(screen.getByRole('button', { name: 'Continuer' }));
 
         await user.click(screen.getByRole('button', { name: /1.500 €/ }));
-        expect(screen.getByLabelText('Budget mensuel')).toHaveValue('1500');
+        expect(screen.getByLabelText('Budget mensuel (€ / mois)')).toHaveValue(
+            '1500',
+        );
         expect(screen.getByRole('button', { name: /1.500 €/ })).toHaveAttribute(
             'aria-pressed',
             'true',
@@ -399,8 +389,11 @@ describe('Converting Machine page', () => {
         await user.click(
             screen.getByRole('button', { name: '6e arrondissement' }),
         );
-        await user.clear(screen.getByLabelText('Budget mensuel'));
-        await user.type(screen.getByLabelText('Budget mensuel'), '1000');
+        await user.clear(screen.getByLabelText('Budget mensuel (€ / mois)'));
+        await user.type(
+            screen.getByLabelText('Budget mensuel (€ / mois)'),
+            '1000',
+        );
 
         expect(
             await screen.findByText('Budget serré pour ces choix'),

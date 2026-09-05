@@ -13,8 +13,8 @@ import { DatePicker } from '@/components/date-picker';
 import InputError from '@/components/input-error';
 import { FormActionBar } from '@/components/form-action-bar';
 import { DistrictMap } from '@/components/leads/district-map';
-import { LeadPassport } from '@/components/leads/lead-passport';
 import { PhoneInput } from '@/components/phone-input';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,6 +26,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -157,54 +158,37 @@ function Stepper({
     onSelect: (step: StepNumber) => void;
 }) {
     return (
-        <ol role="list" aria-label="Étapes" className="flex items-center gap-2">
+        <ol
+            role="list"
+            aria-label="Étapes"
+            className="flex flex-wrap items-center gap-2"
+        >
             {steps.map((step, index) => {
                 const done = step.number < current;
                 const active = step.number === current;
                 const reachable = visited.has(step.number) || done;
 
                 return (
-                    <li
-                        key={step.number}
-                        className="flex min-w-0 items-center gap-2"
-                    >
-                        <button
+                    <li key={step.number} className="flex items-center gap-2">
+                        <Button
                             type="button"
+                            variant={active ? 'secondary' : 'ghost'}
+                            size="sm"
                             disabled={!reachable}
                             aria-current={active ? 'step' : undefined}
                             onClick={() => onSelect(step.number)}
-                            className={cn(
-                                'flex items-center gap-2 rounded-full py-1 pr-3 pl-1 text-sm transition-colors outline-none focus-visible:ring-2',
-                                active
-                                    ? 'bg-primary/10 text-foreground font-medium'
-                                    : reachable
-                                      ? 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                                      : 'text-muted-foreground/60',
-                            )}
                         >
-                            <span
+                            <Badge
+                                variant={active || done ? 'default' : 'outline'}
+                                className="size-5 justify-center rounded-full px-0 tabular-nums"
                                 aria-hidden
-                                className={cn(
-                                    'flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-medium tabular-nums',
-                                    active &&
-                                        'bg-primary text-primary-foreground border-primary',
-                                    done &&
-                                        'bg-primary/15 border-primary/30 text-primary',
-                                )}
                             >
-                                {done ? (
-                                    <Check className="size-3.5" />
-                                ) : (
-                                    step.number
-                                )}
-                            </span>
-                            <span className="truncate">{step.title}</span>
-                        </button>
+                                {done ? <Check /> : step.number}
+                            </Badge>
+                            {step.title}
+                        </Button>
                         {index < steps.length - 1 && (
-                            <span
-                                aria-hidden
-                                className="bg-border h-px w-6 shrink-0 sm:w-10"
-                            />
+                            <Separator orientation="vertical" className="h-4" />
                         )}
                     </li>
                 );
@@ -523,7 +507,7 @@ export default function LeadsCreate({
             <Head
                 title={editing ? `Modifier ${lead.name}` : 'Converting Machine'}
             />
-            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4">
+            <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4">
                 <div className="flex items-end justify-between pt-8 pb-6">
                     <div>
                         <h1 className="text-lg font-medium">
@@ -534,7 +518,7 @@ export default function LeadsCreate({
                         <p className="text-muted-foreground text-sm">
                             {editing
                                 ? 'Le statut et la place dans le kanban ne changent pas.'
-                                : 'Trois étapes, les deux dernières facultatives. Le passeport se remplit à droite au fur et à mesure.'}
+                                : 'Trois étapes, les deux dernières facultatives.'}
                         </p>
                     </div>
                 </div>
@@ -542,7 +526,7 @@ export default function LeadsCreate({
                     <Stepper current={step} visited={visited} onSelect={goTo} />
                 </div>
 
-                <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+                <div className="grid gap-8">
                     <form
                         ref={formRef}
                         id="lead-form"
@@ -829,79 +813,61 @@ export default function LeadsCreate({
                             >
                                 <div className="grid gap-5 sm:grid-cols-3">
                                     <Field
-                                        label="Budget mensuel"
+                                        label="Budget mensuel (€ / mois)"
                                         htmlFor="budget"
                                         error={errors.budget_cents}
                                         className="sm:col-span-2"
                                     >
-                                        <div className="grid gap-2">
-                                            {/* Suffixe dans le champ : la devise ne flotte plus sous l'input. */}
-                                            <div className="border-input bg-background focus-within:border-ring focus-within:ring-ring/50 has-[input[aria-invalid=true]]:border-destructive flex h-9 items-center rounded-md border shadow-xs transition-[color,box-shadow] focus-within:ring-[3px]">
-                                                <Input
-                                                    id="budget"
-                                                    name="budget"
-                                                    inputMode="decimal"
-                                                    placeholder="2500"
-                                                    aria-invalid={Boolean(
-                                                        errors.budget_cents,
-                                                    )}
-                                                    className="h-full border-0 bg-transparent tabular-nums shadow-none focus-visible:ring-0"
-                                                    value={form.data.budget}
-                                                    onChange={(e) =>
-                                                        set('budget')(
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                />
-                                                <span className="text-muted-foreground border-input shrink-0 border-l px-3 text-sm whitespace-nowrap">
-                                                    € / mois
-                                                </span>
-                                            </div>
-                                            <div
-                                                className="flex flex-wrap items-center gap-1.5"
-                                                role="group"
-                                                aria-label="Paliers de budget"
-                                            >
-                                                <span className="text-muted-foreground mr-1 text-xs">
-                                                    Rapide :
-                                                </span>
-                                                {budgetTiers.map((tier) => {
-                                                    const selected =
-                                                        toCents(
-                                                            form.data.budget,
-                                                        ) ===
-                                                        tier * 100;
+                                        <Input
+                                            id="budget"
+                                            name="budget"
+                                            inputMode="decimal"
+                                            placeholder="2500"
+                                            aria-invalid={Boolean(
+                                                errors.budget_cents,
+                                            )}
+                                            className="bg-background tabular-nums"
+                                            value={form.data.budget}
+                                            onChange={(e) =>
+                                                set('budget')(e.target.value)
+                                            }
+                                        />
+                                        <div
+                                            className="flex flex-wrap gap-1.5"
+                                            role="group"
+                                            aria-label="Paliers de budget"
+                                        >
+                                            {budgetTiers.map((tier) => {
+                                                const selected =
+                                                    toCents(
+                                                        form.data.budget,
+                                                    ) ===
+                                                    tier * 100;
 
-                                                    return (
-                                                        <Button
-                                                            key={tier}
-                                                            type="button"
-                                                            variant={
-                                                                selected
-                                                                    ? 'default'
-                                                                    : 'outline'
-                                                            }
-                                                            size="sm"
-                                                            aria-pressed={
-                                                                selected
-                                                            }
-                                                            className="h-7 rounded-full px-2.5 text-xs tabular-nums"
-                                                            onClick={() =>
-                                                                set('budget')(
-                                                                    String(
-                                                                        tier,
-                                                                    ),
-                                                                )
-                                                            }
-                                                        >
-                                                            {tier.toLocaleString(
-                                                                'fr-FR',
-                                                            )}{' '}
-                                                            €
-                                                        </Button>
-                                                    );
-                                                })}
-                                            </div>
+                                                return (
+                                                    <Button
+                                                        key={tier}
+                                                        type="button"
+                                                        variant={
+                                                            selected
+                                                                ? 'secondary'
+                                                                : 'outline'
+                                                        }
+                                                        size="sm"
+                                                        aria-pressed={selected}
+                                                        onClick={() =>
+                                                            set('budget')(
+                                                                String(tier),
+                                                            )
+                                                        }
+                                                    >
+                                                        {tier.toLocaleString(
+                                                            'fr-FR',
+                                                        )}{' '}
+                                                        €
+                                                    </Button>
+                                                );
+                                            })}
                                         </div>
                                     </Field>
                                     <Field
@@ -1262,20 +1228,6 @@ export default function LeadsCreate({
                             </Section>
                         )}
                     </form>
-                    <div className="lg:sticky lg:top-6 lg:self-start">
-                        <LeadPassport
-                            form={form.data}
-                            options={{
-                                offers,
-                                languages,
-                                sources,
-                                durations,
-                                guarantors,
-                                furnishedOptions,
-                                recontactChannels,
-                            }}
-                        />
-                    </div>
                 </div>
             </div>
             <FormActionBar>
