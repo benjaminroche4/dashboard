@@ -603,10 +603,8 @@ function SortableCard({
                         landGlow[lead.status],
                     ],
                     entered &&
-                        landedKey === null && [
-                            'animate-lead-enter motion-reduce:animate-none',
-                            landGlow[lead.status],
-                        ],
+                        landedKey === null &&
+                        'animate-lead-enter motion-reduce:animate-none',
                 )}
             >
                 <LeadCard

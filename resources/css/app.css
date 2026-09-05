@@ -11,24 +11,17 @@
 @theme {
     /* Carte qui atterrit dans une nouvelle colonne du kanban : halo qui s'estompe. */
     --animate-lead-land: lead-land 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
-    /* Nouvelle carte arrivée en temps réel : glisse depuis le haut, surlignage bref. */
-    --animate-lead-enter: lead-enter 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    /* Carte qui (ré)apparaît : fondu et léger glissement, sans halo. */
+    --animate-lead-enter: lead-enter 350ms cubic-bezier(0.22, 1, 0.36, 1) both;
 
     @keyframes lead-enter {
         0% {
             opacity: 0;
-            transform: translateY(-12px);
-            box-shadow: 0 0 0 0 var(--lead-glow, oklch(0.7 0.15 250 / 0.6));
-        }
-        35% {
-            opacity: 1;
-            transform: translateY(0);
-            box-shadow: 0 0 0 6px var(--lead-glow, oklch(0.7 0.15 250 / 0.35));
+            transform: translateY(-8px);
         }
         100% {
             opacity: 1;
             transform: translateY(0);
-            box-shadow: 0 0 0 0 transparent;
         }
     }
 
