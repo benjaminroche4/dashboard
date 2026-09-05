@@ -298,12 +298,17 @@ class LeadController extends Controller
     }
 
     /**
-     * @return list<array{value: string, label: string, description: string}>
+     * @return list<array{value: string, label: string, description: string, price_cents: int}>
      */
     private function offers(): array
     {
         return array_map(
-            fn (Offer $offer): array => ['value' => $offer->value, 'label' => $offer->label(), 'description' => $offer->description()],
+            fn (Offer $offer): array => [
+                'value' => $offer->value,
+                'label' => $offer->label(),
+                'description' => $offer->description(),
+                'price_cents' => $offer->defaultPriceCents(Currency::EUR),
+            ],
             Offer::cases(),
         );
     }

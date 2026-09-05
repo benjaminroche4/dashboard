@@ -38,8 +38,18 @@ import LeadsIndex from '@/pages/leads/index';
 import { leadStatuses, makeLead } from '@/test/fixtures/lead';
 
 const offers = [
-    { value: 'accompagne' as const, label: 'Accompagné', description: '' },
-    { value: 'confie' as const, label: 'Confié', description: '' },
+    {
+        value: 'accompagne' as const,
+        label: 'Accompagné',
+        description: '',
+        price_cents: 119_000,
+    },
+    {
+        value: 'confie' as const,
+        label: 'Confié',
+        description: '',
+        price_cents: 219_000,
+    },
 ];
 const leads = [
     makeLead(),

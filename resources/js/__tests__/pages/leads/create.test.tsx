@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -60,11 +60,13 @@ const props = {
             value: 'accompagne' as const,
             label: 'Accompagné',
             description: 'Offre Accompagné',
+            price_cents: 119_000,
         },
         {
             value: 'confie' as const,
             label: 'Confié',
             description: 'Offre Confié',
+            price_cents: 219_000,
         },
     ],
     sources: [
@@ -114,9 +116,14 @@ describe('Converting Machine page', () => {
 
         await user.type(screen.getByLabelText('Prénom'), 'Léa');
         await user.type(screen.getByLabelText('Nom'), 'Durand');
+        expect(
+            within(screen.getByLabelText('Passeport du lead')).getByText(
+                'Léa Durand',
+            ),
+        ).toBeInTheDocument();
         await user.type(screen.getByLabelText('E-mail'), 'lea@example.com');
         await user.click(screen.getByRole('radio', { name: 'Confié' }));
-        await user.type(screen.getByLabelText('Budget mensuel'), '2500');
+        await user.type(screen.getByLabelText('Budget mensuel (€)'), '2500');
         await user.type(screen.getByLabelText('Téléphone'), '6 12 34 56 78');
         await user.click(
             screen.getByRole('button', { name: '3e arrondissement' }),
@@ -124,14 +131,19 @@ describe('Converting Machine page', () => {
         await user.click(
             screen.getByRole('button', { name: '11e arrondissement' }),
         );
-        expect(screen.getByText('3e, 11e')).toBeInTheDocument();
+        expect(screen.getAllByText('3e, 11e').length).toBeGreaterThan(0);
         await user.click(screen.getByRole('button', { name: 'Tout Paris' }));
         expect(
-            screen.getByText('Tout Paris', { selector: 'p' }),
-        ).toBeInTheDocument();
+            screen.getAllByText('Tout Paris', { selector: 'p, dd' }).length,
+        ).toBeGreaterThan(0);
         await user.click(screen.getByRole('button', { name: 'T2' }));
         await user.click(screen.getByRole('radio', { name: '4 sur 5' }));
         expect(screen.getByText('4 / 5')).toBeInTheDocument();
+        expect(
+            screen.getByRole('progressbar', {
+                name: 'Complétude du passeport',
+            }),
+        ).toHaveAttribute('aria-valuenow', '64');
         await user.click(
             screen.getByRole('button', { name: 'Ajouter le lead' }),
         );
@@ -196,15 +208,20 @@ describe('Converting Machine page', () => {
         expect(screen.getByLabelText('Prénom')).toHaveValue('Léa');
         expect(screen.getByLabelText('Téléphone')).toHaveValue('79 000 00 00');
         expect(screen.getByLabelText('Société')).toHaveValue('Nestlé');
-        expect(screen.getByText('3e, 4e')).toBeInTheDocument();
+        expect(screen.getAllByText('3e, 4e').length).toBeGreaterThan(0);
         expect(screen.getByLabelText('Téléphone')).toHaveValue('79 000 00 00');
         expect(screen.getByLabelText('Société')).toHaveValue('Nestlé');
-        expect(screen.getByText('3e, 4e')).toBeInTheDocument();
+        expect(screen.getAllByText('3e, 4e').length).toBeGreaterThan(0);
         expect(
             screen.getByRole('button', { name: '3e arrondissement' }),
         ).toHaveAttribute('aria-pressed', 'true');
         expect(screen.getByRole('radio', { name: 'Confié' })).toBeChecked();
         expect(screen.getByText('4 / 5')).toBeInTheDocument();
+        expect(
+            screen.getByRole('progressbar', {
+                name: 'Complétude du passeport',
+            }),
+        ).toHaveAttribute('aria-valuenow', '91');
         expect(screen.getByRole('link', { name: 'Annuler' })).toHaveAttribute(
             'href',
             '/leads/7',

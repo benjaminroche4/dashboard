@@ -131,6 +131,7 @@ export type LeadOfferOption = {
     value: OfferValue;
     label: string;
     description: string;
+    price_cents: number;
 };
 
 /** Lead pré-rempli pour la modification (Converting Machine en mode édition). */
