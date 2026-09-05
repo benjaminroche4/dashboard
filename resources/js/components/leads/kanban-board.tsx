@@ -61,6 +61,15 @@ const columnTitleClasses: Record<LeadStatus, string> = {
     archived: 'text-neutral-600 dark:text-neutral-400',
 };
 
+// Halo à l'atterrissage, dans la couleur de la colonne d'arrivée.
+const landGlow: Record<LeadStatus, string> = {
+    todo: '[--lead-glow:var(--color-purple-400)]',
+    in_progress: '[--lead-glow:var(--color-sky-400)]',
+    quote_sent: '[--lead-glow:var(--color-amber-400)]',
+    converted: '[--lead-glow:var(--color-green-400)]',
+    archived: '[--lead-glow:var(--color-neutral-400)]',
+};
+
 const statusSoft: Record<LeadStatus, string> = {
     todo: 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-200',
     in_progress: 'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-200',
@@ -94,6 +103,22 @@ export function LeadKanban({ leads, statuses, reorderable = true }: Props) {
     const [items, setItems] = useState(leads);
     const [activeId, setActiveId] = useState<number | null>(null);
     const [archivedOpen, setArchivedOpen] = useState(readArchiveOpen);
+    // Carte venant de changer de colonne : animée le temps d'un battement.
+    const [landed, setLanded] = useState<{
+        id: number;
+        status: LeadStatus;
+        key: number;
+    } | null>(null);
+
+    useEffect(() => {
+        if (!landed) {
+            return;
+        }
+
+        const timer = setTimeout(() => setLanded(null), 800);
+
+        return () => clearTimeout(timer);
+    }, [landed]);
 
     // Les props Inertia font foi dès qu'elles changent (rechargement temps réel).
     useEffect(() => setItems(leads), [leads]);
@@ -202,6 +227,11 @@ export function LeadKanban({ leads, statuses, reorderable = true }: Props) {
         }
 
         setItems(next);
+
+        if (moved.status !== original.status) {
+            setLanded({ id, status: moved.status, key: Date.now() });
+        }
+
         router.patch(
             leadStatusRoute({ lead: id }).url,
             { status: moved.status, position: moved.position },
@@ -240,6 +270,11 @@ export function LeadKanban({ leads, statuses, reorderable = true }: Props) {
                             status={status}
                             leads={column}
                             collapsed={collapsed}
+                            bumpKey={
+                                landed?.status === status.value
+                                    ? landed.key
+                                    : null
+                            }
                             onToggle={
                                 status.value === 'archived'
                                     ? toggleArchive
@@ -252,6 +287,11 @@ export function LeadKanban({ leads, statuses, reorderable = true }: Props) {
                                     lead={lead}
                                     statuses={statuses}
                                     dragging={activeId === lead.id}
+                                    landedKey={
+                                        landed?.id === lead.id
+                                            ? landed.key
+                                            : null
+                                    }
                                 />
                             ))}
                         </KanbanColumn>
@@ -272,12 +312,15 @@ function KanbanColumn({
     leads,
     collapsed,
     onToggle,
+    bumpKey,
     children,
 }: {
     status: LeadStatusOption;
     leads: Lead[];
     collapsed: boolean;
     onToggle?: () => void;
+    /** Change quand une carte vient d'arriver : le compteur rebondit. */
+    bumpKey: number | null;
     children: ReactNode;
 }) {
     const { setNodeRef, isOver } = useDroppable({
@@ -352,10 +395,13 @@ function KanbanColumn({
                     </h2>
                     <div className="flex shrink-0 items-center gap-1">
                         <Badge
+                            key={bumpKey ?? 'idle'}
                             variant="secondary"
                             className={cn(
                                 'bg-background/80 rounded-full px-2',
                                 leadStatusClasses[status.value],
+                                bumpKey !== null &&
+                                    'animate-count-bump motion-reduce:animate-none',
                             )}
                             aria-label={`${stats.count} lead(s)`}
                         >
@@ -421,10 +467,13 @@ function SortableCard({
     lead,
     statuses,
     dragging,
+    landedKey,
 }: {
     lead: Lead;
     statuses: LeadStatusOption[];
     dragging: boolean;
+    /** Change quand la carte vient d'atterrir dans une autre colonne. */
+    landedKey: number | null;
 }) {
     const { attributes, listeners, setNodeRef, transform, transition } =
         useSortable({ id: cardId(lead.id), data: { status: lead.status } });
@@ -435,11 +484,23 @@ function SortableCard({
             style={{ transform: CSS.Transform.toString(transform), transition }}
             className={cn(dragging && 'opacity-40')}
         >
-            <LeadCard
-                lead={lead}
-                statuses={statuses}
-                handleProps={{ ...attributes, ...listeners }}
-            />
+            <div
+                key={landedKey ?? 'idle'}
+                data-landed={landedKey !== null ? '' : undefined}
+                className={cn(
+                    'rounded-lg',
+                    landedKey !== null && [
+                        'animate-lead-land motion-reduce:animate-none',
+                        landGlow[lead.status],
+                    ],
+                )}
+            >
+                <LeadCard
+                    lead={lead}
+                    statuses={statuses}
+                    handleProps={{ ...attributes, ...listeners }}
+                />
+            </div>
         </li>
     );
 }
