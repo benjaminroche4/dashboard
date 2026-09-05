@@ -1097,28 +1097,24 @@ export default function LeadsCreate({
                         />
                     </div>
                 </div>
-                <FormActionBar>
-                    <Button type="button" variant="ghost" asChild>
-                        <Link
-                            href={
-                                lead
-                                    ? leadShow({ lead: lead.id })
-                                    : leadsIndex()
-                            }
-                        >
-                            Annuler
-                        </Link>
-                    </Button>
-                    <Button
-                        type="submit"
-                        form="lead-form"
-                        disabled={form.processing}
-                    >
-                        {form.processing && <Spinner />}
-                        {editing ? 'Enregistrer' : 'Ajouter le lead'}
-                    </Button>
-                </FormActionBar>
             </div>
+            <FormActionBar>
+                <Button type="button" variant="ghost" asChild>
+                    <Link
+                        href={lead ? leadShow({ lead: lead.id }) : leadsIndex()}
+                    >
+                        Annuler
+                    </Link>
+                </Button>
+                <Button
+                    type="submit"
+                    form="lead-form"
+                    disabled={form.processing}
+                >
+                    {form.processing && <Spinner />}
+                    {editing ? 'Enregistrer' : 'Ajouter le lead'}
+                </Button>
+            </FormActionBar>
         </>
     );
 }

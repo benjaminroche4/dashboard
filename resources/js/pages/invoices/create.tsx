@@ -727,21 +727,21 @@ export default function InvoicesCreate({
                         />
                     </aside>
                 </div>
-                <FormActionBar>
-                    <Button type="button" variant="ghost" asChild>
-                        <Link href={invoicesIndex()}>Annuler</Link>
-                    </Button>
-                    <Button
-                        type="submit"
-                        form="invoice-form"
-                        disabled={form.processing}
-                        data-test="invoice-submit"
-                    >
-                        {form.processing && <Spinner />}
-                        Créer la facture
-                    </Button>
-                </FormActionBar>
             </div>
+            <FormActionBar>
+                <Button type="button" variant="ghost" asChild>
+                    <Link href={invoicesIndex()}>Annuler</Link>
+                </Button>
+                <Button
+                    type="submit"
+                    form="invoice-form"
+                    disabled={form.processing}
+                    data-test="invoice-submit"
+                >
+                    {form.processing && <Spinner />}
+                    Créer la facture
+                </Button>
+            </FormActionBar>
         </>
     );
 }
