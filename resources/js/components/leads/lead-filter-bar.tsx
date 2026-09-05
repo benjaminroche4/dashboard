@@ -72,24 +72,21 @@ function FilterChip<T extends string>({
 
     return (
         <DropdownMenu>
-            <DropdownMenuTrigger
-                aria-label={label}
-                data-active={active ? '' : undefined}
-                className={cn(
-                    'inline-flex h-8 max-w-56 items-center gap-1.5 rounded-full border py-1 pr-2 pl-3 text-sm transition-colors outline-none focus-visible:ring-2',
-                    active
-                        ? 'border-primary/30 bg-primary/10 text-foreground font-medium'
-                        : 'bg-background text-muted-foreground hover:bg-accent hover:text-foreground',
-                )}
-            >
-                {icon}
-                <span className="truncate">
-                    {active ? current?.label : label}
-                </span>
-                <ChevronDown
-                    className="size-3.5 shrink-0 opacity-60"
-                    aria-hidden
-                />
+            <DropdownMenuTrigger asChild>
+                <Button
+                    type="button"
+                    variant={active ? 'secondary' : 'outline'}
+                    size="sm"
+                    aria-label={label}
+                    data-active={active ? '' : undefined}
+                    className="max-w-56"
+                >
+                    {icon}
+                    <span className="truncate">
+                        {active ? current?.label : label}
+                    </span>
+                    <ChevronDown className="opacity-60" aria-hidden />
+                </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align={align} className="w-52">
                 {options.map((option) => {
