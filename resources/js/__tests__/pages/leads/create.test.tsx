@@ -76,12 +76,14 @@ const props = {
             value: 'accompagne' as const,
             label: 'Accompagné',
             description: 'Offre Accompagné',
+            summary: 'Vous cherchez, nous vous guidons.',
             price_cents: 119_000,
         },
         {
             value: 'confie' as const,
             label: 'Confié',
             description: 'Offre Confié',
+            summary: 'Nous trouvons votre logement.',
             price_cents: 219_000,
         },
     ],
@@ -110,10 +112,57 @@ const props = {
     recontactChannels: [{ value: 'phone' as const, label: 'Téléphone' }],
 };
 
+const lead = {
+    id: 7,
+    name: 'Léa Durand',
+    first_name: 'Léa',
+    last_name: 'Durand',
+    email: 'lea@example.com',
+    phone: '+41 79 000 00 00',
+    company: 'Nestlé',
+    language: 'en' as const,
+    offer: 'confie' as const,
+    source: 'referral' as const,
+    source_note: '',
+    arrival_at: '2026-11-01',
+    budget: '2500',
+    currency: 'EUR' as const,
+    origin_city: 'Genève',
+    districts: [3, 4],
+    property_types: ['t2' as const],
+    duration: 'long' as const,
+    guarantor: '' as const,
+    furnished: 'furnished' as const,
+    message: '',
+    score: 4,
+    recontact_channel: '' as const,
+    recontact_at: '',
+    qualification_note: '',
+    assigned_to: 2,
+};
+
+/** Remplit l'étape 1 avec le minimum requis. */
+async function fillContact(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(screen.getByLabelText('Prénom'), 'Léa');
+    await user.type(screen.getByLabelText('Nom'), 'Durand');
+    await user.type(screen.getByLabelText('E-mail'), 'lea@example.com');
+}
+
 describe('Converting Machine page', () => {
     beforeEach(() => vi.clearAllMocks());
 
-    it('renders the three sections and posts the lead with the budget in cents', async () => {
+    it('describes each offer in one sentence', () => {
+        render(<LeadsCreate {...props} />);
+
+        expect(
+            screen.getByText('Vous cherchez, nous vous guidons.'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('Nous trouvons votre logement.'),
+        ).toBeInTheDocument();
+    });
+
+    it('walks through the three steps and posts the lead with the budget in cents', async () => {
         const user = userEvent.setup();
         render(<LeadsCreate {...props} />);
 
@@ -124,23 +173,24 @@ describe('Converting Machine page', () => {
             screen.getByRole('heading', { name: 'Contact' }),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('heading', { name: 'Projet logement' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('heading', { name: 'Qualité du lead' }),
-        ).toBeInTheDocument();
+            screen.queryByRole('heading', { name: 'Projet logement' }),
+        ).not.toBeInTheDocument();
+        expect(screen.getByText('Étape 1 sur 3')).toBeInTheDocument();
 
-        await user.type(screen.getByLabelText('Prénom'), 'Léa');
-        await user.type(screen.getByLabelText('Nom'), 'Durand');
+        await fillContact(user);
         expect(
             within(screen.getByLabelText('Passeport du lead')).getByText(
                 'Léa Durand',
             ),
         ).toBeInTheDocument();
-        await user.type(screen.getByLabelText('E-mail'), 'lea@example.com');
         await user.click(screen.getByRole('radio', { name: 'Confié' }));
-        await user.type(screen.getByLabelText('Budget mensuel (€)'), '2500');
         await user.type(screen.getByLabelText('Téléphone'), '6 12 34 56 78');
+        await user.click(screen.getByRole('button', { name: 'Continuer' }));
+
+        expect(
+            screen.getByRole('heading', { name: 'Projet logement' }),
+        ).toBeInTheDocument();
+        await user.type(screen.getByLabelText('Budget mensuel'), '2500');
         await user.click(
             screen.getByRole('button', { name: '3e arrondissement' }),
         );
@@ -152,14 +202,18 @@ describe('Converting Machine page', () => {
         expect(
             screen.getAllByText('Tout Paris', { selector: 'p, dd' }).length,
         ).toBeGreaterThan(0);
-        await user.click(screen.getByRole('button', { name: 'T2' }));
+        await user.click(screen.getByRole('button', { name: 'Continuer' }));
+
+        expect(
+            screen.getByRole('heading', { name: 'Qualité du lead' }),
+        ).toBeInTheDocument();
         await user.click(screen.getByRole('radio', { name: '4 sur 5' }));
         expect(screen.getByText('4 / 5')).toBeInTheDocument();
         expect(
             screen.getByRole('progressbar', {
                 name: 'Complétude du passeport',
             }),
-        ).toHaveAttribute('aria-valuenow', '64');
+        ).toHaveAttribute('aria-valuenow', '60');
         await user.click(
             screen.getByRole('button', { name: 'Ajouter le lead' }),
         );
@@ -180,44 +234,67 @@ describe('Converting Machine page', () => {
         });
         expect(payload.budget_cents).toBe(250_000);
         expect(payload.offer).toBeNull();
-        expect(payload.arrival_at).toBeNull();
     });
 
-    it('edits an existing lead and puts to the update route', async () => {
+    it('refuses to leave step 1 while the contact is incomplete', async () => {
         const user = userEvent.setup();
-        render(
-            <LeadsCreate
-                {...props}
-                lead={{
-                    id: 7,
-                    name: 'Léa Durand',
-                    first_name: 'Léa',
-                    last_name: 'Durand',
-                    email: 'lea@example.com',
-                    phone: '+41 79 000 00 00',
-                    company: 'Nestlé',
-                    language: 'en',
-                    offer: 'confie',
-                    source: 'referral',
-                    source_note: '',
-                    arrival_at: '2026-11-01',
-                    budget: '2500',
-                    currency: 'EUR',
-                    origin_city: 'Genève',
-                    districts: [3, 4],
-                    property_types: ['t2'],
-                    duration: 'long',
-                    guarantor: '',
-                    furnished: 'furnished',
-                    message: '',
-                    score: 4,
-                    recontact_channel: '',
-                    recontact_at: '',
-                    qualification_note: '',
-                    assigned_to: 2,
-                }}
-            />,
+        render(<LeadsCreate {...props} />);
+
+        await user.click(screen.getByRole('button', { name: 'Continuer' }));
+
+        expect(screen.getByText('Étape 1 sur 3')).toBeInTheDocument();
+        expect(toastError).toHaveBeenCalledWith(
+            'Étape incomplète',
+            expect.any(String),
         );
+        expect(screen.getByText('Le nom est obligatoire.')).toBeInTheDocument();
+        expect(screen.getByLabelText('Nom')).toHaveFocus();
+        expect(
+            screen.getByRole('button', { name: /Projet logement/ }),
+        ).toBeDisabled();
+    });
+
+    it('lets steps 2 and 3 be skipped and saves from step 3', async () => {
+        const user = userEvent.setup();
+        render(<LeadsCreate {...props} />);
+
+        await fillContact(user);
+        await user.click(screen.getByRole('button', { name: 'Continuer' }));
+        await user.click(screen.getByRole('button', { name: 'Passer' }));
+
+        expect(screen.getByText('Étape 3 sur 3')).toBeInTheDocument();
+        expect(
+            screen.getByRole('combobox', { name: 'Suivi par' }),
+        ).toHaveTextContent('Admin (moi)');
+
+        await user.click(
+            screen.getByRole('button', { name: 'Passer et enregistrer' }),
+        );
+
+        expect(post).toHaveBeenCalledWith('/leads');
+    });
+
+    it('goes back with « Précédent » and through the stepper', async () => {
+        const user = userEvent.setup();
+        render(<LeadsCreate {...props} />);
+
+        await fillContact(user);
+        await user.click(screen.getByRole('button', { name: 'Continuer' }));
+        await user.click(screen.getByRole('button', { name: 'Précédent' }));
+
+        expect(screen.getByText('Étape 1 sur 3')).toBeInTheDocument();
+        expect(screen.getByLabelText('Prénom')).toHaveValue('Léa');
+
+        await user.click(
+            screen.getByRole('button', { name: /Projet logement/ }),
+        );
+
+        expect(screen.getByText('Étape 2 sur 3')).toBeInTheDocument();
+    });
+
+    it('edits an existing lead from any step and puts to the update route', async () => {
+        const user = userEvent.setup();
+        render(<LeadsCreate {...props} lead={lead} />);
 
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
             'Modifier Léa Durand',
@@ -225,24 +302,23 @@ describe('Converting Machine page', () => {
         expect(screen.getByLabelText('Prénom')).toHaveValue('Léa');
         expect(screen.getByLabelText('Téléphone')).toHaveValue('79 000 00 00');
         expect(screen.getByLabelText('Société')).toHaveValue('Nestlé');
-        expect(screen.getAllByText('3e, 4e').length).toBeGreaterThan(0);
-        expect(screen.getByLabelText('Téléphone')).toHaveValue('79 000 00 00');
-        expect(screen.getByLabelText('Société')).toHaveValue('Nestlé');
-        expect(screen.getAllByText('3e, 4e').length).toBeGreaterThan(0);
-        expect(
-            screen.getByRole('button', { name: '3e arrondissement' }),
-        ).toHaveAttribute('aria-pressed', 'true');
         expect(screen.getByRole('radio', { name: 'Confié' })).toBeChecked();
-        expect(screen.getByText('4 / 5')).toBeInTheDocument();
-        expect(
-            screen.getByRole('progressbar', {
-                name: 'Complétude du passeport',
-            }),
-        ).toHaveAttribute('aria-valuenow', '91');
         expect(screen.getByRole('link', { name: 'Annuler' })).toHaveAttribute(
             'href',
             '/leads/7',
         );
+
+        await user.click(
+            screen.getByRole('button', { name: /Projet logement/ }),
+        );
+        expect(
+            screen.getByRole('button', { name: '3e arrondissement' }),
+        ).toHaveAttribute('aria-pressed', 'true');
+        expect(
+            screen.getByRole('progressbar', {
+                name: 'Complétude du passeport',
+            }),
+        ).toHaveAttribute('aria-valuenow', '90');
 
         await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
@@ -250,15 +326,20 @@ describe('Converting Machine page', () => {
         expect(post).not.toHaveBeenCalled();
     });
 
-    it('blocks the submission locally and focuses the first field in error', async () => {
+    it('validates everything on ⌘+Enter and jumps to the step in error', async () => {
         const user = userEvent.setup();
         render(<LeadsCreate {...props} />);
 
         await user.keyboard('{Meta>}{Enter}{/Meta}');
 
         expect(post).not.toHaveBeenCalled();
-        expect(toastError).toHaveBeenCalled();
-        expect(screen.getByText('Le nom est obligatoire.')).toBeInTheDocument();
+        expect(toastError).toHaveBeenCalledWith(
+            'Formulaire incomplet',
+            expect.any(String),
+        );
+        expect(
+            await screen.findByText('Le nom est obligatoire.'),
+        ).toBeInTheDocument();
         expect(
             screen.getAllByText('Indiquez au moins un e-mail ou un téléphone.')
                 .length,
@@ -301,21 +382,25 @@ describe('Converting Machine page', () => {
         vi.unstubAllGlobals();
     });
 
-    it('offers budget tiers, warns on a tight budget and assigns the lead to me by default', async () => {
+    it('offers budget tiers and warns on a tight budget', async () => {
         const user = userEvent.setup();
         render(<LeadsCreate {...props} />);
 
-        expect(
-            screen.getByRole('combobox', { name: 'Suivi par' }),
-        ).toHaveTextContent('Admin (moi)');
+        await fillContact(user);
+        await user.click(screen.getByRole('button', { name: 'Continuer' }));
 
         await user.click(screen.getByRole('button', { name: /1.500 €/ }));
-        expect(screen.getByLabelText('Budget mensuel (€)')).toHaveValue('1500');
+        expect(screen.getByLabelText('Budget mensuel')).toHaveValue('1500');
+        expect(screen.getByRole('button', { name: /1.500 €/ })).toHaveAttribute(
+            'aria-pressed',
+            'true',
+        );
 
         await user.click(
             screen.getByRole('button', { name: '6e arrondissement' }),
         );
-        await user.click(screen.getByRole('button', { name: 'T2' }));
+        await user.clear(screen.getByLabelText('Budget mensuel'));
+        await user.type(screen.getByLabelText('Budget mensuel'), '1000');
 
         expect(
             await screen.findByText('Budget serré pour ces choix'),

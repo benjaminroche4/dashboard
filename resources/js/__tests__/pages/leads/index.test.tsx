@@ -42,12 +42,14 @@ const offers = [
         value: 'accompagne' as const,
         label: 'Accompagné',
         description: '',
+        summary: '',
         price_cents: 119_000,
     },
     {
         value: 'confie' as const,
         label: 'Confié',
         description: '',
+        summary: '',
         price_cents: 219_000,
     },
 ];
