@@ -1,51 +1,70 @@
+import {
+    getCountries,
+    getCountryCallingCode,
+    type CountryCode,
+} from 'libphonenumber-js/min';
 import { CountryFlag } from '@/components/country-flag';
 import { Input } from '@/components/ui/input';
 import {
     Select,
     SelectContent,
+    SelectGroup,
     SelectItem,
+    SelectLabel,
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
 
-export type DialCode = { code: string; iso: string; name: string };
+export type DialCode = { code: string; iso: CountryCode; name: string };
 
-export const dialCodes: DialCode[] = [
-    { code: '+33', iso: 'FR', name: 'France' },
-    { code: '+41', iso: 'CH', name: 'Suisse' },
-    { code: '+32', iso: 'BE', name: 'Belgique' },
-    { code: '+352', iso: 'LU', name: 'Luxembourg' },
-    { code: '+44', iso: 'GB', name: 'Royaume-Uni' },
-    { code: '+49', iso: 'DE', name: 'Allemagne' },
-    { code: '+34', iso: 'ES', name: 'Espagne' },
-    { code: '+39', iso: 'IT', name: 'Italie' },
-    { code: '+351', iso: 'PT', name: 'Portugal' },
-    { code: '+31', iso: 'NL', name: 'Pays-Bas' },
-    { code: '+1', iso: 'US', name: 'États-Unis / Canada' },
-    { code: '+212', iso: 'MA', name: 'Maroc' },
-    { code: '+213', iso: 'DZ', name: 'Algérie' },
-    { code: '+216', iso: 'TN', name: 'Tunisie' },
-    { code: '+971', iso: 'AE', name: 'Émirats arabes unis' },
-    { code: '+65', iso: 'SG', name: 'Singapour' },
-    { code: '+61', iso: 'AU', name: 'Australie' },
-];
+/** Pays proposés en tête de liste, les plus fréquents pour l'agence. */
+const preferred: CountryCode[] = ['FR', 'CH', 'BE', 'LU', 'GB', 'DE', 'US'];
+
+const countryNames = new Intl.DisplayNames(['fr'], { type: 'region' });
+
+function nameOf(iso: CountryCode): string {
+    try {
+        return countryNames.of(iso) ?? iso;
+    } catch {
+        return iso;
+    }
+}
+
+/** Tous les pays connus de libphonenumber, avec indicatif et nom français. */
+export const dialCodes: DialCode[] = getCountries()
+    .map((iso) => ({
+        iso,
+        code: `+${getCountryCallingCode(iso)}`,
+        name: nameOf(iso),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+
+const preferredCodes = preferred
+    .map((iso) => dialCodes.find((dial) => dial.iso === iso))
+    .filter((dial): dial is DialCode => dial !== undefined);
+const otherCodes = dialCodes.filter((dial) => !preferred.includes(dial.iso));
+
+// Un indicatif peut être partagé (+1, +7, +44…) : une seule entrée par indicatif dans le sélecteur.
+const uniqueByCode = (list: DialCode[]) =>
+    list.filter(
+        (dial, index) =>
+            list.findIndex((other) => other.code === dial.code) === index,
+    );
 
 /** Sépare « +33 6 12 34 56 78 » en indicatif et numéro national. */
 export function splitPhone(value: string): { code: string; number: string } {
     const trimmed = value.trim();
     // Indicatifs les plus longs d'abord pour ne pas confondre +1 et +1xx.
-    const match = [...dialCodes]
-        .sort((a, b) => b.code.length - a.code.length)
-        .find((dial) => trimmed.startsWith(dial.code));
+    const codes = [...new Set(dialCodes.map((dial) => dial.code))].sort(
+        (a, b) => b.length - a.length,
+    );
+    const match = codes.find((code) => trimmed.startsWith(code));
 
     if (!match) {
         return { code: '+33', number: trimmed };
     }
 
-    return {
-        code: match.code,
-        number: trimmed.slice(match.code.length).trim(),
-    };
+    return { code: match, number: trimmed.slice(match.length).trim() };
 }
 
 export function joinPhone(code: string, number: string): string {
@@ -54,9 +73,18 @@ export function joinPhone(code: string, number: string): string {
     return national === '' ? '' : `${code} ${national}`;
 }
 
+/** Pays affiché pour un indicatif : le pays préféré s'il y en a un, sinon le premier. */
+function isoFor(code: string): CountryCode {
+    return (
+        preferredCodes.find((dial) => dial.code === code)?.iso ??
+        dialCodes.find((dial) => dial.code === code)?.iso ??
+        'FR'
+    );
+}
+
 /**
- * Téléphone avec indicatif : un sélecteur de pays (drapeau + indicatif)
- * et le numéro national. La valeur émise est le numéro complet.
+ * Téléphone avec indicatif : un sélecteur de pays (drapeau + indicatif,
+ * tous les pays) et le numéro national. La valeur émise est le numéro complet.
  */
 export function PhoneInput({
     id,
@@ -68,6 +96,7 @@ export function PhoneInput({
     onChange: (value: string) => void;
 }) {
     const { code, number } = splitPhone(value);
+    const iso = isoFor(code);
 
     return (
         <div className="flex gap-2">
@@ -79,18 +108,47 @@ export function PhoneInput({
                     aria-label="Indicatif"
                     className="bg-background w-32 shrink-0"
                 >
-                    <SelectValue />
+                    <SelectValue>
+                        <CountryFlag code={iso} />
+                        <span className="tabular-nums">{code}</span>
+                    </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
-                    {dialCodes.map((dial) => (
-                        <SelectItem key={dial.iso} value={dial.code}>
-                            <CountryFlag code={dial.iso} />
-                            <span className="tabular-nums">{dial.code}</span>
-                            <span className="text-muted-foreground sr-only">
-                                {dial.name}
-                            </span>
-                        </SelectItem>
-                    ))}
+                <SelectContent className="max-h-72">
+                    <SelectGroup>
+                        <SelectLabel>Fréquents</SelectLabel>
+                        {uniqueByCode(preferredCodes).map((dial) => (
+                            <SelectItem key={`p-${dial.iso}`} value={dial.code}>
+                                <CountryFlag code={dial.iso} />
+                                <span className="tabular-nums">
+                                    {dial.code}
+                                </span>
+                                <span className="text-muted-foreground">
+                                    {dial.name}
+                                </span>
+                            </SelectItem>
+                        ))}
+                    </SelectGroup>
+                    <SelectGroup>
+                        <SelectLabel>Tous les pays</SelectLabel>
+                        {uniqueByCode(otherCodes)
+                            .filter(
+                                (dial) =>
+                                    !preferredCodes.some(
+                                        (p) => p.code === dial.code,
+                                    ),
+                            )
+                            .map((dial) => (
+                                <SelectItem key={dial.iso} value={dial.code}>
+                                    <CountryFlag code={dial.iso} />
+                                    <span className="tabular-nums">
+                                        {dial.code}
+                                    </span>
+                                    <span className="text-muted-foreground">
+                                        {dial.name}
+                                    </span>
+                                </SelectItem>
+                            ))}
+                    </SelectGroup>
                 </SelectContent>
             </Select>
             <Input

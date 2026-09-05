@@ -133,6 +133,8 @@ export type LeadOfferOption = {
     value: OfferValue;
     label: string;
     description: string;
+    /** Une phrase qui décrit la formule. */
+    summary: string;
     price_cents: number;
 };
 

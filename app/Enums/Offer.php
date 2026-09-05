@@ -29,6 +29,17 @@ enum Offer: string
     }
 
     /**
+     * Une phrase pour situer la formule dans le formulaire du lead.
+     */
+    public function summary(): string
+    {
+        return match ($this) {
+            self::Accompagne => 'Le client cherche lui-même. Nous montons son dossier, le conseillons et l\'accompagnons jusqu\'à la signature.',
+            self::Confie => 'Nous prenons tout en charge : recherche, visites, négociation. Le client n\'a plus qu\'à signer.',
+        };
+    }
+
+    /**
      * Prix unitaire par défaut, en centimes, par devise (config/company.php).
      */
     public function defaultPriceCents(Currency $currency): int

@@ -339,7 +339,7 @@ class LeadController extends Controller
     }
 
     /**
-     * @return list<array{value: string, label: string, description: string, price_cents: int}>
+     * @return list<array{value: string, label: string, description: string, summary: string, price_cents: int}>
      */
     private function offers(): array
     {
@@ -348,6 +348,7 @@ class LeadController extends Controller
                 'value' => $offer->value,
                 'label' => $offer->label(),
                 'description' => $offer->description(),
+                'summary' => $offer->summary(),
                 'price_cents' => $offer->defaultPriceCents(Currency::EUR),
             ],
             Offer::cases(),

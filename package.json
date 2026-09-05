@@ -50,6 +50,7 @@
         "input-otp": "^1.4.2",
         "laravel-echo": "^2.4.0",
         "laravel-vite-plugin": "^3.0.0",
+        "libphonenumber-js": "^1.13.12",
         "lucide-react": "^0.475.0",
         "pusher-js": "^8.6.0",
         "radix-ui": "^1.6.7",

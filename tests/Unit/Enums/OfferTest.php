@@ -21,3 +21,9 @@ test('default prices come from the company config per currency', function (): vo
         ->and(Offer::Accompagne->defaultPriceCents(Currency::CHF))->toBe(119_000)
         ->and(Offer::Confie->defaultPriceCents(Currency::CHF))->toBe(219_000);
 });
+
+test('each offer is described in one sentence', function (): void {
+    foreach (Offer::cases() as $offer) {
+        expect($offer->summary())->toEndWith('.')->not->toContain("\n");
+    }
+});

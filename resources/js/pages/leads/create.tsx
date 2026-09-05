@@ -635,12 +635,12 @@ export default function LeadsCreate({
                                         label="Société"
                                         htmlFor="company"
                                         error={errors.company}
-                                        hint="Facultatif."
                                     >
                                         <Input
                                             id="company"
                                             name="company"
                                             autoComplete="off"
+                                            placeholder="Facultatif"
                                             className="bg-background"
                                             value={form.data.company}
                                             onChange={(e) =>
@@ -820,12 +820,12 @@ export default function LeadsCreate({
                                         label="Précision"
                                         htmlFor="source_note"
                                         error={errors.source_note}
-                                        hint="Recommandé par…, campagne…"
                                     >
                                         <Input
                                             id="source_note"
                                             name="source_note"
                                             autoComplete="off"
+                                            placeholder="Recommandé par…, campagne…"
                                             className="bg-background"
                                             value={form.data.source_note}
                                             onChange={(e) =>
