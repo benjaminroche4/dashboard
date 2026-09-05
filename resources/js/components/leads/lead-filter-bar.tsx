@@ -182,7 +182,7 @@ function AssigneeAvatars({
                             >
                                 <span
                                     className={cn(
-                                        'bg-muted text-muted-foreground flex size-8 items-center justify-center rounded-full border border-dashed ring-2',
+                                        'bg-muted text-muted-foreground flex size-7 items-center justify-center rounded-full border border-dashed ring-2',
                                         value === 'none'
                                             ? 'ring-primary'
                                             : 'ring-background',
