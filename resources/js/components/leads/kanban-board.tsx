@@ -27,7 +27,6 @@ import {
     Clock,
     PlaneLanding,
     Star,
-    X,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { LeadAssignMenu } from '@/components/leads/lead-assign-menu';
@@ -36,23 +35,11 @@ import {
     leadStatusClasses,
 } from '@/components/leads/lead-status-menu';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { formatDate, formatMoney } from '@/lib/format';
 import { applyMove, columnOf, columnStats } from '@/lib/kanban';
 import { leadUrgency } from '@/lib/lead-urgency';
 import { cn } from '@/lib/utils';
-import {
-    bulkStatus as leadBulkStatus,
-    status as leadStatusRoute,
-} from '@/routes/leads';
+import { status as leadStatusRoute } from '@/routes/leads';
 import type { Lead, LeadStatus, LeadStatusOption } from '@/types';
 
 type Props = {
@@ -136,8 +123,7 @@ const leadIdOf = (dndId: string | number) =>
 /**
  * Kanban des leads : une colonne par statut, glisser-déposer (souris, tactile,
  * clavier) pour changer de colonne et d'ordre, mise à jour optimiste et
- * retour arrière si le serveur refuse. Sélection multiple pour déplacer
- * plusieurs cartes d'un coup. La colonne Archivé est repliée par défaut.
+ * retour arrière si le serveur refuse. La colonne Archivé est repliée par défaut.
  */
 export function LeadKanban({
     leads,
@@ -157,9 +143,6 @@ export function LeadKanban({
     // Cartes apparues via un rechargement (ajout par un collègue) : entrée animée.
     const [entered, setEntered] = useState<Set<number>>(new Set());
     const knownIds = useRef<Set<number> | null>(null);
-    const [selected, setSelected] = useState<Set<number>>(new Set());
-    const [bulkTarget, setBulkTarget] = useState<string>('');
-    const [bulkPending, setBulkPending] = useState(false);
     // Hauteur du tableau = ce qui reste sous son bord haut : les colonnes
     // défilent chacune de leur côté et gardent leur en-tête visible.
     const boardRef = useRef<HTMLDivElement>(null);
@@ -195,11 +178,6 @@ export function LeadKanban({
         }
 
         knownIds.current = ids;
-        setSelected((current) => {
-            const kept = new Set([...current].filter((id) => ids.has(id)));
-
-            return kept.size === current.size ? current : kept;
-        });
     }, [leads]);
 
     useEffect(() => {
@@ -242,50 +220,6 @@ export function LeadKanban({
 
             return !open;
         });
-    };
-
-    const toggleSelected = (id: number, checked: boolean) =>
-        setSelected((current) => {
-            const next = new Set(current);
-
-            if (checked) {
-                next.add(id);
-            } else {
-                next.delete(id);
-            }
-
-            return next;
-        });
-
-    const clearSelection = () => {
-        setSelected(new Set());
-        setBulkTarget('');
-    };
-
-    const bulkMove = () => {
-        const target = statuses.find((status) => status.value === bulkTarget);
-
-        if (!target || selected.size === 0) {
-            return;
-        }
-
-        const ids = [...selected];
-        setBulkPending(true);
-        // Mise à jour optimiste : les cartes rejoignent la tête de la colonne, dans l'ordre.
-        setItems((state) =>
-            ids.reduceRight((acc, id) => applyMove(acc, id, target, 0), state),
-        );
-        setLanded({ id: ids[0] ?? 0, status: target.value, key: Date.now() });
-        router.patch(
-            leadBulkStatus().url,
-            { ids, status: target.value },
-            {
-                preserveScroll: true,
-                onSuccess: clearSelection,
-                onError: () => setItems(leads),
-                onFinish: () => setBulkPending(false),
-            },
-        );
     };
 
     const statusOf = (dndId: string | number): LeadStatusOption | undefined => {
@@ -384,7 +318,6 @@ export function LeadKanban({
 
     const active =
         activeId === null ? null : items.find((lead) => lead.id === activeId);
-    const selectionMode = selected.size > 0;
 
     return (
         <DndContext
@@ -444,11 +377,6 @@ export function LeadKanban({
                                             : null
                                     }
                                     entered={entered.has(lead.id)}
-                                    selectionMode={selectionMode}
-                                    selected={selected.has(lead.id)}
-                                    onSelect={(checked) =>
-                                        toggleSelected(lead.id, checked)
-                                    }
                                     onOpen={onOpen}
                                 />
                             ))}
@@ -456,69 +384,6 @@ export function LeadKanban({
                     );
                 })}
             </div>
-
-            {selectionMode && (
-                <div
-                    role="region"
-                    aria-label="Sélection"
-                    className="bg-background/95 fixed inset-x-4 bottom-4 z-40 mx-auto flex max-w-2xl flex-wrap items-center gap-3 rounded-xl border p-3 shadow-lg backdrop-blur"
-                >
-                    <p className="text-sm font-medium">
-                        {selected.size} sélectionné
-                        {selected.size > 1 ? 's' : ''}
-                    </p>
-                    <div className="ml-auto flex flex-wrap items-center gap-2">
-                        <Select
-                            value={bulkTarget}
-                            onValueChange={setBulkTarget}
-                        >
-                            <SelectTrigger
-                                aria-label="Déplacer vers"
-                                className="bg-background w-44"
-                            >
-                                <SelectValue placeholder="Déplacer vers…" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {statuses.map((status) => (
-                                    <SelectItem
-                                        key={status.value}
-                                        value={status.value}
-                                    >
-                                        {status.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <Button
-                            size="sm"
-                            onClick={bulkMove}
-                            disabled={bulkTarget === '' || bulkPending}
-                        >
-                            Déplacer
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                                setBulkTarget('archived');
-                                queueMicrotask(bulkMove);
-                            }}
-                            disabled={bulkPending}
-                        >
-                            <Archive />
-                            Archiver
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={clearSelection}
-                            aria-label="Annuler la sélection"
-                        >
-                            <X />
-                        </Button>
-                    </div>
-                </div>
-            )}
 
             <DragOverlay dropAnimation={{ duration: 180, easing: 'ease-out' }}>
                 {active ? (
@@ -705,9 +570,6 @@ function SortableCard({
     dragging,
     landedKey,
     entered,
-    selectionMode,
-    selected,
-    onSelect,
     onOpen,
 }: {
     lead: Lead;
@@ -717,9 +579,6 @@ function SortableCard({
     landedKey: number | null;
     /** Vrai pendant l'animation d'apparition d'une carte ajoutée à distance. */
     entered: boolean;
-    selectionMode: boolean;
-    selected: boolean;
-    onSelect: (checked: boolean) => void;
     onOpen?: (lead: Lead) => void;
 }) {
     const { attributes, listeners, setNodeRef, transform, transition } =
@@ -760,9 +619,6 @@ function SortableCard({
                     lead={lead}
                     statuses={statuses}
                     handleProps={{ ...attributes, ...listeners }}
-                    selectionMode={selectionMode}
-                    selected={selected}
-                    onSelect={onSelect}
                     onOpen={onOpen}
                 />
             </div>
@@ -791,18 +647,12 @@ export function LeadCard({
     statuses,
     handleProps = {},
     overlay = false,
-    selectionMode = false,
-    selected = false,
-    onSelect,
     onOpen,
 }: {
     lead: Lead;
     statuses: LeadStatusOption[];
     handleProps?: Record<string, unknown>;
     overlay?: boolean;
-    selectionMode?: boolean;
-    selected?: boolean;
-    onSelect?: (checked: boolean) => void;
     onOpen?: (lead: Lead) => void;
 }) {
     const contact = lead.email ?? lead.phone ?? '';
@@ -827,64 +677,26 @@ export function LeadCard({
             {...handleProps}
             aria-label={lead.name}
             data-test="lead-card"
-            data-selected={selected ? '' : undefined}
             onClick={() => {
-                if (overlay) {
-                    return;
-                }
-
-                if (selectionMode) {
-                    onSelect?.(!selected);
-                } else {
+                if (!overlay) {
                     onOpen?.(lead);
                 }
             }}
             className={cn(
-                'group/card bg-background relative grid min-w-0 cursor-grab gap-3 overflow-hidden rounded-lg border p-3 text-sm shadow-xs outline-none select-none focus-visible:ring-2 active:cursor-grabbing',
-                selected && 'border-primary ring-primary/30 ring-2',
+                'bg-background relative grid min-w-0 cursor-grab gap-3 overflow-hidden rounded-lg border p-3 text-sm shadow-xs outline-none select-none focus-visible:ring-2 active:cursor-grabbing',
                 overlay && 'rotate-2 cursor-grabbing shadow-xl',
             )}
         >
             <div className="flex min-w-0 items-center gap-3">
-                <div
-                    {...stop}
+                <span
+                    aria-hidden
                     className={cn(
-                        'relative shrink-0',
-                        !selectionMode &&
-                            'has-[[data-state=checked]]:[&>span]:opacity-0',
+                        'flex size-10 shrink-0 items-center justify-center rounded-md text-xs font-semibold',
+                        statusSoft[lead.status],
                     )}
                 >
-                    <span
-                        aria-hidden
-                        className={cn(
-                            'flex size-10 items-center justify-center rounded-md text-xs font-semibold transition-opacity',
-                            statusSoft[lead.status],
-                            (selectionMode || selected) && 'opacity-0',
-                            !overlay && 'group-hover/card:opacity-0',
-                        )}
-                    >
-                        {initials(lead.name)}
-                    </span>
-                    {!overlay && (
-                        <span
-                            className={cn(
-                                'absolute inset-0 flex items-center justify-center transition-opacity',
-                                selectionMode || selected
-                                    ? 'opacity-100'
-                                    : 'opacity-0 group-focus-within/card:opacity-100 group-hover/card:opacity-100',
-                            )}
-                        >
-                            <Checkbox
-                                checked={selected}
-                                onCheckedChange={(checked) =>
-                                    onSelect?.(checked === true)
-                                }
-                                aria-label={`Sélectionner ${lead.name}`}
-                                className="size-5"
-                            />
-                        </span>
-                    )}
-                </div>
+                    {initials(lead.name)}
+                </span>
                 <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{lead.name}</p>
                     <p className="text-muted-foreground truncate text-xs">

@@ -18,7 +18,6 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('leads/{lead}', [LeadController::class, 'show'])->name('leads.show');
     Route::get('leads/{lead}/edit', [LeadController::class, 'edit'])->name('leads.edit');
     Route::put('leads/{lead}', [LeadController::class, 'update'])->name('leads.update');
-    Route::patch('leads/bulk-status', [LeadController::class, 'bulkStatus'])->name('leads.bulk-status');
     Route::get('leads/{lead}/preview', [LeadController::class, 'preview'])->name('leads.preview');
     Route::patch('leads/{lead}/assign', [LeadController::class, 'assign'])->name('leads.assign');
     Route::patch('leads/{lead}/status', [LeadController::class, 'updateStatus'])->name('leads.status');

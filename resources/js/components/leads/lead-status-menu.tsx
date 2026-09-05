@@ -1,13 +1,12 @@
 import { router } from '@inertiajs/react';
-import { ChevronDown } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuItem,
     DropdownMenuLabel,
-    DropdownMenuRadioGroup,
-    DropdownMenuRadioItem,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -27,19 +26,37 @@ export const leadStatusClasses: Record<LeadStatus, string> = {
         'bg-neutral-100 text-neutral-600 dark:bg-neutral-900 dark:text-neutral-400',
 };
 
+/** Point de couleur du statut, pour les listes. */
+export const leadStatusDot: Record<LeadStatus, string> = {
+    todo: 'bg-purple-500',
+    in_progress: 'bg-sky-500',
+    quote_sent: 'bg-amber-500',
+    converted: 'bg-green-500',
+    archived: 'bg-neutral-400',
+};
+
+const hints: Record<LeadStatus, string> = {
+    todo: 'Nouveau, à contacter',
+    in_progress: 'Échanges en cours',
+    quote_sent: 'Proposition envoyée',
+    converted: 'Client signé',
+    archived: 'Sans suite',
+};
+
 /**
- * Badge de statut cliquable : choisir un autre statut le met à jour en place.
+ * Badge de statut cliquable : le menu liste chaque statut sous forme de
+ * badge coloré, avec sa description et une coche sur le statut actuel.
  */
 export function LeadStatusMenu({
     lead,
     statuses,
 }: {
-    lead: Lead;
+    lead: Pick<Lead, 'id' | 'name' | 'status' | 'status_label'>;
     statuses: LeadStatusOption[];
 }) {
     const [pending, setPending] = useState(false);
 
-    const change = (value: string) => {
+    const change = (value: LeadStatus) => {
         if (value === lead.status) {
             return;
         }
@@ -63,7 +80,7 @@ export function LeadStatusMenu({
                     variant="secondary"
                     data-status={lead.status}
                     className={cn(
-                        'max-w-full cursor-pointer gap-1 pr-1.5',
+                        'max-w-full cursor-pointer gap-1 pr-1.5 transition-opacity hover:opacity-80',
                         leadStatusClasses[lead.status],
                     )}
                 >
@@ -71,22 +88,55 @@ export function LeadStatusMenu({
                     <ChevronDown className="size-3 shrink-0 opacity-70" />
                 </Badge>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-                <DropdownMenuLabel>Statut</DropdownMenuLabel>
+            <DropdownMenuContent align="start" className="w-60 p-1.5">
+                <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
+                    Déplacer {lead.name} vers
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuRadioGroup
-                    value={lead.status}
-                    onValueChange={change}
-                >
-                    {statuses.map((option) => (
-                        <DropdownMenuRadioItem
+                {statuses.map((option) => {
+                    const current = option.value === lead.status;
+
+                    return (
+                        <DropdownMenuItem
                             key={option.value}
-                            value={option.value}
+                            aria-current={current ? 'true' : undefined}
+                            onSelect={() => change(option.value)}
+                            className={cn(
+                                'items-start gap-2.5 rounded-md py-2',
+                                current && 'bg-accent/60',
+                            )}
                         >
-                            {option.label}
-                        </DropdownMenuRadioItem>
-                    ))}
-                </DropdownMenuRadioGroup>
+                            <span className="grid min-w-0 flex-1 gap-0.5">
+                                <Badge
+                                    variant="secondary"
+                                    className={cn(
+                                        'w-fit gap-1.5 pl-1.5',
+                                        leadStatusClasses[option.value],
+                                    )}
+                                >
+                                    <span
+                                        aria-hidden
+                                        className={cn(
+                                            'size-1.5 rounded-full',
+                                            leadStatusDot[option.value],
+                                        )}
+                                    />
+                                    {option.label}
+                                </Badge>
+                                <span className="text-muted-foreground truncate text-xs">
+                                    {hints[option.value]}
+                                </span>
+                            </span>
+                            <Check
+                                aria-hidden
+                                className={cn(
+                                    'mt-0.5 size-4 shrink-0',
+                                    current ? 'opacity-100' : 'opacity-0',
+                                )}
+                            />
+                        </DropdownMenuItem>
+                    );
+                })}
             </DropdownMenuContent>
         </DropdownMenu>
     );

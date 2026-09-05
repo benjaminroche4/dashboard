@@ -201,47 +201,6 @@ describe('Leads kanban page', () => {
         expect(screen.queryByText('Nina Roy')).not.toBeInTheDocument();
     });
 
-    it('selects several cards and moves them at once', async () => {
-        patch.mockClear();
-        const user = userEvent.setup();
-        render(
-            <LeadsIndex
-                leads={leads}
-                statuses={leadStatuses}
-                offers={offers}
-            />,
-        );
-
-        await user.click(
-            screen.getByRole('checkbox', { name: 'Sélectionner Léa Durand' }),
-        );
-        await user.click(
-            screen.getByRole('checkbox', { name: 'Sélectionner Marc Petit' }),
-        );
-
-        const bar = screen.getByRole('region', { name: 'Sélection' });
-        expect(bar).toHaveTextContent('2 sélectionnés');
-
-        await user.click(
-            within(bar).getByRole('combobox', { name: 'Déplacer vers' }),
-        );
-        await user.click(
-            await screen.findByRole('option', { name: 'Devis envoyé' }),
-        );
-        await user.click(within(bar).getByRole('button', { name: 'Déplacer' }));
-
-        expect(patch).toHaveBeenCalledWith(
-            '/leads/bulk-status',
-            { ids: [1, 2], status: 'quote_sent' },
-            expect.objectContaining({ preserveScroll: true }),
-        );
-        expect(
-            within(
-                screen.getByRole('listitem', { name: 'Devis envoyé' }),
-            ).getByText('Marc Petit'),
-        ).toBeInTheDocument();
-    });
-
     it('shows urgency badges for stale leads and imminent arrivals', () => {
         const soon = new Date();
         soon.setDate(soon.getDate() + 5);

@@ -6,7 +6,6 @@ namespace App\Http\Controllers\Leads;
 
 use App\Actions\Leads\AddLeadNote;
 use App\Actions\Leads\AssignLead;
-use App\Actions\Leads\BulkUpdateLeadStatus;
 use App\Actions\Leads\CreateLead;
 use App\Actions\Leads\UpdateLead;
 use App\Actions\Leads\UpdateLeadStatus;
@@ -17,7 +16,6 @@ use App\Enums\LeadStatus;
 use App\Enums\Offer;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Leads\AssignLeadRequest;
-use App\Http\Requests\Leads\BulkUpdateLeadStatusRequest;
 use App\Http\Requests\Leads\StoreLeadNoteRequest;
 use App\Http\Requests\Leads\StoreLeadRequest;
 use App\Http\Requests\Leads\UpdateLeadRequest;
@@ -205,20 +203,6 @@ class LeadController extends Controller
             $position === null ? null : (int) $position,
             $request->user(),
         );
-
-        return back();
-    }
-
-    public function bulkStatus(BulkUpdateLeadStatusRequest $request, BulkUpdateLeadStatus $bulkUpdateLeadStatus): RedirectResponse
-    {
-        $status = LeadStatus::from($request->validated('status'));
-        $moved = $bulkUpdateLeadStatus->handle(
-            array_values(array_map(intval(...), $request->validated('ids'))),
-            $status,
-            $request->user(),
-        );
-
-        Inertia::flash('toast', ['type' => 'success', 'message' => trans_choice(':count lead déplacé en « :status ».|:count leads déplacés en « :status ».', $moved, ['count' => $moved, 'status' => $status->label()])]);
 
         return back();
     }

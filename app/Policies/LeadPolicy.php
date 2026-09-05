@@ -26,7 +26,6 @@ final class LeadPolicy
         return true;
     }
 
-    /** Vaut aussi pour les actions groupées (`can('update', Lead::class)`). */
     public function update(): bool
     {
         return true;
