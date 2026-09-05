@@ -120,7 +120,7 @@ function AssigneeAvatars({
             <div
                 role="group"
                 aria-label="Responsable"
-                className="flex items-center gap-1"
+                className="flex items-center -space-x-2"
             >
                 {ordered.map(([id, member]) => {
                     const active = value === id;
