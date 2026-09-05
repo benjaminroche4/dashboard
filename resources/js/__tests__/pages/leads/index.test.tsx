@@ -192,10 +192,13 @@ describe('Leads kanban page', () => {
             />,
         );
 
-        await user.click(screen.getByRole('button', { name: 'Responsable' }));
-        await user.click(
-            await screen.findByRole('menuitem', { name: 'Mes leads' }),
-        );
+        await user.click(screen.getByRole('button', { name: 'Mes leads (1)' }));
+        expect(
+            screen.getByRole('button', { name: 'Camille (1)' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Non attribués (1)' }),
+        ).toBeInTheDocument();
 
         expect(screen.getByText('Léa Durand')).toBeInTheDocument();
         expect(screen.queryByText('Marc Petit')).not.toBeInTheDocument();

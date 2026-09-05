@@ -93,7 +93,8 @@ export type LeadEditable = LeadForm & { id: number; name: string };
 
 export type LeadSortKey = 'manual' | 'score' | 'arrival' | 'created';
 
-export type LeadAssigneeFilter = 'all' | 'me' | 'none';
+/** Tous, non attribués, ou l'identifiant d'un membre du staff. */
+export type LeadAssigneeFilter = 'all' | 'none' | number;
 
 /** Charge utile du volet d'aperçu (route leads.preview) et de la fiche. */
 export type LeadPreviewPayload = {

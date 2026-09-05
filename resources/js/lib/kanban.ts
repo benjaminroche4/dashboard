@@ -113,15 +113,14 @@ export const defaultFilters: LeadFilters = {
 };
 
 /** Filtre puis trie (le tri manuel garde l'ordre des positions). */
-export function filterLeads(
-    leads: Lead[],
-    filters: LeadFilters,
-    currentUserId: number | null = null,
-): Lead[] {
+export function filterLeads(leads: Lead[], filters: LeadFilters): Lead[] {
     const needle = filters.query.trim().toLowerCase();
 
     const kept = leads.filter((lead) => {
-        if (filters.assignee === 'me' && lead.assignee?.id !== currentUserId) {
+        if (
+            typeof filters.assignee === 'number' &&
+            lead.assignee?.id !== filters.assignee
+        ) {
             return false;
         }
 

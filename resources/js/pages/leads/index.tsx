@@ -1,4 +1,4 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { Sparkles } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { LeadKanban } from '@/components/leads/kanban-board';
@@ -16,13 +16,11 @@ type Props = {
 };
 
 export default function LeadsIndex({ leads, statuses, offers }: Props) {
-    const { auth } = usePage().props;
-    const currentUserId = auth.user?.id ?? null;
     const [filters, setFilters] = useState<LeadFilters>(defaultFilters);
     const [previewId, setPreviewId] = useState<number | null>(null);
     const filtered = useMemo(
-        () => filterLeads(leads, filters, currentUserId),
-        [leads, filters, currentUserId],
+        () => filterLeads(leads, filters),
+        [leads, filters],
     );
     const patch = (changes: Partial<LeadFilters>) =>
         setFilters((current) => ({ ...current, ...changes }));
@@ -78,6 +76,7 @@ export default function LeadsIndex({ leads, statuses, offers }: Props) {
                         <LeadFilterBar
                             filters={filters}
                             offers={offers}
+                            leads={leads}
                             onChange={patch}
                         />
                         <LeadKanban
