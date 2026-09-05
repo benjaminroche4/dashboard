@@ -3,17 +3,25 @@ import {
     getCountryCallingCode,
     type CountryCode,
 } from 'libphonenumber-js/min';
+import { Check, ChevronsUpDown } from 'lucide-react';
+import { useState } from 'react';
 import { CountryFlag } from '@/components/country-flag';
+import { Button } from '@/components/ui/button';
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from '@/components/ui/command';
 import { Input } from '@/components/ui/input';
 import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectLabel,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 export type DialCode = { code: string; iso: CountryCode; name: string };
 
@@ -83,8 +91,9 @@ function isoFor(code: string): CountryCode {
 }
 
 /**
- * Téléphone avec indicatif : un sélecteur de pays (drapeau + indicatif,
- * tous les pays) et le numéro national. La valeur émise est le numéro complet.
+ * Téléphone avec indicatif : un sélecteur de pays avec recherche (drapeau,
+ * indicatif, nom, tous les pays) et le numéro national. La valeur émise
+ * est le numéro complet.
  */
 export function PhoneInput({
     id,
@@ -95,62 +104,85 @@ export function PhoneInput({
     value: string;
     onChange: (value: string) => void;
 }) {
-    const { code, number } = splitPhone(value);
+    const parsed = splitPhone(value);
+    // Indicatif choisi avant tout numéro : gardé ici tant que le numéro est vide.
+    const [pendingCode, setPendingCode] = useState<string | null>(null);
+    const code =
+        parsed.number === '' && pendingCode ? pendingCode : parsed.code;
+    const number = parsed.number;
     const iso = isoFor(code);
+    const [open, setOpen] = useState(false);
+
+    const pick = (next: string) => {
+        setPendingCode(next);
+        onChange(joinPhone(next, number));
+        setOpen(false);
+    };
+
+    const item = (dial: DialCode, keyPrefix = '') => (
+        <CommandItem
+            key={`${keyPrefix}${dial.iso}`}
+            value={`${dial.name} ${dial.code} ${dial.iso}`}
+            onSelect={() => pick(dial.code)}
+        >
+            <CountryFlag code={dial.iso} />
+            <span className="truncate">{dial.name}</span>
+            <span className="text-muted-foreground ml-auto tabular-nums">
+                {dial.code}
+            </span>
+            <Check
+                className={cn(
+                    'size-4',
+                    dial.code === code ? 'opacity-100' : 'opacity-0',
+                )}
+                aria-hidden
+            />
+        </CommandItem>
+    );
 
     return (
         <div className="flex gap-2">
-            <Select
-                value={code}
-                onValueChange={(next) => onChange(joinPhone(next, number))}
-            >
-                <SelectTrigger
-                    aria-label="Indicatif"
-                    className="bg-background w-32 shrink-0"
-                >
-                    <SelectValue>
-                        <CountryFlag code={iso} />
-                        <span className="tabular-nums">{code}</span>
-                    </SelectValue>
-                </SelectTrigger>
-                <SelectContent className="max-h-72">
-                    <SelectGroup>
-                        <SelectLabel>Fréquents</SelectLabel>
-                        {uniqueByCode(preferredCodes).map((dial) => (
-                            <SelectItem key={`p-${dial.iso}`} value={dial.code}>
-                                <CountryFlag code={dial.iso} />
-                                <span className="tabular-nums">
-                                    {dial.code}
-                                </span>
-                                <span className="text-muted-foreground">
-                                    {dial.name}
-                                </span>
-                            </SelectItem>
-                        ))}
-                    </SelectGroup>
-                    <SelectGroup>
-                        <SelectLabel>Tous les pays</SelectLabel>
-                        {uniqueByCode(otherCodes)
-                            .filter(
-                                (dial) =>
-                                    !preferredCodes.some(
-                                        (p) => p.code === dial.code,
-                                    ),
-                            )
-                            .map((dial) => (
-                                <SelectItem key={dial.iso} value={dial.code}>
-                                    <CountryFlag code={dial.iso} />
-                                    <span className="tabular-nums">
-                                        {dial.code}
-                                    </span>
-                                    <span className="text-muted-foreground">
-                                        {dial.name}
-                                    </span>
-                                </SelectItem>
-                            ))}
-                    </SelectGroup>
-                </SelectContent>
-            </Select>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={open}
+                        aria-label="Indicatif"
+                        className="bg-background w-32 shrink-0 justify-between px-3 font-normal"
+                    >
+                        <span className="flex items-center gap-2">
+                            <CountryFlag code={iso} />
+                            <span className="tabular-nums">{code}</span>
+                        </span>
+                        <ChevronsUpDown className="opacity-50" aria-hidden />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-0" align="start">
+                    <Command>
+                        <CommandInput placeholder="Rechercher un pays ou un indicatif…" />
+                        <CommandList>
+                            <CommandEmpty>Aucun pays trouvé.</CommandEmpty>
+                            <CommandGroup heading="Fréquents">
+                                {uniqueByCode(preferredCodes).map((dial) =>
+                                    item(dial, 'p-'),
+                                )}
+                            </CommandGroup>
+                            <CommandGroup heading="Tous les pays">
+                                {uniqueByCode(otherCodes)
+                                    .filter(
+                                        (dial) =>
+                                            !preferredCodes.some(
+                                                (p) => p.code === dial.code,
+                                            ),
+                                    )
+                                    .map((dial) => item(dial))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
             <Input
                 id={id}
                 name="phone"
