@@ -56,6 +56,7 @@ class StoreLeadRequest extends FormRequest
             'recontact_channel' => ['nullable', Rule::enum(RecontactChannel::class)],
             'recontact_at' => ['nullable', 'date'],
             'qualification_note' => ['nullable', 'string', 'max:5000'],
+            'assigned_to' => ['nullable', 'integer', Rule::exists('users', 'id')],
         ];
     }
 
@@ -88,6 +89,7 @@ class StoreLeadRequest extends FormRequest
             'recontact_channel' => 'canal de recontact',
             'recontact_at' => 'date de recontact',
             'qualification_note' => 'note de qualification',
+            'assigned_to' => 'responsable',
         ];
     }
 

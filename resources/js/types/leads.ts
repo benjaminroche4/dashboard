@@ -102,6 +102,8 @@ export type LeadForm = {
     recontact_channel: RecontactChannel | '';
     recontact_at: string;
     qualification_note: string;
+    /** Responsable du suivi, pré-rempli avec l'utilisateur courant. */
+    assigned_to: number | null;
 };
 
 export type LeadDetail = Lead & {

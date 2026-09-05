@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     Bed,
     Building2,
@@ -9,12 +9,15 @@ import {
     LayoutPanelLeft,
     Sofa,
     Star,
+    TriangleAlert,
+    UserRound,
     Warehouse,
 } from 'lucide-react';
-import type { FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { CountryFlag } from '@/components/country-flag';
 import { DatePicker } from '@/components/date-picker';
 import InputError from '@/components/input-error';
+import { FormActionBar } from '@/components/form-action-bar';
 import { DistrictMap } from '@/components/leads/district-map';
 import { LeadPassport } from '@/components/leads/lead-passport';
 import { PhoneInput } from '@/components/phone-input';
@@ -33,10 +36,19 @@ import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { formatMoney } from '@/lib/format';
 import { toCents } from '@/lib/invoice-totals';
+import {
+    leadErrorFields,
+    validateLeadForm,
+    type LeadFormErrors,
+} from '@/lib/lead-validation';
+import { budgetHint, budgetTiers } from '@/lib/paris-budget';
+import { notify } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import {
+    duplicates as leadDuplicates,
     index as leadsIndex,
     show as leadShow,
     store,
@@ -87,6 +99,15 @@ const propertyIcons: Record<PropertyType, typeof Bed> = {
     duplex: Layers,
     loft: Warehouse,
     maison: House,
+};
+
+type Duplicate = {
+    id: number;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    status_label: string;
+    url: string;
 };
 
 /** Ne garde que les champs du formulaire (sans id ni nom composé). */
@@ -172,6 +193,7 @@ export default function LeadsCreate({
     lead,
 }: Props) {
     const editing = lead !== undefined;
+    const { auth, staff } = usePage().props;
     const form = useForm<LeadForm>(
         lead
             ? { ...toForm(lead) }
@@ -199,13 +221,105 @@ export default function LeadsCreate({
                   recontact_channel: '',
                   recontact_at: '',
                   qualification_note: '',
+                  assigned_to: auth.user?.id ?? null,
               },
     );
-    const errors = form.errors as Record<string, string | undefined>;
+    // Erreurs détectées localement avant l'envoi ; celles du serveur priment.
+    const [localErrors, setLocalErrors] = useState<LeadFormErrors>({});
+    const errors: Record<string, string | undefined> = {
+        ...localErrors,
+        ...(form.errors as Record<string, string>),
+    };
+    const [duplicates, setDuplicates] = useState<Duplicate[]>([]);
+    const formRef = useRef<HTMLFormElement>(null);
+    const errorKeys = Object.keys(errors).join('|');
+
+    // Le premier champ en erreur reçoit le focus, qu'elle vienne du serveur ou du local.
+    useEffect(() => {
+        const first = errorKeys.split('|')[0];
+
+        if (!first) {
+            return;
+        }
+
+        const element = document.getElementById(
+            leadErrorFields[first] ?? first,
+        );
+
+        if (element instanceof HTMLElement) {
+            element.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            element.focus({ preventScroll: true });
+        }
+    }, [errorKeys]);
+
+    // Doublons : dès qu'un e-mail complet ou un téléphone est saisi.
+    useEffect(() => {
+        const email = form.data.email.trim();
+        const digits = form.data.phone.replace(/\D/g, '');
+
+        if (!email.includes('@') && digits.length < 6) {
+            setDuplicates([]);
+
+            return;
+        }
+
+        const controller = new AbortController();
+        const timer = setTimeout(() => {
+            fetch(
+                leadDuplicates({
+                    query: {
+                        email: email.includes('@') ? email : '',
+                        phone: digits.length >= 6 ? form.data.phone : '',
+                        except: lead?.id ?? '',
+                    },
+                }).url,
+                {
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json' },
+                    signal: controller.signal,
+                },
+            )
+                .then((response) => (response.ok ? response.json() : []))
+                .then((hits: Duplicate[]) => setDuplicates(hits))
+                .catch(() => undefined);
+        }, 300);
+
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+        };
+    }, [form.data.email, form.data.phone, lead?.id]);
+
+    // Raccourcis : ⌘/Ctrl+Entrée enregistre, Échap annule (hors menus ouverts).
+    useEffect(() => {
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                event.preventDefault();
+                formRef.current?.requestSubmit();
+            }
+
+            if (
+                event.key === 'Escape' &&
+                !event.defaultPrevented &&
+                document.querySelector(
+                    '[data-radix-popper-content-wrapper]',
+                ) === null
+            ) {
+                router.visit(
+                    lead ? leadShow({ lead: lead.id }).url : leadsIndex().url,
+                );
+            }
+        };
+
+        window.addEventListener('keydown', onKeyDown);
+
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [lead]);
     const set =
         <K extends keyof LeadForm>(key: K) =>
         (value: LeadForm[K]) =>
             form.setData((data) => ({ ...data, [key]: value }));
+    const hint = budgetHint(form.data.districts, form.data.property_types);
     const selectOptions = <T extends string>(
         options: LabeledOption<T>[],
         none: string,
@@ -222,6 +336,19 @@ export default function LeadsCreate({
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
+
+        const found = validateLeadForm(form.data);
+        setLocalErrors(found);
+
+        if (Object.keys(found).length > 0) {
+            notify.error(
+                'Formulaire incomplet',
+                'Corrigez les champs signalés avant de continuer.',
+            );
+
+            return;
+        }
+
         form.transform((data) => ({
             ...data,
             offer: data.offer === '' ? null : data.offer,
@@ -248,7 +375,7 @@ export default function LeadsCreate({
             <Head
                 title={editing ? `Modifier ${lead.name}` : 'Converting Machine'}
             />
-            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-10">
+            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4">
                 <div className="flex items-end justify-between pt-8 pb-6">
                     <div>
                         <h1 className="text-lg font-medium">
@@ -262,33 +389,14 @@ export default function LeadsCreate({
                                 : 'Trois étapes, et le passeport du lead se remplit à droite au fur et à mesure.'}
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button type="button" variant="ghost" asChild>
-                            <Link
-                                href={
-                                    lead
-                                        ? leadShow({ lead: lead.id })
-                                        : leadsIndex()
-                                }
-                            >
-                                Annuler
-                            </Link>
-                        </Button>
-                        <Button
-                            type="submit"
-                            form="lead-form"
-                            disabled={form.processing}
-                        >
-                            {form.processing && <Spinner />}
-                            {editing ? 'Enregistrer' : 'Ajouter le lead'}
-                        </Button>
-                    </div>
                 </div>
 
                 <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
                     <form
+                        ref={formRef}
                         id="lead-form"
                         onSubmit={submit}
+                        noValidate
                         className="grid content-start gap-6"
                         data-test="lead-form"
                     >
@@ -412,6 +520,47 @@ export default function LeadsCreate({
                                     </ToggleGroup>
                                 </Field>
                             </div>
+                            {duplicates.length > 0 && (
+                                <Alert data-test="duplicates">
+                                    <TriangleAlert />
+                                    <AlertTitle>
+                                        {duplicates.length > 1
+                                            ? 'Des leads existent déjà avec ce contact'
+                                            : 'Un lead existe déjà avec ce contact'}
+                                    </AlertTitle>
+                                    <AlertDescription>
+                                        <ul role="list" className="grid gap-1">
+                                            {duplicates.map((duplicate) => (
+                                                <li
+                                                    key={duplicate.id}
+                                                    className="flex flex-wrap items-center gap-x-2"
+                                                >
+                                                    <Link
+                                                        href={duplicate.url}
+                                                        className="font-medium underline-offset-4 hover:underline"
+                                                    >
+                                                        {duplicate.name}
+                                                    </Link>
+                                                    <span className="text-muted-foreground text-xs">
+                                                        {[
+                                                            duplicate.email,
+                                                            duplicate.phone,
+                                                        ]
+                                                            .filter(Boolean)
+                                                            .join(' · ')}
+                                                        {' · '}
+                                                        {duplicate.status_label}
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                        <p className="mt-1">
+                                            Ouvrez la fiche existante plutôt que
+                                            d'en créer une seconde.
+                                        </p>
+                                    </AlertDescription>
+                                </Alert>
+                            )}
                             <Field label="Formule choisie" error={errors.offer}>
                                 <RadioGroup
                                     value={form.data.offer}
@@ -525,6 +674,32 @@ export default function LeadsCreate({
                                             set('budget')(e.target.value)
                                         }
                                     />
+                                    <div
+                                        className="flex flex-wrap gap-1"
+                                        aria-label="Paliers de budget"
+                                    >
+                                        {budgetTiers.map((tier) => (
+                                            <Button
+                                                key={tier}
+                                                type="button"
+                                                variant={
+                                                    toCents(
+                                                        form.data.budget,
+                                                    ) ===
+                                                    tier * 100
+                                                        ? 'secondary'
+                                                        : 'outline'
+                                                }
+                                                size="sm"
+                                                className="h-7 px-2 text-xs tabular-nums"
+                                                onClick={() =>
+                                                    set('budget')(String(tier))
+                                                }
+                                            >
+                                                {tier.toLocaleString('fr-FR')} €
+                                            </Button>
+                                        ))}
+                                    </div>
                                 </Field>
                                 <Field
                                     label="Emménagement souhaité"
@@ -539,6 +714,30 @@ export default function LeadsCreate({
                                     />
                                 </Field>
                             </div>
+                            {hint &&
+                                form.data.budget.trim() !== '' &&
+                                toCents(form.data.budget) <
+                                    hint.minimumCents && (
+                                    <Alert data-test="budget-hint">
+                                        <TriangleAlert />
+                                        <AlertTitle>
+                                            Budget serré pour ces choix
+                                        </AlertTitle>
+                                        <AlertDescription>
+                                            Comptez plutôt{' '}
+                                            <span className="text-foreground font-medium tabular-nums">
+                                                {formatMoney(
+                                                    hint.minimumCents,
+                                                    'EUR',
+                                                )}{' '}
+                                                / mois
+                                            </span>{' '}
+                                            pour {hint.propertyLabel} dans{' '}
+                                            {hint.zoneLabel}. Repère indicatif,
+                                            à nuancer selon le bien.
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
                             <Field
                                 label="Quartiers visés"
                                 error={errors.districts}
@@ -817,7 +1016,52 @@ export default function LeadsCreate({
                                 </Field>
                             </div>
                             <Field
-                                label="Note de qualification"
+                                label="Suivi par"
+                                htmlFor="assigned_to"
+                                error={errors.assigned_to}
+                            >
+                                <Select
+                                    value={
+                                        form.data.assigned_to === null
+                                            ? 'none'
+                                            : String(form.data.assigned_to)
+                                    }
+                                    onValueChange={(value) =>
+                                        set('assigned_to')(
+                                            value === 'none'
+                                                ? null
+                                                : Number(value),
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger
+                                        id="assigned_to"
+                                        aria-label="Suivi par"
+                                        className="bg-background w-full sm:max-w-xs"
+                                    >
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">
+                                            <UserRound />
+                                            Personne pour l'instant
+                                        </SelectItem>
+                                        {staff.map((member) => (
+                                            <SelectItem
+                                                key={member.id}
+                                                value={String(member.id)}
+                                            >
+                                                {member.name}
+                                                {member.id === auth.user?.id
+                                                    ? ' (moi)'
+                                                    : ''}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </Field>
+                            <Field
+                                label="Note de qualification\"
                                 htmlFor="qualification_note"
                                 error={errors.qualification_note}
                             >
@@ -853,6 +1097,27 @@ export default function LeadsCreate({
                         />
                     </div>
                 </div>
+                <FormActionBar>
+                    <Button type="button" variant="ghost" asChild>
+                        <Link
+                            href={
+                                lead
+                                    ? leadShow({ lead: lead.id })
+                                    : leadsIndex()
+                            }
+                        >
+                            Annuler
+                        </Link>
+                    </Button>
+                    <Button
+                        type="submit"
+                        form="lead-form"
+                        disabled={form.processing}
+                    >
+                        {form.processing && <Spinner />}
+                        {editing ? 'Enregistrer' : 'Ajouter le lead'}
+                    </Button>
+                </FormActionBar>
             </div>
         </>
     );

@@ -49,6 +49,7 @@ final readonly class LeadData
         public ?RecontactChannel $recontactChannel,
         public ?CarbonInterface $recontactAt,
         public ?string $qualificationNote,
+        public ?int $assignedTo = null,
     ) {}
 
     /**
@@ -80,6 +81,7 @@ final readonly class LeadData
             recontactChannel: self::enum(RecontactChannel::class, $data['recontact_channel'] ?? null),
             recontactAt: isset($data['recontact_at']) ? Date::parse($data['recontact_at']) : null,
             qualificationNote: self::blankToNull($data['qualification_note'] ?? null),
+            assignedTo: isset($data['assigned_to']) ? (int) $data['assigned_to'] : null,
         );
     }
 
@@ -112,6 +114,7 @@ final readonly class LeadData
             'recontact_channel' => $this->recontactChannel,
             'recontact_at' => $this->recontactAt,
             'qualification_note' => $this->qualificationNote,
+            'assigned_to' => $this->assignedTo,
         ];
     }
 

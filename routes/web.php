@@ -13,6 +13,7 @@ Route::middleware(['auth'])->group(function (): void {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
     Route::get('leads', [LeadController::class, 'index'])->name('leads.index');
     Route::get('leads/search', [LeadController::class, 'search'])->middleware('throttle:60,1')->name('leads.search');
+    Route::get('leads/duplicates', [LeadController::class, 'duplicates'])->middleware('throttle:60,1')->name('leads.duplicates');
     Route::get('leads/create', [LeadController::class, 'create'])->name('leads.create');
     Route::post('leads', [LeadController::class, 'store'])->name('leads.store');
     Route::get('leads/{lead}', [LeadController::class, 'show'])->name('leads.show');

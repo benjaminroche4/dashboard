@@ -9,15 +9,21 @@ class ResizeObserverStub {
     disconnect = vi.fn();
 }
 
-vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+// Défini directement (et non via stubGlobal) : un `vi.unstubAllGlobals()` dans un test ne doit pas l'enlever.
+Object.defineProperty(globalThis, 'ResizeObserver', {
+    configurable: true,
+    writable: true,
+    value: ResizeObserverStub,
+});
 
 // jsdom n'implémente pas scrollIntoView (utilisé par cmdk).
 Element.prototype.scrollIntoView = vi.fn();
 
 // jsdom n'implémente pas matchMedia (utilisé pour prefers-reduced-motion).
-vi.stubGlobal(
-    'matchMedia',
-    vi.fn((query: string) => ({
+Object.defineProperty(globalThis, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: vi.fn((query: string) => ({
         matches: false,
         media: query,
         onchange: null,
@@ -27,7 +33,7 @@ vi.stubGlobal(
         removeListener: vi.fn(),
         dispatchEvent: vi.fn(),
     })),
-);
+});
 
 afterEach(() => {
     cleanup();

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { AddressAutocomplete } from '@/components/address-autocomplete';
 import { CountryFlag } from '@/components/country-flag';
 import { DatePicker } from '@/components/date-picker';
+import { FormActionBar } from '@/components/form-action-bar';
 import InputError from '@/components/input-error';
 import { InvoicePreview } from '@/components/invoices/invoice-preview';
 import { Button } from '@/components/ui/button';
@@ -215,20 +216,6 @@ export default function InvoicesCreate({
                         <p className="text-muted-foreground text-sm">
                             L'aperçu se met à jour au fur et à mesure.
                         </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button type="button" variant="ghost" asChild>
-                            <Link href={invoicesIndex()}>Annuler</Link>
-                        </Button>
-                        <Button
-                            type="submit"
-                            form="invoice-form"
-                            disabled={form.processing}
-                            data-test="invoice-submit"
-                        >
-                            {form.processing && <Spinner />}
-                            Créer la facture
-                        </Button>
                     </div>
                 </div>
 
@@ -740,6 +727,20 @@ export default function InvoicesCreate({
                         />
                     </aside>
                 </div>
+                <FormActionBar>
+                    <Button type="button" variant="ghost" asChild>
+                        <Link href={invoicesIndex()}>Annuler</Link>
+                    </Button>
+                    <Button
+                        type="submit"
+                        form="invoice-form"
+                        disabled={form.processing}
+                        data-test="invoice-submit"
+                    >
+                        {form.processing && <Spinner />}
+                        Créer la facture
+                    </Button>
+                </FormActionBar>
             </div>
         </>
     );

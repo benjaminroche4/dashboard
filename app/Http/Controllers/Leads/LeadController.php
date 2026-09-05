@@ -60,6 +60,46 @@ class LeadController extends Controller
         ]);
     }
 
+    /** Doublons potentiels pendant la saisie : même e-mail ou même téléphone. */
+    public function duplicates(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Lead::class);
+
+        $email = mb_strtolower(trim((string) $request->query('email', '')));
+        $phone = preg_replace('/\D+/', '', (string) $request->query('phone', '')) ?? '';
+        $except = (int) $request->query('except', 0);
+
+        if ($email === '' && strlen($phone) < 6) {
+            return response()->json([]);
+        }
+
+        $leads = Lead::query()
+            ->when($except > 0, fn ($query) => $query->whereKeyNot($except))
+            ->where(function ($query) use ($email, $phone): void {
+                if ($email !== '') {
+                    $query->whereRaw('lower(email) = ?', [$email]);
+                }
+
+                if (strlen($phone) >= 6) {
+                    // Compare les chiffres seuls : « +33 6 12 » et « 0612 » se rejoignent sur la fin.
+                    $query->orWhereRaw("replace(replace(replace(replace(phone, ' ', ''), '.', ''), '-', ''), '+', '') like ?", ['%'.substr($phone, -9)]);
+                }
+            })
+            ->limit(5)
+            ->get()
+            ->map(fn (Lead $lead): array => [
+                'id' => $lead->id,
+                'name' => $lead->fullName(),
+                'email' => $lead->email,
+                'phone' => $lead->phone,
+                'status_label' => $lead->status->label(),
+                'url' => route('leads.show', $lead),
+            ])
+            ->all();
+
+        return response()->json($leads);
+    }
+
     /** Recherche ⌘K : les dix leads dont le nom ou l'e-mail contient la saisie. */
     public function search(Request $request): JsonResponse
     {
@@ -198,6 +238,7 @@ class LeadController extends Controller
                 'recontact_channel' => $lead->recontact_channel === null ? '' : $lead->recontact_channel->value,
                 'recontact_at' => $lead->recontact_at?->toDateString() ?? '',
                 'qualification_note' => $lead->qualification_note ?? '',
+                'assigned_to' => $lead->assigned_to,
             ],
         ]);
     }

@@ -3,11 +3,15 @@ import userEvent from '@testing-library/user-event';
 import { useState, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { post, put, transform } = vi.hoisted(() => ({
+const { post, put, transform, visit, toastError } = vi.hoisted(() => ({
     post: vi.fn(),
     put: vi.fn(),
     transform: vi.fn(),
+    visit: vi.fn(),
+    toastError: vi.fn(),
 }));
+
+vi.mock('@/lib/toast', () => ({ notify: { error: toastError } }));
 
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@inertiajs/react')>();
@@ -19,9 +23,21 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
             href,
             children,
         }: {
-            href: { url: string };
+            href: { url: string } | string;
             children: ReactNode;
-        }) => <a href={href.url}>{children}</a>,
+        }) => (
+            <a href={typeof href === 'string' ? href : href.url}>{children}</a>
+        ),
+        router: { visit },
+        usePage: () => ({
+            props: {
+                auth: { user: { id: 1, name: 'Admin' } },
+                staff: [
+                    { id: 1, name: 'Admin', role: 'admin' },
+                    { id: 2, name: 'Camille', role: 'member' },
+                ],
+            },
+        }),
         useForm: (initial: Record<string, unknown>) => useFormStub(initial),
     };
 });
@@ -198,6 +214,7 @@ describe('Converting Machine page', () => {
                     recontact_channel: '',
                     recontact_at: '',
                     qualification_note: '',
+                    assigned_to: 2,
                 }}
             />,
         );
@@ -231,5 +248,91 @@ describe('Converting Machine page', () => {
 
         expect(put).toHaveBeenCalledWith('/leads/7');
         expect(post).not.toHaveBeenCalled();
+    });
+
+    it('blocks the submission locally and focuses the first field in error', async () => {
+        const user = userEvent.setup();
+        render(<LeadsCreate {...props} />);
+
+        await user.keyboard('{Meta>}{Enter}{/Meta}');
+
+        expect(post).not.toHaveBeenCalled();
+        expect(toastError).toHaveBeenCalled();
+        expect(screen.getByText('Le nom est obligatoire.')).toBeInTheDocument();
+        expect(
+            screen.getAllByText('Indiquez au moins un e-mail ou un téléphone.')
+                .length,
+        ).toBe(2);
+        expect(screen.getByLabelText('Nom')).toHaveFocus();
+    });
+
+    it('warns about duplicates when a known e-mail is typed', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async () => ({
+                ok: true,
+                json: async () => [
+                    {
+                        id: 9,
+                        name: 'Léa Durand',
+                        email: 'lea@example.com',
+                        phone: null,
+                        status_label: 'En cours',
+                        url: '/leads/9',
+                    },
+                ],
+            })),
+        );
+        const user = userEvent.setup();
+        render(<LeadsCreate {...props} />);
+
+        await user.type(screen.getByLabelText('E-mail'), 'lea@example.com');
+
+        expect(
+            await screen.findByText('Un lead existe déjà avec ce contact'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'Léa Durand' }),
+        ).toHaveAttribute('href', '/leads/9');
+        expect(fetch).toHaveBeenCalledWith(
+            expect.stringContaining('/leads/duplicates?'),
+            expect.anything(),
+        );
+        vi.unstubAllGlobals();
+    });
+
+    it('offers budget tiers, warns on a tight budget and assigns the lead to me by default', async () => {
+        const user = userEvent.setup();
+        render(<LeadsCreate {...props} />);
+
+        expect(
+            screen.getByRole('combobox', { name: 'Suivi par' }),
+        ).toHaveTextContent('Admin (moi)');
+
+        await user.click(screen.getByRole('button', { name: /1.500 €/ }));
+        expect(screen.getByLabelText('Budget mensuel (€)')).toHaveValue('1500');
+
+        await user.click(
+            screen.getByRole('button', { name: '6e arrondissement' }),
+        );
+        await user.click(screen.getByRole('button', { name: 'T2' }));
+
+        expect(
+            await screen.findByText('Budget serré pour ces choix'),
+        ).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /3.000 €/ }));
+        expect(
+            screen.queryByText('Budget serré pour ces choix'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('leaves the page on Escape', async () => {
+        const user = userEvent.setup();
+        render(<LeadsCreate {...props} />);
+
+        await user.keyboard('{Escape}');
+
+        expect(visit).toHaveBeenCalledWith('/leads');
     });
 });

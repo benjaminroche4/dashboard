@@ -30,6 +30,7 @@ const empty: LeadForm = {
     recontact_channel: '',
     recontact_at: '',
     qualification_note: '',
+    assigned_to: null,
 };
 const options = {
     offers: [{ value: 'confie', label: 'Confié' }],
