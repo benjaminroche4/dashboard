@@ -1,40 +1,19 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { Sparkles, Star, UserRound } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { LeadKanban } from '@/components/leads/kanban-board';
+import { LeadFilterBar } from '@/components/leads/lead-filter-bar';
 import { LeadPreviewSheet } from '@/components/leads/lead-preview-sheet';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { defaultFilters, filterLeads, type LeadFilters } from '@/lib/kanban';
 import { create as leadsCreate, index as leadsIndex } from '@/routes/leads';
-import type {
-    Lead,
-    LeadAssigneeFilter,
-    LeadOfferOption,
-    LeadSortKey,
-    LeadStatusOption,
-    OfferValue,
-} from '@/types';
+import type { Lead, LeadOfferOption, LeadStatusOption } from '@/types';
 
 type Props = {
     leads: Lead[];
     statuses: LeadStatusOption[];
     offers: LeadOfferOption[];
 };
-
-const sortOptions: { value: LeadSortKey; label: string }[] = [
-    { value: 'manual', label: 'Ordre manuel' },
-    { value: 'score', label: 'Meilleure note' },
-    { value: 'arrival', label: "Date d'arrivée" },
-    { value: 'created', label: 'Plus récents' },
-];
 
 export default function LeadsIndex({ leads, statuses, offers }: Props) {
     const { auth } = usePage().props;
@@ -96,150 +75,11 @@ export default function LeadsIndex({ leads, statuses, offers }: Props) {
                     </div>
                 ) : (
                     <>
-                        <div className="flex flex-wrap items-center gap-2 pb-4">
-                            <Input
-                                aria-label="Filtrer les leads"
-                                placeholder="Nom, e-mail, téléphone ou ville…"
-                                value={filters.query}
-                                onChange={(event) =>
-                                    patch({ query: event.target.value })
-                                }
-                                className="bg-background w-full sm:max-w-xs"
-                            />
-                            <Button
-                                variant={
-                                    filters.assignee === 'me'
-                                        ? 'default'
-                                        : 'outline'
-                                }
-                                size="sm"
-                                aria-pressed={filters.assignee === 'me'}
-                                onClick={() =>
-                                    patch({
-                                        assignee:
-                                            filters.assignee === 'me'
-                                                ? 'all'
-                                                : 'me',
-                                    })
-                                }
-                            >
-                                <UserRound />
-                                Mes leads
-                            </Button>
-                            <Select
-                                value={filters.assignee}
-                                onValueChange={(value) =>
-                                    patch({
-                                        assignee: value as LeadAssigneeFilter,
-                                    })
-                                }
-                            >
-                                <SelectTrigger
-                                    aria-label="Responsable"
-                                    className="bg-background w-40"
-                                >
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">
-                                        Tous les responsables
-                                    </SelectItem>
-                                    <SelectItem value="me">
-                                        Mes leads
-                                    </SelectItem>
-                                    <SelectItem value="none">
-                                        Non attribués
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Select
-                                value={filters.offer}
-                                onValueChange={(value) =>
-                                    patch({
-                                        offer: value as OfferValue | 'all',
-                                    })
-                                }
-                            >
-                                <SelectTrigger
-                                    aria-label="Offre"
-                                    className="bg-background w-40"
-                                >
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">
-                                        Toutes les offres
-                                    </SelectItem>
-                                    {offers.map((offer) => (
-                                        <SelectItem
-                                            key={offer.value}
-                                            value={offer.value}
-                                        >
-                                            {offer.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <Select
-                                value={String(filters.minScore)}
-                                onValueChange={(value) =>
-                                    patch({ minScore: Number(value) })
-                                }
-                            >
-                                <SelectTrigger
-                                    aria-label="Note minimale"
-                                    className="bg-background w-36"
-                                >
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="0">
-                                        Toutes les notes
-                                    </SelectItem>
-                                    {[5, 4, 3, 2].map((score) => (
-                                        <SelectItem
-                                            key={score}
-                                            value={String(score)}
-                                        >
-                                            <Star className="size-3.5 fill-current text-amber-500" />
-                                            {score} et plus
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <Select
-                                value={filters.sort}
-                                onValueChange={(value) =>
-                                    patch({ sort: value as LeadSortKey })
-                                }
-                            >
-                                <SelectTrigger
-                                    aria-label="Tri"
-                                    className="bg-background w-40"
-                                >
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {sortOptions.map((option) => (
-                                        <SelectItem
-                                            key={option.value}
-                                            value={option.value}
-                                        >
-                                            {option.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {filters !== defaultFilters && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setFilters(defaultFilters)}
-                                >
-                                    Réinitialiser
-                                </Button>
-                            )}
-                        </div>
+                        <LeadFilterBar
+                            filters={filters}
+                            offers={offers}
+                            onChange={patch}
+                        />
                         <LeadKanban
                             leads={filtered}
                             statuses={statuses}
