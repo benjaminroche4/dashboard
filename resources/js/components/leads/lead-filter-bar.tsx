@@ -1,9 +1,8 @@
 import { usePage } from '@inertiajs/react';
 import {
     ArrowUpDown,
-    Check,
-    ChevronDown,
     Search,
+    SlidersHorizontal,
     Star,
     UserRound,
     X,
@@ -12,13 +11,20 @@ import type { ReactNode } from 'react';
 import { initials, memberTone } from '@/components/leads/lead-assign-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     Tooltip,
     TooltipContent,
@@ -57,82 +63,6 @@ const sortOptions: Option<LeadSortKey>[] = [
     { value: 'arrival', label: "Date d'arrivée" },
     { value: 'created', label: 'Plus récents' },
 ];
-
-/**
- * Pastille de filtre : libellé neutre au repos, valeur choisie et fond teinté
- * quand le filtre est actif. Le menu coche la valeur courante.
- */
-function FilterChip<T extends string>({
-    label,
-    value,
-    options,
-    active,
-    onChange,
-    icon,
-    align = 'start',
-}: {
-    label: string;
-    value: T;
-    options: Option<T>[];
-    /** Faux quand la valeur est celle par défaut. */
-    active: boolean;
-    onChange: (value: T) => void;
-    icon?: ReactNode;
-    align?: 'start' | 'end';
-}) {
-    const current = options.find((option) => option.value === value);
-
-    return (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button
-                    type="button"
-                    variant={active ? 'secondary' : 'outline'}
-                    size="sm"
-                    aria-label={label}
-                    data-active={active ? '' : undefined}
-                    className="max-w-56"
-                >
-                    {icon}
-                    <span className="truncate">
-                        {active ? current?.label : label}
-                    </span>
-                    <ChevronDown className="opacity-60" aria-hidden />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align={align} className="w-52">
-                {options.map((option) => {
-                    const selected = option.value === value;
-
-                    return (
-                        <DropdownMenuItem
-                            key={option.value}
-                            aria-current={selected ? 'true' : undefined}
-                            onSelect={() => onChange(option.value)}
-                        >
-                            {option.icon}
-                            <span
-                                className={cn(
-                                    'flex-1 truncate text-sm',
-                                    selected && 'font-medium',
-                                )}
-                            >
-                                {option.label}
-                            </span>
-                            <Check
-                                aria-hidden
-                                className={cn(
-                                    'size-4 shrink-0',
-                                    selected ? 'opacity-100' : 'opacity-0',
-                                )}
-                            />
-                        </DropdownMenuItem>
-                    );
-                })}
-            </DropdownMenuContent>
-        </DropdownMenu>
-    );
-}
 
 /**
  * Filtre par responsable : un avatar par membre ayant au moins un lead,
@@ -275,8 +205,8 @@ function AssigneeAvatars({
 }
 
 /**
- * Barre de filtres du kanban : recherche, avatars des responsables,
- * pastilles de filtre et tri.
+ * Barre de filtres du kanban : recherche, avatars des responsables, et un
+ * bouton « Filtres » qui regroupe offre, note minimale et tri.
  */
 export function LeadFilterBar({
     filters,
@@ -300,72 +230,158 @@ export function LeadFilterBar({
         filters.minScore !== defaultFilters.minScore ||
         filters.assignee !== defaultFilters.assignee ||
         filters.sort !== defaultFilters.sort;
+    const activeCount =
+        Number(filters.offer !== 'all') +
+        Number(filters.minScore > 0) +
+        Number(filters.assignee !== 'all');
+
+    const search = (className = 'w-full sm:max-w-xs') => (
+        <div className={cn('relative', className)}>
+            <Search
+                className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+                aria-hidden
+            />
+            <Input
+                type="search"
+                name="query"
+                aria-label="Filtrer les leads"
+                placeholder="Rechercher un lead…"
+                value={filters.query}
+                onChange={(event) => onChange({ query: event.target.value })}
+                className="bg-background h-8 pl-8"
+            />
+        </div>
+    );
+    const avatars = (
+        <AssigneeAvatars
+            leads={leads}
+            value={filters.assignee}
+            onChange={(assignee) => onChange({ assignee })}
+        />
+    );
+    const reset = dirty && (
+        <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => onChange(defaultFilters)}
+        >
+            <X />
+            Réinitialiser
+        </Button>
+    );
+    const offerSelect = (
+        <Select
+            value={filters.offer}
+            onValueChange={(offer) =>
+                onChange({ offer: offer as OfferValue | 'all' })
+            }
+        >
+            <SelectTrigger
+                aria-label="Offre"
+                size="sm"
+                className="bg-background w-40"
+            >
+                <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+                {offerOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                    </SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
+    );
+    const scoreSelect = (
+        <Select
+            value={String(filters.minScore)}
+            onValueChange={(value) => onChange({ minScore: Number(value) })}
+        >
+            <SelectTrigger
+                aria-label="Note"
+                size="sm"
+                className="bg-background w-40"
+            >
+                <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+                {scoreOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                        {option.icon}
+                        {option.label}
+                    </SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
+    );
+    const sortSelect = (
+        <Select
+            value={filters.sort}
+            onValueChange={(sort) => onChange({ sort: sort as LeadSortKey })}
+        >
+            <SelectTrigger
+                aria-label="Trier"
+                size="sm"
+                className="bg-background w-40"
+            >
+                <ArrowUpDown className="size-3.5" aria-hidden />
+                <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+                {sortOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                    </SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
+    );
+    const filtersPopover = (
+        <Popover>
+            <PopoverTrigger asChild>
+                <Button
+                    type="button"
+                    variant={activeCount > 0 ? 'secondary' : 'outline'}
+                    size="sm"
+                >
+                    <SlidersHorizontal />
+                    Filtres
+                    {activeCount > 0 && (
+                        <Badge
+                            variant="default"
+                            className="size-5 rounded-full px-0"
+                        >
+                            {activeCount}
+                        </Badge>
+                    )}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="grid w-64 gap-3">
+                <div className="grid gap-1.5">
+                    <p className="text-muted-foreground text-xs">Offre</p>
+                    {offerSelect}
+                </div>
+                <div className="grid gap-1.5">
+                    <p className="text-muted-foreground text-xs">
+                        Note minimale
+                    </p>
+                    {scoreSelect}
+                </div>
+                <div className="grid gap-1.5">
+                    <p className="text-muted-foreground text-xs">Tri</p>
+                    {sortSelect}
+                </div>
+            </PopoverContent>
+        </Popover>
+    );
 
     return (
         <div className="flex flex-wrap items-center gap-2 pb-4">
-            <div className="relative w-full sm:max-w-xs">
-                <Search
-                    className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
-                    aria-hidden
-                />
-                <Input
-                    type="search"
-                    name="query"
-                    aria-label="Filtrer les leads"
-                    placeholder="Rechercher un lead…"
-                    value={filters.query}
-                    onChange={(event) =>
-                        onChange({ query: event.target.value })
-                    }
-                    className="bg-background h-8 pl-8"
-                />
-            </div>
-            <AssigneeAvatars
-                leads={leads}
-                value={filters.assignee}
-                onChange={(assignee) => onChange({ assignee })}
-            />
-            <FilterChip
-                label="Offre"
-                value={filters.offer}
-                options={offerOptions}
-                active={filters.offer !== 'all'}
-                onChange={(offer) => onChange({ offer })}
-            />
-            <FilterChip
-                label="Note"
-                value={String(filters.minScore)}
-                options={scoreOptions}
-                active={filters.minScore > 0}
-                onChange={(value) => onChange({ minScore: Number(value) })}
-            />
-            {dirty && (
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onChange(defaultFilters)}
-                >
-                    <X />
-                    Réinitialiser
-                </Button>
-            )}
-            <div className="ml-auto">
-                <FilterChip
-                    label="Trier"
-                    value={filters.sort}
-                    options={sortOptions}
-                    active={filters.sort !== 'manual'}
-                    onChange={(sort) => onChange({ sort })}
-                    icon={
-                        <ArrowUpDown
-                            className="size-3.5 shrink-0"
-                            aria-hidden
-                        />
-                    }
-                    align="end"
-                />
-            </div>
+            {search()}
+            {avatars}
+            {filtersPopover}
+            {reset}
         </div>
     );
 }

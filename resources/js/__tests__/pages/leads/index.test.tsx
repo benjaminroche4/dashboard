@@ -138,9 +138,10 @@ describe('Leads kanban page', () => {
         expect(screen.queryByText('Léa Durand')).not.toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Réinitialiser' }));
-        await user.click(screen.getByRole('button', { name: 'Note' }));
+        await user.click(screen.getByRole('button', { name: /Filtres/ }));
+        await user.click(await screen.findByRole('combobox', { name: 'Note' }));
         await user.click(
-            await screen.findByRole('menuitem', { name: /4 étoiles et plus/ }),
+            await screen.findByRole('option', { name: /4 étoiles et plus/ }),
         );
 
         expect(screen.getByText('Léa Durand')).toBeInTheDocument();
@@ -265,9 +266,12 @@ describe('Leads kanban page', () => {
 
         expect(names()).toEqual(['Bas', 'Haut']);
 
-        await user.click(screen.getByRole('button', { name: 'Trier' }));
+        await user.click(screen.getByRole('button', { name: /Filtres/ }));
         await user.click(
-            await screen.findByRole('menuitem', { name: 'Meilleure note' }),
+            await screen.findByRole('combobox', { name: 'Trier' }),
+        );
+        await user.click(
+            await screen.findByRole('option', { name: 'Meilleure note' }),
         );
 
         expect(names()).toEqual(['Haut', 'Bas']);
