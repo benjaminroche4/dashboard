@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Leads;
 
 use App\Actions\Leads\AddLeadNote;
+use App\Actions\Leads\AssignLead;
+use App\Actions\Leads\BulkUpdateLeadStatus;
 use App\Actions\Leads\CreateLead;
 use App\Actions\Leads\UpdateLead;
 use App\Actions\Leads\UpdateLeadStatus;
@@ -14,6 +16,8 @@ use App\Enums\LeadSource;
 use App\Enums\LeadStatus;
 use App\Enums\Offer;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Leads\AssignLeadRequest;
+use App\Http\Requests\Leads\BulkUpdateLeadStatusRequest;
 use App\Http\Requests\Leads\StoreLeadNoteRequest;
 use App\Http\Requests\Leads\StoreLeadRequest;
 use App\Http\Requests\Leads\UpdateLeadRequest;
@@ -21,6 +25,7 @@ use App\Http\Requests\Leads\UpdateLeadStatusRequest;
 use App\Models\Lead;
 use App\Models\LeadNote;
 use App\Models\LeadStatusChange;
+use App\Models\User;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -37,7 +42,7 @@ class LeadController extends Controller
         $this->authorize('viewAny', Lead::class);
 
         $leads = Lead::query()
-            ->with('author')
+            ->with(['author', 'assignee'])
             ->orderBy('position')
             ->latest()
             ->get()
@@ -103,9 +108,36 @@ class LeadController extends Controller
     {
         $this->authorize('view', $lead);
 
-        $lead->load(['author', 'notes.author', 'statusChanges.author']);
-
         return Inertia::render('leads/show', [
+            ...$this->detail($lead),
+            'statuses' => $this->statuses(),
+        ]);
+    }
+
+    /** Même contenu que la fiche, en JSON, pour le volet d'aperçu du kanban. */
+    public function preview(Lead $lead): JsonResponse
+    {
+        $this->authorize('view', $lead);
+
+        return response()->json($this->detail($lead));
+    }
+
+    public function assign(AssignLeadRequest $request, Lead $lead, AssignLead $assignLead): RedirectResponse
+    {
+        $userId = $request->validated('user_id');
+        $assignLead->handle($lead, $userId === null ? null : User::query()->findOrFail((int) $userId));
+
+        return back();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function detail(Lead $lead): array
+    {
+        $lead->load(['author', 'assignee', 'notes.author', 'statusChanges.author']);
+
+        return [
             'lead' => [
                 ...$this->summary($lead),
                 'first_name' => $lead->first_name,
@@ -127,8 +159,7 @@ class LeadController extends Controller
                 'by' => $change->author?->name,
                 'at' => $change->created_at->toIso8601String(),
             ])->all(),
-            'statuses' => $this->statuses(),
-        ]);
+        ];
     }
 
     public function edit(Lead $lead): Response
@@ -178,6 +209,20 @@ class LeadController extends Controller
         return back();
     }
 
+    public function bulkStatus(BulkUpdateLeadStatusRequest $request, BulkUpdateLeadStatus $bulkUpdateLeadStatus): RedirectResponse
+    {
+        $status = LeadStatus::from($request->validated('status'));
+        $moved = $bulkUpdateLeadStatus->handle(
+            array_values(array_map(intval(...), $request->validated('ids'))),
+            $status,
+            $request->user(),
+        );
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => trans_choice(':count lead déplacé en « :status ».|:count leads déplacés en « :status ».', $moved, ['count' => $moved, 'status' => $status->label()])]);
+
+        return back();
+    }
+
     public function storeNote(StoreLeadNoteRequest $request, Lead $lead, AddLeadNote $addLeadNote): RedirectResponse
     {
         $addLeadNote->handle($lead, $request->validated('body'), $request->user());
@@ -210,6 +255,7 @@ class LeadController extends Controller
             'last_contacted_at' => $lead->last_contacted_at?->toIso8601String(),
             'created_at' => $lead->created_at?->toIso8601String(),
             'created_by' => $lead->author?->name,
+            'assignee' => $lead->assignee === null ? null : ['id' => $lead->assignee->id, 'name' => $lead->assignee->name],
         ];
     }
 

@@ -1,5 +1,6 @@
 import type {
     Lead,
+    LeadAssigneeFilter,
     LeadSortKey,
     LeadStatus,
     LeadStatusOption,
@@ -100,6 +101,7 @@ export type LeadFilters = {
     offer: OfferValue | 'all';
     minScore: number;
     sort: LeadSortKey;
+    assignee: LeadAssigneeFilter;
 };
 
 export const defaultFilters: LeadFilters = {
@@ -107,13 +109,26 @@ export const defaultFilters: LeadFilters = {
     offer: 'all',
     minScore: 0,
     sort: 'manual',
+    assignee: 'all',
 };
 
 /** Filtre puis trie (le tri manuel garde l'ordre des positions). */
-export function filterLeads(leads: Lead[], filters: LeadFilters): Lead[] {
+export function filterLeads(
+    leads: Lead[],
+    filters: LeadFilters,
+    currentUserId: number | null = null,
+): Lead[] {
     const needle = filters.query.trim().toLowerCase();
 
     const kept = leads.filter((lead) => {
+        if (filters.assignee === 'me' && lead.assignee?.id !== currentUserId) {
+            return false;
+        }
+
+        if (filters.assignee === 'none' && lead.assignee !== null) {
+            return false;
+        }
+
         if (
             needle !== '' &&
             ![lead.name, lead.email, lead.phone, lead.origin_city]

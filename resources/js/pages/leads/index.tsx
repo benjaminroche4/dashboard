@@ -1,7 +1,8 @@
-import { Head, Link } from '@inertiajs/react';
-import { Sparkles, Star } from 'lucide-react';
+import { Head, Link, usePage } from '@inertiajs/react';
+import { Sparkles, Star, UserRound } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { LeadKanban } from '@/components/leads/kanban-board';
+import { LeadPreviewSheet } from '@/components/leads/lead-preview-sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -15,6 +16,7 @@ import { defaultFilters, filterLeads, type LeadFilters } from '@/lib/kanban';
 import { create as leadsCreate, index as leadsIndex } from '@/routes/leads';
 import type {
     Lead,
+    LeadAssigneeFilter,
     LeadOfferOption,
     LeadSortKey,
     LeadStatusOption,
@@ -35,10 +37,13 @@ const sortOptions: { value: LeadSortKey; label: string }[] = [
 ];
 
 export default function LeadsIndex({ leads, statuses, offers }: Props) {
+    const { auth } = usePage().props;
+    const currentUserId = auth.user?.id ?? null;
     const [filters, setFilters] = useState<LeadFilters>(defaultFilters);
+    const [previewId, setPreviewId] = useState<number | null>(null);
     const filtered = useMemo(
-        () => filterLeads(leads, filters),
-        [leads, filters],
+        () => filterLeads(leads, filters, currentUserId),
+        [leads, filters, currentUserId],
     );
     const patch = (changes: Partial<LeadFilters>) =>
         setFilters((current) => ({ ...current, ...changes }));
@@ -101,6 +106,52 @@ export default function LeadsIndex({ leads, statuses, offers }: Props) {
                                 }
                                 className="bg-background w-full sm:max-w-xs"
                             />
+                            <Button
+                                variant={
+                                    filters.assignee === 'me'
+                                        ? 'default'
+                                        : 'outline'
+                                }
+                                size="sm"
+                                aria-pressed={filters.assignee === 'me'}
+                                onClick={() =>
+                                    patch({
+                                        assignee:
+                                            filters.assignee === 'me'
+                                                ? 'all'
+                                                : 'me',
+                                    })
+                                }
+                            >
+                                <UserRound />
+                                Mes leads
+                            </Button>
+                            <Select
+                                value={filters.assignee}
+                                onValueChange={(value) =>
+                                    patch({
+                                        assignee: value as LeadAssigneeFilter,
+                                    })
+                                }
+                            >
+                                <SelectTrigger
+                                    aria-label="Responsable"
+                                    className="bg-background w-40"
+                                >
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">
+                                        Tous les responsables
+                                    </SelectItem>
+                                    <SelectItem value="me">
+                                        Mes leads
+                                    </SelectItem>
+                                    <SelectItem value="none">
+                                        Non attribués
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
                             <Select
                                 value={filters.offer}
                                 onValueChange={(value) =>
@@ -193,6 +244,16 @@ export default function LeadsIndex({ leads, statuses, offers }: Props) {
                             leads={filtered}
                             statuses={statuses}
                             reorderable={filters.sort === 'manual'}
+                            onOpen={(lead) => setPreviewId(lead.id)}
+                        />
+                        <LeadPreviewSheet
+                            leadId={previewId}
+                            statuses={statuses}
+                            onOpenChange={(open) => {
+                                if (!open) {
+                                    setPreviewId(null);
+                                }
+                            }}
                         />
                     </>
                 )}

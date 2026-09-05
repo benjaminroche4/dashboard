@@ -36,6 +36,9 @@ final class LeadSeeder extends Seeder
             }
         });
 
-        LeadNote::factory()->count(6)->recycle($leads)->recycle(User::all())->create();
+        $staff = User::all();
+        $leads->each(fn (Lead $lead) => fake()->boolean(70) ? $lead->update(['assigned_to' => $staff->random()->id]) : null);
+
+        LeadNote::factory()->count(6)->recycle($leads)->recycle($staff)->create();
     }
 }

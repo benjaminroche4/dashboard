@@ -9,6 +9,7 @@ use App\Enums\LeadSource;
 use App\Enums\LeadStatus;
 use App\Enums\Offer;
 use App\Models\Lead;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -47,6 +48,11 @@ class LeadFactory extends Factory
             'status' => $status,
             'last_contacted_at' => $status === LeadStatus::Todo ? null : now()->subDays(fake()->numberBetween(0, 10)),
         ]);
+    }
+
+    public function assignedTo(User $user): static
+    {
+        return $this->state(fn (): array => ['assigned_to' => $user->id]);
     }
 
     public function converted(): static

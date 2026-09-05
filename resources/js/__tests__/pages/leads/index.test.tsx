@@ -14,7 +14,24 @@ vi.mock('@inertiajs/react', () => ({
         href: { url: string };
         children: ReactNode;
     }) => <a href={href.url}>{children}</a>,
-    router: { patch, visit },
+    router: { patch, visit, on: () => () => undefined },
+    usePage: () => ({
+        props: {
+            auth: { user: { id: 1, name: 'Admin' } },
+            staff: [
+                { id: 1, name: 'Admin', role: 'admin' },
+                { id: 2, name: 'Camille', role: 'member' },
+            ],
+        },
+    }),
+    useForm: () => ({
+        data: { body: '' },
+        errors: {},
+        processing: false,
+        setData: () => undefined,
+        reset: () => undefined,
+        post: vi.fn(),
+    }),
 }));
 
 import LeadsIndex from '@/pages/leads/index';
@@ -132,7 +149,14 @@ describe('Leads kanban page', () => {
         expect(screen.queryByText('Marc Petit')).not.toBeInTheDocument();
     });
 
-    it('opens the lead detail when a card is clicked', async () => {
+    it('opens the preview sheet when a card is clicked', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async () => ({
+                ok: true,
+                json: async () => ({ lead: leads[0], notes: [], history: [] }),
+            })),
+        );
         const user = userEvent.setup();
         render(
             <LeadsIndex
@@ -144,7 +168,102 @@ describe('Leads kanban page', () => {
 
         await user.click(screen.getByRole('button', { name: 'Léa Durand' }));
 
-        expect(visit).toHaveBeenCalledWith('/leads/1');
+        expect(await screen.findByRole('dialog')).toBeInTheDocument();
+        expect(fetch).toHaveBeenCalledWith(
+            '/leads/1/preview',
+            expect.anything(),
+        );
+        vi.unstubAllGlobals();
+    });
+
+    it('filters on my leads', async () => {
+        const user = userEvent.setup();
+        render(
+            <LeadsIndex
+                leads={[
+                    makeLead({ assignee: { id: 1, name: 'Admin' } }),
+                    makeLead({
+                        id: 2,
+                        name: 'Marc Petit',
+                        assignee: { id: 2, name: 'Camille' },
+                    }),
+                    makeLead({ id: 3, name: 'Nina Roy' }),
+                ]}
+                statuses={leadStatuses}
+                offers={offers}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Mes leads' }));
+
+        expect(screen.getByText('Léa Durand')).toBeInTheDocument();
+        expect(screen.queryByText('Marc Petit')).not.toBeInTheDocument();
+        expect(screen.queryByText('Nina Roy')).not.toBeInTheDocument();
+    });
+
+    it('selects several cards and moves them at once', async () => {
+        patch.mockClear();
+        const user = userEvent.setup();
+        render(
+            <LeadsIndex
+                leads={leads}
+                statuses={leadStatuses}
+                offers={offers}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('checkbox', { name: 'Sélectionner Léa Durand' }),
+        );
+        await user.click(
+            screen.getByRole('checkbox', { name: 'Sélectionner Marc Petit' }),
+        );
+
+        const bar = screen.getByRole('region', { name: 'Sélection' });
+        expect(bar).toHaveTextContent('2 sélectionnés');
+
+        await user.click(
+            within(bar).getByRole('combobox', { name: 'Déplacer vers' }),
+        );
+        await user.click(
+            await screen.findByRole('option', { name: 'Devis envoyé' }),
+        );
+        await user.click(within(bar).getByRole('button', { name: 'Déplacer' }));
+
+        expect(patch).toHaveBeenCalledWith(
+            '/leads/bulk-status',
+            { ids: [1, 2], status: 'quote_sent' },
+            expect.objectContaining({ preserveScroll: true }),
+        );
+        expect(
+            within(
+                screen.getByRole('listitem', { name: 'Devis envoyé' }),
+            ).getByText('Marc Petit'),
+        ).toBeInTheDocument();
+    });
+
+    it('shows urgency badges for stale leads and imminent arrivals', () => {
+        const soon = new Date();
+        soon.setDate(soon.getDate() + 5);
+        render(
+            <LeadsIndex
+                leads={[
+                    makeLead({
+                        created_at: '2026-01-01T10:00:00Z',
+                        last_contacted_at: null,
+                        arrival_at: soon.toISOString().slice(0, 10),
+                    }),
+                ]}
+                statuses={leadStatuses}
+                offers={offers}
+            />,
+        );
+
+        expect(screen.getByText(/Sans contact depuis \d+ j/)).toHaveAttribute(
+            'data-urgency',
+            'late',
+        );
+        expect(screen.getByText('Arrive dans 5 j')).toBeInTheDocument();
     });
 
     it('shows an empty state with a call to the Converting Machine', () => {

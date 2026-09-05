@@ -285,5 +285,6 @@
     "Facture :number marquée payée.": "Facture :number marquée payée.",
     "Lead :name ajouté.": "Lead :name ajouté.",
     ":name est maintenant « :status ».": ":name est maintenant « :status ».",
-    "Lead :name mis à jour.": "Lead :name mis à jour."
+    "Lead :name mis à jour.": "Lead :name mis à jour.",
+    ":count lead déplacé en « :status ».|:count leads déplacés en « :status ».": ":count lead déplacé en « :status ».|:count leads déplacés en « :status »."
 }

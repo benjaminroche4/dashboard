@@ -22,6 +22,7 @@ export function makeLead(overrides: Partial<Lead> = {}): Lead {
         last_contacted_at: null,
         created_at: '2026-09-04T10:00:00+00:00',
         created_by: 'Admin',
+        assignee: null,
         ...overrides,
     } as Lead;
 }

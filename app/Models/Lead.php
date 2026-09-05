@@ -34,12 +34,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $position
  * @property CarbonInterface|null $last_contacted_at
  * @property int|null $created_by
+ * @property int|null $assigned_to
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  */
 #[Fillable([
     'first_name', 'last_name', 'email', 'phone', 'offer', 'arrival_at', 'budget_cents', 'currency',
-    'origin_city', 'source', 'message', 'score', 'status', 'position', 'last_contacted_at', 'created_by',
+    'origin_city', 'source', 'message', 'score', 'status', 'position', 'last_contacted_at', 'created_by', 'assigned_to',
 ])]
 class Lead extends Model
 {
@@ -69,6 +70,14 @@ class Lead extends Model
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function assignee(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
     }
 
     /**

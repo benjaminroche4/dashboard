@@ -37,6 +37,8 @@ export type Lead = {
     last_contacted_at: string | null;
     created_at: string | null;
     created_by: string | null;
+    /** Membre du staff responsable du suivi. */
+    assignee: { id: number; name: string } | null;
 };
 
 export type LeadStatusOption = { value: LeadStatus; label: string };
@@ -90,3 +92,12 @@ export type LeadOfferOption = {
 export type LeadEditable = LeadForm & { id: number; name: string };
 
 export type LeadSortKey = 'manual' | 'score' | 'arrival' | 'created';
+
+export type LeadAssigneeFilter = 'all' | 'me' | 'none';
+
+/** Charge utile du volet d'aperçu (route leads.preview) et de la fiche. */
+export type LeadPreviewPayload = {
+    lead: LeadDetail;
+    notes: LeadNote[];
+    history: LeadStatusChange[];
+};
