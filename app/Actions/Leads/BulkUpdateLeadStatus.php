@@ -14,9 +14,9 @@ use Illuminate\Support\Facades\Event;
 /**
  * Déplace plusieurs leads d'un coup vers une colonne, en tête, dans l'ordre donné.
  */
-final class BulkUpdateLeadStatus
+final readonly class BulkUpdateLeadStatus
 {
-    public function __construct(private readonly UpdateLeadStatus $updateLeadStatus) {}
+    public function __construct(private UpdateLeadStatus $updateLeadStatus) {}
 
     /**
      * @param  list<int>  $ids

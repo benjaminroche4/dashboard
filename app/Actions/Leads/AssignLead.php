@@ -22,9 +22,9 @@ final class AssignLead
         $lead->assigned_to = $assignee?->id;
         $lead->save();
 
-        $message = $assignee === null
-            ? "a libéré le lead {$lead->fullName()}"
-            : "a attribué le lead {$lead->fullName()} à {$assignee->name}";
+        $message = $assignee instanceof User
+            ? "a attribué le lead {$lead->fullName()} à {$assignee->name}"
+            : "a libéré le lead {$lead->fullName()}";
         event(new DashboardUpdated('leads', ['id' => $lead->id], $message));
 
         return $lead;
