@@ -89,4 +89,28 @@ describe('Documents index page', () => {
         ).toBeNull();
         role.value = 'admin';
     });
+
+    it('offers the catalog to admins only through the « … » menu', async () => {
+        const user = userEvent.setup();
+        const { unmount } = render(
+            <DocumentsIndex requests={[makeDocumentRequest()]} />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Plus d’actions' }),
+        );
+        expect(
+            await screen.findByRole('menuitem', {
+                name: 'Modifier les pièces',
+            }),
+        ).toHaveAttribute('href', '/tools/documents/catalog');
+        unmount();
+
+        role.value = 'member';
+        render(<DocumentsIndex requests={[makeDocumentRequest()]} />);
+        expect(
+            screen.queryByRole('button', { name: 'Plus d’actions' }),
+        ).toBeNull();
+        role.value = 'admin';
+    });
 });

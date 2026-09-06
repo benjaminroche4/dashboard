@@ -304,5 +304,8 @@
     "Recontact planifié.": "Recontact planifié.",
     "Lead :name supprimé.": "Lead :name supprimé.",
     "Liste de pièces de :name mise à jour.": "Liste de pièces de :name mise à jour.",
-    "Liste de pièces de :name supprimée.": "Liste de pièces de :name supprimée."
+    "Liste de pièces de :name supprimée.": "Liste de pièces de :name supprimée.",
+    "Pièce « :label » ajoutée au catalogue.": "Pièce « :label » ajoutée au catalogue.",
+    "Pièce « :label » mise à jour.": "Pièce « :label » mise à jour.",
+    "Pièce « :label » retirée du catalogue.": "Pièce « :label » retirée du catalogue."
 }

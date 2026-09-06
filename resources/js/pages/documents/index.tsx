@@ -1,5 +1,5 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
+import { MoreHorizontal, Plus } from 'lucide-react';
 import { DataTable } from '@/components/data-table';
 import {
     documentColumnLabels,
@@ -7,11 +7,18 @@ import {
 } from '@/components/documents/columns';
 import { DocumentRequestBulkActions } from '@/components/documents/document-request-bulk-actions';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { index as toolsIndex } from '@/routes/tools';
 import {
     create as documentsCreate,
     index as documentsIndex,
 } from '@/routes/tools/documents';
+import { index as catalogIndex } from '@/routes/tools/documents/catalog';
 import type { DocumentRequestSummary } from '@/types';
 
 type Props = {
@@ -34,12 +41,34 @@ export default function DocumentsIndex({ requests }: Props) {
                             {requests.length} demande(s)
                         </p>
                     </div>
-                    <Button asChild>
-                        <Link href={documentsCreate()}>
-                            <Plus />
-                            Nouvelle demande
-                        </Link>
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button asChild>
+                            <Link href={documentsCreate()}>
+                                <Plus />
+                                Nouvelle demande
+                            </Link>
+                        </Button>
+                        {auth.user.role === 'admin' && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        aria-label="Plus d’actions"
+                                    >
+                                        <MoreHorizontal aria-hidden />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem asChild>
+                                        <Link href={catalogIndex()}>
+                                            Modifier les pièces
+                                        </Link>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
+                    </div>
                 </div>
                 <DataTable
                     columns={documentColumns}

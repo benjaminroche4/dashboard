@@ -5,9 +5,10 @@ declare(strict_types=1);
 use App\Enums\DocumentCategory;
 use App\Enums\HouseholdRole;
 use App\Support\DocumentCatalog;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-uses(TestCase::class);
+uses(TestCase::class, RefreshDatabase::class);
 
 test('the catalog has unique keys in every category and is grouped for the front', function (): void {
     $all = DocumentCatalog::all();
@@ -23,15 +24,12 @@ test('the catalog has unique keys in every category and is grouped for the front
         ->and($grouped[4]['items'][0])->toBe(['key' => 'identity_document', 'label' => 'Passeport ou carte d\'identité', 'hint' => 'Recto et verso']);
 });
 
-test('every label and hint is translated in English', function (): void {
-    $en = json_decode((string) file_get_contents(lang_path('en.json')), true);
+test('every seeded document carries an English label, and hints are translated when present', function (): void {
     $missing = [];
 
-    foreach (DocumentCatalog::all() as $entry) {
-        foreach ([$entry['label'], $entry['hint']] as $text) {
-            if ($text !== null && ! isset($en[$text])) {
-                $missing[] = $text;
-            }
+    foreach (DocumentCatalog::all() as $key => $entry) {
+        if ($entry['label_en'] === null || ($entry['hint'] !== null && $entry['hint_en'] === null)) {
+            $missing[] = $key;
         }
     }
 
@@ -40,7 +38,8 @@ test('every label and hint is translated in English', function (): void {
 
 test('labels and hints follow the current locale', function (): void {
     expect(DocumentCatalog::label('payslips'))->toBe('3 derniers bulletins de salaire')
-        ->and(DocumentCatalog::hint('balance_sheets'))->toBeNull();
+        ->and(DocumentCatalog::hint('balance_sheets'))->toBeNull()
+        ->and(DocumentCatalog::label('unknown_key'))->toBe('unknown_key');
 
     app()->setLocale('en');
 

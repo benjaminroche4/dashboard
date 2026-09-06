@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Documents\CatalogDocumentController;
 use App\Http\Controllers\Documents\DocumentRequestController;
 use App\Http\Controllers\Invoices\InvoiceController;
 use App\Http\Controllers\Leads\LeadController;
@@ -17,6 +18,11 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('tools/documents/create', [DocumentRequestController::class, 'create'])->name('tools.documents.create');
     Route::post('tools/documents', [DocumentRequestController::class, 'store'])->name('tools.documents.store');
     Route::delete('tools/documents/bulk', [DocumentRequestController::class, 'bulkDestroy'])->name('tools.documents.bulk-destroy');
+    // Catalogue des pièces (admins), déclaré avant tools/documents/{documentRequest}.
+    Route::get('tools/documents/catalog', [CatalogDocumentController::class, 'index'])->name('tools.documents.catalog.index');
+    Route::post('tools/documents/catalog', [CatalogDocumentController::class, 'store'])->name('tools.documents.catalog.store');
+    Route::patch('tools/documents/catalog/{catalogDocument}', [CatalogDocumentController::class, 'update'])->name('tools.documents.catalog.update');
+    Route::delete('tools/documents/catalog/{catalogDocument}', [CatalogDocumentController::class, 'destroy'])->name('tools.documents.catalog.destroy');
     Route::get('tools/documents/{documentRequest}', [DocumentRequestController::class, 'show'])->name('tools.documents.show');
     Route::get('tools/documents/{documentRequest}/pdf', [DocumentRequestController::class, 'pdf'])->name('tools.documents.pdf');
     Route::get('tools/documents/{documentRequest}/edit', [DocumentRequestController::class, 'edit'])->name('tools.documents.edit');

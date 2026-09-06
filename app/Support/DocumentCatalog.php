@@ -5,28 +5,53 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Enums\DocumentCategory;
+use App\Models\CatalogDocument;
 
 /**
- * Catalogue des pièces qu'un client peut avoir à fournir, groupées par
- * catégorie. Libellés et aides en français, traduits via lang/en.json pour
- * le PDF et l'e-mail en anglais.
+ * Catalogue des pièces qu'un client peut avoir à fournir, lu depuis la table
+ * `catalog_documents` (administrable par les admins) et mémorisé le temps
+ * de la requête. Les libellés anglais viennent des colonnes `*_en`.
+ * `defaults()` garde le contenu initial, utilisé par la migration.
  */
 final class DocumentCatalog
 {
+    /** @var array<string, array{category: DocumentCategory, label: string, hint: string|null, label_en: string|null, hint_en: string|null}>|null */
+    private static ?array $cache = null;
+
+    /** Oublie la copie mémorisée : à appeler après toute écriture dans le catalogue. */
+    public static function flush(): void
+    {
+        self::$cache = null;
+    }
+
     /**
-     * @return array<string, array{category: DocumentCategory, label: string, hint: string|null}>
+     * Pièces dans l'ordre d'affichage (catégorie puis position).
+     *
+     * @return array<string, array{category: DocumentCategory, label: string, hint: string|null, label_en: string|null, hint_en: string|null}>
      */
     public static function all(): array
     {
-        $items = [];
-
-        foreach (self::definitions() as $category => $entries) {
-            foreach ($entries as $key => [$label, $hint]) {
-                $items[$key] = ['category' => DocumentCategory::from($category), 'label' => $label, 'hint' => $hint];
-            }
+        if (self::$cache !== null) {
+            return self::$cache;
         }
 
-        return $items;
+        $order = array_flip(array_map(fn (DocumentCategory $category): string => $category->value, DocumentCategory::cases()));
+        $documents = CatalogDocument::query()->get()
+            ->sortBy(fn (CatalogDocument $document): string => sprintf('%02d-%06d-%06d', $order[$document->category->value], $document->position, $document->id));
+
+        $items = [];
+
+        foreach ($documents as $document) {
+            $items[$document->key] = [
+                'category' => $document->category,
+                'label' => $document->label,
+                'hint' => $document->hint,
+                'label_en' => $document->label_en,
+                'hint_en' => $document->hint_en,
+            ];
+        }
+
+        return self::$cache = $items;
     }
 
     /**
@@ -43,61 +68,93 @@ final class DocumentCatalog
     }
 
     /**
-     * Libellé traduit dans la locale courante.
+     * Libellé dans la locale courante, clé brute si la pièce a disparu du catalogue.
      */
     public static function label(string $key): string
     {
-        $label = self::all()[$key]['label'] ?? $key;
-        $translated = __($label);
+        $entry = self::all()[$key] ?? null;
 
-        return is_string($translated) ? $translated : $label;
+        if ($entry === null) {
+            return $key;
+        }
+
+        return app()->getLocale() === 'en' && $entry['label_en'] !== null ? $entry['label_en'] : $entry['label'];
     }
 
     /**
-     * Aide traduite dans la locale courante, ou null.
+     * Aide dans la locale courante, ou null.
      */
     public static function hint(string $key): ?string
     {
-        $hint = self::all()[$key]['hint'] ?? null;
+        $entry = self::all()[$key] ?? null;
 
-        if ($hint === null) {
+        if ($entry === null || $entry['hint'] === null) {
             return null;
         }
 
-        $translated = __($hint);
-
-        return is_string($translated) ? $translated : $hint;
+        return app()->getLocale() === 'en' && $entry['hint_en'] !== null ? $entry['hint_en'] : $entry['hint'];
     }
 
     /**
-     * Catalogue prêt pour le front : une entrée par catégorie avec ses pièces.
+     * Catalogue prêt pour le formulaire : une entrée par catégorie (même vide) avec ses pièces.
      *
      * @return list<array{value: string, label: string, items: list<array{key: string, label: string, hint: string|null}>}>
      */
     public static function grouped(): array
     {
-        $groups = [];
-
-        foreach (self::definitions() as $category => $entries) {
-            $enum = DocumentCategory::from($category);
-            $groups[] = [
-                'value' => $enum->value,
-                'label' => $enum->label(),
-                'items' => array_map(
-                    fn (string $key, array $entry): array => ['key' => $key, 'label' => $entry[0], 'hint' => $entry[1]],
-                    array_keys($entries),
-                    array_values($entries),
-                ),
-            ];
-        }
-
-        return $groups;
+        return array_map(fn (DocumentCategory $category): array => [
+            'value' => $category->value,
+            'label' => $category->label(),
+            'items' => array_map(
+                fn (string $key, array $entry): array => ['key' => $key, 'label' => $entry['label'], 'hint' => $entry['hint']],
+                array_keys(self::ofCategory($category)),
+                array_values(self::ofCategory($category)),
+            ),
+        ], DocumentCategory::cases());
     }
 
     /**
+     * Catalogue pour la page d'administration : identifiants et traductions inclus.
+     *
+     * @return list<array{value: string, label: string, items: list<array{id: int, key: string, label: string, label_en: string|null, hint: string|null, hint_en: string|null}>}>
+     */
+    public static function administrable(): array
+    {
+        $byKey = CatalogDocument::query()->get()->keyBy('key');
+
+        return array_map(fn (DocumentCategory $category): array => [
+            'value' => $category->value,
+            'label' => $category->label(),
+            'items' => array_map(function (string $key) use ($byKey): array {
+                /** @var CatalogDocument $document */
+                $document = $byKey[$key];
+
+                return [
+                    'id' => $document->id,
+                    'key' => $document->key,
+                    'label' => $document->label,
+                    'label_en' => $document->label_en,
+                    'hint' => $document->hint,
+                    'hint_en' => $document->hint_en,
+                ];
+            }, array_keys(self::ofCategory($category))),
+        ], DocumentCategory::cases());
+    }
+
+    /**
+     * @return array<string, array{category: DocumentCategory, label: string, hint: string|null, label_en: string|null, hint_en: string|null}>
+     */
+    private static function ofCategory(DocumentCategory $category): array
+    {
+        return array_filter(self::all(), fn (array $entry): bool => $entry['category'] === $category);
+    }
+
+    /**
+     * Contenu initial du catalogue : catégorie => clé => [libellé, aide].
+     *
      * @return array<string, array<string, array{0: string, 1: string|null}>>
      */
-    private static function definitions(): array
+    public static function defaults(): array
     {
         return [
             DocumentCategory::Studies->value => [

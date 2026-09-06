@@ -29,4 +29,12 @@ enum DocumentCategory: string
             self::Work => 'Travail',
         };
     }
+
+    /**
+     * @return list<array{value: string, label: string}>
+     */
+    public static function options(): array
+    {
+        return array_map(fn (self $category): array => ['value' => $category->value, 'label' => $category->label()], self::cases());
+    }
 }
