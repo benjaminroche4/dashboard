@@ -32,7 +32,14 @@ return [
 
     'connections' => [
 
+        // « reverb » enveloppe la connexion réelle : une panne du serveur de
+        // websockets est journalisée sans faire échouer la requête (ResilientBroadcaster).
         'reverb' => [
+            'driver' => 'resilient',
+            'wraps' => 'reverb-raw',
+        ],
+
+        'reverb-raw' => [
             'driver' => 'reverb',
             'key' => env('REVERB_APP_KEY'),
             'secret' => env('REVERB_APP_SECRET'),

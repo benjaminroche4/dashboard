@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Broadcasting\ResilientBroadcaster;
 use App\Models\User;
 use App\Services\DistrictStaticMap;
 use App\Services\DocRaptor;
@@ -11,6 +12,9 @@ use App\Services\GoogleCalendar;
 use App\Services\PaymentLinks;
 use App\Services\Yousign;
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Broadcasting\Broadcaster;
+use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -39,6 +43,18 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureGates();
+        $this->configureBroadcasting();
+    }
+
+    /**
+     * Diffusion résiliente : la connexion « reverb » enveloppe « reverb-raw » pour
+     * qu'une panne de Reverb ne casse jamais l'action qui a déclenché l'événement.
+     */
+    private function configureBroadcasting(): void
+    {
+        Broadcast::extend('resilient', fn (Application $app, array $config): Broadcaster => new ResilientBroadcaster(
+            Broadcast::connection($config['wraps'] ?? 'reverb-raw'),
+        ));
     }
 
     /**
