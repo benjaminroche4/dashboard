@@ -53,3 +53,11 @@ types: ## Vérifie les types PHP (PHPStan) + TypeScript
 	pnpm run types:check
 
 check: lint types test ## Lint + types + tests
+
+# Régénère package-lock.json (utilisé par `npm ci` sur Laravel Cloud) depuis package.json,
+# hors de node_modules (arborescence pnpm) : à lancer après tout changement de dépendance.
+lock:
+	rm -rf /tmp/dashboard-npm-lock && mkdir -p /tmp/dashboard-npm-lock && cp package.json /tmp/dashboard-npm-lock/ \
+	&& cd /tmp/dashboard-npm-lock && npm install --package-lock-only --ignore-scripts --no-audit --no-fund \
+	&& cp /tmp/dashboard-npm-lock/package-lock.json $(CURDIR)/package-lock.json && rm -rf /tmp/dashboard-npm-lock
+
