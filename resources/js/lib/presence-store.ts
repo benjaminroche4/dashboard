@@ -1,6 +1,10 @@
 import { echo, echoIsConfigured } from '@laravel/echo-react';
 
-export type PresenceMember = { id: number; name: string };
+export type PresenceMember = {
+    id: number;
+    name: string;
+    avatar?: string | null;
+};
 
 type Listener = () => void;
 

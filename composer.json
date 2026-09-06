@@ -17,7 +17,8 @@
         "laravel/pulse": "^1.8",
         "laravel/reverb": "*",
         "laravel/tinker": "^3.0",
-        "laravel/wayfinder": "^0.1.14"
+        "laravel/wayfinder": "^0.1.14",
+        "resend/resend-php": "^1.13"
     },
     "require-dev": {
         "driftingly/rector-laravel": "^2.6",

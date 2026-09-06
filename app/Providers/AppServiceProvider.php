@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Models\User;
+use App\Services\DistrictStaticMap;
 use App\Services\DocRaptor;
+use App\Services\GoogleCalendar;
+use App\Services\PaymentLinks;
+use App\Services\Yousign;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +26,10 @@ class AppServiceProvider extends ServiceProvider
     {
         // Services externes construits depuis la config (injectables dans les Actions).
         $this->app->bind(DocRaptor::class, fn (): DocRaptor => DocRaptor::fromConfig());
+        $this->app->bind(DistrictStaticMap::class, fn (): DistrictStaticMap => DistrictStaticMap::fromConfig());
+        $this->app->singleton(GoogleCalendar::class, fn (): GoogleCalendar => GoogleCalendar::fromConfig());
+        $this->app->bind(PaymentLinks::class, fn (): PaymentLinks => PaymentLinks::fromConfig());
+        $this->app->bind(Yousign::class, fn (): Yousign => Yousign::fromConfig());
     }
 
     /**

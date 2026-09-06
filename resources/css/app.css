@@ -234,3 +234,24 @@
 .dark .shimmer-logo {
     --shimmer-glow: #f43f5e;
 }
+
+/* Utilitaires attendus par le composant shadcn MessageScroller. */
+@utility scroll-fade-b {
+    mask-image: linear-gradient(
+        to bottom,
+        black calc(100% - 2rem),
+        transparent
+    );
+}
+
+@utility scrollbar-thin {
+    scrollbar-width: thin;
+}
+
+@utility scrollbar-none {
+    scrollbar-width: none;
+}
+
+@utility scrollbar-gutter-stable {
+    scrollbar-gutter: stable;
+}

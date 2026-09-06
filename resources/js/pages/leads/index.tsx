@@ -1,23 +1,37 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { Sparkles } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { LeadKanban } from '@/components/leads/kanban-board';
 import { LeadFilterBar } from '@/components/leads/lead-filter-bar';
-import { LeadPreviewSheet } from '@/components/leads/lead-preview-sheet';
 import { Button } from '@/components/ui/button';
 import { defaultFilters, filterLeads, type LeadFilters } from '@/lib/kanban';
-import { create as leadsCreate, index as leadsIndex } from '@/routes/leads';
-import type { Lead, LeadOfferOption, LeadStatusOption } from '@/types';
+import {
+    create as leadsCreate,
+    index as leadsIndex,
+    show as leadShow,
+} from '@/routes/leads';
+import type {
+    LabeledOption,
+    Lead,
+    LeadLossReason,
+    LeadOfferOption,
+    LeadStatusOption,
+} from '@/types';
 
 type Props = {
     leads: Lead[];
     statuses: LeadStatusOption[];
     offers: LeadOfferOption[];
+    lossReasons: LabeledOption<LeadLossReason>[];
 };
 
-export default function LeadsIndex({ leads, statuses, offers }: Props) {
+export default function LeadsIndex({
+    leads,
+    statuses,
+    offers,
+    lossReasons,
+}: Props) {
     const [filters, setFilters] = useState<LeadFilters>(defaultFilters);
-    const [previewId, setPreviewId] = useState<number | null>(null);
     const filtered = useMemo(
         () => filterLeads(leads, filters),
         [leads, filters],
@@ -83,16 +97,10 @@ export default function LeadsIndex({ leads, statuses, offers }: Props) {
                             leads={filtered}
                             statuses={statuses}
                             reorderable={filters.sort === 'manual'}
-                            onOpen={(lead) => setPreviewId(lead.id)}
-                        />
-                        <LeadPreviewSheet
-                            leadId={previewId}
-                            statuses={statuses}
-                            onOpenChange={(open) => {
-                                if (!open) {
-                                    setPreviewId(null);
-                                }
-                            }}
+                            lossReasons={lossReasons}
+                            onOpen={(lead) =>
+                                router.visit(leadShow({ lead: lead.id }).url)
+                            }
                         />
                     </>
                 )}

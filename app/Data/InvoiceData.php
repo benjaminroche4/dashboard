@@ -33,6 +33,7 @@ final readonly class InvoiceData
         public InvoiceStatus $status = InvoiceStatus::Draft,
         public float $discountPercent = 0,
         public int $depositCents = 0,
+        public ?int $leadId = null,
     ) {}
 
     /**
@@ -56,6 +57,7 @@ final readonly class InvoiceData
             status: isset($data['status']) ? InvoiceStatus::from($data['status']) : InvoiceStatus::Draft,
             discountPercent: (float) ($data['discount_percent'] ?? 0),
             depositCents: (int) ($data['deposit_cents'] ?? 0),
+            leadId: isset($data['lead_id']) ? (int) $data['lead_id'] : null,
         );
     }
 

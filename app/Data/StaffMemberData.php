@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Data;
 
 use App\Enums\StaffRole;
+use App\Support\PersonName;
 
 /**
  * Données validées nécessaires à la création d'un membre du staff.
@@ -27,7 +28,7 @@ final readonly class StaffMemberData
         $role = $data['role'] ?? StaffRole::Member;
 
         return new self(
-            name: $data['name'],
+            name: PersonName::capitalize($data['name']),
             email: $data['email'],
             password: $data['password'],
             role: $role instanceof StaffRole ? $role : StaffRole::from($role),

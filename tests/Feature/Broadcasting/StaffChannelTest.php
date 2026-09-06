@@ -25,6 +25,7 @@ test('authenticated staff can join the staff channel with their identity', funct
         ->assertJsonPath('channel_data', fn (string $data): bool => json_decode($data, true)['user_info'] === [
             'id' => $user->id,
             'name' => $user->name,
+            'avatar' => null,
         ]);
 });
 

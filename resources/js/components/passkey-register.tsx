@@ -1,4 +1,5 @@
 import { usePasskeyRegister } from '@laravel/passkeys/react';
+import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -29,7 +30,7 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
             { pattern: /Windows/, name: 'Windows' },
         ].find(({ pattern }) => pattern.test(ua))?.name;
 
-        return [browser, os].filter(Boolean).join(' on ') || '';
+        return [browser, os].filter(Boolean).join(' sur ') || '';
     });
 
     const [showForm, setShowForm] = useState(false);
@@ -66,7 +67,12 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
 
     if (!showForm) {
         return (
-            <Button variant="outline" onClick={() => setShowForm(true)}>
+            <Button
+                variant="outline"
+                className="w-fit"
+                onClick={() => setShowForm(true)}
+            >
+                <Plus />
                 Ajouter une clé d'accès
             </Button>
         );
@@ -75,7 +81,7 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
     return (
         <form
             onSubmit={handleSubmit}
-            className="border-border bg-muted/50 space-y-4 rounded-lg border p-4"
+            className="bg-background grid gap-4 rounded-lg border p-4"
         >
             <div className="grid gap-2">
                 <Label htmlFor="passkey-name">Nom de la clé d'accès</Label>
@@ -85,7 +91,7 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="ex. MacBook Pro, iPhone"
-                    className="border-foreground/20 mt-1 block w-full"
+                    className="mt-1 block w-full"
                     autoFocus
                 />
                 <p className="text-muted-foreground text-xs">

@@ -1,6 +1,6 @@
 import { useOnlineStaff } from '@/hooks/use-online-staff';
 import { useInitials } from '@/hooks/use-initials';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
     Tooltip,
     TooltipContent,
@@ -31,6 +31,10 @@ export function OnlineStaff() {
                     <Tooltip key={member.id}>
                         <TooltipTrigger asChild>
                             <Avatar className="ring-background size-7 ring-2">
+                                <AvatarImage
+                                    src={member.avatar ?? undefined}
+                                    alt=""
+                                />
                                 <AvatarFallback className="text-[10px]">
                                     {getInitials(member.name)}
                                 </AvatarFallback>

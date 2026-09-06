@@ -34,7 +34,7 @@ enum Offer: string
     public function summary(): string
     {
         return match ($this) {
-            self::Accompagne => 'Le client fait les visites lui-même. Nous cherchons, montons son dossier et l\'accompagnons jusqu\'à la signature.',
+            self::Accompagne => 'Le client visite lui-même. Nous cherchons, montons le dossier et l\'accompagnons jusqu\'à la signature.',
             self::Confie => 'Nous faisons tout, visites comprises : recherche, visites, négociation. Le client n\'a plus qu\'à signer.',
         };
     }

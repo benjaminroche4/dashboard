@@ -10,6 +10,7 @@ install: ## Installe les dépendances PHP + JS, .env, clé, migrations
 	@grep -q "^APP_KEY=base64" .env || php artisan key:generate
 	@touch database/database.sqlite
 	php artisan migrate --force
+	php artisan storage:link
 	npm install
 	sh scripts/install-hooks.sh
 

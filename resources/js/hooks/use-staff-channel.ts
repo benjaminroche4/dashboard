@@ -20,15 +20,43 @@ export type StaffChannelOptions = {
     onEvent?: (event: DashboardUpdatedEvent) => void;
 };
 
-export function describeEvent(event: DashboardUpdatedEvent): string {
-    return event.actor ? `${event.actor.name} ${event.message}` : event.message;
+/** « Admin 2 a expédié… », ou « Vous avez … » quand c'est soi-même depuis un autre onglet. */
+export function describeEvent(
+    event: DashboardUpdatedEvent,
+    currentUserId?: number,
+): string {
+    if (!event.actor) {
+        return event.message;
+    }
+
+    if (currentUserId !== undefined && event.actor.id === currentUserId) {
+        return `Vous (autre onglet) : ${event.message}`;
+    }
+
+    return `${event.actor.name} ${event.message}`;
+}
+
+/** Vrai si l'événement cite l'utilisateur courant (payload `mentions`). */
+export function mentionsMe(
+    event: DashboardUpdatedEvent,
+    currentUserId?: number,
+): boolean {
+    const mentions = event.payload.mentions;
+
+    return (
+        currentUserId !== undefined &&
+        Array.isArray(mentions) &&
+        mentions.includes(currentUserId) &&
+        event.actor?.id !== currentUserId
+    );
 }
 
 /**
  * Abonne le composant au canal de présence "staff".
- * À chaque `dashboard.updated` émis par un AUTRE membre : toast, callback,
- * puis rechargement des props Inertia, sans refresh navigateur.
- * Les événements émis par l'utilisateur courant sont ignorés.
+ * À chaque `dashboard.updated` reçu : toast, callback, puis rechargement des
+ * props Inertia, sans refresh navigateur. L'onglet qui a fait l'action ne
+ * reçoit pas l'événement (exclusion par socket côté serveur), mais les autres
+ * onglets et navigateurs du même utilisateur, si.
  */
 export function useStaffChannel({
     only = [],
@@ -36,26 +64,36 @@ export function useStaffChannel({
     notify = true,
     onEvent,
 }: StaffChannelOptions = {}) {
-    const currentUserId = usePage().props.auth.user.id;
+    const { auth, realtimeOnly } = usePage().props;
+    const currentUserId = auth.user.id;
+    // Portée de rechargement : celle du composant, sinon celle déclarée par la page.
+    const scope = only.length
+        ? only
+        : Array.isArray(realtimeOnly)
+          ? realtimeOnly.filter((key): key is string => typeof key === 'string')
+          : [];
 
     return useEchoPresence<DashboardUpdatedEvent>(
         'staff',
         '.dashboard.updated',
         (event) => {
-            if (event.actor?.id === currentUserId) {
-                return;
-            }
-
             if (notify) {
-                toaster.info(describeEvent(event));
+                if (mentionsMe(event, currentUserId)) {
+                    toaster.warning(
+                        `${event.actor?.name ?? 'Un membre'} vous a mentionné`,
+                        event.message,
+                    );
+                } else {
+                    toaster.info(describeEvent(event, currentUserId));
+                }
             }
 
             onEvent?.(event);
 
             if (reload) {
-                router.reload({ only: only.length ? only : undefined });
+                router.reload({ only: scope.length ? scope : undefined });
             }
         },
-        [currentUserId, notify, reload, only.join(',')],
+        [currentUserId, notify, reload, scope.join(',')],
     );
 }

@@ -30,12 +30,14 @@ import {
     type InvoiceFormErrors,
 } from '@/lib/invoice-totals';
 import { index as invoicesIndex, store } from '@/routes/invoices';
+import { show as leadShow } from '@/routes/leads';
 import type {
     Company,
     CountryOption,
     Currency,
     InvoiceForm,
     InvoiceLineForm,
+    InvoicePrefill,
     Offer,
     OfferValue,
 } from '@/types';
@@ -54,6 +56,8 @@ type Props = {
         issued_at: string;
         due_at: string;
     };
+    /** Création depuis une fiche lead (?lead=ID) : client prérempli, facture rattachée. */
+    prefill?: InvoicePrefill | null;
 };
 
 /** Nom du pays de la liste à partir du code ISO renvoyé par Google, sinon « Autre ». */
@@ -94,6 +98,7 @@ export default function InvoicesCreate({
     countries,
     nextNumber,
     defaults,
+    prefill = null,
 }: Props) {
     const { features } = usePage().props;
     const firstOffer = offers[0]?.value ?? 'accompagne';
@@ -103,21 +108,29 @@ export default function InvoicesCreate({
         unit_price: defaultPrice(offers, firstOffer, currency),
     });
 
+    const initialCurrency = prefill?.currency ?? defaults.currency;
+    const initialOffer = prefill?.offer ?? firstOffer;
     const form = useForm<InvoiceForm>({
-        client_name: '',
-        client_email: '',
+        client_name: prefill?.client_name ?? '',
+        client_email: prefill?.client_email ?? '',
         client_street: '',
         client_postal_code: '',
         client_city: '',
         client_country: countries[0]?.name ?? '',
-        currency: defaults.currency,
+        currency: initialCurrency,
         vat_rate: String(defaults.vat_rate),
         discount_percent: '',
         deposit: '',
         issued_at: defaults.issued_at,
         due_at: defaults.due_at,
         notes: '',
-        items: [emptyLine(defaults.currency)],
+        items: [
+            {
+                offer: initialOffer,
+                quantity: '1',
+                unit_price: defaultPrice(offers, initialOffer, initialCurrency),
+            },
+        ],
     });
 
     // Erreurs détectées localement avant l'envoi ; celles du serveur priment.
@@ -184,6 +197,7 @@ export default function InvoicesCreate({
         // Le backend attend des centimes et des nombres.
         form.transform((data) => ({
             ...data,
+            lead_id: prefill?.lead_id ?? null,
             vat_rate: toNumber(data.vat_rate),
             discount_percent: toNumber(data.discount_percent || 0),
             deposit_cents: toCents(data.deposit || 0),
@@ -214,7 +228,22 @@ export default function InvoicesCreate({
                             Nouvelle facture
                         </h1>
                         <p className="text-muted-foreground text-sm">
-                            L'aperçu se met à jour au fur et à mesure.
+                            {prefill ? (
+                                <>
+                                    Pour le lead{' '}
+                                    <Link
+                                        href={leadShow({
+                                            lead: prefill.lead_id,
+                                        })}
+                                        className="text-foreground font-medium underline-offset-4 hover:underline"
+                                    >
+                                        {prefill.lead_name}
+                                    </Link>
+                                    , la facture lui sera rattachée.
+                                </>
+                            ) : (
+                                "L'aperçu se met à jour au fur et à mesure."
+                            )}
                         </p>
                     </div>
                 </div>

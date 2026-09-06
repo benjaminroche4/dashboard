@@ -9,7 +9,7 @@ export function makeUser(overrides: Partial<User> = {}): User {
         name: 'Admin',
         email: 'admin@admin.fr',
         role: 'admin',
-        avatar: undefined,
+        avatar: null,
         email_verified_at: '2026-01-01T00:00:00.000000Z',
         two_factor_enabled: false,
         created_at: '2026-01-01T00:00:00.000000Z',

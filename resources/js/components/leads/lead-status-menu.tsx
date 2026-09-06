@@ -1,6 +1,10 @@
 import { router } from '@inertiajs/react';
 import { Check, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
+import {
+    LeadArchiveDialog,
+    type ArchiveChoice,
+} from '@/components/leads/lead-archive-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
     DropdownMenu,
@@ -10,7 +14,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { status as leadStatusRoute } from '@/routes/leads';
-import type { Lead, LeadStatus, LeadStatusOption } from '@/types';
+import type {
+    LabeledOption,
+    Lead,
+    LeadLossReason,
+    LeadStatus,
+    LeadStatusOption,
+} from '@/types';
 
 // Couleurs personnalisées (pattern « Custom Colors » de shadcn Badge).
 export const leadStatusClasses: Record<LeadStatus, string> = {
@@ -40,80 +50,110 @@ export const leadStatusDot: Record<LeadStatus, string> = {
 export function LeadStatusMenu({
     lead,
     statuses,
+    lossReasons,
 }: {
     lead: Pick<Lead, 'id' | 'name' | 'status' | 'status_label'>;
     statuses: LeadStatusOption[];
+    /** Motifs proposés à l'archivage ; sans eux, l'archivage patch directement. */
+    lossReasons?: LabeledOption<LeadLossReason>[];
 }) {
     const [pending, setPending] = useState(false);
+    const [archiving, setArchiving] = useState(false);
+
+    const patch = (payload: Record<string, string>) => {
+        setPending(true);
+        router.patch(leadStatusRoute({ lead: lead.id }).url, payload, {
+            preserveScroll: true,
+            onSuccess: () => setArchiving(false),
+            onFinish: () => setPending(false),
+        });
+    };
 
     const change = (value: LeadStatus) => {
         if (value === lead.status) {
             return;
         }
 
-        setPending(true);
-        router.patch(
-            leadStatusRoute({ lead: lead.id }).url,
-            { status: value },
-            { preserveScroll: true, onFinish: () => setPending(false) },
-        );
+        // Archiver demande d'abord le motif de perte.
+        if (value === 'archived' && lossReasons && lossReasons.length > 0) {
+            setArchiving(true);
+
+            return;
+        }
+
+        patch({ status: value });
     };
 
-    return (
-        <DropdownMenu>
-            <DropdownMenuTrigger
-                aria-label={`Changer le statut de ${lead.name}`}
-                disabled={pending}
-                className="max-w-full rounded-full outline-none focus-visible:ring-2"
-            >
-                <Badge
-                    variant="secondary"
-                    data-status={lead.status}
-                    className={cn(
-                        'max-w-full cursor-pointer gap-1 pr-1.5 transition-opacity hover:opacity-80',
-                        leadStatusClasses[lead.status],
-                    )}
-                >
-                    <span className="truncate">{lead.status_label}</span>
-                    <ChevronDown className="size-3 shrink-0 opacity-70" />
-                </Badge>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48">
-                {statuses.map((option) => {
-                    const current = option.value === lead.status;
+    const confirmArchive = ({ reason, note }: ArchiveChoice) =>
+        patch({ status: 'archived', loss_reason: reason, loss_note: note });
 
-                    return (
-                        <DropdownMenuItem
-                            key={option.value}
-                            aria-current={current ? 'true' : undefined}
-                            onSelect={() => change(option.value)}
-                        >
-                            <span
-                                aria-hidden
-                                className={cn(
-                                    'size-2 shrink-0 rounded-full',
-                                    leadStatusDot[option.value],
-                                )}
-                            />
-                            <span
-                                className={cn(
-                                    'flex-1 truncate text-sm',
-                                    current && 'font-medium',
-                                )}
+    return (
+        <>
+            {lossReasons && (
+                <LeadArchiveDialog
+                    leadName={lead.name}
+                    reasons={lossReasons}
+                    open={archiving}
+                    onOpenChange={setArchiving}
+                    onConfirm={confirmArchive}
+                    busy={pending}
+                />
+            )}
+            <DropdownMenu>
+                <DropdownMenuTrigger
+                    aria-label={`Changer le statut de ${lead.name}`}
+                    disabled={pending}
+                    className="max-w-full rounded-full outline-none focus-visible:ring-2"
+                >
+                    <Badge
+                        variant="secondary"
+                        data-status={lead.status}
+                        className={cn(
+                            'max-w-full cursor-pointer gap-1 pr-1.5 transition-opacity hover:opacity-80',
+                            leadStatusClasses[lead.status],
+                        )}
+                    >
+                        <span className="truncate">{lead.status_label}</span>
+                        <ChevronDown className="size-3 shrink-0 opacity-70" />
+                    </Badge>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                    {statuses.map((option) => {
+                        const current = option.value === lead.status;
+
+                        return (
+                            <DropdownMenuItem
+                                key={option.value}
+                                aria-current={current ? 'true' : undefined}
+                                onSelect={() => change(option.value)}
                             >
-                                {option.label}
-                            </span>
-                            <Check
-                                aria-hidden
-                                className={cn(
-                                    'size-4 shrink-0',
-                                    current ? 'opacity-100' : 'opacity-0',
-                                )}
-                            />
-                        </DropdownMenuItem>
-                    );
-                })}
-            </DropdownMenuContent>
-        </DropdownMenu>
+                                <span
+                                    aria-hidden
+                                    className={cn(
+                                        'size-2 shrink-0 rounded-full',
+                                        leadStatusDot[option.value],
+                                    )}
+                                />
+                                <span
+                                    className={cn(
+                                        'flex-1 truncate text-sm',
+                                        current && 'font-medium',
+                                    )}
+                                >
+                                    {option.label}
+                                </span>
+                                <Check
+                                    aria-hidden
+                                    className={cn(
+                                        'size-4 shrink-0',
+                                        current ? 'opacity-100' : 'opacity-0',
+                                    )}
+                                />
+                            </DropdownMenuItem>
+                        );
+                    })}
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </>
     );
 }

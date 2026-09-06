@@ -2,8 +2,12 @@ import { render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
+const { role } = vi.hoisted(() => ({ role: { value: 'admin' } }));
+
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
+    router: { post: vi.fn() },
+    usePage: () => ({ props: { auth: { user: { role: role.value } } } }),
     Link: ({
         href,
         children,
@@ -32,6 +36,7 @@ const invoice = (id: number, status: Invoice['status']): Invoice => ({
     due_cents: 0,
     can_send: true,
     can_pay: true,
+    lead: null,
 });
 
 describe('Invoices page', () => {
@@ -66,5 +71,42 @@ describe('Invoices page', () => {
         render(<InvoicesIndex invoices={[invoice(1, 'paid')]} statuses={[]} />);
 
         expect(screen.getByText('1 facture(s)')).toBeInTheDocument();
+    });
+
+    it('shows the bulk actions to managers once a row is selected, never to members', async () => {
+        const { userEvent } = await import('@testing-library/user-event');
+        const user = userEvent.setup();
+        const { unmount } = render(
+            <InvoicesIndex
+                invoices={[invoice(1, 'draft'), invoice(2, 'sent')]}
+                statuses={[]}
+            />,
+        );
+
+        expect(
+            screen.queryByRole('group', { name: 'Actions groupées' }),
+        ).toBeNull();
+        await user.click(
+            screen.getByRole('checkbox', { name: 'Tout sélectionner' }),
+        );
+        expect(
+            screen.getByRole('group', { name: 'Actions groupées' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: /Envoyer \(2\)/ }),
+        ).toBeInTheDocument();
+        unmount();
+
+        role.value = 'member';
+        render(
+            <InvoicesIndex invoices={[invoice(1, 'draft')]} statuses={[]} />,
+        );
+        await user.click(
+            screen.getByRole('checkbox', { name: 'Tout sélectionner' }),
+        );
+        expect(
+            screen.queryByRole('group', { name: 'Actions groupées' }),
+        ).toBeNull();
+        role.value = 'admin';
     });
 });

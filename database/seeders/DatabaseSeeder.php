@@ -25,6 +25,7 @@ final class DatabaseSeeder extends Seeder
             StaffSeeder::class,
             InvoiceSeeder::class,
             LeadSeeder::class,
+            DocumentRequestSeeder::class,
         ]);
     }
 }

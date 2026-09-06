@@ -40,6 +40,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property CarbonInterface|null $paid_at
  * @property string|null $notes
  * @property int|null $created_by
+ * @property int|null $lead_id
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  */
@@ -47,7 +48,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'number', 'client_name', 'client_email', 'client_street', 'client_postal_code', 'client_city', 'client_country',
     'client_address', 'items', 'vat_rate', 'discount_percent', 'discount_cents',
     'subtotal_cents', 'vat_cents', 'amount_cents', 'deposit_cents', 'currency', 'status',
-    'issued_at', 'due_at', 'sent_at', 'paid_at', 'notes', 'created_by',
+    'issued_at', 'due_at', 'sent_at', 'paid_at', 'notes', 'created_by', 'lead_id',
 ])]
 class Invoice extends Model
 {
@@ -78,6 +79,16 @@ class Invoice extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Lead à l'origine de la facture, s'il est rattaché.
+     *
+     * @return BelongsTo<Lead, $this>
+     */
+    public function lead(): BelongsTo
+    {
+        return $this->belongsTo(Lead::class);
     }
 
     /**

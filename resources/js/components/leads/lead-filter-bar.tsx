@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { initials, memberTone } from '@/components/leads/lead-assign-menu';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -79,13 +79,17 @@ function AssigneeAvatars({
     onChange: (value: LeadAssigneeFilter) => void;
 }) {
     const { auth } = usePage().props;
-    const members = new Map<number, { name: string; count: number }>();
+    const members = new Map<
+        number,
+        { name: string; avatar: string | null; count: number }
+    >();
     let unassigned = 0;
 
     for (const lead of leads) {
         if (lead.assignee) {
             const entry = members.get(lead.assignee.id) ?? {
                 name: lead.assignee.name,
+                avatar: lead.assignee.avatar,
                 count: 0,
             };
             entry.count += 1;
@@ -151,6 +155,12 @@ function AssigneeAvatars({
                                                 : 'ring-background',
                                         )}
                                     >
+                                        {member.avatar && (
+                                            <AvatarImage
+                                                src={member.avatar}
+                                                alt=""
+                                            />
+                                        )}
                                         <AvatarFallback
                                             className={cn(
                                                 'text-[11px] font-medium',

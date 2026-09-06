@@ -22,6 +22,7 @@ vi.mock('@inertiajs/react', () => ({
 
 vi.mock('@/hooks/use-current-url', () => ({
     useCurrentUrl: () => ({
+        currentUrl: '/people/employees',
         isCurrentUrl: (href: string) => href === '/people/employees',
     }),
 }));
@@ -106,6 +107,30 @@ describe('NavMain', () => {
     });
 });
 
+describe('NavMain section selection', () => {
+    it('keeps the most specific sub-link selected on a sub-page of its section', () => {
+        vi.doMock('@/hooks/use-current-url', () => ({
+            useCurrentUrl: () => ({
+                currentUrl: '/people/employees/42/edit',
+                isCurrentUrl: () => false,
+            }),
+        }));
+
+        renderNav();
+
+        expect(screen.getByRole('link', { name: 'Employés' })).toHaveAttribute(
+            'data-active',
+            'true',
+        );
+        expect(
+            screen.getByRole('link', { name: "Vue d'ensemble" }),
+        ).toHaveAttribute('data-active', 'false');
+        expect(
+            screen.getByRole('button', { name: /Personnes/ }),
+        ).toHaveAttribute('data-active', 'true');
+    });
+});
+
 describe('NavMain branch animation', () => {
     it('staggers the sub-links and rotates the chevron when open', () => {
         renderNav();
@@ -127,7 +152,10 @@ describe('NavMain branch animation', () => {
 describe('NavMain closed branches', () => {
     it('keeps a branch closed when none of its links is the current page', () => {
         vi.doMock('@/hooks/use-current-url', () => ({
-            useCurrentUrl: () => ({ isCurrentUrl: () => false }),
+            useCurrentUrl: () => ({
+                currentUrl: '/elsewhere',
+                isCurrentUrl: () => false,
+            }),
         }));
 
         render(
@@ -181,7 +209,10 @@ describe('NavMain remembered branches', () => {
 
     it('reopens a branch the user had opened', async () => {
         vi.doMock('@/hooks/use-current-url', () => ({
-            useCurrentUrl: () => ({ isCurrentUrl: () => false }),
+            useCurrentUrl: () => ({
+                currentUrl: '/elsewhere',
+                isCurrentUrl: () => false,
+            }),
         }));
         localStorage.setItem('sidebar.branch.Personnes', '1');
 

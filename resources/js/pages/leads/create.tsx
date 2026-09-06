@@ -1,19 +1,28 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { useInitials } from '@/hooks/use-initials';
 import {
     ArrowLeft,
     ArrowRight,
+    CalendarClock,
     Check,
+    ClipboardList,
+    MapPin,
+    Megaphone,
+    Package,
     Star,
     TriangleAlert,
     UserRound,
+    Wallet,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { CountryFlag } from '@/components/country-flag';
 import { DatePicker } from '@/components/date-picker';
 import InputError from '@/components/input-error';
 import { FormActionBar } from '@/components/form-action-bar';
+import { ConditionChoices } from '@/components/leads/condition-choices';
 import { DistrictMap } from '@/components/leads/district-map';
 import { PhoneInput } from '@/components/phone-input';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,7 +34,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -37,7 +45,8 @@ import {
     validateLeadForm,
     type LeadFormErrors,
 } from '@/lib/lead-validation';
-import { budgetHint, budgetTiers } from '@/lib/paris-budget';
+import { TIGHT_BUDGET_CENTS, isTightBudget } from '@/lib/paris-budget';
+import { daysUntil, isUrgentArrival } from '@/lib/lead-urgency';
 import { notify } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import {
@@ -106,6 +115,15 @@ const steps = [
 
 type StepNumber = (typeof steps)[number]['number'];
 
+/** Lecture partagée de la note : un mot vaut mieux qu'un chiffre. */
+export const scoreLabels: Record<number, string> = {
+    1: 'Curieux',
+    2: 'Tiède',
+    3: 'Sérieux',
+    4: 'Chaud',
+    5: 'Prêt à signer',
+};
+
 /** Clés d'erreur rattachées à chaque étape, pour valider et naviguer. */
 const stepFields: Record<StepNumber, string[]> = {
     1: [
@@ -124,7 +142,7 @@ const stepFields: Record<StepNumber, string[]> = {
         'arrival_at',
         'districts',
         'duration',
-        'guarantor',
+        'guarantors',
         'furnished',
         'origin_city',
         'message',
@@ -180,7 +198,9 @@ function Stepper({
                                 'flex items-center gap-2 rounded-md text-sm outline-none focus-visible:ring-2 disabled:cursor-default',
                                 active
                                     ? 'text-foreground font-medium'
-                                    : 'text-muted-foreground',
+                                    : done
+                                      ? 'text-muted-foreground'
+                                      : 'text-muted-foreground/50',
                                 reachable && !active && 'hover:text-foreground',
                             )}
                         >
@@ -188,6 +208,7 @@ function Stepper({
                                 aria-hidden
                                 className={cn(
                                     'flex size-6 shrink-0 items-center justify-center rounded-full border text-xs tabular-nums',
+                                    !active && !done && 'border-dashed',
                                     active &&
                                         'bg-primary text-primary-foreground border-primary',
                                     done &&
@@ -220,23 +241,43 @@ function Stepper({
     );
 }
 
-/** Groupe de champs, comme sur la facture : titre, aide, grille. */
+/** Groupe de champs en panneau, comme la fiche lead : icône, titre, aide, grille. */
 function Group({
     title,
     hint,
+    icon: Icon,
     children,
+    className,
 }: {
     title: string;
     hint?: string;
+    icon?: typeof Star;
     children: React.ReactNode;
+    className?: string;
 }) {
     return (
-        <section className="grid gap-5">
-            <div>
-                <h2 className="text-base font-medium">{title}</h2>
-                {hint && (
-                    <p className="text-muted-foreground text-sm">{hint}</p>
+        <section
+            aria-label={title}
+            className={cn(
+                'bg-sidebar grid content-start gap-5 rounded-xl border p-5',
+                className,
+            )}
+        >
+            <div className="flex items-start gap-3">
+                {Icon && (
+                    <span
+                        aria-hidden
+                        className="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-lg"
+                    >
+                        <Icon className="size-4" />
+                    </span>
                 )}
+                <div className="min-w-0">
+                    <h2 className="text-sm font-semibold">{title}</h2>
+                    {hint && (
+                        <p className="text-muted-foreground text-xs">{hint}</p>
+                    )}
+                </div>
             </div>
             {children}
         </section>
@@ -259,7 +300,14 @@ function Field({
     className?: string;
 }) {
     return (
-        <div className={cn('grid gap-2', className)}>
+        <div
+            className={cn(
+                'grid content-start gap-2',
+                // Champ en erreur : fond teinté en plus de la bordure, plus visible sur mobile.
+                '[&_input[aria-invalid=true]]:bg-destructive/5 [&_textarea[aria-invalid=true]]:bg-destructive/5',
+                className,
+            )}
+        >
             <Label htmlFor={htmlFor}>{label}</Label>
             {children}
             {hint && !error && (
@@ -314,7 +362,7 @@ export default function LeadsCreate({
                   districts: [],
                   property_types: [],
                   duration: '',
-                  guarantor: '',
+                  guarantors: [],
                   furnished: '',
                   message: '',
                   score: null,
@@ -331,6 +379,9 @@ export default function LeadsCreate({
         ...(form.errors as Record<string, string>),
     };
     const [duplicates, setDuplicates] = useState<Duplicate[]>([]);
+    const [hoveredScore, setHoveredScore] = useState<number | null>(null);
+    const shownScore = hoveredScore ?? form.data.score;
+    const getInitials = useInitials();
     const formRef = useRef<HTMLFormElement>(null);
     const [step, setStep] = useState<StepNumber>(1);
     const [visited, setVisited] = useState<Set<number>>(
@@ -456,21 +507,9 @@ export default function LeadsCreate({
         <K extends keyof LeadForm>(key: K) =>
         (value: LeadForm[K]) =>
             form.setData((data) => ({ ...data, [key]: value }));
-    const hint = budgetHint(form.data.districts);
-    const selectOptions = <T extends string>(
-        options: LabeledOption<T>[],
-        none: string,
-    ) => (
-        <SelectContent>
-            <SelectItem value="none">{none}</SelectItem>
-            {options.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                </SelectItem>
-            ))}
-        </SelectContent>
-    );
-
+    const tightBudget = isTightBudget(toCents(form.data.budget));
+    const urgentArrival = isUrgentArrival(form.data.arrival_at);
+    const arrivalInDays = urgentArrival ? daysUntil(form.data.arrival_at) : 0;
     const submit = (event: FormEvent) => {
         event.preventDefault();
 
@@ -510,7 +549,6 @@ export default function LeadsCreate({
             arrival_at: data.arrival_at === '' ? null : data.arrival_at,
             recontact_at: data.recontact_at === '' ? null : data.recontact_at,
             duration: data.duration === '' ? null : data.duration,
-            guarantor: data.guarantor === '' ? null : data.guarantor,
             furnished: data.furnished === '' ? null : data.furnished,
             recontact_channel:
                 data.recontact_channel === '' ? null : data.recontact_channel,
@@ -532,10 +570,10 @@ export default function LeadsCreate({
             <Head
                 title={editing ? `Modifier ${lead.name}` : 'Converting Machine'}
             />
-            <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4">
+            <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4">
                 <div className="grid gap-6 pt-8 pb-8">
                     <div>
-                        <h1 className="text-lg font-medium">
+                        <h1 className="text-2xl font-semibold tracking-tight">
                             {editing
                                 ? `Modifier ${lead.name}`
                                 : 'Converting Machine'}
@@ -554,18 +592,15 @@ export default function LeadsCreate({
                     id="lead-form"
                     onSubmit={submit}
                     noValidate
-                    className="grid gap-8 pb-8"
+                    className="grid gap-5 pb-8"
                     data-test="lead-form"
                 >
-                    <p className="text-muted-foreground -mb-4 text-xs font-medium tracking-wide uppercase">
-                        Étape {step} sur {steps.length}
-                    </p>
-
                     {step === 1 && (
                         <>
                             <Group
                                 title="Contact"
                                 hint="Un e-mail ou un téléphone suffit pour commencer."
+                                icon={UserRound}
                             >
                                 <div className="grid gap-5 sm:grid-cols-2">
                                     <Field
@@ -576,6 +611,9 @@ export default function LeadsCreate({
                                         <Input
                                             id="first_name"
                                             name="first_name"
+                                            aria-invalid={Boolean(
+                                                errors.first_name,
+                                            )}
                                             autoFocus
                                             autoComplete="off"
                                             className="bg-background"
@@ -595,6 +633,9 @@ export default function LeadsCreate({
                                         <Input
                                             id="last_name"
                                             name="last_name"
+                                            aria-invalid={Boolean(
+                                                errors.last_name,
+                                            )}
                                             autoComplete="off"
                                             className="bg-background"
                                             value={form.data.last_name}
@@ -611,6 +652,7 @@ export default function LeadsCreate({
                                         <Input
                                             id="email"
                                             name="email"
+                                            aria-invalid={Boolean(errors.email)}
                                             type="email"
                                             autoComplete="off"
                                             className="bg-background"
@@ -631,6 +673,8 @@ export default function LeadsCreate({
                                             onChange={set('phone')}
                                         />
                                     </Field>
+                                </div>
+                                <div className="grid gap-5 sm:grid-cols-[1fr_auto]">
                                     <Field
                                         label="Société"
                                         htmlFor="company"
@@ -670,7 +714,7 @@ export default function LeadsCreate({
                                                 <ToggleGroupItem
                                                     key={language.value}
                                                     value={language.value}
-                                                    className="bg-background px-4"
+                                                    className="bg-background px-3"
                                                 >
                                                     <CountryFlag
                                                         code={
@@ -735,11 +779,10 @@ export default function LeadsCreate({
                                 )}
                             </Group>
 
-                            <Separator />
-
                             <Group
                                 title="Formule"
                                 hint="Celle que le prospect envisage. Modifiable plus tard."
+                                icon={Package}
                             >
                                 <RadioGroup
                                     value={form.data.offer}
@@ -763,7 +806,7 @@ export default function LeadsCreate({
                                             <span className="grid min-w-0 flex-1 gap-1">
                                                 <span className="flex items-center justify-between gap-2 font-medium">
                                                     {offer.label}
-                                                    <span className="text-muted-foreground text-sm font-normal tabular-nums">
+                                                    <span className="text-foreground text-sm font-semibold tabular-nums">
                                                         {formatMoney(
                                                             offer.price_cents,
                                                             'EUR',
@@ -780,9 +823,7 @@ export default function LeadsCreate({
                                 <InputError message={errors.offer} />
                             </Group>
 
-                            <Separator />
-
-                            <Group title="Source">
+                            <Group title="Source" icon={Megaphone}>
                                 <div className="grid gap-5 sm:grid-cols-2">
                                     <Field
                                         label="Source du lead"
@@ -842,11 +883,24 @@ export default function LeadsCreate({
 
                     {step === 2 && (
                         <>
-                            <Group
-                                title="Budget et calendrier"
-                                hint="Ce que le prospect peut mettre chaque mois, et quand il souhaite emménager."
-                            >
-                                <div className="grid gap-5 sm:grid-cols-2">
+                            <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
+                                <Group
+                                    title="Quartiers visés"
+                                    hint="Cliquez les arrondissements, ou tout Paris."
+                                    icon={MapPin}
+                                >
+                                    <DistrictMap
+                                        value={form.data.districts}
+                                        onChange={set('districts')}
+                                    />
+                                    <InputError message={errors.districts} />
+                                </Group>
+
+                                <Group
+                                    title="Budget et calendrier"
+                                    hint="Chaque mois, et quand emménager."
+                                    icon={Wallet}
+                                >
                                     <Field
                                         label="Budget mensuel (€ / mois)"
                                         htmlFor="budget"
@@ -867,43 +921,31 @@ export default function LeadsCreate({
                                                 set('budget')(e.target.value)
                                             }
                                         />
-                                        <div
-                                            className="flex flex-wrap gap-1.5"
-                                            role="group"
-                                            aria-label="Paliers de budget"
-                                        >
-                                            {budgetTiers.map((tier) => {
-                                                const selected =
-                                                    toCents(
-                                                        form.data.budget,
-                                                    ) ===
-                                                    tier * 100;
-
-                                                return (
-                                                    <Button
-                                                        key={tier}
-                                                        type="button"
-                                                        variant={
-                                                            selected
-                                                                ? 'secondary'
-                                                                : 'outline'
-                                                        }
-                                                        size="sm"
-                                                        aria-pressed={selected}
-                                                        onClick={() =>
-                                                            set('budget')(
-                                                                String(tier),
-                                                            )
-                                                        }
-                                                    >
-                                                        {tier.toLocaleString(
-                                                            'fr-FR',
-                                                        )}{' '}
-                                                        €
-                                                    </Button>
-                                                );
-                                            })}
-                                        </div>
+                                        {tightBudget && (
+                                            <p
+                                                data-test="budget-hint"
+                                                className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400"
+                                            >
+                                                <TriangleAlert
+                                                    className="mt-0.5 size-3.5 shrink-0"
+                                                    aria-hidden
+                                                />
+                                                <span>
+                                                    <span className="font-medium">
+                                                        Budget serré
+                                                    </span>{' '}
+                                                    : en dessous de{' '}
+                                                    <span className="tabular-nums">
+                                                        {formatMoney(
+                                                            TIGHT_BUDGET_CENTS,
+                                                            'EUR',
+                                                        )}
+                                                    </span>{' '}
+                                                    / mois, les options à Paris
+                                                    sont très limitées.
+                                                </span>
+                                            </p>
+                                        )}
                                     </Field>
                                     <Field
                                         label="Emménagement souhaité"
@@ -916,149 +958,58 @@ export default function LeadsCreate({
                                             value={form.data.arrival_at}
                                             onChange={set('arrival_at')}
                                         />
+                                        {urgentArrival && (
+                                            <p
+                                                data-test="arrival-hint"
+                                                className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400"
+                                            >
+                                                <TriangleAlert
+                                                    className="mt-0.5 size-3.5 shrink-0"
+                                                    aria-hidden
+                                                />
+                                                <span>
+                                                    <span className="font-medium">
+                                                        Emménagement imminent
+                                                    </span>{' '}
+                                                    :{' '}
+                                                    {arrivalInDays <= 0
+                                                        ? 'la date est déjà passée.'
+                                                        : arrivalInDays === 1
+                                                          ? 'dans 1 jour, très court pour trouver un logement.'
+                                                          : `dans ${arrivalInDays} jours, très court pour trouver un logement.`}
+                                                </span>
+                                            </p>
+                                        )}
                                     </Field>
-                                </div>
-                                {hint &&
-                                    form.data.budget.trim() !== '' &&
-                                    toCents(form.data.budget) <
-                                        hint.minimumCents && (
-                                        <Alert data-test="budget-hint">
-                                            <TriangleAlert />
-                                            <AlertTitle>
-                                                Budget serré pour ces choix
-                                            </AlertTitle>
-                                            <AlertDescription>
-                                                Comptez plutôt{' '}
-                                                <span className="text-foreground font-medium tabular-nums">
-                                                    {formatMoney(
-                                                        hint.minimumCents,
-                                                        'EUR',
-                                                    )}{' '}
-                                                    / mois
-                                                </span>{' '}
-                                                pour {hint.propertyLabel} dans{' '}
-                                                {hint.zoneLabel}. Repère
-                                                indicatif, à nuancer selon le
-                                                bien.
-                                            </AlertDescription>
-                                        </Alert>
-                                    )}
-                            </Group>
-
-                            <Separator />
+                                </Group>
+                            </div>
 
                             <Group
-                                title="Quartiers visés"
-                                hint="Cliquez les arrondissements, ou tout Paris."
+                                title="Conditions"
+                                hint="Un clic par réponse, rien n'est obligatoire."
+                                icon={ClipboardList}
                             >
-                                <DistrictMap
-                                    value={form.data.districts}
-                                    onChange={set('districts')}
+                                <ConditionChoices
+                                    durations={durations}
+                                    guarantors={guarantors}
+                                    furnishedOptions={furnishedOptions}
+                                    values={{
+                                        duration: form.data.duration,
+                                        guarantors: form.data.guarantors,
+                                        furnished: form.data.furnished,
+                                    }}
+                                    onChange={(key, value) =>
+                                        form.setData((data) => ({
+                                            ...data,
+                                            [key]: value,
+                                        }))
+                                    }
+                                    errors={{
+                                        duration: errors.duration,
+                                        guarantors: errors.guarantors,
+                                        furnished: errors.furnished,
+                                    }}
                                 />
-                                <InputError message={errors.districts} />
-                            </Group>
-
-                            <Separator />
-
-                            <Group title="Conditions">
-                                <div className="grid gap-5 sm:grid-cols-3">
-                                    <Field
-                                        label="Durée d'installation"
-                                        htmlFor="duration"
-                                        error={errors.duration}
-                                    >
-                                        <Select
-                                            value={
-                                                form.data.duration === ''
-                                                    ? 'none'
-                                                    : form.data.duration
-                                            }
-                                            onValueChange={(value) =>
-                                                set('duration')(
-                                                    value === 'none'
-                                                        ? ''
-                                                        : (value as LeadDuration),
-                                                )
-                                            }
-                                        >
-                                            <SelectTrigger
-                                                id="duration"
-                                                aria-label="Durée d'installation"
-                                                className="bg-background w-full"
-                                            >
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            {selectOptions(
-                                                durations,
-                                                'À définir',
-                                            )}
-                                        </Select>
-                                    </Field>
-                                    <Field
-                                        label="Type de garant"
-                                        htmlFor="guarantor"
-                                        error={errors.guarantor}
-                                    >
-                                        <Select
-                                            value={
-                                                form.data.guarantor === ''
-                                                    ? 'none'
-                                                    : form.data.guarantor
-                                            }
-                                            onValueChange={(value) =>
-                                                set('guarantor')(
-                                                    value === 'none'
-                                                        ? ''
-                                                        : (value as GuarantorType),
-                                                )
-                                            }
-                                        >
-                                            <SelectTrigger
-                                                id="guarantor"
-                                                aria-label="Type de garant"
-                                                className="bg-background w-full"
-                                            >
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            {selectOptions(
-                                                guarantors,
-                                                'À définir',
-                                            )}
-                                        </Select>
-                                    </Field>
-                                    <Field
-                                        label="Meublé"
-                                        htmlFor="furnished"
-                                        error={errors.furnished}
-                                    >
-                                        <Select
-                                            value={
-                                                form.data.furnished === ''
-                                                    ? 'none'
-                                                    : form.data.furnished
-                                            }
-                                            onValueChange={(value) =>
-                                                set('furnished')(
-                                                    value === 'none'
-                                                        ? ''
-                                                        : (value as Furnished),
-                                                )
-                                            }
-                                        >
-                                            <SelectTrigger
-                                                id="furnished"
-                                                aria-label="Meublé"
-                                                className="bg-background w-full"
-                                            >
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            {selectOptions(
-                                                furnishedOptions,
-                                                'À définir',
-                                            )}
-                                        </Select>
-                                    </Field>
-                                </div>
                                 <div className="grid gap-5 sm:grid-cols-2">
                                     <Field
                                         label="Ville d'origine"
@@ -1105,6 +1056,7 @@ export default function LeadsCreate({
                             <Group
                                 title="Qualité du lead"
                                 hint="Votre évaluation, pour prioriser le kanban."
+                                icon={Star}
                             >
                                 <div className="grid gap-2">
                                     <Label id="score-label">Note</Label>
@@ -1136,6 +1088,18 @@ export default function LeadsCreate({
                                                                 : value,
                                                         )
                                                     }
+                                                    onMouseEnter={() =>
+                                                        setHoveredScore(value)
+                                                    }
+                                                    onMouseLeave={() =>
+                                                        setHoveredScore(null)
+                                                    }
+                                                    onFocus={() =>
+                                                        setHoveredScore(value)
+                                                    }
+                                                    onBlur={() =>
+                                                        setHoveredScore(null)
+                                                    }
                                                     className={cn(
                                                         'rounded-md p-1 transition-colors',
                                                         active
@@ -1154,10 +1118,25 @@ export default function LeadsCreate({
                                                 </button>
                                             );
                                         })}
-                                        <span className="text-muted-foreground ml-2 text-sm">
-                                            {form.data.score === null
-                                                ? 'Non évaluée'
-                                                : `${form.data.score} / 5`}
+                                        <span className="ml-2 flex items-baseline gap-2 text-sm">
+                                            {shownScore === null ? (
+                                                <span className="text-muted-foreground">
+                                                    Non évaluée
+                                                </span>
+                                            ) : (
+                                                <>
+                                                    <span className="font-medium">
+                                                        {
+                                                            scoreLabels[
+                                                                shownScore
+                                                            ]
+                                                        }
+                                                    </span>
+                                                    <span className="text-muted-foreground tabular-nums">
+                                                        {shownScore} / 5
+                                                    </span>
+                                                </>
+                                            )}
                                         </span>
                                     </div>
                                     <InputError message={errors.score} />
@@ -1183,62 +1162,89 @@ export default function LeadsCreate({
                                 </Field>
                             </Group>
 
-                            <Separator />
-
                             <Group
                                 title="Suite à donner"
                                 hint="Qui suit ce lead, et quand le recontacter."
+                                icon={CalendarClock}
                             >
                                 <div className="grid gap-5 sm:grid-cols-3">
                                     <Field
                                         label="Suivi par"
-                                        htmlFor="assigned_to"
                                         error={errors.assigned_to}
+                                        className="sm:col-span-3"
                                     >
-                                        <Select
-                                            value={
-                                                form.data.assigned_to === null
-                                                    ? 'none'
-                                                    : String(
-                                                          form.data.assigned_to,
-                                                      )
-                                            }
-                                            onValueChange={(value) =>
-                                                set('assigned_to')(
-                                                    value === 'none'
-                                                        ? null
-                                                        : Number(value),
-                                                )
-                                            }
+                                        <div
+                                            id="assigned_to"
+                                            tabIndex={-1}
+                                            role="radiogroup"
+                                            aria-label="Suivi par"
+                                            className="flex flex-wrap gap-2"
                                         >
-                                            <SelectTrigger
-                                                id="assigned_to"
-                                                aria-label="Suivi par"
-                                                className="bg-background w-full"
-                                            >
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="none">
-                                                    <UserRound />
-                                                    Personne pour l'instant
-                                                </SelectItem>
-                                                {staff.map((member) => (
-                                                    <SelectItem
-                                                        key={member.id}
-                                                        value={String(
-                                                            member.id,
+                                            {[
+                                                {
+                                                    id: null,
+                                                    name: "Personne pour l'instant",
+                                                    avatar: null,
+                                                },
+                                                ...staff,
+                                            ].map((member) => {
+                                                const checked =
+                                                    form.data.assigned_to ===
+                                                    member.id;
+                                                const label =
+                                                    member.id !== null &&
+                                                    member.id === auth.user?.id
+                                                        ? `${member.name} (moi)`
+                                                        : member.name;
+
+                                                return (
+                                                    <button
+                                                        key={
+                                                            member.id ?? 'none'
+                                                        }
+                                                        type="button"
+                                                        role="radio"
+                                                        aria-checked={checked}
+                                                        aria-label={label}
+                                                        onClick={() =>
+                                                            set('assigned_to')(
+                                                                member.id,
+                                                            )
+                                                        }
+                                                        className={cn(
+                                                            'bg-background flex h-9 items-center gap-2 rounded-full border py-1 pr-3 pl-1 text-sm transition-colors',
+                                                            checked
+                                                                ? 'border-primary bg-primary/5'
+                                                                : 'hover:bg-sidebar-accent',
                                                         )}
                                                     >
-                                                        {member.name}
-                                                        {member.id ===
-                                                        auth.user?.id
-                                                            ? ' (moi)'
-                                                            : ''}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                                        <Avatar className="size-7">
+                                                            {member.id !==
+                                                                null && (
+                                                                <AvatarImage
+                                                                    src={
+                                                                        member.avatar ??
+                                                                        undefined
+                                                                    }
+                                                                    alt=""
+                                                                />
+                                                            )}
+                                                            <AvatarFallback className="text-[10px]">
+                                                                {member.id ===
+                                                                null ? (
+                                                                    <UserRound className="size-3.5" />
+                                                                ) : (
+                                                                    getInitials(
+                                                                        member.name,
+                                                                    )
+                                                                )}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                        {label}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
                                     </Field>
                                     <Field
                                         label="Recontacter par"
@@ -1268,10 +1274,23 @@ export default function LeadsCreate({
                                             >
                                                 <SelectValue />
                                             </SelectTrigger>
-                                            {selectOptions(
-                                                recontactChannels,
-                                                'Pas de recontact prévu',
-                                            )}
+                                            <SelectContent>
+                                                <SelectItem value="none">
+                                                    Pas de recontact prévu
+                                                </SelectItem>
+                                                {recontactChannels.map(
+                                                    (channel) => (
+                                                        <SelectItem
+                                                            key={channel.value}
+                                                            value={
+                                                                channel.value
+                                                            }
+                                                        >
+                                                            {channel.label}
+                                                        </SelectItem>
+                                                    ),
+                                                )}
+                                            </SelectContent>
                                         </Select>
                                     </Field>
                                     <Field
@@ -1292,7 +1311,7 @@ export default function LeadsCreate({
                     )}
                 </form>
             </div>
-            <FormActionBar innerClassName="max-w-3xl">
+            <FormActionBar innerClassName="max-w-4xl">
                 {step > 1 && (
                     <Button
                         type="button"

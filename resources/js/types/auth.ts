@@ -11,7 +11,7 @@ export type User = {
     name: string;
     email: string;
     role: StaffRole;
-    avatar?: string;
+    avatar: string | null;
     email_verified_at: string | null;
     two_factor_enabled?: boolean;
     created_at: string;
@@ -24,6 +24,7 @@ export type StaffDirectoryEntry = {
     id: number;
     name: string;
     role: StaffRole;
+    avatar: string | null;
 };
 
 export type Permissions = {

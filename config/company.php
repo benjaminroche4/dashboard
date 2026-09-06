@@ -20,6 +20,19 @@ return [
     // Préfixe des numéros de facture : RP + code activité (27 = agent immobilier), puis séquence.
     'invoice_prefix' => env('COMPANY_INVOICE_PREFIX', 'RP-27'),
 
+    /*
+     * Identité des e-mails envoyés aux leads (même charte que le site Relocation In Paris).
+     */
+    'mail' => [
+        'logo_url' => env('COMPANY_MAIL_LOGO_URL', 'https://resend-attachments.s3.amazonaws.com/y8VsZ3nZ1GDIWiz'),
+        'phone_display' => env('COMPANY_PHONE_DISPLAY', '+(33) 1 84 80 43 44'),
+        'whatsapp_url' => env('COMPANY_WHATSAPP_URL', 'https://wa.me/33761719439'),
+        'postal_line' => env('COMPANY_POSTAL_LINE', 'Relocation in Paris, 155 Rue du Faubourg Saint-Denis, 75010 Paris'),
+        'reviews_url' => env('COMPANY_REVIEWS_URL', 'https://share.google/c8msBrKphxqVY03er'),
+        // Domaines vérifiés chez Resend : un conseiller dont l'e-mail est sur l'un d'eux envoie en son nom.
+        'sender_domains' => array_values(array_filter(array_map(trim(...), explode(',', (string) env('COMPANY_SENDER_DOMAINS', 'relocation-in-paris.fr,estate-in-paris.fr'))))),
+    ],
+
     // Taux de TVA suisse ordinaire, en pourcentage.
     'default_vat_rate' => (float) env('COMPANY_DEFAULT_VAT_RATE', 8.1),
 
@@ -46,6 +59,29 @@ return [
     ],
 
     // Prix unitaires par défaut des offres, en centimes, par devise (1 190 et 2 190).
+    /*
+     * Liens de paiement Stripe (Payment Links) par formule, modalité et langue.
+     * « deposit » = acompte de 50 %. Absent pour Accompagné : pas d'acompte sur cette offre.
+     */
+    'payment_links' => [
+        'confie' => [
+            'full' => [
+                'fr' => 'https://payment.relocation-in-paris.fr/b/4gMaEZ9h1dKrcCr7zy7EQ0N',
+                'en' => 'https://payment.relocation-in-paris.fr/b/28EbJ3dxhbCjfODcTS7EQ0M',
+            ],
+            'deposit' => [
+                'fr' => 'https://payment.relocation-in-paris.fr/b/aFa14p9h15dVfOD9HG7EQ0x',
+                'en' => 'https://payment.relocation-in-paris.fr/b/6oU00ldxhfSzauj3ji7EQ0u',
+            ],
+        ],
+        'accompagne' => [
+            'full' => [
+                'fr' => 'https://payment.relocation-in-paris.fr/b/dRm28teBlbCjgSH0767EQ0E',
+                'en' => 'https://payment.relocation-in-paris.fr/b/6oU9AVbp96hZbyn1ba7EQ0F',
+            ],
+        ],
+    ],
+
     'offers' => [
         'accompagne' => [
             'CHF' => (int) env('OFFER_ACCOMPAGNE_CHF_CENTS', 119_000),

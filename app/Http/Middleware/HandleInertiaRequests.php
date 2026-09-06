@@ -53,15 +53,18 @@ class HandleInertiaRequests extends Middleware
                 ? []
                 : User::query()
                     ->orderBy('name')
-                    ->get(['id', 'name', 'role'])
+                    ->get(['id', 'name', 'role', 'avatar_path'])
                     ->map(fn (User $member): array => [
                         'id' => $member->id,
                         'name' => $member->name,
                         'role' => $member->role->value,
+                        'avatar' => $member->avatar,
                     ])
                     ->all(),
             'features' => [
                 'addressAutocomplete' => (bool) config('services.google.maps_key'),
+                // Clé navigateur : publique par nature, à restreindre par référent dans la console Google.
+                'googleMapsKey' => config('services.google.maps_browser_key') ?: null,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

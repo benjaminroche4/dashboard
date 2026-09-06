@@ -1,4 +1,4 @@
-import { Contact } from 'lucide-react';
+import { Contact, Wrench } from 'lucide-react';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { WorkspaceSwitcher } from '@/components/workspace-switcher';
@@ -11,6 +11,8 @@ import {
 } from '@/components/ui/sidebar';
 import { index as invoicesIndex } from '@/routes/invoices';
 import { create as leadsCreate, index as leadsIndex } from '@/routes/leads';
+import { index as toolsIndex } from '@/routes/tools';
+import { index as documentsIndex } from '@/routes/tools/documents';
 import type { NavGroup } from '@/types';
 
 const navGroups: NavGroup[] = [
@@ -26,6 +28,17 @@ const navGroups: NavGroup[] = [
                     { title: 'Converting Machine', href: leadsCreate() },
                     { title: 'Factures', href: invoicesIndex() },
                 ],
+            },
+        ],
+    },
+    {
+        label: 'Outils',
+        items: [
+            {
+                title: 'Outils',
+                href: toolsIndex(),
+                icon: Wrench,
+                items: [{ title: 'Documents', href: documentsIndex() }],
             },
         ],
     },

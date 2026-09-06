@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Events\DashboardUpdated;
 use App\Models\User;
 use Illuminate\Broadcasting\PresenceChannel;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
@@ -16,6 +17,10 @@ test('it broadcasts on the staff presence channel', function (): void {
     expect($event->broadcastOn())->toHaveCount(1)
         ->and($event->broadcastOn()[0])->toBeInstanceOf(PresenceChannel::class)
         ->and((string) $event->broadcastOn()[0]->name)->toBe('presence-staff');
+});
+
+test('it broadcasts immediately, without going through the queue', function (): void {
+    expect(new DashboardUpdated('orders'))->toBeInstanceOf(ShouldBroadcastNow::class);
 });
 
 test('it uses a stable event name', function (): void {
@@ -50,4 +55,14 @@ test('it has no actor when nobody is authenticated', function (): void {
     Auth::shouldReceive('user')->once()->andReturn(null);
 
     expect((new DashboardUpdated('orders'))->broadcastWith()['actor'])->toBeNull();
+});
+
+test('it excludes the socket that performed the action', function (): void {
+    Auth::shouldReceive('user')->andReturn(null);
+
+    expect((new DashboardUpdated('orders'))->socket)->toBeNull();
+
+    request()->headers->set('X-Socket-ID', '1234.5678');
+
+    expect((new DashboardUpdated('orders'))->socket)->toBe('1234.5678');
 });

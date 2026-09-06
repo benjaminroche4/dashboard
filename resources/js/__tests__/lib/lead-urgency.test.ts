@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { leadUrgency } from '@/lib/lead-urgency';
+import { daysUntil, isUrgentArrival, leadUrgency } from '@/lib/lead-urgency';
 import { makeLead } from '@/test/fixtures/lead';
 
 const now = new Date('2026-09-10T12:00:00Z');
@@ -61,5 +61,19 @@ describe('leadUrgency', () => {
             leadUrgency(makeLead({ arrival_at: '2026-12-01' }), now)
                 .arrivalInDays,
         ).toBeNull();
+    });
+});
+
+describe('isUrgentArrival', () => {
+    const now = new Date('2026-09-05T10:00:00');
+
+    it('flags arrivals in less than 20 days, past dates included', () => {
+        expect(daysUntil('2026-09-10', now)).toBe(5);
+        expect(isUrgentArrival('2026-09-10', now)).toBe(true);
+        expect(isUrgentArrival('2026-09-05', now)).toBe(true);
+        expect(isUrgentArrival('2026-09-01', now)).toBe(true);
+        expect(isUrgentArrival('2026-09-24', now)).toBe(true);
+        expect(isUrgentArrival('2026-09-25', now)).toBe(false);
+        expect(isUrgentArrival('', now)).toBe(false);
     });
 });

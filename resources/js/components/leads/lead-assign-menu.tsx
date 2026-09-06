@@ -1,7 +1,7 @@
 import { router, usePage } from '@inertiajs/react';
 import { Check, UserRound, UserRoundX } from 'lucide-react';
 import { useState } from 'react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -85,6 +85,9 @@ export function LeadAssignMenu({
                         size === 'sm' ? 'size-6' : 'size-8',
                     )}
                 >
+                    {lead.assignee?.avatar && (
+                        <AvatarImage src={lead.assignee.avatar} alt="" />
+                    )}
                     <AvatarFallback
                         className={cn(
                             size === 'sm' ? 'text-[10px]' : 'text-xs',
@@ -115,6 +118,9 @@ export function LeadAssignMenu({
                             onSelect={() => change(member.id)}
                         >
                             <Avatar className="size-6">
+                                {member.avatar && (
+                                    <AvatarImage src={member.avatar} alt="" />
+                                )}
                                 <AvatarFallback
                                     className={cn(
                                         'text-[10px] font-medium',

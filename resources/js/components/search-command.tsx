@@ -29,8 +29,10 @@ import { edit as editSecurity } from '@/routes/security';
 
 type LeadHit = {
     id: number;
+    reference: string | null;
     name: string;
     email: string | null;
+    company: string | null;
     status_label: string;
     url: string;
 };
@@ -184,13 +186,24 @@ export function SearchCommand() {
                             {leads.map((lead) => (
                                 <CommandItem
                                     key={lead.id}
-                                    value={`lead ${lead.name} ${lead.email ?? ''}`}
+                                    value={`lead ${lead.name} ${lead.email ?? ''} ${lead.reference ?? ''} ${lead.company ?? ''}`}
                                     onSelect={() => go(lead.url)}
                                 >
                                     <Contact />
                                     <span className="truncate">
                                         {lead.name}
+                                        {lead.company && (
+                                            <span className="text-muted-foreground">
+                                                {' '}
+                                                · {lead.company}
+                                            </span>
+                                        )}
                                     </span>
+                                    {lead.reference && (
+                                        <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
+                                            {lead.reference}
+                                        </span>
+                                    )}
                                     <span className="text-muted-foreground ml-auto truncate text-xs">
                                         {lead.status_label}
                                     </span>

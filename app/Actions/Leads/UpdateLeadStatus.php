@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Leads;
 
+use App\Enums\LeadLossReason;
 use App\Enums\LeadStatus;
 use App\Events\DashboardUpdated;
 use App\Models\Lead;
@@ -16,9 +17,9 @@ use Illuminate\Support\Facades\DB;
  */
 final class UpdateLeadStatus
 {
-    public function handle(Lead $lead, LeadStatus $status, ?int $position = null, ?User $by = null): Lead
+    public function handle(Lead $lead, LeadStatus $status, ?int $position = null, ?User $by = null, ?LeadLossReason $lossReason = null, ?string $lossNote = null): Lead
     {
-        return DB::transaction(function () use ($lead, $status, $position, $by): Lead {
+        return DB::transaction(function () use ($lead, $status, $position, $by, $lossReason, $lossNote): Lead {
             $previous = $lead->status;
             $changed = $previous !== $status;
 
@@ -44,6 +45,9 @@ final class UpdateLeadStatus
 
             $lead->status = $status;
             $lead->position = $target;
+            // Le motif de perte n'a de sens qu'archivé ; on l'efface dès que le lead revit.
+            $lead->loss_reason = $status === LeadStatus::Archived ? $lossReason : null;
+            $lead->loss_note = $status === LeadStatus::Archived ? ($lossNote !== '' ? $lossNote : null) : null;
 
             if ($changed && $status !== LeadStatus::Todo) {
                 $lead->last_contacted_at = now();
@@ -53,7 +57,8 @@ final class UpdateLeadStatus
 
             if ($changed) {
                 $lead->statusChanges()->create(['from_status' => $previous, 'to_status' => $status, 'changed_by' => $by?->id, 'created_at' => now()]);
-                event(new DashboardUpdated('leads', ['id' => $lead->id], "a passé le lead {$lead->fullName()} en « {$status->label()} »"));
+                $reason = $status === LeadStatus::Archived && $lossReason instanceof LeadLossReason ? " ({$lossReason->label()})" : '';
+                event(new DashboardUpdated('leads', ['id' => $lead->id], "a passé le lead {$lead->fullName()} en « {$status->label()} »{$reason}"));
             }
 
             return $lead;

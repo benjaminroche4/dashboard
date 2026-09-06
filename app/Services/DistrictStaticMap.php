@@ -1,0 +1,108 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use App\Support\ParisArrondissements;
+
+/**
+ * URL Google Static Maps avec les arrondissements visés surlignés, pour les
+ * e-mails envoyés aux leads. Les contours sont encodés en polyline pour tenir
+ * dans la limite de taille de l'URL ; la vue s'ajuste aux tracés.
+ */
+final readonly class DistrictStaticMap
+{
+    private const string FILL = '0x71172e35';
+
+    private const string STROKE = '0x71172eCC';
+
+    public function __construct(
+        private ?string $apiKey,
+        private ?string $mapId,
+    ) {}
+
+    public static function fromConfig(): self
+    {
+        return new self(
+            apiKey: config('services.google.maps_key'),
+            mapId: config('services.google.static_map_id') ?: null,
+        );
+    }
+
+    /**
+     * @param  list<int>  $districts
+     */
+    public function build(array $districts, string $language = 'fr'): ?string
+    {
+        if ($this->apiKey === null || $this->apiKey === '') {
+            return null;
+        }
+
+        $paths = [];
+
+        foreach ($districts as $district) {
+            $outline = ParisArrondissements::OUTLINES[$district] ?? null;
+
+            if ($outline === null) {
+                continue;
+            }
+
+            $paths[] = sprintf('fillcolor:%s|color:%s|weight:2|enc:%s', self::FILL, self::STROKE, $this->encodePolyline($outline));
+        }
+
+        if ($paths === []) {
+            return null;
+        }
+
+        $query = http_build_query(array_filter([
+            'size' => '560x260',
+            'scale' => '2',
+            'language' => $language,
+            'map_id' => $this->mapId,
+            'key' => $this->apiKey,
+        ]));
+
+        foreach ($paths as $path) {
+            $query .= '&path='.rawurlencode($path);
+        }
+
+        return 'https://maps.googleapis.com/maps/api/staticmap?'.$query;
+    }
+
+    /**
+     * Encodage polyline Google (l'anneau est refermé sur son premier point).
+     *
+     * @param  list<array{0: float, 1: float}>  $points  [longitude, latitude]
+     */
+    private function encodePolyline(array $points): string
+    {
+        $points[] = $points[0];
+        $encoded = '';
+        $previousLat = 0;
+        $previousLng = 0;
+
+        foreach ($points as [$lng, $lat]) {
+            $latE5 = (int) round($lat * 1e5);
+            $lngE5 = (int) round($lng * 1e5);
+            $encoded .= $this->encodeNumber($latE5 - $previousLat).$this->encodeNumber($lngE5 - $previousLng);
+            $previousLat = $latE5;
+            $previousLng = $lngE5;
+        }
+
+        return $encoded;
+    }
+
+    private function encodeNumber(int $value): string
+    {
+        $value = $value < 0 ? ~($value << 1) : ($value << 1);
+        $chunk = '';
+
+        while ($value >= 0x20) {
+            $chunk .= chr((0x20 | ($value & 0x1F)) + 63);
+            $value >>= 5;
+        }
+
+        return $chunk.chr($value + 63);
+    }
+}

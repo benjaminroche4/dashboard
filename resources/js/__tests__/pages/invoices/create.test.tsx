@@ -18,7 +18,9 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
         ...actual,
         Head: () => null,
         usePage: () => ({
-            props: { features: { addressAutocomplete: false } },
+            props: {
+                features: { addressAutocomplete: false, googleMapsKey: null },
+            },
         }),
         Link: ({ href, children }: { href: unknown; children: ReactNode }) => (
             <a
@@ -101,6 +103,7 @@ const props = {
         { value: 0, label: '0 % · exonéré / export' },
     ],
     nextNumber: 'RP-27054',
+    prefill: null,
     defaults: {
         currency: 'CHF' as const,
         vat_rate: 8.1,

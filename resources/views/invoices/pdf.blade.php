@@ -15,9 +15,9 @@
         strong { font-weight: 600; }
         .muted { color: #737373; }
         .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
-        .brand { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-        .brand strong { font-size: 12pt; }
-        .logo { width: 18px; height: 18px; border-radius: 3px; }
+        .brand { margin-bottom: 4px; line-height: 18px; }
+        .brand strong { font-size: 12pt; display: inline-block; vertical-align: middle; line-height: 18px; }
+        .logo { width: 18px; height: 18px; border-radius: 3px; display: inline-block; vertical-align: middle; margin-right: 8px; }
         .divider { border-top: 1px solid #e5e5e5; margin-top: 6px; padding-top: 6px; }
         .grid { display: flex; justify-content: space-between; margin-bottom: 24px; }
         .label { font-size: 8pt; text-transform: uppercase; color: #737373; margin-bottom: 4px; }
@@ -42,8 +42,7 @@
             <div class="brand">
                 @if (! empty($logo))
                     <img class="logo" src="{{ $logo }}" alt="">
-                @endif
-                <strong>{{ $company['name'] }}</strong>
+                @endif<strong>{{ $company['name'] }}</strong>
             </div>
             <div class="muted">{{ $company['email'] }}</div>
             <div class="muted">{{ $company['phone'] }}</div>

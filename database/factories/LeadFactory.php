@@ -31,6 +31,7 @@ class LeadFactory extends Factory
     public function definition(): array
     {
         return [
+            'reference' => 'LD-'.fake()->unique()->numerify('####'),
             'first_name' => fake()->firstName(),
             'last_name' => fake()->lastName(),
             'email' => fake()->safeEmail(),
@@ -45,7 +46,7 @@ class LeadFactory extends Factory
             'districts' => fake()->randomElements(range(1, 20), fake()->numberBetween(0, 4)),
             'property_types' => fake()->randomElements(PropertyType::cases(), fake()->numberBetween(1, 2)),
             'duration' => fake()->randomElement(LeadDuration::cases()),
-            'guarantor' => fake()->optional()->randomElement(GuarantorType::cases()),
+            'guarantors' => fake()->boolean() ? fake()->randomElements(GuarantorType::cases(), fake()->numberBetween(1, 2)) : [],
             'furnished' => fake()->randomElement(Furnished::cases()),
             'source' => fake()->randomElement(LeadSource::cases()),
             'message' => fake()->optional()->sentence(12),

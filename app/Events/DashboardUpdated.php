@@ -7,7 +7,7 @@ namespace App\Events;
 use App\Models\User;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Auth;
@@ -15,11 +15,14 @@ use Illuminate\Support\Facades\Auth;
 /**
  * Événement générique diffusé à tout le staff après une action du backoffice.
  *
+ * Diffusé immédiatement (pas de queue) : la latence perçue par les autres
+ * membres est celle d'un appel HTTP à Reverb, quelques millisecondes.
+ *
  * Usage : DashboardUpdated::dispatch('orders', ['id' => 42], 'a expédié la commande #42');
  * Côté front, le hook useStaffChannel() affiche un toast "<acteur> <message>"
  * aux autres membres connectés et recharge les props Inertia.
  */
-final class DashboardUpdated implements ShouldBroadcast
+final class DashboardUpdated implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -41,6 +44,10 @@ final class DashboardUpdated implements ShouldBroadcast
         $actor ??= Auth::user();
 
         $this->actor = $actor instanceof User ? ['id' => $actor->id, 'name' => $actor->name] : null;
+
+        // L'onglet à l'origine de l'action (en-tête X-Socket-ID) est exclu : il a
+        // déjà la réponse Inertia. Les autres onglets du même utilisateur reçoivent.
+        $this->dontBroadcastToCurrentUser();
     }
 
     /**

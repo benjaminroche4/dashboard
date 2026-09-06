@@ -9,8 +9,8 @@ vi.mock('@inertiajs/react', () => ({
     usePage: () => ({
         props: {
             staff: [
-                { id: 1, name: 'Admin', role: 'admin' },
-                { id: 2, name: 'Camille Roy', role: 'member' },
+                { id: 1, name: 'Admin', role: 'admin', avatar: null },
+                { id: 2, name: 'Camille Roy', role: 'member', avatar: null },
             ],
         },
     }),
@@ -24,7 +24,9 @@ describe('LeadAssignMenu', () => {
         const user = userEvent.setup();
         render(
             <LeadAssignMenu
-                lead={makeLead({ assignee: { id: 1, name: 'Admin' } })}
+                lead={makeLead({
+                    assignee: { id: 1, name: 'Admin', avatar: null },
+                })}
             />,
         );
 
@@ -52,7 +54,9 @@ describe('LeadAssignMenu', () => {
         patch.mockClear();
         render(
             <LeadAssignMenu
-                lead={makeLead({ assignee: { id: 1, name: 'Admin' } })}
+                lead={makeLead({
+                    assignee: { id: 1, name: 'Admin', avatar: null },
+                })}
             />,
         );
 

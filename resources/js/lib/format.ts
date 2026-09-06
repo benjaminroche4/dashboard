@@ -49,3 +49,20 @@ export function formatLongDate(iso: string): string {
 
     return longDateFormatter.format(new Date(year, month - 1, day));
 }
+
+/**
+ * Prénom ou nom affiché : initiale de chaque mot en majuscule (aussi après
+ * un tiret ou une apostrophe), reste en minuscules, espaces réduits.
+ * Miroir de `App\Support\PersonName::capitalize()`.
+ */
+export function capitalizeName(value: string): string {
+    return value
+        .trim()
+        .replace(/\s+/gu, ' ')
+        .toLocaleLowerCase('fr-FR')
+        .replace(
+            /(^|[\s\-'’])(\p{L})/gu,
+            (_, before: string, letter: string) =>
+                before + letter.toLocaleUpperCase('fr-FR'),
+        );
+}

@@ -19,8 +19,8 @@ vi.mock('@inertiajs/react', () => ({
         props: {
             auth: { user: { id: 1, name: 'Admin' } },
             staff: [
-                { id: 1, name: 'Admin', role: 'admin' },
-                { id: 2, name: 'Camille', role: 'member' },
+                { id: 1, name: 'Admin', role: 'admin', avatar: null },
+                { id: 2, name: 'Camille', role: 'member', avatar: null },
             ],
         },
     }),
@@ -35,7 +35,7 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 import LeadsIndex from '@/pages/leads/index';
-import { leadStatuses, makeLead } from '@/test/fixtures/lead';
+import { leadStatuses, lossReasons, makeLead } from '@/test/fixtures/lead';
 
 const offers = [
     {
@@ -80,6 +80,7 @@ describe('Leads kanban page', () => {
                 leads={leads}
                 statuses={leadStatuses}
                 offers={offers}
+                lossReasons={lossReasons}
             />,
         );
 
@@ -120,6 +121,7 @@ describe('Leads kanban page', () => {
                 leads={leads}
                 statuses={leadStatuses}
                 offers={offers}
+                lossReasons={lossReasons}
             />,
         );
 
@@ -142,6 +144,7 @@ describe('Leads kanban page', () => {
                 leads={leads}
                 statuses={leadStatuses}
                 offers={offers}
+                lossReasons={lossReasons}
             />,
         );
 
@@ -160,31 +163,21 @@ describe('Leads kanban page', () => {
         expect(screen.queryByText('Marc Petit')).not.toBeInTheDocument();
     });
 
-    it('opens the preview sheet when a card is clicked', async () => {
-        vi.stubGlobal(
-            'fetch',
-            vi.fn(async () => ({
-                ok: true,
-                json: async () => ({ lead: leads[0], notes: [], history: [] }),
-            })),
-        );
+    it('opens the lead page when a card is clicked', async () => {
         const user = userEvent.setup();
         render(
             <LeadsIndex
                 leads={leads}
                 statuses={leadStatuses}
                 offers={offers}
+                lossReasons={lossReasons}
             />,
         );
 
         await user.click(screen.getByRole('button', { name: 'Léa Durand' }));
 
-        expect(await screen.findByRole('dialog')).toBeInTheDocument();
-        expect(fetch).toHaveBeenCalledWith(
-            '/leads/1/preview',
-            expect.anything(),
-        );
-        vi.unstubAllGlobals();
+        expect(visit).toHaveBeenCalledWith('/leads/1');
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
     it('filters on my leads', async () => {
@@ -192,16 +185,19 @@ describe('Leads kanban page', () => {
         render(
             <LeadsIndex
                 leads={[
-                    makeLead({ assignee: { id: 1, name: 'Admin' } }),
+                    makeLead({
+                        assignee: { id: 1, name: 'Admin', avatar: null },
+                    }),
                     makeLead({
                         id: 2,
                         name: 'Marc Petit',
-                        assignee: { id: 2, name: 'Camille' },
+                        assignee: { id: 2, name: 'Camille', avatar: null },
                     }),
                     makeLead({ id: 3, name: 'Nina Roy' }),
                 ]}
                 statuses={leadStatuses}
                 offers={offers}
+                lossReasons={lossReasons}
             />,
         );
 
@@ -232,6 +228,7 @@ describe('Leads kanban page', () => {
                 ]}
                 statuses={leadStatuses}
                 offers={offers}
+                lossReasons={lossReasons}
             />,
         );
 
@@ -244,7 +241,12 @@ describe('Leads kanban page', () => {
 
     it('shows an empty state with a call to the Converting Machine', () => {
         render(
-            <LeadsIndex leads={[]} statuses={leadStatuses} offers={offers} />,
+            <LeadsIndex
+                leads={[]}
+                statuses={leadStatuses}
+                offers={offers}
+                lossReasons={lossReasons}
+            />,
         );
 
         expect(
@@ -268,6 +270,7 @@ describe('Leads kanban page', () => {
                 ]}
                 statuses={leadStatuses}
                 offers={offers}
+                lossReasons={lossReasons}
             />,
         );
 

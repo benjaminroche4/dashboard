@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { validateLeadForm } from '@/lib/lead-validation';
-import { budgetHint, budgetTiers } from '@/lib/paris-budget';
+import { isTightBudget } from '@/lib/paris-budget';
 import type { LeadForm } from '@/types';
 
 const base: LeadForm = {
@@ -20,7 +20,7 @@ const base: LeadForm = {
     districts: [],
     property_types: [],
     duration: '',
-    guarantor: '',
+    guarantors: [],
     furnished: '',
     message: '',
     score: null,
@@ -63,18 +63,12 @@ describe('validateLeadForm', () => {
     });
 });
 
-describe('budgetHint', () => {
-    it('uses the cheapest chosen zone and the smallest chosen property', () => {
-        expect(budgetHint([], ['t2'])).toBeNull();
-        expect(budgetHint([6], ['t2', 'studio'])).toMatchObject({
-            minimumCents: 130_000,
-            propertyLabel: 'un studio',
-            zoneLabel: 'les arrondissements centraux',
-        });
-        expect(budgetHint([6, 18], ['t2'])).toMatchObject({
-            minimumCents: 145_000,
-            zoneLabel: 'les arrondissements périphériques',
-        });
-        expect(budgetTiers).toContain(2500);
+describe('isTightBudget', () => {
+    it('flags budgets under 1 300 € per month', () => {
+        expect(isTightBudget(0)).toBe(false);
+        expect(isTightBudget(100_000)).toBe(true);
+        expect(isTightBudget(129_999)).toBe(true);
+        expect(isTightBudget(130_000)).toBe(false);
+        expect(isTightBudget(250_000)).toBe(false);
     });
 });

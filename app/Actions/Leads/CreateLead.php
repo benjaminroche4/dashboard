@@ -14,8 +14,10 @@ use Illuminate\Support\Facades\DB;
 /**
  * Enregistre un lead saisi dans la Converting Machine, en haut de la colonne « À traiter ».
  */
-final class CreateLead
+final readonly class CreateLead
 {
+    public function __construct(private GenerateLeadReference $generateReference = new GenerateLeadReference) {}
+
     public function handle(LeadData $data, ?User $by = null): Lead
     {
         return DB::transaction(function () use ($data, $by): Lead {
@@ -23,6 +25,7 @@ final class CreateLead
 
             $lead = Lead::query()->create([
                 ...$data->toArray(),
+                'reference' => $this->generateReference->handle(),
                 'status' => LeadStatus::Todo,
                 'position' => 0,
                 'created_by' => $by?->id,

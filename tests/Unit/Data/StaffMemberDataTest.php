@@ -20,3 +20,9 @@ test('it accepts a role as enum or string', function (): void {
     expect(StaffMemberData::from([...$base, 'role' => StaffRole::Admin])->role)->toBe(StaffRole::Admin)
         ->and(StaffMemberData::from([...$base, 'role' => 'manager'])->role)->toBe(StaffRole::Manager);
 });
+
+test('the name is capitalised word by word', function (): void {
+    $data = StaffMemberData::from(['name' => 'jean-pierre DUPONT', 'email' => 'jp@exemple.com', 'password' => 'secret']);
+
+    expect($data->name)->toBe('Jean-Pierre Dupont');
+});

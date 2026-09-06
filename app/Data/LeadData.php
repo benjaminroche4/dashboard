@@ -13,6 +13,7 @@ use App\Enums\LeadSource;
 use App\Enums\Offer;
 use App\Enums\PropertyType;
 use App\Enums\RecontactChannel;
+use App\Support\PersonName;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Date;
 
@@ -41,7 +42,8 @@ final readonly class LeadData
         public array $districts,
         public array $propertyTypes,
         public ?LeadDuration $duration,
-        public ?GuarantorType $guarantor,
+        /** @var list<GuarantorType> */
+        public array $guarantors,
         public ?Furnished $furnished,
         public ?string $originCity,
         public ?string $message,
@@ -58,8 +60,8 @@ final readonly class LeadData
     public static function from(array $data): self
     {
         return new self(
-            firstName: $data['first_name'],
-            lastName: $data['last_name'],
+            firstName: PersonName::capitalize((string) $data['first_name']),
+            lastName: PersonName::capitalize((string) $data['last_name']),
             email: self::blankToNull($data['email'] ?? null),
             phone: self::blankToNull($data['phone'] ?? null),
             company: self::blankToNull($data['company'] ?? null),
@@ -73,7 +75,7 @@ final readonly class LeadData
             districts: array_values(array_map(intval(...), $data['districts'] ?? [])),
             propertyTypes: array_values(array_map(PropertyType::from(...), $data['property_types'] ?? [])),
             duration: self::enum(LeadDuration::class, $data['duration'] ?? null),
-            guarantor: self::enum(GuarantorType::class, $data['guarantor'] ?? null),
+            guarantors: array_values(array_map(GuarantorType::from(...), $data['guarantors'] ?? [])),
             furnished: self::enum(Furnished::class, $data['furnished'] ?? null),
             originCity: self::blankToNull($data['origin_city'] ?? null),
             message: self::blankToNull($data['message'] ?? null),
@@ -106,7 +108,7 @@ final readonly class LeadData
             'districts' => $this->districts,
             'property_types' => $this->propertyTypes,
             'duration' => $this->duration,
-            'guarantor' => $this->guarantor,
+            'guarantors' => $this->guarantors,
             'furnished' => $this->furnished,
             'origin_city' => $this->originCity,
             'message' => $this->message,

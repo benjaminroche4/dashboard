@@ -92,6 +92,19 @@ describe('filterLeads', () => {
                 (lead) => lead.id,
             ),
         ).toEqual([4]);
+        // La référence LD-XXXX et la société comptent aussi.
+        expect(
+            filterLeads(
+                [makeLead({ id: 9, reference: 'LD-4242', company: 'Nestlé' })],
+                { ...defaultFilters, query: '4242' },
+            ).map((lead) => lead.id),
+        ).toEqual([9]);
+        expect(
+            filterLeads(
+                [makeLead({ id: 9, reference: 'LD-4242', company: 'Nestlé' })],
+                { ...defaultFilters, query: 'nestl' },
+            ).map((lead) => lead.id),
+        ).toEqual([9]);
         expect(
             filterLeads(leads, { ...defaultFilters, offer: 'confie' }).map(
                 (lead) => lead.id,

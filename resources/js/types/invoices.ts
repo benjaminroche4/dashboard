@@ -36,6 +36,41 @@ export type Invoice = {
     paid_at: string | null;
     can_send: boolean;
     can_pay: boolean;
+    /** Lead rattaché à la facture, ou null. */
+    lead: { id: number; name: string } | null;
+};
+
+/** Facture vue depuis une fiche lead. */
+export type LeadInvoice = {
+    id: number;
+    number: string;
+    client_name: string;
+    amount_cents: number;
+    currency: Currency;
+    status: InvoiceStatus;
+    status_label: string;
+    issued_at: string;
+};
+
+/** Résultat de la recherche de factures (rattachement depuis un lead). */
+export type InvoiceSearchHit = {
+    id: number;
+    number: string;
+    client_name: string;
+    amount_cents: number;
+    currency: Currency;
+    status_label: string;
+    lead: { id: number; name: string } | null;
+};
+
+/** Préremplissage de la création depuis une fiche lead (?lead=ID). */
+export type InvoicePrefill = {
+    lead_id: number;
+    lead_name: string;
+    client_name: string;
+    client_email: string;
+    currency: Currency;
+    offer: OfferValue | null;
 };
 
 /** Facture complète (page de détail). */
@@ -53,6 +88,7 @@ export type InvoiceDetail = Invoice & {
     sent_at: string | null;
     notes: string | null;
     created_by: string | null;
+    created_by_avatar: string | null;
 };
 
 export type InvoiceStatusChange = {

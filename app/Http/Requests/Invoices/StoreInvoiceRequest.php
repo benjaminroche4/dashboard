@@ -25,6 +25,7 @@ class StoreInvoiceRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'lead_id' => ['nullable', 'integer', 'exists:leads,id'],
             'client_name' => ['required', 'string', 'max:255'],
             'client_email' => ['nullable', 'email', 'max:255'],
             'client_street' => ['nullable', 'string', 'max:255'],

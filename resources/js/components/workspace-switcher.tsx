@@ -1,19 +1,10 @@
-import { Link, usePage } from '@inertiajs/react';
-import {
-    Check,
-    ChevronsUpDown,
-    LayoutGrid,
-    Plus,
-    Settings,
-} from 'lucide-react';
+import { Check, ChevronsUpDown, Lock } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import {
     DropdownMenu,
     DropdownMenuContent,
-    DropdownMenuGroup,
     DropdownMenuItem,
     DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuShortcut,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -24,15 +15,20 @@ import {
 } from '@/components/ui/sidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useWorkspaceShortcuts } from '@/hooks/use-workspace-shortcuts';
-import { dashboard } from '@/routes';
-import { edit as editProfile } from '@/routes/profile';
+
+/** Espace de travail actif. */
+export const CURRENT_WORKSPACE = 'Relocation In Paris';
+
+/** Espaces annoncés mais pas encore ouverts : affichés verrouillés. */
+export const UPCOMING_WORKSPACES = [
+    { name: 'Estate in Paris', logo: '/images/estate-in-paris.svg' },
+] as const;
 
 /**
  * Menu de l'espace de travail (en-tête de la sidebar).
- * Un seul espace pour l'instant : l'entrée « Ajouter un espace » est désactivée.
+ * Un seul espace ouvert pour l'instant ; les suivants sont listés verrouillés.
  */
 export function WorkspaceSwitcher() {
-    const { name } = usePage().props;
     const { state } = useSidebar();
     const isMobile = useIsMobile();
 
@@ -55,7 +51,7 @@ export function WorkspaceSwitcher() {
                             />
                             <div className="ml-1 grid flex-1 text-left text-sm">
                                 <span className="mb-0.5 truncate leading-tight font-semibold">
-                                    {name}
+                                    {CURRENT_WORKSPACE}
                                 </span>
                             </div>
                             <ChevronsUpDown className="text-muted-foreground size-4" />
@@ -83,48 +79,31 @@ export function WorkspaceSwitcher() {
                                 className="size-6 rounded-sm"
                             />
                             <span className="flex-1 truncate font-medium">
-                                {name}
+                                {CURRENT_WORKSPACE}
                             </span>
                             <Check className="size-4" />
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuGroup>
-                            <DropdownMenuItem asChild>
-                                <Link
-                                    href={dashboard()}
-                                    prefetch
-                                    className="w-full cursor-pointer"
-                                >
-                                    <LayoutGrid className="mr-2" />
-                                    Tableau de bord
-                                    <DropdownMenuShortcut>
-                                        ⌘D
-                                    </DropdownMenuShortcut>
-                                </Link>
+                        {UPCOMING_WORKSPACES.map((workspace) => (
+                            <DropdownMenuItem
+                                key={workspace.name}
+                                className="gap-2 p-2"
+                                disabled
+                            >
+                                {/* Logo sombre sur fond blanc : lisible dans les deux thèmes. */}
+                                <div className="flex size-6 items-center justify-center rounded-sm border bg-white p-0.5">
+                                    <img
+                                        src={workspace.logo}
+                                        alt=""
+                                        className="max-h-full max-w-full"
+                                    />
+                                </div>
+                                <span className="text-muted-foreground flex-1 truncate font-medium">
+                                    {workspace.name}
+                                </span>
+                                <Lock className="text-muted-foreground size-3.5" />
+                                <Badge variant="secondary">Bientôt</Badge>
                             </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                                <Link
-                                    href={editProfile()}
-                                    prefetch
-                                    className="w-full cursor-pointer"
-                                >
-                                    <Settings className="mr-2" />
-                                    Paramètres
-                                    <DropdownMenuShortcut>
-                                        ⌘,
-                                    </DropdownMenuShortcut>
-                                </Link>
-                            </DropdownMenuItem>
-                        </DropdownMenuGroup>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem disabled className="gap-2 p-2">
-                            <div className="bg-background flex size-6 items-center justify-center rounded-md border">
-                                <Plus className="size-4" />
-                            </div>
-                            <span className="text-muted-foreground font-medium">
-                                Ajouter un espace
-                            </span>
-                        </DropdownMenuItem>
+                        ))}
                     </DropdownMenuContent>
                 </DropdownMenu>
             </SidebarMenuItem>

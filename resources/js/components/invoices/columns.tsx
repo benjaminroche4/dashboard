@@ -1,3 +1,4 @@
+import { Link } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown } from 'lucide-react';
 import { InvoiceRowActions } from '@/components/invoices/invoice-row-actions';
@@ -5,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { formatDate, formatMoney } from '@/lib/format';
+import { show as invoiceShow } from '@/routes/invoices';
 import type { Invoice, InvoiceStatus } from '@/types';
 
 export const invoiceColumnLabels: Record<string, string> = {
@@ -77,7 +79,12 @@ export const invoiceColumns: ColumnDef<Invoice>[] = [
             />
         ),
         cell: ({ row }) => (
-            <span className="font-medium">{row.getValue('number')}</span>
+            <Link
+                href={invoiceShow({ invoice: row.original.id })}
+                className="font-medium hover:underline"
+            >
+                {row.getValue('number')}
+            </Link>
         ),
     },
     {
@@ -96,6 +103,11 @@ export const invoiceColumns: ColumnDef<Invoice>[] = [
                 {row.original.client_email && (
                     <div className="text-muted-foreground text-xs">
                         {row.original.client_email}
+                    </div>
+                )}
+                {row.original.lead && (
+                    <div className="text-muted-foreground text-xs">
+                        Lead : {row.original.lead.name}
                     </div>
                 )}
             </div>

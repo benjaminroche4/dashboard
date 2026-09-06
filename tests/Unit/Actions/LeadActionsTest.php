@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Actions\Leads\AddLeadNote;
 use App\Actions\Leads\CreateLead;
+use App\Actions\Leads\TouchLeadContact;
 use App\Actions\Leads\UpdateLeadStatus;
 use App\Data\LeadData;
 use App\Enums\LeadSource;
@@ -10,6 +12,7 @@ use App\Enums\LeadStatus;
 use App\Enums\Offer;
 use App\Events\DashboardUpdated;
 use App\Models\Lead;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
@@ -48,4 +51,25 @@ test('CreateLead stores a new lead and UpdateLeadStatus moves it on', function (
 test('the lead factory and its states are consistent', function (): void {
     expect(Lead::factory()->converted()->create()->status)->toBe(LeadStatus::Converted)
         ->and(Lead::factory()->create()->last_contacted_at)->toBeNull();
+});
+
+test('TouchLeadContact stamps the last contact and tells the staff', function (): void {
+    $lead = Lead::factory()->create(['last_contacted_at' => null]);
+
+    (new TouchLeadContact)->handle($lead);
+
+    expect($lead->fresh()?->last_contacted_at)->not->toBeNull();
+    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->resource === 'leads');
+});
+
+test('AddLeadNote detects @mentions of other staff members and tells them', function (): void {
+    $author = User::factory()->create(['name' => 'Admin']);
+    $camille = User::factory()->create(['name' => 'Camille Roy']);
+    User::factory()->create(['name' => 'Nina']);
+    $lead = Lead::factory()->create();
+
+    (new AddLeadNote)->handle($lead, 'Vu avec @Camille Roy et @Admin, on rappelle demain.', $author);
+
+    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->payload['mentions'] === [$camille->id]
+        && str_contains($event->message, 'mentionné'));
 });

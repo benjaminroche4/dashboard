@@ -21,6 +21,8 @@ import {
     SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
+import { activeHref, matchesSection } from '@/lib/nav-active';
+import { toUrl } from '@/lib/utils';
 import type { NavGroup, NavItem } from '@/types';
 
 function NavBadge({ value }: { value: NavItem['badge'] }) {
@@ -47,13 +49,13 @@ const hoverClasses =
     'transition-colors duration-150 ease-out hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent';
 
 function NavLeaf({ item }: { item: NavItem }) {
-    const { isCurrentUrl } = useCurrentUrl();
+    const { currentUrl } = useCurrentUrl();
 
     return (
         <SidebarMenuItem>
             <SidebarMenuButton
                 asChild
-                isActive={isCurrentUrl(item.href)}
+                isActive={matchesSection(toUrl(item.href), currentUrl)}
                 tooltip={{ children: item.title }}
                 className={hoverClasses}
             >
@@ -90,9 +92,16 @@ function writeBranchOpen(title: string, open: boolean): void {
 }
 
 function NavBranch({ item }: { item: NavItem }) {
-    const { isCurrentUrl } = useCurrentUrl();
+    const { currentUrl } = useCurrentUrl();
     const items = item.items ?? [];
-    const hasActiveChild = items.some((sub) => isCurrentUrl(sub.href));
+    // Le sous-lien actif est le plus précis : /leads/create sélectionne
+    // « Converting Machine », pas « Liste des leads » ; /invoices/12 garde « Factures ».
+    const activeSub = activeHref(
+        items.map((sub) => toUrl(sub.href)),
+        currentUrl,
+    );
+    const hasActiveChild =
+        activeSub !== null || matchesSection(toUrl(item.href), currentUrl);
     const linkable = typeof item.href === 'string' ? item.href !== '#' : true;
     // L'état choisi par l'utilisateur survit au rechargement de la page ;
     // à défaut, le menu s'ouvre si la page courante est un sous-lien.
@@ -174,7 +183,7 @@ function NavBranch({ item }: { item: NavItem }) {
                             >
                                 <SidebarMenuSubButton
                                     asChild
-                                    isActive={isCurrentUrl(sub.href)}
+                                    isActive={toUrl(sub.href) === activeSub}
                                     className={hoverClasses}
                                 >
                                     <Link href={sub.href} prefetch>

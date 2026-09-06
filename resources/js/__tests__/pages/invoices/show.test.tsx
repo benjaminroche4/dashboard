@@ -14,7 +14,10 @@ vi.mock('@inertiajs/react', () => ({
         href: { url: string };
         children: ReactNode;
     }) => <a href={href.url}>{children}</a>,
-    router: { post },
+    router: { post, patch: vi.fn() },
+    usePage: () => ({
+        props: { auth: { user: { id: 1, name: 'Admin', role: 'admin' } } },
+    }),
 }));
 
 import InvoicesShow from '@/pages/invoices/show';
@@ -78,9 +81,17 @@ describe('Invoice detail page', () => {
             ),
         ).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'PDF' })).toBeInTheDocument();
+        expect(screen.getByText('créée par')).toBeInTheDocument();
+        expect(screen.getByText('Admin')).toBeInTheDocument();
+        expect(screen.getAllByText('4 septembre 2026').length).toBeGreaterThan(
+            0,
+        );
+        expect(
+            screen.queryByRole('link', { name: /Retour à la liste/ }),
+        ).not.toBeInTheDocument();
     });
 
-    it('offers to send a draft and posts to the send route', async () => {
+    it('offers to send a draft and posts to the send route after confirmation', async () => {
         const user = userEvent.setup();
         render(
             <InvoicesShow
@@ -98,6 +109,15 @@ describe('Invoice detail page', () => {
 
         await user.click(
             screen.getByRole('button', { name: 'Envoyer au client' }),
+        );
+
+        expect(post).not.toHaveBeenCalled();
+        expect(
+            screen.getByRole('dialog', { name: 'Envoyer RP-27001 au client' }),
+        ).toBeInTheDocument();
+
+        await user.click(
+            screen.getByRole('button', { name: "Confirmer l'envoi" }),
         );
 
         expect(post).toHaveBeenCalledWith(

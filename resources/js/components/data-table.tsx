@@ -10,7 +10,7 @@ import {
     useReactTable,
     type VisibilityState,
 } from '@tanstack/react-table';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, X } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -66,6 +66,11 @@ type DataTableProps<TData, TValue> = {
     actions?: ReactNode;
     frame?: DataTableFrame;
     className?: string;
+    /**
+     * Actions groupées, rendues dans le pied dès qu'une ligne est cochée,
+     * avec les lignes sélectionnées et une fonction pour vider la sélection.
+     */
+    bulkActions?: (rows: TData[], clearSelection: () => void) => ReactNode;
 };
 
 /**
@@ -83,6 +88,7 @@ export function DataTable<TData, TValue>({
     actions,
     frame = 'bordered',
     className,
+    bulkActions,
 }: DataTableProps<TData, TValue>) {
     const styles = frames[frame];
     const [sorting, setSorting] = useState<SortingState>([]);
@@ -106,6 +112,8 @@ export function DataTable<TData, TValue>({
         initialState: { pagination: { pageSize } },
         state: { sorting, columnFilters, columnVisibility, rowSelection },
     });
+
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
 
     return (
         <div className={cn('w-full', styles.wrapper, className)}>
@@ -253,6 +261,32 @@ export function DataTable<TData, TValue>({
                     </div>
                 )}
             </div>
+            {/* Îlot flottant des actions groupées : collé en bas de l'écran, centré sur le tableau. */}
+            {bulkActions && selectedRows.length > 0 && (
+                <div className="pointer-events-none sticky bottom-4 z-20 flex justify-center">
+                    <div
+                        role="region"
+                        aria-label="Sélection"
+                        className="bg-background/95 supports-[backdrop-filter]:bg-background/80 animate-in fade-in slide-in-from-bottom-2 ring-foreground/10 pointer-events-auto flex flex-wrap items-center gap-3 rounded-full border px-4 py-2 shadow-lg ring-1 backdrop-blur duration-200"
+                    >
+                        <span className="text-sm font-medium tabular-nums">
+                            {selectedRows.length} sélectionnée(s)
+                        </span>
+                        {bulkActions(
+                            selectedRows.map((row) => row.original),
+                            () => table.resetRowSelection(),
+                        )}
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => table.resetRowSelection()}
+                            aria-label="Désélectionner tout"
+                        >
+                            <X />
+                        </Button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

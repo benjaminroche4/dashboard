@@ -1,21 +1,31 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { reload, useEchoPresence, toastInfo } = vi.hoisted(() => ({
+const { reload, useEchoPresence, toastInfo, toastWarning } = vi.hoisted(() => ({
     reload: vi.fn(),
     useEchoPresence: vi.fn(),
     toastInfo: vi.fn(),
+    toastWarning: vi.fn(),
+}));
+
+const page = vi.hoisted(() => ({
+    realtimeOnly: undefined as string[] | undefined,
 }));
 
 vi.mock('@inertiajs/react', () => ({
     router: { reload },
-    usePage: () => ({ props: { auth: { user: { id: 1 } } } }),
+    usePage: () => ({
+        props: { auth: { user: { id: 1 } }, realtimeOnly: page.realtimeOnly },
+    }),
 }));
 vi.mock('@laravel/echo-react', () => ({ useEchoPresence }));
-vi.mock('@/lib/toast', () => ({ notify: { info: toastInfo } }));
+vi.mock('@/lib/toast', () => ({
+    notify: { info: toastInfo, warning: toastWarning },
+}));
 
 import {
     describeEvent,
+    mentionsMe,
     useStaffChannel,
     type DashboardUpdatedEvent,
 } from '@/hooks/use-staff-channel';
@@ -51,6 +61,15 @@ describe('describeEvent', () => {
             'a expédié la commande #1',
         );
     });
+
+    it('marks the current user’s own actions from another tab', () => {
+        expect(describeEvent(fromMe, 1)).toBe(
+            'Vous (autre onglet) : a expédié la commande #1',
+        );
+        expect(describeEvent(fromOther, 1)).toBe(
+            'Admin 2 a expédié la commande #1',
+        );
+    });
 });
 
 describe('useStaffChannel', () => {
@@ -82,15 +101,17 @@ describe('useStaffChannel', () => {
         expect(reload).toHaveBeenCalledWith({ only: undefined });
     });
 
-    it('ignores the current user’s own actions', () => {
+    it('handles the current user’s own actions coming from another tab', () => {
         const onEvent = vi.fn();
         renderHook(() => useStaffChannel({ onEvent }));
 
         lastListener()(fromMe);
 
-        expect(toastInfo).not.toHaveBeenCalled();
-        expect(onEvent).not.toHaveBeenCalled();
-        expect(reload).not.toHaveBeenCalled();
+        expect(toastInfo).toHaveBeenCalledWith(
+            'Vous (autre onglet) : a expédié la commande #1',
+        );
+        expect(onEvent).toHaveBeenCalledWith(fromMe);
+        expect(reload).toHaveBeenCalledWith({ only: undefined });
     });
 
     it('reloads only the requested props', () => {
@@ -112,5 +133,51 @@ describe('useStaffChannel', () => {
         expect(onEvent).toHaveBeenCalledWith(fromOther);
         expect(toastInfo).not.toHaveBeenCalled();
         expect(reload).not.toHaveBeenCalled();
+    });
+});
+
+describe('mentions', () => {
+    it('detects when the current user is mentioned by someone else', () => {
+        const mention: DashboardUpdatedEvent = {
+            ...fromOther,
+            payload: { id: 1, mentions: [1, 3] },
+            message: 'vous a mentionné dans une note sur le lead Léa',
+        };
+
+        expect(mentionsMe(mention, 1)).toBe(true);
+        expect(mentionsMe(mention, 2)).toBe(false);
+        expect(
+            mentionsMe({ ...mention, actor: { id: 1, name: 'Admin' } }, 1),
+        ).toBe(false);
+    });
+
+    it('shows a warning toast instead of the info toast when mentioned', () => {
+        useEchoPresence.mockClear();
+        toastInfo.mockClear();
+        toastWarning.mockClear();
+        renderHook(() => useStaffChannel());
+
+        lastListener()({
+            ...fromOther,
+            payload: { id: 1, mentions: [1] },
+            message: 'vous a mentionné dans une note sur le lead Léa',
+        });
+
+        expect(toastWarning).toHaveBeenCalledWith(
+            'Admin 2 vous a mentionné',
+            'vous a mentionné dans une note sur le lead Léa',
+        );
+        expect(toastInfo).not.toHaveBeenCalled();
+    });
+
+    it('reloads only the props the page declares in realtimeOnly', () => {
+        reload.mockClear();
+        page.realtimeOnly = ['leads'];
+        renderHook(() => useStaffChannel());
+
+        lastListener()(fromOther);
+
+        expect(reload).toHaveBeenCalledWith({ only: ['leads'] });
+        page.realtimeOnly = undefined;
     });
 });

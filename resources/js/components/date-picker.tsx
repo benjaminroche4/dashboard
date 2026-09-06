@@ -49,7 +49,8 @@ export function parseTypedDate(text: string): Date | undefined {
     for (const pattern of ACCEPTED_FORMATS) {
         const parsed = parse(trimmed, pattern, new Date(), { locale: fr });
 
-        if (isValid(parsed)) {
+        // Année sur quatre chiffres seulement : « 12/10/2 » n'est pas encore une date.
+        if (isValid(parsed) && parsed.getFullYear() >= 1900) {
             return parsed;
         }
     }
@@ -74,11 +75,15 @@ export function DatePicker({
     const parsed = value ? parseISO(value) : undefined;
     const date = parsed && isValid(parsed) ? parsed : undefined;
     const [month, setMonth] = useState<Date | undefined>(date);
+    const [focused, setFocused] = useState(false);
 
-    // Une valeur imposée de l'extérieur (ex. réinitialisation) rafraîchit le texte.
+    // Une valeur imposée de l'extérieur (ex. réinitialisation) rafraîchit le
+    // texte, sauf pendant la frappe : on ne remplace pas ce que l'utilisateur tape.
     useEffect(() => {
-        setText(toDisplay(value));
-    }, [value]);
+        if (!focused) {
+            setText(toDisplay(value));
+        }
+    }, [value, focused]);
 
     const commit = (next: Date | undefined) => {
         onChange(next ? format(next, 'yyyy-MM-dd') : '');
@@ -103,7 +108,11 @@ export function DatePicker({
                         commit(undefined);
                     }
                 }}
-                onBlur={() => setText(toDisplay(value))}
+                onFocus={() => setFocused(true)}
+                onBlur={() => {
+                    setFocused(false);
+                    setText(toDisplay(value));
+                }}
                 onKeyDown={(event) => {
                     if (event.key === 'ArrowDown') {
                         event.preventDefault();

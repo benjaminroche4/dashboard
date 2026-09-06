@@ -50,13 +50,13 @@ function renderSwitcher() {
 }
 
 describe('WorkspaceSwitcher', () => {
-    it('shows the workspace name in the trigger', () => {
+    it('shows the current workspace in the trigger', () => {
         const { trigger } = renderSwitcher();
 
-        expect(trigger).toHaveTextContent('Dashboard');
+        expect(trigger).toHaveTextContent('Relocation In Paris');
     });
 
-    it('opens a menu with the current workspace and the shortcuts', async () => {
+    it('opens a menu with the current workspace and the locked ones', async () => {
         const user = userEvent.setup();
         const { trigger } = renderSwitcher();
 
@@ -65,15 +65,24 @@ describe('WorkspaceSwitcher', () => {
         expect(
             await screen.findByText('Espace de travail'),
         ).toBeInTheDocument();
+        expect(screen.getAllByRole('menuitem')).toHaveLength(2);
         expect(
-            screen.getByRole('menuitem', { name: /Tableau de bord/ }),
-        ).toHaveAttribute('href', '/dashboard');
-        expect(
-            screen.getByRole('menuitem', { name: /Paramètres/ }),
-        ).toHaveAttribute('href', '/settings/profile');
-        expect(
-            screen.getByRole('menuitem', { name: /Ajouter un espace/ }),
+            screen.getByRole('menuitem', { name: /Relocation In Paris/ }),
         ).toHaveAttribute('aria-disabled', 'true');
+
+        const locked = screen.getByRole('menuitem', {
+            name: /Estate in Paris/,
+        });
+        expect(locked).toHaveAttribute('aria-disabled', 'true');
+        expect(locked).toHaveTextContent('Bientôt');
+        expect(locked.querySelector('img')).toHaveAttribute(
+            'src',
+            '/images/estate-in-paris.svg',
+        );
+
+        expect(screen.queryByText('Tableau de bord')).not.toBeInTheDocument();
+        expect(screen.queryByText('Paramètres')).not.toBeInTheDocument();
+        expect(screen.queryByText('Ajouter un espace')).not.toBeInTheDocument();
     });
 
     it('navigates with the keyboard shortcuts', async () => {

@@ -1,3 +1,4 @@
+import { AsYouType } from 'libphonenumber-js';
 import {
     getCountries,
     getCountryCallingCode,
@@ -73,6 +74,22 @@ export function splitPhone(value: string): { code: string; number: string } {
     }
 
     return { code: match, number: trimmed.slice(match.length).trim() };
+}
+
+/**
+ * Met les espaces du pays sur un numéro national tapé au kilomètre :
+ * « 612345678 » devient « 6 12 34 56 78 » avec l'indicatif +33. Le numéro
+ * est formaté en international puis l'indicatif est retiré, ce qui marche
+ * avec ou sans le 0 initial. Les autres caractères sont ignorés.
+ */
+export function formatNational(code: string, raw: string): string {
+    const digits = raw.replace(/\D/g, '');
+
+    if (digits === '') {
+        return '';
+    }
+
+    return new AsYouType().input(`${code}${digits}`).slice(code.length).trim();
 }
 
 export function joinPhone(code: string, number: string): string {
@@ -193,7 +210,12 @@ export function PhoneInput({
                 className="bg-background"
                 value={number}
                 onChange={(event) =>
-                    onChange(joinPhone(code, event.target.value))
+                    onChange(
+                        joinPhone(
+                            code,
+                            formatNational(code, event.target.value),
+                        ),
+                    )
                 }
             />
         </div>

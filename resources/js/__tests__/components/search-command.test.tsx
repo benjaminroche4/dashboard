@@ -58,8 +58,10 @@ describe('SearchCommand', () => {
                 json: async () => [
                     {
                         id: 7,
+                        reference: 'LD-7777',
                         name: 'Zoé Martin',
                         email: 'zoe@example.com',
+                        company: 'Nestlé',
                         status_label: 'En cours',
                         url: '/leads/7',
                     },

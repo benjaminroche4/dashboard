@@ -30,6 +30,7 @@ test('the detail page shows the lead, its notes and its status history', functio
             ->has('notes', 1)
             ->where('notes.0.body', 'Rappeler mardi.')
             ->where('notes.0.by', 'Admin')
+            ->where('notes.0.mine', true)
             ->has('history', 1)
             ->where('history.0.to', 'À traiter')
             ->has('statuses', count(LeadStatus::cases())));
@@ -107,4 +108,19 @@ test('the search endpoint finds leads by name or e-mail', function (): void {
         ->getJson(route('leads.search'))
         ->assertOk()
         ->assertExactJson([]);
+});
+
+test('the search also matches the reference, the company and the origin city', function (): void {
+    $user = User::factory()->create();
+    $lead = Lead::factory()->create(['first_name' => 'Zoé', 'last_name' => 'Martin', 'reference' => 'LD-7777', 'company' => 'Nestlé', 'origin_city' => 'Lausanne']);
+    Lead::factory()->create(['first_name' => 'Paul', 'last_name' => 'Roy', 'reference' => 'LD-1111', 'company' => null, 'origin_city' => 'Lyon']);
+
+    foreach (['7777', 'nestl', 'lausanne'] as $needle) {
+        $this->actingAs($user)
+            ->getJson(route('leads.search', ['q' => $needle]))
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.id', $lead->id)
+            ->assertJsonPath('0.reference', 'LD-7777');
+    }
 });

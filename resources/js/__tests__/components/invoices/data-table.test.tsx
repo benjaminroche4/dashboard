@@ -25,6 +25,7 @@ const invoices: Invoice[] = [
         due_cents: 0,
         can_send: true,
         can_pay: true,
+        lead: null,
     },
     {
         id: 2,
@@ -42,6 +43,7 @@ const invoices: Invoice[] = [
         due_cents: 0,
         can_send: true,
         can_pay: true,
+        lead: null,
     },
 ];
 
@@ -58,6 +60,14 @@ function renderTable(data = invoices) {
 }
 
 describe('Invoices DataTable', () => {
+    it('links the invoice number to its page', () => {
+        render(<DataTable columns={invoiceColumns} data={invoices} />);
+
+        expect(
+            screen.getByRole('link', { name: 'F-2026-0001' }),
+        ).toHaveAttribute('href', '/invoices/1');
+    });
+
     it('renders invoice rows with badge, money and dates', () => {
         renderTable();
 

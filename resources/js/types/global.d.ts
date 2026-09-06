@@ -12,8 +12,14 @@ declare module '@inertiajs/core' {
             name: string;
             auth: Auth;
             staff: StaffDirectoryEntry[];
-            features: { addressAutocomplete: boolean };
+            features: {
+                addressAutocomplete: boolean;
+                /** Clé navigateur Google Maps, null sans carte réelle. */
+                googleMapsKey: string | null;
+            };
             sidebarOpen: boolean;
+            /** Props à recharger sur un événement temps réel (vide = toute la page). */
+            realtimeOnly?: string[];
             [key: string]: unknown;
         };
     }

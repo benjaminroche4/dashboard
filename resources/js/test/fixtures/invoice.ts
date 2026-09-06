@@ -18,6 +18,7 @@ export function makeInvoice(overrides: Partial<Invoice> = {}): Invoice {
         due_cents: 128_639,
         can_send: false,
         can_pay: true,
+        lead: null,
         ...overrides,
     } as Invoice;
 }
@@ -46,6 +47,7 @@ export function makeInvoiceDetail(
         sent_at: '2026-09-04T10:00:00+00:00',
         notes: null,
         created_by: 'Admin',
+        created_by_avatar: null,
         ...overrides,
     } as InvoiceDetail;
 }

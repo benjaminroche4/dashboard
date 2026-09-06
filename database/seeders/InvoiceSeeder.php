@@ -6,6 +6,7 @@ namespace Database\Seeders;
 
 use App\Enums\InvoiceStatus;
 use App\Models\Invoice;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 
 /**
@@ -15,10 +16,13 @@ final class InvoiceSeeder extends Seeder
 {
     public function run(): void
     {
-        Invoice::factory()->count(6)->paid()->create();
-        Invoice::factory()->count(5)->create();
-        Invoice::factory()->count(3)->overdue()->create();
-        Invoice::factory()->count(2)->status(InvoiceStatus::Draft)->create();
-        Invoice::factory()->status(InvoiceStatus::Cancelled)->create();
+        // Chaque facture porte un auteur parmi le staff, comme en production.
+        $creator = fn (): array => ['created_by' => User::query()->inRandomOrder()->value('id')];
+
+        Invoice::factory()->count(6)->paid()->state($creator)->create();
+        Invoice::factory()->count(5)->state($creator)->create();
+        Invoice::factory()->count(3)->overdue()->state($creator)->create();
+        Invoice::factory()->count(2)->status(InvoiceStatus::Draft)->state($creator)->create();
+        Invoice::factory()->status(InvoiceStatus::Cancelled)->state($creator)->create();
     }
 }

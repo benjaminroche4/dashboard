@@ -52,7 +52,7 @@ test('without a position a status change puts the lead on top of its new column'
     Lead::factory()->status(LeadStatus::Archived)->create(['position' => 0]);
     $lead = Lead::factory()->create();
 
-    $this->actingAs(User::factory()->create())->patch(route('leads.status', $lead), ['status' => 'archived']);
+    $this->actingAs(User::factory()->create())->patch(route('leads.status', $lead), ['status' => 'archived', 'loss_reason' => 'no_answer']);
 
     expect(columnOrder(LeadStatus::Archived)[0])->toBe($lead->id);
 });

@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
 import AppearanceTabs from '@/components/appearance-tabs';
-import Heading from '@/components/heading';
+import { Panel } from '@/components/panel';
 import { edit as editAppearance } from '@/routes/appearance';
 
 export default function Appearance() {
@@ -8,16 +8,16 @@ export default function Appearance() {
         <>
             <Head title="Apparence" />
 
-            <h1 className="sr-only">Appearance settings</h1>
-
-            <div className="space-y-6">
-                <Heading
-                    variant="small"
-                    title="Apparence"
-                    description="Choisissez le thème d'affichage de votre compte"
-                />
+            <Panel
+                title="Thème"
+                description="Choisissez le thème d’affichage de votre compte"
+            >
                 <AppearanceTabs />
-            </div>
+                <p className="text-muted-foreground mt-3 text-xs">
+                    « Système » suit le réglage clair ou sombre de votre
+                    appareil.
+                </p>
+            </Panel>
         </>
     );
 }

@@ -26,30 +26,32 @@ export default function PasskeyItem({ passkey, onDelete }: Props) {
     };
 
     return (
-        <div className="flex items-center justify-between border-b p-4 last:border-b-0">
-            <div className="flex items-center gap-4">
-                <div className="bg-muted flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
-                    <KeyRound className="text-muted-foreground h-5 w-5" />
+        <li className="flex items-center justify-between gap-3 px-3 py-2.5">
+            <div className="flex min-w-0 items-center gap-3">
+                <div className="bg-muted flex size-9 shrink-0 items-center justify-center rounded-lg">
+                    <KeyRound
+                        className="text-muted-foreground size-4"
+                        aria-hidden
+                    />
                 </div>
-                <div className="space-y-1">
-                    <div className="flex items-center gap-2.5">
-                        <p className="font-medium tracking-tight">
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                        <p className="truncate text-sm font-medium">
                             {passkey.name}
                         </p>
                         {passkey.authenticator && (
-                            <span className="bg-muted text-muted-foreground ring-border inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium tracking-wide uppercase ring-1 ring-inset">
+                            <span className="bg-muted text-muted-foreground ring-border inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase ring-1 ring-inset">
                                 {passkey.authenticator}
                             </span>
                         )}
                     </div>
-                    <p className="text-muted-foreground text-sm">
-                        Added {passkey.created_at_diff}
+                    <p className="text-muted-foreground truncate text-xs">
+                        Ajoutée {passkey.created_at_diff}
                         {passkey.last_used_at_diff && (
                             <>
-                                <span className="text-muted-foreground/50 mx-1">
-                                    /
-                                </span>
-                                Last used {passkey.last_used_at_diff}
+                                {' '}
+                                · Dernière utilisation{' '}
+                                {passkey.last_used_at_diff}
                             </>
                         )}
                     </p>
@@ -60,18 +62,18 @@ export default function PasskeyItem({ passkey, onDelete }: Props) {
                 <DialogTrigger asChild>
                     <Button
                         variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        size="icon"
+                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        aria-label={`Supprimer la clé d’accès ${passkey.name}`}
                     >
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Supprimer</span>
+                        <Trash2 aria-hidden />
                     </Button>
                 </DialogTrigger>
                 <DialogContent>
-                    <DialogTitle>Supprimer la clé d'accès</DialogTitle>
+                    <DialogTitle>Supprimer la clé d’accès</DialogTitle>
                     <DialogDescription>
-                        Voulez-vous vraiment supprimer la clé d'accès «{' '}
-                        {passkey.name} » ? Vous ne pourrez plus l'utiliser pour
+                        Voulez-vous vraiment supprimer la clé d’accès «{' '}
+                        {passkey.name} » ? Vous ne pourrez plus l’utiliser pour
                         vous connecter.
                     </DialogDescription>
                     <DialogFooter className="gap-2">
@@ -85,11 +87,11 @@ export default function PasskeyItem({ passkey, onDelete }: Props) {
                         >
                             {isDeleting
                                 ? 'Suppression…'
-                                : "Supprimer la clé d'accès"}
+                                : 'Supprimer la clé d’accès'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+        </li>
     );
 }

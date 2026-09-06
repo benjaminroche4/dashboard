@@ -6,10 +6,15 @@ import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { configureEcho } from '@laravel/echo-react';
+import { attachSocketIdToInertia } from '@/lib/socket-id';
 
 configureEcho({
     broadcaster: 'reverb',
 });
+
+// Chaque requête Inertia porte le socket Echo : l'onglet auteur d'une action
+// ne reçoit pas son propre événement temps réel, les autres onglets, si.
+attachSocketIdToInertia();
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 

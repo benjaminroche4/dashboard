@@ -12,6 +12,23 @@ export type LeadUrgency = {
 
 const DAY = 86_400_000;
 
+/** En dessous de ce délai avant l'emménagement, la Converting Machine alerte. */
+export const URGENT_ARRIVAL_DAYS = 20;
+
+/** Jours entre aujourd'hui et une date ISO (0 = aujourd'hui, négatif = passée). */
+export function daysUntil(dateIso: string, now = new Date()): number {
+    return Math.ceil(
+        (new Date(`${dateIso}T00:00:00`).getTime() -
+            new Date(now.toDateString()).getTime()) /
+            DAY,
+    );
+}
+
+/** Vrai si l'emménagement est dans moins de 20 jours (date passée comprise). */
+export function isUrgentArrival(dateIso: string, now = new Date()): boolean {
+    return dateIso !== '' && daysUntil(dateIso, now) < URGENT_ARRIVAL_DAYS;
+}
+
 function daysBetween(from: string, to: Date): number {
     return Math.floor((to.getTime() - new Date(from).getTime()) / DAY);
 }
@@ -36,11 +53,7 @@ export function leadUrgency(lead: Lead, now = new Date()): LeadUrgency {
     let arrivalInDays: number | null = null;
 
     if (!closed && lead.arrival_at) {
-        const days = Math.ceil(
-            (new Date(`${lead.arrival_at}T00:00:00`).getTime() -
-                new Date(now.toDateString()).getTime()) /
-                DAY,
-        );
+        const days = daysUntil(lead.arrival_at, now);
 
         if (days <= 30) {
             arrivalInDays = days;

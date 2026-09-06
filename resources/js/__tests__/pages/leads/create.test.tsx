@@ -33,8 +33,8 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
             props: {
                 auth: { user: { id: 1, name: 'Admin' } },
                 staff: [
-                    { id: 1, name: 'Admin', role: 'admin' },
-                    { id: 2, name: 'Camille', role: 'member' },
+                    { id: 1, name: 'Admin', role: 'admin', avatar: null },
+                    { id: 2, name: 'Camille', role: 'member', avatar: null },
                 ],
             },
         }),
@@ -107,7 +107,10 @@ const props = {
     durations: [
         { value: 'long' as const, label: 'Long terme · 12 mois et plus' },
     ],
-    guarantors: [{ value: 'garantme' as const, label: 'Garantme' }],
+    guarantors: [
+        { value: 'garantme' as const, label: 'Garantme' },
+        { value: 'bancaire' as const, label: 'Garantie bancaire' },
+    ],
     furnishedOptions: [{ value: 'furnished' as const, label: 'Meublé' }],
     recontactChannels: [{ value: 'phone' as const, label: 'Téléphone' }],
 };
@@ -131,7 +134,7 @@ const lead = {
     districts: [3, 4],
     property_types: ['t2' as const],
     duration: 'long' as const,
-    guarantor: '' as const,
+    guarantors: [],
     furnished: 'furnished' as const,
     message: '',
     score: 4,
@@ -175,7 +178,9 @@ describe('Converting Machine page', () => {
         expect(
             screen.queryByRole('heading', { name: 'Budget et calendrier' }),
         ).not.toBeInTheDocument();
-        expect(screen.getByText('Étape 1 sur 3')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Contact', current: 'step' }),
+        ).toBeInTheDocument();
 
         await fillContact(user);
         await user.click(screen.getByRole('radio', { name: 'Confié' }));
@@ -185,7 +190,12 @@ describe('Converting Machine page', () => {
         expect(
             screen.getByRole('heading', { name: 'Budget et calendrier' }),
         ).toBeInTheDocument();
-        expect(screen.getByText('Étape 2 sur 3')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', {
+                name: 'Projet logement',
+                current: 'step',
+            }),
+        ).toBeInTheDocument();
         await user.type(
             screen.getByLabelText('Budget mensuel (€ / mois)'),
             '2500',
@@ -221,7 +231,7 @@ describe('Converting Machine page', () => {
             arrival_at: '',
             recontact_at: '',
             duration: '',
-            guarantor: '',
+            guarantors: [],
             furnished: '',
             recontact_channel: '',
             budget: '2500',
@@ -236,7 +246,9 @@ describe('Converting Machine page', () => {
 
         await user.click(screen.getByRole('button', { name: 'Continuer' }));
 
-        expect(screen.getByText('Étape 1 sur 3')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Contact', current: 'step' }),
+        ).toBeInTheDocument();
         expect(toastError).toHaveBeenCalledWith(
             'Étape incomplète',
             expect.any(String),
@@ -256,10 +268,17 @@ describe('Converting Machine page', () => {
         await user.click(screen.getByRole('button', { name: 'Continuer' }));
         await user.click(screen.getByRole('button', { name: 'Passer' }));
 
-        expect(screen.getByText('Étape 3 sur 3')).toBeInTheDocument();
         expect(
-            screen.getByRole('combobox', { name: 'Suivi par' }),
-        ).toHaveTextContent('Admin (moi)');
+            screen.getByRole('button', {
+                name: 'Qualité du lead',
+                current: 'step',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('radio', { name: 'Admin (moi)' }),
+        ).toBeChecked();
+        await user.click(screen.getByRole('radio', { name: 'Camille' }));
+        expect(screen.getByRole('radio', { name: 'Camille' })).toBeChecked();
 
         await user.click(
             screen.getByRole('button', { name: 'Passer et enregistrer' }),
@@ -276,14 +295,21 @@ describe('Converting Machine page', () => {
         await user.click(screen.getByRole('button', { name: 'Continuer' }));
         await user.click(screen.getByRole('button', { name: 'Précédent' }));
 
-        expect(screen.getByText('Étape 1 sur 3')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Contact', current: 'step' }),
+        ).toBeInTheDocument();
         expect(screen.getByLabelText('Prénom')).toHaveValue('Léa');
 
         await user.click(
             screen.getByRole('button', { name: /Projet logement/ }),
         );
 
-        expect(screen.getByText('Étape 2 sur 3')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', {
+                name: 'Projet logement',
+                current: 'step',
+            }),
+        ).toBeInTheDocument();
     });
 
     it('edits an existing lead from any step and puts to the update route', async () => {
@@ -371,39 +397,33 @@ describe('Converting Machine page', () => {
         vi.unstubAllGlobals();
     });
 
-    it('offers budget tiers and warns on a tight budget', async () => {
+    it('warns on a tight budget', async () => {
         const user = userEvent.setup();
         render(<LeadsCreate {...props} />);
 
         await fillContact(user);
         await user.click(screen.getByRole('button', { name: 'Continuer' }));
 
-        await user.click(screen.getByRole('button', { name: /1.500 €/ }));
-        expect(screen.getByLabelText('Budget mensuel (€ / mois)')).toHaveValue(
+        await user.type(
+            screen.getByLabelText('Budget mensuel (€ / mois)'),
             '1500',
         );
-        expect(screen.getByRole('button', { name: /1.500 €/ })).toHaveAttribute(
-            'aria-pressed',
-            'true',
-        );
+        expect(screen.queryByText('Budget serré')).not.toBeInTheDocument();
 
-        await user.click(
-            screen.getByRole('button', { name: '6e arrondissement' }),
-        );
         await user.clear(screen.getByLabelText('Budget mensuel (€ / mois)'));
         await user.type(
             screen.getByLabelText('Budget mensuel (€ / mois)'),
             '1000',
         );
 
-        expect(
-            await screen.findByText('Budget serré pour ces choix'),
-        ).toBeInTheDocument();
+        expect(await screen.findByText('Budget serré')).toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: /3.000 €/ }));
-        expect(
-            screen.queryByText('Budget serré pour ces choix'),
-        ).not.toBeInTheDocument();
+        await user.clear(screen.getByLabelText('Budget mensuel (€ / mois)'));
+        await user.type(
+            screen.getByLabelText('Budget mensuel (€ / mois)'),
+            '3000',
+        );
+        expect(screen.queryByText('Budget serré')).not.toBeInTheDocument();
     });
 
     it('leaves the page on Escape', async () => {
@@ -413,5 +433,78 @@ describe('Converting Machine page', () => {
         await user.keyboard('{Escape}');
 
         expect(visit).toHaveBeenCalledWith('/leads');
+    });
+
+    it('names the score and answers conditions with segments', async () => {
+        const user = userEvent.setup();
+        render(<LeadsCreate {...props} />);
+
+        await fillContact(user);
+        await user.click(screen.getByRole('button', { name: 'Continuer' }));
+
+        const duration = screen.getByRole('radio', {
+            name: 'Long terme · 12 mois et plus',
+        });
+        await user.click(duration);
+        expect(duration).toHaveAttribute('data-state', 'on');
+        await user.click(duration);
+        expect(duration).toHaveAttribute('data-state', 'off');
+
+        // Le garant accepte plusieurs réponses.
+        await user.click(screen.getByRole('button', { name: 'Garantme' }));
+        await user.click(
+            screen.getByRole('button', { name: 'Garantie bancaire' }),
+        );
+        expect(
+            screen.getByRole('button', { name: 'Garantme' }),
+        ).toHaveAttribute('aria-pressed', 'true');
+        expect(
+            screen.getByRole('button', { name: 'Garantie bancaire' }),
+        ).toHaveAttribute('aria-pressed', 'true');
+
+        await user.click(screen.getByRole('button', { name: 'Continuer' }));
+        expect(screen.getByText('Non évaluée')).toBeInTheDocument();
+        await user.click(screen.getByRole('radio', { name: '5 sur 5' }));
+        expect(screen.getByText('Prêt à signer')).toBeInTheDocument();
+        expect(screen.getByText('5 / 5')).toBeInTheDocument();
+    });
+
+    it('warns when the arrival is less than 20 days away', async () => {
+        const user = userEvent.setup();
+        const soon = new Date();
+        soon.setDate(soon.getDate() + 5);
+        const later = new Date();
+        later.setDate(later.getDate() + 60);
+
+        const { unmount } = render(
+            <LeadsCreate
+                {...props}
+                lead={{ ...lead, arrival_at: soon.toISOString().slice(0, 10) }}
+            />,
+        );
+        await user.click(
+            screen.getByRole('button', { name: 'Projet logement' }),
+        );
+
+        expect(screen.getByText('Emménagement imminent')).toBeInTheDocument();
+        expect(screen.getByText(/dans 5 jours/)).toBeInTheDocument();
+
+        unmount();
+        render(
+            <LeadsCreate
+                {...props}
+                lead={{
+                    ...lead,
+                    arrival_at: later.toISOString().slice(0, 10),
+                }}
+            />,
+        );
+        await user.click(
+            screen.getByRole('button', { name: 'Projet logement' }),
+        );
+
+        expect(
+            screen.queryByText('Emménagement imminent'),
+        ).not.toBeInTheDocument();
     });
 });

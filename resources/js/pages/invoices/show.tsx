@@ -1,16 +1,18 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { Check, Download, Send } from 'lucide-react';
 import { useState } from 'react';
+import { CreatedBy } from '@/components/created-by';
 import { InvoicePreview } from '@/components/invoices/invoice-preview';
 import { MarkPaidDialog } from '@/components/invoices/mark-paid-dialog';
+import { SendInvoiceDialog } from '@/components/invoices/send-invoice-dialog';
 import { Badge } from '@/components/ui/badge';
+import { InvoiceLeadLink } from '@/components/invoices/invoice-lead-link';
 import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
 import { formatMoney } from '@/lib/format';
 import { downloadInvoicePdf } from '@/lib/download-invoice-pdf';
 import { invoiceToForm } from '@/lib/invoice-to-form';
 import { cn } from '@/lib/utils';
-import { index as invoicesIndex, send } from '@/routes/invoices';
+import { index as invoicesIndex } from '@/routes/invoices';
 import type {
     Company,
     InvoiceDetail,
@@ -51,15 +53,7 @@ export default function InvoicesShow({
 }: Props) {
     const [paying, setPaying] = useState(false);
     const [sending, setSending] = useState(false);
-
-    const sendInvoice = () => {
-        setSending(true);
-        router.post(
-            send({ invoice: invoice.id }).url,
-            {},
-            { preserveScroll: true, onFinish: () => setSending(false) },
-        );
-    };
+    const { auth } = usePage().props;
 
     return (
         <>
@@ -94,7 +88,13 @@ export default function InvoicesShow({
                                         invoice.currency,
                                     )}
                                 </>
-                            )}
+                            )}{' '}
+                            ·{' '}
+                            <CreatedBy
+                                name={invoice.created_by}
+                                avatar={invoice.created_by_avatar}
+                                date={invoice.issued_at}
+                            />
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -110,11 +110,10 @@ export default function InvoicesShow({
                         {invoice.can_send && (
                             <Button
                                 variant="outline"
-                                onClick={sendInvoice}
-                                disabled={sending}
+                                onClick={() => setSending(true)}
                                 data-test="send-invoice"
                             >
-                                {sending ? <Spinner /> : <Send />}
+                                <Send />
                                 Envoyer au client
                             </Button>
                         )}
@@ -144,6 +143,11 @@ export default function InvoicesShow({
                     </section>
 
                     <aside className="flex flex-col gap-6">
+                        <InvoiceLeadLink
+                            invoiceId={invoice.id}
+                            lead={invoice.lead}
+                            canEdit={auth.user.role !== 'member'}
+                        />
                         <section className="grid gap-3">
                             <h2 className="text-base font-medium">
                                 Historique
@@ -203,9 +207,6 @@ export default function InvoicesShow({
                         </section>
 
                         <section className="text-muted-foreground grid gap-1 text-sm">
-                            {invoice.created_by && (
-                                <p>Créée par {invoice.created_by}.</p>
-                            )}
                             {invoice.sent_at && (
                                 <p>
                                     Envoyée le{' '}
@@ -217,16 +218,17 @@ export default function InvoicesShow({
                                 <p>Payée le {invoice.paid_at}.</p>
                             )}
                         </section>
-
-                        <Button variant="ghost" className="self-start" asChild>
-                            <Link href={invoicesIndex()}>
-                                ← Retour à la liste
-                            </Link>
-                        </Button>
                     </aside>
                 </div>
             </div>
 
+            <SendInvoiceDialog
+                invoiceId={invoice.id}
+                invoiceNumber={invoice.number}
+                clientEmail={invoice.client_email}
+                open={sending}
+                onOpenChange={setSending}
+            />
             <MarkPaidDialog
                 invoiceId={invoice.id}
                 invoiceNumber={invoice.number}

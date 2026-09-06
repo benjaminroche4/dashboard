@@ -61,7 +61,7 @@ test('any staff member can add a lead, which starts as new and is broadcast', fu
             'districts' => [3, 4, 11],
             'property_types' => ['t2', 't3'],
             'duration' => 'long',
-            'guarantor' => 'garantme',
+            'guarantors' => ['garantme', 'bancaire'],
             'furnished' => 'furnished',
             'recontact_channel' => 'phone',
             'recontact_at' => '2026-09-10',
@@ -79,7 +79,7 @@ test('any staff member can add a lead, which starts as new and is broadcast', fu
         ->and($lead->districts)->toBe([3, 4, 11])
         ->and($lead->property_types?->map(fn (PropertyType $type): string => $type->value)->all())->toBe(['t2', 't3'])
         ->and($lead->duration)->toBe(LeadDuration::Long)
-        ->and($lead->guarantor)->toBe(GuarantorType::Garantme)
+        ->and($lead->guarantors?->all())->toBe([GuarantorType::Garantme, GuarantorType::Bank])
         ->and($lead->furnished)->toBe(Furnished::Furnished)
         ->and($lead->recontact_channel)->toBe(RecontactChannel::Phone)
         ->and($lead->recontact_at?->toDateString())->toBe('2026-09-10')
@@ -102,4 +102,22 @@ test('a lead needs a name and at least one way to reach it', function (): void {
         ->assertSessionHasErrors(['districts.0', 'districts.1', 'property_types.0']);
 
     expect(Lead::query()->count())->toBe(0);
+});
+
+test('the lead name is capitalised on save', function (): void {
+    Event::fake([DashboardUpdated::class]);
+
+    $this->actingAs(User::factory()->create())
+        ->post(route('leads.store'), [
+            'first_name' => 'jean-pierre',
+            'last_name' => 'DE LA TOUR',
+            'email' => 'jp@exemple.com',
+            'language' => 'fr',
+            'source' => 'website',
+        ]);
+
+    $lead = Lead::query()->latest('id')->firstOrFail();
+
+    expect($lead->first_name)->toBe('Jean-Pierre')
+        ->and($lead->last_name)->toBe('De La Tour');
 });

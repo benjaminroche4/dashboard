@@ -1,8 +1,9 @@
 import { Form } from '@inertiajs/react';
+import { TriangleAlert } from 'lucide-react';
 import { useRef } from 'react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
-import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { Panel } from '@/components/panel';
 import PasswordInput from '@/components/password-input';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,19 +21,16 @@ export default function DeleteUser() {
     const passwordInput = useRef<HTMLInputElement>(null);
 
     return (
-        <div className="space-y-6">
-            <Heading
-                variant="small"
-                title="Supprimer le compte"
-                description="Supprimez votre compte et toutes ses données"
-            />
-            <div className="space-y-4 rounded-lg border border-red-100 bg-red-50 p-4 dark:border-red-200/10 dark:bg-red-700/10">
-                <div className="relative space-y-0.5 text-red-600 dark:text-red-100">
-                    <p className="font-medium">Attention</p>
-                    <p className="text-sm">
-                        Procédez avec prudence, cette action est irréversible.
-                    </p>
-                </div>
+        <Panel
+            tone="destructive"
+            title="Supprimer le compte"
+            description="Supprimez votre compte et toutes ses données"
+        >
+            <div className="flex flex-wrap items-center justify-between gap-4">
+                <p className="flex items-center gap-2 text-sm text-red-700 dark:text-red-300">
+                    <TriangleAlert className="size-4 shrink-0" aria-hidden />
+                    Cette action est irréversible.
+                </p>
 
                 <Dialog>
                     <DialogTrigger asChild>
@@ -115,6 +113,6 @@ export default function DeleteUser() {
                     </DialogContent>
                 </Dialog>
             </div>
-        </div>
+        </Panel>
     );
 }

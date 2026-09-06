@@ -31,6 +31,10 @@ import {
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { LeadAssignMenu } from '@/components/leads/lead-assign-menu';
 import {
+    LeadArchiveDialog,
+    type ArchiveChoice,
+} from '@/components/leads/lead-archive-dialog';
+import {
     LeadStatusMenu,
     leadStatusClasses,
 } from '@/components/leads/lead-status-menu';
@@ -41,15 +45,23 @@ import { leadUrgency } from '@/lib/lead-urgency';
 import { describeDistricts } from '@/lib/paris-districts';
 import { cn } from '@/lib/utils';
 import { status as leadStatusRoute } from '@/routes/leads';
-import type { Lead, LeadStatus, LeadStatusOption } from '@/types';
+import type {
+    LabeledOption,
+    Lead,
+    LeadLossReason,
+    LeadStatus,
+    LeadStatusOption,
+} from '@/types';
 
 type Props = {
     leads: Lead[];
     statuses: LeadStatusOption[];
     /** Faux quand un tri autre que manuel est actif : on change de colonne, pas d'ordre. */
     reorderable?: boolean;
-    /** Clic sur une carte (hors contrôles) : ouvrir l'aperçu. */
+    /** Clic sur une carte (hors contrôles) : ouvrir la fiche. */
     onOpen?: (lead: Lead) => void;
+    /** Motifs de perte demandés à l'archivage. */
+    lossReasons?: LabeledOption<LeadLossReason>[];
 };
 
 // Une teinte par colonne, en clair comme en sombre.
@@ -131,8 +143,15 @@ export function LeadKanban({
     statuses,
     reorderable = true,
     onOpen,
+    lossReasons = [],
 }: Props) {
     const [items, setItems] = useState(leads);
+    // Carte déposée dans Archivé : on demande le motif avant d'envoyer.
+    const [archiving, setArchiving] = useState<{
+        id: number;
+        name: string;
+        position: number;
+    } | null>(null);
     const [activeId, setActiveId] = useState<number | null>(null);
     const [archivedOpen, setArchivedOpen] = useState(readArchiveOpen);
     // Carte venant de changer de colonne : animée le temps d'un battement.
@@ -310,10 +329,48 @@ export function LeadKanban({
             setLanded({ id, status: moved.status, key: Date.now() });
         }
 
+        if (
+            moved.status === 'archived' &&
+            original.status !== 'archived' &&
+            lossReasons.length > 0
+        ) {
+            setArchiving({
+                id,
+                name: original.name,
+                position: moved.position,
+            });
+
+            return;
+        }
+
         router.patch(
             leadStatusRoute({ lead: id }).url,
             { status: moved.status, position: moved.position },
             { preserveScroll: true, onError: () => setItems(leads) },
+        );
+    };
+
+    const confirmArchive = ({ reason, note }: ArchiveChoice) => {
+        if (!archiving) {
+            return;
+        }
+
+        router.patch(
+            leadStatusRoute({ lead: archiving.id }).url,
+            {
+                status: 'archived',
+                position: archiving.position,
+                loss_reason: reason,
+                loss_note: note,
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => setArchiving(null),
+                onError: () => {
+                    setArchiving(null);
+                    setItems(leads);
+                },
+            },
         );
     };
 
@@ -326,72 +383,91 @@ export function LeadKanban({
             : items.filter((lead) => lead.status === status);
 
     return (
-        <DndContext
-            sensors={sensors}
-            collisionDetection={closestCorners}
-            onDragStart={onDragStart}
-            onDragOver={onDragOver}
-            onDragEnd={onDragEnd}
-            onDragCancel={() => {
-                setActiveId(null);
-                setItems(leads);
-            }}
-        >
-            <div
-                ref={boardRef}
-                role="list"
-                aria-label="Kanban des leads"
-                style={
-                    boardTop === null
-                        ? undefined
-                        : { height: `calc(100svh - ${boardTop}px - 1.5rem)` }
-                }
-                className="-mx-4 flex min-h-96 snap-x gap-4 overflow-x-auto px-4 pb-4"
+        <>
+            <LeadArchiveDialog
+                leadName={archiving?.name ?? ''}
+                reasons={lossReasons}
+                open={archiving !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setArchiving(null);
+                        setItems(leads);
+                    }
+                }}
+                onConfirm={confirmArchive}
+            />
+            <DndContext
+                sensors={sensors}
+                collisionDetection={closestCorners}
+                onDragStart={onDragStart}
+                onDragOver={onDragOver}
+                onDragEnd={onDragEnd}
+                onDragCancel={() => {
+                    setActiveId(null);
+                    setItems(leads);
+                }}
             >
-                {statuses.map((status) => {
-                    const column = columnLeads(status.value);
-                    const collapsed =
-                        status.value === 'archived' && !archivedOpen;
+                <div
+                    ref={boardRef}
+                    role="list"
+                    aria-label="Kanban des leads"
+                    style={
+                        boardTop === null
+                            ? undefined
+                            : {
+                                  height: `calc(100svh - ${boardTop}px - 1.5rem)`,
+                              }
+                    }
+                    className="-mx-4 flex min-h-96 snap-x gap-4 overflow-x-auto px-4 pb-4"
+                >
+                    {statuses.map((status) => {
+                        const column = columnLeads(status.value);
+                        const collapsed =
+                            status.value === 'archived' && !archivedOpen;
 
-                    return (
-                        <KanbanColumn
-                            key={status.value}
-                            status={status}
-                            leads={column}
-                            collapsed={collapsed}
-                            dragging={activeId !== null}
-                            onToggle={
-                                status.value === 'archived'
-                                    ? toggleArchive
-                                    : undefined
-                            }
-                        >
-                            {column.map((lead) => (
-                                <SortableCard
-                                    key={lead.id}
-                                    lead={lead}
-                                    statuses={statuses}
-                                    dragging={activeId === lead.id}
-                                    landedKey={
-                                        landed?.id === lead.id
-                                            ? landed.key
-                                            : null
-                                    }
-                                    entered={entered.has(lead.id)}
-                                    onOpen={onOpen}
-                                />
-                            ))}
-                        </KanbanColumn>
-                    );
-                })}
-            </div>
+                        return (
+                            <KanbanColumn
+                                key={status.value}
+                                status={status}
+                                leads={column}
+                                collapsed={collapsed}
+                                dragging={activeId !== null}
+                                onToggle={
+                                    status.value === 'archived'
+                                        ? toggleArchive
+                                        : undefined
+                                }
+                            >
+                                {column.map((lead) => (
+                                    <SortableCard
+                                        key={lead.id}
+                                        lead={lead}
+                                        statuses={statuses}
+                                        lossReasons={lossReasons}
+                                        dragging={activeId === lead.id}
+                                        landedKey={
+                                            landed?.id === lead.id
+                                                ? landed.key
+                                                : null
+                                        }
+                                        entered={entered.has(lead.id)}
+                                        onOpen={onOpen}
+                                    />
+                                ))}
+                            </KanbanColumn>
+                        );
+                    })}
+                </div>
 
-            <DragOverlay dropAnimation={{ duration: 180, easing: 'ease-out' }}>
-                {active ? (
-                    <LeadCard lead={active} statuses={statuses} overlay />
-                ) : null}
-            </DragOverlay>
-        </DndContext>
+                <DragOverlay
+                    dropAnimation={{ duration: 180, easing: 'ease-out' }}
+                >
+                    {active ? (
+                        <LeadCard lead={active} statuses={statuses} overlay />
+                    ) : null}
+                </DragOverlay>
+            </DndContext>
+        </>
     );
 }
 
@@ -562,6 +638,7 @@ function KanbanColumn({
 function SortableCard({
     lead,
     statuses,
+    lossReasons,
     dragging,
     landedKey,
     entered,
@@ -569,6 +646,7 @@ function SortableCard({
 }: {
     lead: Lead;
     statuses: LeadStatusOption[];
+    lossReasons?: LabeledOption<LeadLossReason>[];
     dragging: boolean;
     /** Change quand la carte vient d'atterrir dans une autre colonne. */
     landedKey: number | null;
@@ -611,6 +689,7 @@ function SortableCard({
                 <LeadCard
                     lead={lead}
                     statuses={statuses}
+                    lossReasons={lossReasons}
                     handleProps={{ ...attributes, ...listeners }}
                     onOpen={onOpen}
                 />
@@ -638,12 +717,14 @@ const stop = {
 export function LeadCard({
     lead,
     statuses,
+    lossReasons,
     handleProps = {},
     overlay = false,
     onOpen,
 }: {
     lead: Lead;
     statuses: LeadStatusOption[];
+    lossReasons?: LabeledOption<LeadLossReason>[];
     handleProps?: Record<string, unknown>;
     overlay?: boolean;
     onOpen?: (lead: Lead) => void;
@@ -708,7 +789,11 @@ export function LeadCard({
                 </div>
                 <div {...stop} className="flex shrink-0 items-center gap-1.5">
                     {!overlay && <LeadAssignMenu lead={lead} />}
-                    <LeadStatusMenu lead={lead} statuses={statuses} />
+                    <LeadStatusMenu
+                        lead={lead}
+                        statuses={statuses}
+                        lossReasons={lossReasons}
+                    />
                 </div>
             </div>
             {(urgency.contact === 'warn' ||

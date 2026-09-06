@@ -43,6 +43,7 @@ final class CreateInvoice
                 'due_at' => $data->dueAt,
                 'notes' => $data->notes,
                 'created_by' => $creator?->id,
+                'lead_id' => $data->leadId,
             ]);
 
             // Première entrée de l'historique : la création.

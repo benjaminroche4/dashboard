@@ -130,7 +130,14 @@ export function filterLeads(leads: Lead[], filters: LeadFilters): Lead[] {
 
         if (
             needle !== '' &&
-            ![lead.name, lead.email, lead.phone, lead.origin_city]
+            ![
+                lead.name,
+                lead.email,
+                lead.phone,
+                lead.origin_city,
+                lead.reference,
+                lead.company,
+            ]
                 .filter(Boolean)
                 .join(' ')
                 .toLowerCase()

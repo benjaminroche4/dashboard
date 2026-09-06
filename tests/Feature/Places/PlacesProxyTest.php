@@ -63,6 +63,7 @@ test('it resolves a place into a structured address', function (): void {
 
 test('a missing key answers 503 and the feature flag is off', function (): void {
     config()->set('services.google.maps_key');
+    config()->set('services.google.maps_browser_key');
 
     $this->actingAs(User::factory()->create())
         ->getJson(route('places.suggest', ['input' => 'Rue des']))
@@ -70,7 +71,7 @@ test('a missing key answers 503 and the feature flag is off', function (): void 
 
     $this->actingAs(User::factory()->create())
         ->get(route('dashboard'))
-        ->assertInertia(fn ($page) => $page->where('features.addressAutocomplete', false));
+        ->assertInertia(fn ($page) => $page->where('features.addressAutocomplete', false)->where('features.googleMapsKey', null));
 });
 
 test('inputs are validated', function (): void {
@@ -78,4 +79,12 @@ test('inputs are validated', function (): void {
         ->getJson(route('places.suggest', ['input' => 'ab']))
         ->assertUnprocessable()
         ->assertJsonValidationErrors('input');
+});
+
+test('the browser Google Maps key is shared with the front when configured', function (): void {
+    config()->set('services.google.maps_browser_key', 'browser-key');
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page->where('features.googleMapsKey', 'browser-key'));
 });

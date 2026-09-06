@@ -1,51 +1,89 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     AlarmClock,
-    ArrowLeft,
-    CalendarDays,
-    Clock,
-    Mail,
-    MapPin,
+    ArrowRight,
     Pencil,
-    Phone,
     PlaneLanding,
     Star,
 } from 'lucide-react';
-import type { FormEvent } from 'react';
-import InputError from '@/components/input-error';
+import { useState } from 'react';
+import { CountryFlag } from '@/components/country-flag';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { DistrictMap } from '@/components/leads/district-map';
+import { LeadDocumentRequests } from '@/components/leads/lead-document-requests';
+import { LeadInvoices } from '@/components/leads/lead-invoices';
+import { LeadSendDialog } from '@/components/leads/lead-send-dialog';
+import { LeadVisioDialog } from '@/components/leads/lead-visio-dialog';
+import { LeadHeaderMenu } from '@/components/leads/lead-header-menu';
+import {
+    LeadActivity,
+    activityFilters,
+    buildActivity,
+    type ActivityFilter,
+} from '@/components/leads/lead-activity';
+import { LeadNoteComposer } from '@/components/leads/lead-note-composer';
+import { LeadRecontact } from '@/components/leads/lead-recontact';
+import { LeadReference } from '@/components/leads/lead-reference';
+import {
+    LeadShowBody,
+    type Fact,
+    type Kpi,
+} from '@/components/leads/lead-show-body';
 import {
     LeadAssignMenu,
     initials,
     memberTone,
 } from '@/components/leads/lead-assign-menu';
-import {
-    LeadStatusMenu,
-    leadStatusDot,
-} from '@/components/leads/lead-status-menu';
+import { LeadStatusMenu } from '@/components/leads/lead-status-menu';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
-import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { formatDate, formatMoney } from '@/lib/format';
-import { leadUrgency } from '@/lib/lead-urgency';
+import { daysUntil, leadUrgency } from '@/lib/lead-urgency';
+import { budgetTier, budgetTierLabels } from '@/lib/paris-budget';
+import { notify } from '@/lib/toast';
 import { describeDistricts } from '@/lib/paris-districts';
 import { cn } from '@/lib/utils';
-import { edit as leadEdit, index as leadsIndex } from '@/routes/leads';
+import {
+    contact as leadContact,
+    edit as leadEdit,
+    index as leadsIndex,
+    status as leadStatusRoute,
+} from '@/routes/leads';
 import { store as storeNote } from '@/routes/leads/notes';
 import type {
+    LabeledOption,
     LeadDetail,
+    LeadDuplicate,
+    LeadInvoice,
+    LeadLossReason,
+    LeadDocumentRequest,
     LeadNote,
     LeadStatusChange,
     LeadStatusOption,
+    LeadSending,
+    RecontactChannel,
 } from '@/types';
 
 type Props = {
     lead: LeadDetail;
+    invoices: LeadInvoice[];
+    documentRequests: LeadDocumentRequest[];
     notes: LeadNote[];
     history: LeadStatusChange[];
     statuses: LeadStatusOption[];
+    sending: LeadSending;
+    recontactChannels: LabeledOption<RecontactChannel>[];
+    duplicates: LeadDuplicate[];
+    can: { delete: boolean };
+    lossReasons: LabeledOption<LeadLossReason>[];
 };
+
+/** Valeur absente : une seule formulation, en gris. */
+const missing = (label = 'Non renseigné') => (
+    <span className="text-muted-foreground font-normal">{label}</span>
+);
 
 const dateTime = new Intl.DateTimeFormat('fr-FR', {
     day: 'numeric',
@@ -55,34 +93,60 @@ const dateTime = new Intl.DateTimeFormat('fr-FR', {
     minute: '2-digit',
 });
 
-function Panel({
-    title,
-    action,
-    children,
-    className,
-}: {
-    title: string;
-    action?: React.ReactNode;
-    children: React.ReactNode;
-    className?: string;
-}) {
-    return (
-        <section className={cn('bg-sidebar rounded-xl border', className)}>
-            <header className="flex items-center justify-between gap-2 px-4 pt-4 pb-3">
-                <h2 className="text-sm font-medium">{title}</h2>
-                {action}
-            </header>
-            <div className="px-4 pb-4">{children}</div>
-        </section>
-    );
-}
-
-export default function LeadsShow({ lead, notes, history, statuses }: Props) {
+export default function LeadsShow({
+    lead,
+    invoices,
+    documentRequests,
+    notes,
+    history,
+    statuses,
+    sending,
+    recontactChannels,
+    duplicates,
+    can,
+    lossReasons,
+}: Props) {
+    const { staff, auth } = usePage().props;
     const noteForm = useForm({ body: '' });
+    const [filter, setFilter] = useState<ActivityFilter>('all');
+    // Après un envoi de dossier, on propose de passer le lead en « Devis envoyé ».
+    const [suggestQuote, setSuggestQuote] = useState(false);
+    const [movingToQuote, setMovingToQuote] = useState(false);
+    const moveToQuoteSent = () => {
+        setMovingToQuote(true);
+        router.patch(
+            leadStatusRoute({ lead: lead.id }).url,
+            { status: 'quote_sent' },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setSuggestQuote(false);
+                    notify.success('Lead passé en « Devis envoyé ».');
+                },
+                onFinish: () => setMovingToQuote(false),
+            },
+        );
+    };
+    const canSuggestQuote =
+        suggestQuote &&
+        lead.status !== 'quote_sent' &&
+        lead.status !== 'converted' &&
+        lead.status !== 'archived';
+    const [touchingContact, setTouchingContact] = useState(false);
+    const touchContact = () => {
+        setTouchingContact(true);
+        router.patch(
+            leadContact({ lead: lead.id }).url,
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => setTouchingContact(false),
+            },
+        );
+    };
     const urgency = leadUrgency(lead);
 
-    const submitNote = (event: FormEvent) => {
-        event.preventDefault();
+    const submitNote = () => {
         noteForm.post(storeNote({ lead: lead.id }).url, {
             preserveScroll: true,
             onSuccess: () => noteForm.reset(),
@@ -93,56 +157,219 @@ export default function LeadsShow({ lead, notes, history, statuses }: Props) {
         lead.budget_cents === null
             ? null
             : formatMoney(lead.budget_cents, lead.currency);
-    const facts: { label: string; value: string; icon?: React.ReactNode }[] = [
-        { label: 'Offre visée', value: lead.offer_label ?? 'Non précisée' },
+    const arrivalDays =
+        lead.arrival_at === null ? null : daysUntil(lead.arrival_at);
+    const arrivalBadge =
+        arrivalDays === null
+            ? null
+            : arrivalDays < 0
+              ? `Arrivé depuis ${-arrivalDays} j`
+              : arrivalDays === 0
+                ? "Aujourd'hui"
+                : `Dans ${arrivalDays} j`;
+    const tier = budgetTier(lead.budget_cents ?? 0, lead.districts);
+    const facts: Fact[] = [
+        { label: 'Offre visée', value: lead.offer_label ?? missing() },
         {
             label: 'Budget mensuel',
-            value: budget ? `${budget} / mois` : 'Non précisé',
+            value: budget ? `${budget} / mois` : missing(),
+            badge: tier ? budgetTierLabels[tier] : null,
+            badgeTone:
+                tier === 'tight'
+                    ? 'warn'
+                    : tier === 'comfortable'
+                      ? 'good'
+                      : 'default',
         },
         {
             label: "Date d'arrivée",
-            value: lead.arrival_at
-                ? formatDate(lead.arrival_at)
-                : 'Non précisée',
-            icon: <CalendarDays className="size-3.5" aria-hidden />,
+            value: lead.arrival_at ? formatDate(lead.arrival_at) : missing(),
+            badge: arrivalBadge,
         },
         {
             label: "Ville d'origine",
-            value: lead.origin_city ?? 'Non précisée',
-            icon: <MapPin className="size-3.5" aria-hidden />,
+            value: lead.origin_city ?? missing(),
         },
         {
             label: 'Quartiers visés',
-            value: describeDistricts(lead.districts) ?? 'Non précisés',
-            icon: <MapPin className="size-3.5" aria-hidden />,
+            value: describeDistricts(lead.districts) ?? missing(),
         },
         {
             label: 'Type de bien',
             value:
                 lead.property_types.length > 0
                     ? lead.property_types.map((type) => type.label).join(', ')
-                    : 'Non précisé',
+                    : missing(),
         },
         {
             label: "Durée d'installation",
-            value: lead.duration_label ?? 'À définir',
+            value: lead.duration_label ?? missing(),
         },
-        { label: 'Garant', value: lead.guarantor_label ?? 'À définir' },
-        { label: 'Meublé', value: lead.furnished_label ?? 'Indifférent' },
+        { label: 'Garant', value: lead.guarantor_label ?? missing() },
+        {
+            label: 'Meublé',
+            value: lead.furnished_label ?? missing('Indifférent'),
+        },
         {
             label: 'Source',
             value: lead.source_note
                 ? `${lead.source_label} · ${lead.source_note}`
                 : lead.source_label,
         },
+    ];
+
+    const contact: Fact[] = [
         {
-            label: 'Dernier contact',
-            value: lead.last_contacted_at
-                ? dateTime.format(new Date(lead.last_contacted_at))
-                : 'Jamais',
-            icon: <Clock className="size-3.5" aria-hidden />,
+            label: 'E-mail',
+            value: lead.email ? (
+                <a
+                    href={`mailto:${lead.email}`}
+                    className="underline-offset-4 hover:underline"
+                >
+                    {lead.email}
+                </a>
+            ) : (
+                missing()
+            ),
+        },
+        {
+            label: 'Téléphone',
+            value: lead.phone ? (
+                <a
+                    href={`tel:${lead.phone.replace(/\s+/g, '')}`}
+                    className="underline-offset-4 hover:underline"
+                >
+                    {lead.phone}
+                </a>
+            ) : (
+                missing()
+            ),
+        },
+        {
+            label: 'Société',
+            value: lead.company ?? missing(),
+        },
+        {
+            label: 'Langue',
+            value: (
+                <span className="inline-flex items-center gap-1.5">
+                    <CountryFlag
+                        code={lead.language === 'en' ? 'GB' : 'FR'}
+                        className="size-3.5"
+                    />
+                    {lead.language_label}
+                </span>
+            ),
         },
     ];
+    const qualification: Fact[] = [
+        {
+            label: 'Qualité du lead',
+            value: lead.score === null ? missing() : `${lead.score} / 5`,
+        },
+        {
+            label: 'Note de qualification',
+            multiline: true,
+            value: lead.qualification_note ?? missing(),
+        },
+    ];
+    const kpis: Kpi[] = [
+        { label: 'Budget mensuel', value: budget ?? '—' },
+        {
+            label: "Date d'arrivée",
+            value: lead.arrival_at ? formatDate(lead.arrival_at) : '—',
+        },
+        { label: 'Offre visée', value: lead.offer_label ?? '—' },
+        {
+            label: 'Qualité',
+            value:
+                lead.score === null ? (
+                    '—'
+                ) : (
+                    <span className="inline-flex items-center gap-1.5">
+                        <Star
+                            className="size-4 fill-current text-amber-500"
+                            aria-hidden
+                        />
+                        {lead.score} / 5
+                    </span>
+                ),
+        },
+    ];
+    const map = (
+        <div className="grid gap-2">
+            <p className="text-muted-foreground text-sm">
+                {lead.districts.length > 0
+                    ? 'Quartiers visés sur la carte'
+                    : 'Aucun quartier visé pour le moment'}
+            </p>
+            <DistrictMap value={lead.districts} readOnly />
+        </div>
+    );
+    const assign = (
+        <div className="flex items-center gap-3">
+            <LeadAssignMenu lead={lead} size="md" />
+            <div className="grid min-w-0">
+                <span className="truncate text-sm font-medium">
+                    {lead.assignee?.name ?? 'Non attribué'}
+                </span>
+                <span className="text-muted-foreground text-xs">
+                    {lead.assignee
+                        ? 'Cliquez sur l’avatar pour réattribuer'
+                        : 'Cliquez sur l’avatar pour attribuer'}
+                </span>
+            </div>
+        </div>
+    );
+    const lastContact = lead.last_contacted_at
+        ? dateTime.format(new Date(lead.last_contacted_at))
+        : 'Jamais';
+    const staffNames = staff.map((member) => member.name);
+    const activityNode = (
+        <LeadActivity
+            leadId={lead.id}
+            notes={notes}
+            history={history}
+            staffNames={staffNames}
+            filter={filter}
+        />
+    );
+    const filtersNode = (
+        <ToggleGroup
+            type="single"
+            size="sm"
+            value={filter}
+            onValueChange={(value) =>
+                value && setFilter(value as ActivityFilter)
+            }
+            aria-label="Filtrer l’activité"
+            className="gap-0.5"
+        >
+            {activityFilters.map((option) => (
+                <ToggleGroupItem
+                    key={option.value}
+                    value={option.value}
+                    aria-label={option.label}
+                    className="data-[state=on]:bg-background h-7 rounded-md px-2 text-xs first:rounded-md last:rounded-md data-[state=on]:shadow-xs"
+                >
+                    {option.label}
+                </ToggleGroupItem>
+            ))}
+        </ToggleGroup>
+    );
+    const composerNode = (
+        <LeadNoteComposer
+            value={noteForm.data.body}
+            onChange={(value) => noteForm.setData('body', value)}
+            onSubmit={submitNote}
+            processing={noteForm.processing}
+            error={noteForm.errors.body}
+            candidates={staff.map((member) => ({
+                id: member.id,
+                name: member.name,
+            }))}
+        />
+    );
 
     return (
         <>
@@ -166,47 +393,65 @@ export default function LeadsShow({ lead, notes, history, statuses }: Props) {
                                 <h1 className="truncate text-lg font-medium">
                                     {lead.name}
                                 </h1>
+                                {lead.reference && (
+                                    <LeadReference reference={lead.reference} />
+                                )}
                                 <LeadStatusMenu
                                     lead={lead}
                                     statuses={statuses}
+                                    lossReasons={lossReasons}
                                 />
-                                <span
-                                    className="flex items-center gap-0.5"
-                                    aria-label={
-                                        lead.score === null
-                                            ? 'Qualité non évaluée'
-                                            : `Qualité ${lead.score} sur 5`
-                                    }
-                                >
-                                    {[1, 2, 3, 4, 5].map((value) => (
-                                        <Star
-                                            key={value}
-                                            aria-hidden
-                                            className={cn(
-                                                'size-3.5',
-                                                lead.score !== null &&
-                                                    value <= lead.score
-                                                    ? 'fill-current text-amber-500'
-                                                    : 'text-muted-foreground/30',
-                                            )}
-                                        />
-                                    ))}
-                                </span>
+                                {lead.status === 'archived' &&
+                                    lead.loss_reason_label && (
+                                        <Badge
+                                            variant="secondary"
+                                            title={lead.loss_note ?? undefined}
+                                            data-testid="loss-reason"
+                                        >
+                                            Motif : {lead.loss_reason_label}
+                                            {lead.loss_note
+                                                ? ` · ${lead.loss_note}`
+                                                : ''}
+                                        </Badge>
+                                    )}
                             </div>
-                            <p className="text-muted-foreground text-sm">
-                                {[lead.company, lead.language_label]
-                                    .filter(Boolean)
-                                    .join(' · ')}
-                                {' · '}
-                                {lead.offer_label ?? 'Offre à définir'}
-                                {budget ? ` · ${budget} / mois` : ''}
-                                {' · '}Ajouté le{' '}
-                                {lead.created_at
-                                    ? formatDate(lead.created_at.slice(0, 10))
-                                    : '—'}
-                                {lead.created_by
-                                    ? ` par ${lead.created_by}`
-                                    : ''}
+                            <p
+                                className="text-muted-foreground flex flex-wrap items-center gap-1.5 pt-1 text-xs"
+                                data-test="lead-author"
+                            >
+                                {lead.author ? (
+                                    <>
+                                        <Avatar className="size-4">
+                                            <AvatarImage
+                                                src={
+                                                    lead.author.avatar ??
+                                                    undefined
+                                                }
+                                                alt=""
+                                            />
+                                            <AvatarFallback className="text-[8px]">
+                                                {initials(lead.author.name)}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <span>
+                                            Créée par{' '}
+                                            <span className="text-foreground font-medium">
+                                                {lead.author.name}
+                                            </span>
+                                            {lead.created_at
+                                                ? ` le ${dateTime.format(new Date(lead.created_at))}`
+                                                : ''}
+                                        </span>
+                                    </>
+                                ) : (
+                                    <span>
+                                        Créée
+                                        {lead.created_at
+                                            ? ` le ${dateTime.format(new Date(lead.created_at))}`
+                                            : ''}
+                                        , auteur inconnu
+                                    </span>
+                                )}
                             </p>
                             {(urgency.contact === 'warn' ||
                                 urgency.contact === 'late' ||
@@ -253,254 +498,108 @@ export default function LeadsShow({ lead, notes, history, statuses }: Props) {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button variant="ghost" asChild>
-                            <Link href={leadsIndex()}>
-                                <ArrowLeft />
-                                Retour au kanban
-                            </Link>
-                        </Button>
                         <Button variant="outline" asChild>
                             <Link href={leadEdit({ lead: lead.id })}>
                                 <Pencil />
                                 Modifier
                             </Link>
                         </Button>
+                        <LeadHeaderMenu
+                            lead={lead}
+                            canDelete={can.delete}
+                            lossReasons={lossReasons}
+                        />
                     </div>
                 </div>
 
-                <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-                    <div className="grid content-start gap-6">
-                        <Panel
-                            title="Contact"
-                            action={
-                                <div className="flex items-center gap-2">
-                                    <span className="text-muted-foreground text-xs">
-                                        Suivi par
-                                    </span>
-                                    <LeadAssignMenu lead={lead} size="md" />
-                                </div>
-                            }
-                        >
+                {duplicates.length > 0 && (
+                    <Alert className="mb-6" data-testid="lead-duplicates">
+                        <AlertTitle>
+                            {duplicates.length > 1
+                                ? `${duplicates.length} autres leads partagent cet e-mail ou ce téléphone`
+                                : 'Un autre lead partage cet e-mail ou ce téléphone'}
+                        </AlertTitle>
+                        <AlertDescription>
                             <ul
                                 role="list"
-                                className="bg-background grid divide-y rounded-lg border text-sm"
+                                className="flex flex-wrap gap-x-4 gap-y-1"
                             >
-                                <li className="flex items-center gap-3 px-3 py-2.5">
-                                    <Mail
-                                        className="text-muted-foreground size-4 shrink-0"
-                                        aria-hidden
-                                    />
-                                    {lead.email ? (
-                                        <a
-                                            href={`mailto:${lead.email}`}
-                                            className="truncate underline-offset-4 hover:underline"
+                                {duplicates.map((duplicate) => (
+                                    <li key={duplicate.id}>
+                                        <Link
+                                            href={duplicate.url}
+                                            className="text-foreground underline-offset-4 hover:underline"
                                         >
-                                            {lead.email}
-                                        </a>
-                                    ) : (
+                                            {duplicate.name}
+                                        </Link>
                                         <span className="text-muted-foreground">
-                                            Pas d'e-mail
+                                            {' '}
+                                            · {duplicate.status_label}
                                         </span>
-                                    )}
-                                </li>
-                                <li className="flex items-center gap-3 px-3 py-2.5">
-                                    <Phone
-                                        className="text-muted-foreground size-4 shrink-0"
-                                        aria-hidden
-                                    />
-                                    {lead.phone ? (
-                                        <a
-                                            href={`tel:${lead.phone.replace(/\s+/g, '')}`}
-                                            className="underline-offset-4 hover:underline"
-                                        >
-                                            {lead.phone}
-                                        </a>
-                                    ) : (
-                                        <span className="text-muted-foreground">
-                                            Pas de téléphone
-                                        </span>
-                                    )}
-                                </li>
-                            </ul>
-                        </Panel>
-
-                        <Panel title="Projet">
-                            <dl className="grid gap-2 sm:grid-cols-2">
-                                {facts.map((fact) => (
-                                    <div
-                                        key={fact.label}
-                                        className="bg-background grid gap-0.5 rounded-lg border px-3 py-2.5"
-                                    >
-                                        <dt className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                                            {fact.icon}
-                                            {fact.label}
-                                        </dt>
-                                        <dd className="truncate text-sm font-medium">
-                                            {fact.value}
-                                        </dd>
-                                    </div>
-                                ))}
-                            </dl>
-                        </Panel>
-
-                        <Panel title="Note sur le projet">
-                            {lead.message ? (
-                                <p className="bg-background rounded-lg border px-3 py-2.5 text-sm whitespace-pre-line">
-                                    {lead.message}
-                                </p>
-                            ) : (
-                                <p className="text-muted-foreground text-sm">
-                                    Aucun message.
-                                </p>
-                            )}
-                        </Panel>
-                    </div>
-
-                    <aside className="grid content-start gap-6">
-                        <Panel title="Qualification">
-                            <dl className="grid gap-2">
-                                <div className="bg-background grid gap-0.5 rounded-lg border px-3 py-2.5">
-                                    <dt className="text-muted-foreground text-xs">
-                                        Recontact
-                                    </dt>
-                                    <dd className="text-sm font-medium">
-                                        {lead.recontact_channel_label
-                                            ? `${lead.recontact_channel_label}${lead.recontact_at ? ` · le ${formatDate(lead.recontact_at)}` : ''}`
-                                            : 'Aucun recontact prévu'}
-                                    </dd>
-                                </div>
-                                <div className="bg-background grid gap-0.5 rounded-lg border px-3 py-2.5">
-                                    <dt className="text-muted-foreground text-xs">
-                                        Note de qualification
-                                    </dt>
-                                    <dd className="text-sm whitespace-pre-line">
-                                        {lead.qualification_note ?? (
-                                            <span className="text-muted-foreground">
-                                                Aucune.
-                                            </span>
-                                        )}
-                                    </dd>
-                                </div>
-                            </dl>
-                        </Panel>
-                        <Panel
-                            title="Notes"
-                            action={
-                                <span className="text-muted-foreground text-xs">
-                                    {notes.length}
-                                </span>
-                            }
-                        >
-                            <form onSubmit={submitNote} className="grid gap-2">
-                                <Label htmlFor="note" className="sr-only">
-                                    Nouvelle note
-                                </Label>
-                                <Textarea
-                                    id="note"
-                                    rows={3}
-                                    placeholder="Ajouter une note interne…"
-                                    className="bg-background"
-                                    value={noteForm.data.body}
-                                    onChange={(event) =>
-                                        noteForm.setData(
-                                            'body',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                                <InputError message={noteForm.errors.body} />
-                                <div className="flex justify-end">
-                                    <Button
-                                        type="submit"
-                                        size="sm"
-                                        disabled={
-                                            noteForm.processing ||
-                                            noteForm.data.body.trim() === ''
-                                        }
-                                    >
-                                        {noteForm.processing && <Spinner />}
-                                        Ajouter la note
-                                    </Button>
-                                </div>
-                            </form>
-                            {notes.length === 0 ? (
-                                <p className="text-muted-foreground pt-3 text-sm">
-                                    Aucune note pour le moment.
-                                </p>
-                            ) : (
-                                <ul role="list" className="grid gap-2 pt-3">
-                                    {notes.map((note) => (
-                                        <li
-                                            key={note.id}
-                                            className="bg-background grid gap-1.5 rounded-lg border px-3 py-2.5 text-sm"
-                                        >
-                                            <p className="whitespace-pre-line">
-                                                {note.body}
-                                            </p>
-                                            <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                                                <span
-                                                    className={cn(
-                                                        'flex size-4 items-center justify-center rounded-full text-[9px] font-medium',
-                                                        'bg-muted',
-                                                    )}
-                                                    aria-hidden
-                                                >
-                                                    {initials(note.by ?? 'S')}
-                                                </span>
-                                                {note.by ?? 'Staff'}
-                                                {note.at
-                                                    ? ` · ${dateTime.format(new Date(note.at))}`
-                                                    : ''}
-                                            </p>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </Panel>
-
-                        <Panel title="Historique">
-                            <ol
-                                role="list"
-                                className="before:bg-border relative grid gap-4 before:absolute before:top-2 before:bottom-2 before:left-[5px] before:w-px"
-                            >
-                                {history.map((change) => (
-                                    <li
-                                        key={change.id}
-                                        className="relative flex gap-3 pl-5 text-sm"
-                                    >
-                                        <span
-                                            className={cn(
-                                                'ring-sidebar absolute top-1.5 left-0 size-3 rounded-full ring-4',
-                                                leadStatusDot[change.to_status],
-                                            )}
-                                        />
-                                        <div className="min-w-0 flex-1">
-                                            <p>
-                                                <span className="font-medium">
-                                                    {change.to}
-                                                </span>
-                                                {change.from && (
-                                                    <span className="text-muted-foreground">
-                                                        {' '}
-                                                        (depuis {change.from})
-                                                    </span>
-                                                )}
-                                            </p>
-                                            <p className="text-muted-foreground text-xs">
-                                                {dateTime.format(
-                                                    new Date(change.at),
-                                                )}
-                                                {change.by
-                                                    ? ` · ${change.by}`
-                                                    : ''}
-                                            </p>
-                                        </div>
                                     </li>
                                 ))}
-                            </ol>
-                        </Panel>
-                    </aside>
-                </div>
+                            </ul>
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                <LeadShowBody
+                    invoices={
+                        <LeadInvoices
+                            leadId={lead.id}
+                            invoices={invoices}
+                            canEdit={auth.user.role !== 'member'}
+                        />
+                    }
+                    documents={
+                        <LeadDocumentRequests
+                            leadId={lead.id}
+                            requests={documentRequests}
+                        />
+                    }
+                    contact={contact}
+                    facts={facts}
+                    message={lead.message}
+                    qualification={qualification}
+                    map={map}
+                    assign={assign}
+                    recontact={
+                        <LeadRecontact
+                            lead={lead}
+                            channels={recontactChannels}
+                        />
+                    }
+                    lastContact={lastContact}
+                    onTouchContact={touchContact}
+                    touchingContact={touchingContact}
+                    actions={
+                        <div className="grid gap-2">
+                            <LeadVisioDialog lead={lead} />
+                            <LeadSendDialog
+                                lead={lead}
+                                sending={sending}
+                                className="w-full"
+                                onSent={() => setSuggestQuote(true)}
+                            />
+                            {canSuggestQuote && (
+                                <Button
+                                    type="button"
+                                    className="w-full"
+                                    disabled={movingToQuote}
+                                    onClick={moveToQuoteSent}
+                                >
+                                    <ArrowRight aria-hidden />
+                                    Passer en « Devis envoyé »
+                                </Button>
+                            )}
+                        </div>
+                    }
+                    activity={activityNode}
+                    activityCount={buildActivity(notes, history).length}
+                    activityFilters={filtersNode}
+                    composer={composerNode}
+                    kpis={kpis}
+                />
             </div>
         </>
     );

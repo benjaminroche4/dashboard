@@ -97,3 +97,13 @@ class ProfileUpdateTest extends TestCase
         $this->assertNotNull($user->fresh());
     }
 }
+
+test('the profile name is capitalised on save', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->patch(route('profile.update'), ['name' => 'benjamin ROCHE', 'email' => $user->email])
+        ->assertSessionHasNoErrors();
+
+    expect($user->refresh()->name)->toBe('Benjamin Roche');
+});
