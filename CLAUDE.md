@@ -62,7 +62,7 @@ php artisan staff:create --name="Nom" --email=nom@exemple.com --role=admin|manag
 - **Policies** dans `app/Policies` (une par modèle, `final`, suffixe `Policy`). `UserPolicy` : seuls les admins gèrent le staff, chacun voit et modifie son propre profil, un admin ne peut ni se supprimer ni changer son propre rôle.
 - **Middleware de route** `role:admin,manager` (`App\Http\Middleware\EnsureStaffRole`) pour restreindre une route entière. Pour une action précise, utiliser la Policy (`$this->authorize()` ou `Gate`).
 - Gates transverses dans `AppServiceProvider::configureGates()` (ex. `viewPulse`).
-- **Photo de profil** : `users.avatar_path` sur le disque `public` (dossier `avatars/`), accessor `User::avatar` (URL ou `null`, ajouté au JSON). Routes `profile.avatar.update` (POST, `AvatarUpdateRequest` : JPG/PNG/WebP, 2 Mo) et `profile.avatar.destroy`, actions `App\Actions\Settings\{UpdateProfileAvatar,RemoveProfileAvatar}`. Front : `AvatarUpload` (`resources/js/components/settings`) sur la page Profil, envoi immédiat en multipart. `php artisan storage:link` est lancé par `make install` ; sur Laravel Cloud, prévoir le lien dans la commande de déploiement ou un bucket pour le disque `public`.
+- **Photo de profil** : `users.avatar_path` sur le disque `public` (dossier `avatars/`, nom de fichier aléatoire généré par `store()` : l'URL n'est pas devinable, ce qui suffit pour des portraits de l'équipe ; décision prise de ne pas passer par une route authentifiée pour ne pas dépendre d'un disque privé sur Cloud), accessor `User::avatar` (URL ou `null`, ajouté au JSON). Routes `profile.avatar.update` (POST, `AvatarUpdateRequest` : JPG/PNG/WebP, 2 Mo) et `profile.avatar.destroy`, actions `App\Actions\Settings\{UpdateProfileAvatar,RemoveProfileAvatar}`. Front : `AvatarUpload` (`resources/js/components/settings`) sur la page Profil, envoi immédiat en multipart. `php artisan storage:link` est lancé par `make install` ; sur Laravel Cloud, prévoir le lien dans la commande de déploiement ou un bucket pour le disque `public`.
 - Le front reçoit `auth.user.role` et `auth.can.{manageStaff, viewPulse}` via `HandleInertiaRequests`. Toute nouvelle permission exposée au front s'ajoute là et dans le type `Permissions` de `resources/js/types/auth.ts`. Le front ne décide jamais seul : il masque, le backend refuse.
 
 ## Temps réel (obligatoire pour toute action du backoffice)
@@ -178,7 +178,7 @@ DB_CONNECTION=pgsql            # injecté par Cloud si base attachée
 QUEUE_CONNECTION=redis|database
 CACHE_STORE=redis|database
 SESSION_DRIVER=database
-SESSION_SECURE_COOKIE=true      # cookies de session marqués « secure » derrière le TLS de Cloud
+SESSION_SECURE_COOKIE=true      # facultatif : déjà vrai par défaut quand APP_ENV=production (config/session.php)
 BROADCAST_CONNECTION=reverb
 REVERB_APP_ID=<id>
 REVERB_APP_KEY=<clé>
