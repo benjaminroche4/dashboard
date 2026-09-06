@@ -11,7 +11,7 @@ install: ## Installe les dépendances PHP + JS, .env, clé, migrations
 	@touch database/database.sqlite
 	php artisan migrate --force
 	php artisan storage:link
-	npm install
+	pnpm install
 	sh scripts/install-hooks.sh
 
 hooks: ## Active le hook git pre-commit (make check avant chaque commit)
@@ -38,18 +38,18 @@ fresh: clean ## Reset complet de la base (drop + migrate + seed)
 	php artisan migrate:fresh --seed
 
 build: ## Build de production des assets
-	npm run build
+	pnpm run build
 
 test: ## Lance les tests PHP (Pest) puis front (Vitest)
 	php artisan test
-	npm test
+	pnpm test
 
 lint: ## Rector + Pint + oxlint/oxfmt --fix
 	composer lint
-	npm run check:fix
+	pnpm run check:fix
 
 types: ## Vérifie les types PHP (PHPStan) + TypeScript
 	composer types:check
-	npm run types:check
+	pnpm run types:check
 
 check: lint types test ## Lint + types + tests

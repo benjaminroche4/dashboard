@@ -164,7 +164,7 @@ Ces règles sont **vérifiées par `tests/Architecture/ArchitectureTest.php`** (
 ## Déploiement Laravel Cloud
 
 1. Créer l'application sur [cloud.laravel.com](https://cloud.laravel.com) depuis ce dépôt Git, branche `main`.
-2. **Build command** : `composer install --no-dev --optimize-autoloader && npm ci && npm run build`
+2. **Build command** : `composer install --no-dev --optimize-autoloader && corepack enable && pnpm install --frozen-lockfile && pnpm run build`. Le projet est géré avec **pnpm** (`packageManager` dans `package.json`, `pnpm-lock.yaml`) : ne pas utiliser `npm ci` sur Cloud, le `package-lock.json` n'est pas maintenu et dérive dès qu'une dépendance est ajoutée.
 3. **Deploy command** : `php artisan migrate --force && php artisan optimize`
 4. Ressources à ajouter dans l'environnement : une base **Postgres** (ou MySQL), un **cache/queue** (Redis ou la queue database), un **worker de queue** (`php artisan queue:work`), et un **service Reverb** (ou un process `php artisan reverb:start --host=0.0.0.0 --port=8080` derrière le proxy Cloud si le service managé n'est pas disponible).
 5. Variables d'environnement à définir :

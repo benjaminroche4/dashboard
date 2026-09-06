@@ -27,3 +27,6 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Projet géré avec pnpm : pas de lock npm
+package-lock.json
