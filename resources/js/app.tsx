@@ -6,6 +6,7 @@ import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { configureEcho } from '@laravel/echo-react';
+import { flushPrefetchOnMutations } from '@/lib/prefetch-cache';
 import { attachSocketIdToInertia } from '@/lib/socket-id';
 
 configureEcho({
@@ -15,6 +16,10 @@ configureEcho({
 // Chaque requête Inertia porte le socket Echo : l'onglet auteur d'une action
 // ne reçoit pas son propre événement temps réel, les autres onglets, si.
 attachSocketIdToInertia();
+
+// Les listes préchargées au survol ne doivent pas survivre à une création ou
+// une modification : le cache Inertia est vidé avant chaque mutation.
+flushPrefetchOnMutations();
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 

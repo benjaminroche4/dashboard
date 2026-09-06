@@ -13,7 +13,7 @@ const page = vi.hoisted(() => ({
 }));
 
 vi.mock('@inertiajs/react', () => ({
-    router: { reload },
+    router: { reload, flushAll: vi.fn() },
     usePage: () => ({
         props: { auth: { user: { id: 1 } }, realtimeOnly: page.realtimeOnly },
     }),

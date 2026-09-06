@@ -1,6 +1,7 @@
 import { router, usePage } from '@inertiajs/react';
 import { useEchoPresence } from '@laravel/echo-react';
 import { notify as toaster } from '@/lib/toast';
+import { flushPrefetchCache } from '@/lib/prefetch-cache';
 
 export type DashboardUpdatedEvent = {
     resource: string;
@@ -89,6 +90,9 @@ export function useStaffChannel({
             }
 
             onEvent?.(event);
+
+            // Un autre membre a modifié des données : les pages préchargées sont périmées.
+            flushPrefetchCache();
 
             if (reload) {
                 router.reload({ only: scope.length ? scope : undefined });
