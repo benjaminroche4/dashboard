@@ -53,7 +53,7 @@ php artisan staff:create --name="Nom" --email=nom@exemple.com --role=admin|manag
 - Toute route applicative est derrière le middleware `auth`. `/` redirige vers `login` ou `dashboard`.
 - Registration, reset password et vérification email sont **désactivés** dans `config/fortify.php`. Ne pas les réactiver.
 - 2FA, passkeys et confirmation de mot de passe restent actifs (côté authentifié uniquement).
-- `App\Http\Middleware\NoIndex` ajoute `X-Robots-Tag: noindex` sur toutes les réponses web, `public/robots.txt` bloque tout, le layout Blade porte `<meta name="robots" content="noindex">`. Ne jamais ajouter de sitemap, d'OpenGraph ni de meta SEO.
+- `App\Http\Middleware\NoIndex` est **global** (`$middleware->append`, pas seulement le groupe `web`) : `X-Robots-Tag: noindex, nofollow, noarchive` sur toutes les réponses, y compris `/up`, `/pulse`, `/storage` et les assets des paquets ; `public/robots.txt` bloque tout, le layout Blade porte `<meta name="robots" content="noindex">`. Ne jamais ajouter de sitemap, d'OpenGraph ni de meta SEO.
 
 ## Rôles et autorisations
 
@@ -178,6 +178,7 @@ DB_CONNECTION=pgsql            # injecté par Cloud si base attachée
 QUEUE_CONNECTION=redis|database
 CACHE_STORE=redis|database
 SESSION_DRIVER=database
+SESSION_SECURE_COOKIE=true      # cookies de session marqués « secure » derrière le TLS de Cloud
 BROADCAST_CONNECTION=reverb
 REVERB_APP_ID=<id>
 REVERB_APP_KEY=<clé>

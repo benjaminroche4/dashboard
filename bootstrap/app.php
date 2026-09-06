@@ -26,8 +26,15 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias(['role' => EnsureStaffRole::class]);
 
+        // Derrière le répartiteur de charge de Laravel Cloud : nécessaire pour que
+        // request()->secure(), les URL https et les cookies « secure » soient corrects.
+        $middleware->trustProxies(at: '*');
+
+        // Global, pas seulement « web » : /up, /pulse, /storage et les assets des
+        // paquets reçoivent aussi l'en-tête noindex. Le backoffice n'est jamais indexé.
+        $middleware->append(NoIndex::class);
+
         $middleware->web(append: [
-            NoIndex::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
