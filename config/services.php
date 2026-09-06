@@ -16,6 +16,11 @@ return [
     |
     */
 
+    // Secret partagé avec le site Relocation In Paris pour signer ses webhooks (HMAC-SHA256).
+    'rip' => [
+        'webhook_secret' => env('RIP_WEBHOOK_SECRET'),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

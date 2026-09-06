@@ -52,6 +52,7 @@ final readonly class LeadData
         public ?CarbonInterface $recontactAt,
         public ?string $qualificationNote,
         public ?int $assignedTo = null,
+        public ?string $externalReference = null,
     ) {}
 
     /**
@@ -117,6 +118,7 @@ final readonly class LeadData
             'recontact_at' => $this->recontactAt,
             'qualification_note' => $this->qualificationNote,
             'assigned_to' => $this->assignedTo,
+            'external_reference' => $this->externalReference,
         ];
     }
 

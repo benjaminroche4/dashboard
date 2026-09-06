@@ -28,6 +28,7 @@ use Illuminate\Support\Collection;
 /**
  * @property int $id
  * @property string|null $reference
+ * @property string|null $external_reference
  * @property LeadLossReason|null $loss_reason
  * @property string|null $loss_note
  * @property string $first_name
@@ -65,7 +66,7 @@ use Illuminate\Support\Collection;
  * @property CarbonInterface|null $updated_at
  */
 #[Fillable([
-    'reference',
+    'reference', 'external_reference',
     'first_name', 'last_name', 'email', 'phone', 'company', 'language', 'offer', 'arrival_at', 'budget_cents', 'currency',
     'origin_city', 'districts', 'property_types', 'duration', 'guarantors', 'furnished', 'source', 'source_note', 'message',
     'score', 'recontact_channel', 'recontact_at', 'visio_at', 'visio_event_id', 'visio_meet_link', 'qualification_note', 'status', 'loss_reason', 'loss_note', 'position', 'last_contacted_at', 'created_by', 'assigned_to',

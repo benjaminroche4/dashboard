@@ -5,11 +5,19 @@ use App\Http\Controllers\Documents\DocumentRequestController;
 use App\Http\Controllers\Invoices\InvoiceController;
 use App\Http\Controllers\Leads\LeadController;
 use App\Http\Controllers\Places\PlacesController;
+use App\Http\Controllers\Webhooks\WebsiteContactController;
+use App\Http\Middleware\VerifyRipWebhookSignature;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 // Aucune page publique : la racine renvoie vers le login ou le dashboard.
 Route::get('/', fn () => to_route(Auth::check() ? 'dashboard' : 'login'))->name('home');
+
+// Seule entrée sans session : le site Relocation In Paris pousse ses demandes de
+// contact, authentifiées par signature HMAC (RIP_WEBHOOK_SECRET), jamais par un cookie.
+Route::post('webhooks/rip/contact', WebsiteContactController::class)
+    ->middleware([VerifyRipWebhookSignature::class, 'throttle:60,1'])
+    ->name('webhooks.rip.contact');
 
 Route::middleware(['auth'])->group(function (): void {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');

@@ -26,6 +26,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias(['role' => EnsureStaffRole::class]);
 
+        // Les webhooks sont signés (HMAC), pas protégés par un jeton de session.
+        $middleware->validateCsrfTokens(except: ['webhooks/*']);
+
         // Derrière le répartiteur de charge de Laravel Cloud : nécessaire pour que
         // request()->secure(), les URL https et les cookies « secure » soient corrects.
         $middleware->trustProxies(at: '*');
@@ -42,7 +45,7 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request): bool => $request->is('api/*') || $request->expectsJson(),
+            fn (Request $request): bool => $request->is('api/*') || $request->is('webhooks/*') || $request->expectsJson(),
         );
 
         // Session expirée sur une page protégée : on l'explique au lieu de renvoyer

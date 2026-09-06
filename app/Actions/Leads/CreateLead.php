@@ -32,7 +32,12 @@ final readonly class CreateLead
             ]);
             $lead->statusChanges()->create(['from_status' => null, 'to_status' => LeadStatus::Todo, 'changed_by' => $by?->id, 'created_at' => now()]);
 
-            event(new DashboardUpdated('leads', ['id' => $lead->id], "a ajouté le lead {$lead->fullName()}"));
+            // Sans acteur (webhook du site), le front n'a pas de nom à préfixer : la phrase est complète.
+            $message = $by instanceof User
+                ? "a ajouté le lead {$lead->fullName()}"
+                : "Nouveau lead depuis le site : {$lead->fullName()}";
+
+            event(new DashboardUpdated('leads', ['id' => $lead->id], $message));
 
             return $lead;
         });
