@@ -27,7 +27,7 @@ test('the converting machine page lists offers, sources and currencies', functio
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->component('leads/create')
             ->has('offers', 2)
-            ->has('sources', 5)
+            ->has('sources', 6)
             ->has('currencies', 2)
             ->has('languages', 2)
             ->has('propertyTypes', 9)

@@ -16,6 +16,7 @@ export type LeadStatus =
 
 export type LeadSource =
     | 'website'
+    | 'phone'
     | 'referral'
     | 'social_media'
     | 'partner'

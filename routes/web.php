@@ -5,7 +5,9 @@ use App\Http\Controllers\Documents\DocumentRequestController;
 use App\Http\Controllers\Invoices\InvoiceController;
 use App\Http\Controllers\Leads\LeadController;
 use App\Http\Controllers\Places\PlacesController;
+use App\Http\Controllers\Webhooks\AlloWebhookController;
 use App\Http\Controllers\Webhooks\WebsiteContactController;
+use App\Http\Middleware\VerifyAlloWebhookSignature;
 use App\Http\Middleware\VerifyRipWebhookSignature;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -18,6 +20,11 @@ Route::get('/', fn () => to_route(Auth::check() ? 'dashboard' : 'login'))->name(
 Route::post('webhooks/rip/contact', WebsiteContactController::class)
     ->middleware([VerifyRipWebhookSignature::class, 'throttle:60,1'])
     ->name('webhooks.rip.contact');
+
+// Téléphonie Allo : appels terminés et SMS reçus, signés au format Standard Webhooks (ALLO_WEBHOOK_SECRET).
+Route::post('webhooks/allo', AlloWebhookController::class)
+    ->middleware([VerifyAlloWebhookSignature::class, 'throttle:120,1'])
+    ->name('webhooks.allo');
 
 Route::middleware(['auth'])->group(function (): void {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');

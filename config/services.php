@@ -21,6 +21,11 @@ return [
         'webhook_secret' => env('RIP_WEBHOOK_SECRET'),
     ],
 
+    // Téléphonie Allo (withallo.com) : secret « whsec_… » de l'endpoint webhook.
+    'allo' => [
+        'webhook_secret' => env('ALLO_WEBHOOK_SECRET'),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],
