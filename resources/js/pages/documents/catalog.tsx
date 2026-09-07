@@ -56,7 +56,7 @@ export default function DocumentsCatalog({ groups, categories }: Props) {
         }
 
         setBusy(true);
-        router.delete(destroy({ catalogDocument: removing.id }).url, {
+        router.delete(destroy({ catalogDocument: removing.uuid }).url, {
             preserveScroll: true,
             onSuccess: () => setRemoving(null),
             onFinish: () => setBusy(false),

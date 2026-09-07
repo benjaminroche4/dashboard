@@ -41,7 +41,8 @@ class StoreInvoiceRequest extends FormRequest
             'status' => ['nullable', Rule::enum(InvoiceStatus::class)],
             'notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1'],
-            'items.*.offer' => ['required', Rule::enum(Offer::class)],
+            'items.*.offer' => ['nullable', 'required_without:items.*.description', Rule::enum(Offer::class)],
+            'items.*.description' => ['nullable', 'required_without:items.*.offer', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'numeric', 'min:0'],
             'items.*.unit_price_cents' => ['required', 'integer', 'min:0'],
         ];
@@ -67,6 +68,7 @@ class StoreInvoiceRequest extends FormRequest
             'due_at' => "date d'échéance",
             'items' => 'lignes',
             'items.*.offer' => 'offre',
+            'items.*.description' => 'libellé',
             'items.*.quantity' => 'quantité',
             'items.*.unit_price_cents' => 'prix unitaire',
         ];

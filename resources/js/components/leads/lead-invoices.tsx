@@ -31,10 +31,13 @@ import type { InvoiceSearchHit, LeadInvoice } from '@/types';
  */
 export function LeadInvoices({
     leadId,
+    leadUuid,
     invoices,
     canEdit,
 }: {
     leadId: number;
+    /** Identifiant public du lead, pour le lien de création préremplie. */
+    leadUuid: string;
     invoices: LeadInvoice[];
     canEdit: boolean;
 }) {
@@ -83,7 +86,7 @@ export function LeadInvoices({
                             className="flex flex-wrap items-center justify-between gap-2 text-sm"
                         >
                             <Link
-                                href={invoiceShow({ invoice: invoice.id })}
+                                href={invoiceShow({ invoice: invoice.uuid })}
                                 className="inline-flex min-w-0 items-center gap-1.5 font-medium underline-offset-4 hover:underline"
                             >
                                 <Receipt
@@ -116,7 +119,9 @@ export function LeadInvoices({
             {canEdit && (
                 <div className="flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" asChild>
-                        <Link href={invoiceCreate({ query: { lead: leadId } })}>
+                        <Link
+                            href={invoiceCreate({ query: { lead: leadUuid } })}
+                        >
                             <FilePlus2 aria-hidden />
                             Créer une facture
                         </Link>
@@ -151,7 +156,7 @@ export function LeadInvoices({
                                                 }
                                                 onSelect={() =>
                                                     linkInvoice(
-                                                        hit.id,
+                                                        hit.uuid,
                                                         leadId,
                                                         () => {
                                                             setOpen(false);

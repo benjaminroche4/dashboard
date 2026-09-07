@@ -18,6 +18,7 @@ export function invoiceToForm(invoice: InvoiceDetail): InvoiceForm {
         notes: invoice.notes ?? '',
         items: invoice.items.map((line) => ({
             offer: line.offer,
+            description: line.offer === null ? line.description : '',
             quantity: String(line.quantity),
             unit_price: String(line.unit_price_cents / 100),
         })),

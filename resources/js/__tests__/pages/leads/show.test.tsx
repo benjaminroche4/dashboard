@@ -63,11 +63,13 @@ import {
     leadStatuses,
     lossReasons,
     makeLeadDetail,
+    makeInbound,
 } from '@/test/fixtures/lead';
 import type { LeadNote } from '@/types';
 
 const note = (overrides: Partial<LeadNote> = {}): LeadNote => ({
     id: 1,
+    uuid: '0199a9a0-0000-7000-8000-0000000000c1',
     body: 'Rappeler mardi.',
     by: 'Admin',
     avatar: null,
@@ -91,8 +93,14 @@ const base = {
         { value: 'whatsapp' as const, label: 'WhatsApp' },
     ],
     duplicates: [],
+    inbound: null,
+    agents: [],
+    partners: [],
+    partnerOptions: [],
+    partnerRoles: [],
     can: { delete: false },
     invoices: [],
+    quotes: [],
     documentRequests: [],
     lossReasons,
 };
@@ -140,7 +148,7 @@ describe('Lead detail page', () => {
         ).toHaveAttribute('href', 'tel:+33600000000');
         expect(screen.getByRole('link', { name: 'Modifier' })).toHaveAttribute(
             'href',
-            '/leads/1/edit',
+            '/leads/0199a9a0-0000-7000-8000-000000000001/edit',
         );
         expect(screen.getAllByText(/2.500,00.*\/ mois/).length).toBeGreaterThan(
             0,
@@ -168,10 +176,17 @@ describe('Lead detail page', () => {
         expect(screen.queryByText(/Non précisé/)).not.toBeInTheDocument();
 
         // Fil d'activité : notes et statuts mêlés, compteur, filtres.
-        const activity = within(
+        const section = within(
             screen.getByRole('region', { name: 'Activité' }),
         );
-        expect(activity.getByLabelText('3 entrées')).toHaveTextContent('3');
+        expect(section.getByLabelText('3 entrées')).toHaveTextContent('3');
+        expect(screen.queryByText('Rappeler mardi.')).not.toBeInTheDocument();
+        await userEvent.click(
+            section.getByRole('button', { name: 'Voir l’activité' }),
+        );
+        const activity = within(
+            screen.getByRole('dialog', { name: 'Activité' }),
+        );
         expect(activity.getByText('Rappeler mardi.')).toBeInTheDocument();
         expect(activity.getByText(/depuis À traiter/)).toBeInTheDocument();
         await userEvent.click(activity.getByRole('radio', { name: 'Statuts' }));
@@ -192,6 +207,12 @@ describe('Lead detail page', () => {
         );
 
         expect(
+            screen.queryByRole('textbox', { name: 'Nouvelle note' }),
+        ).not.toBeInTheDocument();
+        await user.click(
+            screen.getByRole('button', { name: 'Voir l’activité' }),
+        );
+        expect(
             screen.getByRole('button', { name: 'Ajouter la note' }),
         ).toBeDisabled();
         const box = screen.getByRole('textbox', { name: 'Nouvelle note' });
@@ -199,7 +220,7 @@ describe('Lead detail page', () => {
         await user.keyboard('{Meta>}{Enter}{/Meta}');
 
         expect(post).toHaveBeenCalledWith(
-            '/leads/1/notes',
+            '/leads/0199a9a0-0000-7000-8000-000000000001/notes',
             expect.objectContaining({ preserveScroll: true }),
         );
     });
@@ -223,7 +244,7 @@ describe('Lead detail page', () => {
         await user.click(screen.getByRole('button', { name: 'Mettre à jour' }));
 
         expect(patch).toHaveBeenCalledWith(
-            '/leads/1/contact',
+            '/leads/0199a9a0-0000-7000-8000-000000000001/contact',
             {},
             expect.objectContaining({ preserveScroll: true }),
         );
@@ -240,11 +261,12 @@ describe('Lead detail page', () => {
                 duplicates={[
                     {
                         id: 9,
+                        uuid: '0199a9a0-0000-7000-8000-000000000009',
                         name: 'Léa Durand (pro)',
                         email: 'lea@example.com',
                         phone: null,
                         status_label: 'Converti',
-                        url: '/leads/9',
+                        url: '/leads/0199a9a0-0000-7000-8000-000000000009',
                     },
                 ]}
                 can={{ delete: true }}
@@ -256,7 +278,10 @@ describe('Lead detail page', () => {
         expect(alert).toHaveTextContent('Un autre lead partage cet e-mail');
         expect(
             within(alert).getByRole('link', { name: 'Léa Durand (pro)' }),
-        ).toHaveAttribute('href', '/leads/9');
+        ).toHaveAttribute(
+            'href',
+            '/leads/0199a9a0-0000-7000-8000-000000000009',
+        );
 
         await user.click(
             screen.getByRole('button', { name: 'Plus d’actions' }),
@@ -313,5 +338,121 @@ describe('Lead detail page', () => {
         expect(screen.getByTestId('loss-reason')).toHaveTextContent(
             'Motif : Trop cher · Budget à 900 €.',
         );
+    });
+});
+
+describe('First contact countdown on the lead page', () => {
+    it('shows the overdue timer on a lead left without contact', () => {
+        render(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail({
+                    status: 'todo',
+                    created_at: new Date(
+                        Date.now() - 45 * 60_000,
+                    ).toISOString(),
+                    last_contacted_at: null,
+                })}
+                notes={[]}
+                history={[]}
+                invoices={[]}
+            />,
+        );
+
+        const timer = screen.getByRole('timer');
+        expect(timer).toHaveTextContent(/^En retard · \+15:0\d$/);
+        expect(timer).toHaveAttribute('data-late', 'true');
+    });
+    it('puts the inbound message first and condenses empty sections for a fresh website lead', async () => {
+        render(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail({
+                    status: 'todo',
+                    source: 'website',
+                    company: null,
+                    budget_cents: null,
+                    arrival_at: null,
+                    offer_label: null,
+                    score: null,
+                    qualification_note: null,
+                    origin_city: null,
+                    districts: [],
+                    property_types: [],
+                    duration_label: null,
+                    guarantor_label: null,
+                    furnished_label: null,
+                    message:
+                        "Bonjour, j'arrive à Paris en octobre avec ma famille.",
+                })}
+                inbound={makeInbound()}
+                notes={[]}
+                history={[]}
+                invoices={[]}
+            />,
+        );
+
+        const block = screen.getByTestId('lead-inbound');
+        expect(block).toHaveAttribute('data-state', 'open');
+        expect(block).toHaveTextContent('Message reçu depuis le site');
+        expect(block).toHaveTextContent('CT-4F2A11');
+        expect(block).toHaveTextContent("j'arrive à Paris en octobre");
+        expect(
+            within(block).getByRole('button', { name: 'Je m’en occupe' }),
+        ).toBeInTheDocument();
+
+        // Le message n'est pas répété dans « Note sur le projet », les chiffres clés vides disparaissent.
+        expect(
+            screen.queryByRole('region', { name: 'Note sur le projet' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByLabelText('Chiffres clés'),
+        ).not.toBeInTheDocument();
+        // Projet et Qualification sont vides : une ligne et un bouton chacun, pas de grille de champs vides.
+        expect(screen.getAllByText('Non renseigné')).toHaveLength(2);
+        expect(screen.getAllByRole('link', { name: 'Compléter' })).toHaveLength(
+            2,
+        );
+        const qualification = within(
+            screen.getByRole('region', { name: 'Qualification' }),
+        );
+        expect(qualification.getByText('Non renseigné')).toBeInTheDocument();
+        expect(
+            qualification.getByRole('link', { name: 'Compléter' }),
+        ).toHaveAttribute('href', '/leads/' + makeLeadDetail().uuid + '/edit');
+    });
+
+    it('collapses the inbound message once the lead is being handled', async () => {
+        const user = userEvent.setup();
+        render(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail({
+                    status: 'in_progress',
+                    source: 'phone',
+                })}
+                inbound={makeInbound({
+                    kind: 'call',
+                    meta: 'Appel entrant (5,5 min, répondu)',
+                    body: 'Cherche un T2 dans le 11e.',
+                })}
+                notes={[]}
+                history={[]}
+                invoices={[]}
+            />,
+        );
+
+        const block = screen.getByTestId('lead-inbound');
+        expect(block).toHaveAttribute('data-state', 'collapsed');
+        expect(block).not.toHaveTextContent('Cherche un T2');
+        await user.click(
+            within(block).getByRole('button', { name: 'Afficher' }),
+        );
+        expect(block).toHaveTextContent('Cherche un T2 dans le 11e.');
+        expect(
+            within(block).queryByRole('button', { name: 'Je m’en occupe' }),
+        ).not.toBeInTheDocument();
+        // Les sections gardent leurs lignes « Non renseigné » sur un lead déjà pris en charge.
+        expect(screen.getAllByText('Non renseigné').length).toBeGreaterThan(0);
     });
 });

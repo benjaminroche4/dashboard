@@ -39,7 +39,10 @@ describe('InvoiceRowActions', () => {
 
         expect(
             await screen.findByRole('menuitem', { name: 'Voir la facture' }),
-        ).toHaveAttribute('href', '/invoices/1');
+        ).toHaveAttribute(
+            'href',
+            '/invoices/0199a9a0-0000-7000-8000-000000000101',
+        );
         expect(
             screen.getByRole('menuitem', { name: 'Télécharger le PDF' }),
         ).toBeInTheDocument();

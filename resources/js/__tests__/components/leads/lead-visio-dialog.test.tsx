@@ -91,7 +91,7 @@ describe('LeadVisioDialog', () => {
         );
 
         expect(post).toHaveBeenCalledWith(
-            '/leads/1/visio',
+            '/leads/0199a9a0-0000-7000-8000-000000000001/visio',
             { visio_at: '2030-03-20T14:30' },
             expect.objectContaining({ preserveScroll: true }),
         );

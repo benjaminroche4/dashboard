@@ -48,12 +48,16 @@ export function computeInvoiceTotals(
     const lines = items.map((item) => {
         const quantity = toNumber(item.quantity);
         const unitPriceCents = toCents(item.unit_price);
-        const offer = offers.find(
-            (candidate) => candidate.value === item.offer,
-        );
+        const offer =
+            item.offer === null
+                ? null
+                : offers.find((candidate) => candidate.value === item.offer);
 
         return {
-            description: offer?.description ?? item.offer,
+            description:
+                item.offer === null
+                    ? item.description.trim() || 'Ligne libre'
+                    : (offer?.description ?? item.offer),
             quantity,
             unitPriceCents,
             totalCents: Math.round(quantity * unitPriceCents),
@@ -130,6 +134,10 @@ export function validateInvoiceForm(form: InvoiceForm): InvoiceFormErrors {
     }
 
     form.items.forEach((line, index) => {
+        if (line.offer === null && line.description.trim() === '') {
+            errors[`items.${index}.description`] = 'Indiquez un libellé.';
+        }
+
         if (line.unit_price.trim() === '' || toCents(line.unit_price) <= 0) {
             errors[`items.${index}.unit_price_cents`] =
                 'Indiquez un prix unitaire.';

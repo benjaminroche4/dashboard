@@ -117,6 +117,7 @@ const props = {
 
 const lead = {
     id: 7,
+    uuid: '0199a9a0-0000-7000-8000-000000000007',
     name: 'Léa Durand',
     first_name: 'Léa',
     last_name: 'Durand',
@@ -153,6 +154,20 @@ async function fillContact(user: ReturnType<typeof userEvent.setup>) {
 
 describe('Converting Machine page', () => {
     beforeEach(() => vi.clearAllMocks());
+
+    it('offers the closing guide next to the title', async () => {
+        const user = userEvent.setup();
+        render(<LeadsCreate {...props} />);
+
+        await user.click(
+            screen.getByRole('button', { name: 'Guide de closing' }),
+        );
+
+        expect(
+            screen.getByRole('dialog', { name: 'Guide de closing' }),
+        ).toBeInTheDocument();
+        expect(screen.getByLabelText('Prénom')).toBeInTheDocument();
+    });
 
     it('describes each offer in one sentence', () => {
         render(<LeadsCreate {...props} />);
@@ -325,7 +340,7 @@ describe('Converting Machine page', () => {
         expect(screen.getByRole('radio', { name: 'Confié' })).toBeChecked();
         expect(screen.getByRole('link', { name: 'Annuler' })).toHaveAttribute(
             'href',
-            '/leads/7',
+            '/leads/0199a9a0-0000-7000-8000-000000000007',
         );
 
         await user.click(
@@ -337,7 +352,9 @@ describe('Converting Machine page', () => {
 
         await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
-        expect(put).toHaveBeenCalledWith('/leads/7');
+        expect(put).toHaveBeenCalledWith(
+            '/leads/0199a9a0-0000-7000-8000-000000000007',
+        );
         expect(post).not.toHaveBeenCalled();
     });
 
@@ -370,11 +387,12 @@ describe('Converting Machine page', () => {
                 json: async () => [
                     {
                         id: 9,
+                        uuid: '0199a9a0-0000-7000-8000-000000000009',
                         name: 'Léa Durand',
                         email: 'lea@example.com',
                         phone: null,
                         status_label: 'En cours',
-                        url: '/leads/9',
+                        url: '/leads/0199a9a0-0000-7000-8000-000000000009',
                     },
                 ],
             })),
@@ -389,7 +407,10 @@ describe('Converting Machine page', () => {
         ).toBeInTheDocument();
         expect(
             screen.getByRole('link', { name: 'Léa Durand' }),
-        ).toHaveAttribute('href', '/leads/9');
+        ).toHaveAttribute(
+            'href',
+            '/leads/0199a9a0-0000-7000-8000-000000000009',
+        );
         expect(fetch).toHaveBeenCalledWith(
             expect.stringContaining('/leads/duplicates?'),
             expect.anything(),

@@ -116,7 +116,7 @@ export function LeadSendDialog({
             `E-mail à ${lead.email ?? 'ce lead'}`,
         );
         router.post(
-            send({ lead: lead.id }).url,
+            send({ lead: lead.uuid }).url,
             {
                 items,
                 payment_plan: items.includes('payment_link') ? plan : null,

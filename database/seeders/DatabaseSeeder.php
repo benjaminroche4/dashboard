@@ -24,8 +24,12 @@ final class DatabaseSeeder extends Seeder
         $this->call([
             StaffSeeder::class,
             InvoiceSeeder::class,
+            QuoteSeeder::class,
             LeadSeeder::class,
             DocumentRequestSeeder::class,
+            RealEstateSeeder::class,
+            PartnerSeeder::class,
+            OwnerSeeder::class,
         ]);
     }
 }

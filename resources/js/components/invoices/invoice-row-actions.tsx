@@ -36,13 +36,13 @@ export function InvoiceRowActions({ invoice }: { invoice: Invoice }) {
                 <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                     <DropdownMenuItem asChild>
-                        <Link href={show({ invoice: invoice.id })}>
+                        <Link href={show({ invoice: invoice.uuid })}>
                             Voir la facture
                         </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                         onClick={() =>
-                            downloadInvoicePdf(invoice.id, invoice.number)
+                            downloadInvoicePdf(invoice.uuid, invoice.number)
                         }
                     >
                         Télécharger le PDF
@@ -59,7 +59,7 @@ export function InvoiceRowActions({ invoice }: { invoice: Invoice }) {
                         disabled={!invoice.can_send}
                         onClick={() =>
                             router.post(
-                                send({ invoice: invoice.id }).url,
+                                send({ invoice: invoice.uuid }).url,
                                 {},
                                 { preserveScroll: true },
                             )
@@ -77,7 +77,7 @@ export function InvoiceRowActions({ invoice }: { invoice: Invoice }) {
             </DropdownMenu>
 
             <MarkPaidDialog
-                invoiceId={invoice.id}
+                invoiceUuid={invoice.uuid}
                 invoiceNumber={invoice.number}
                 open={paying}
                 onOpenChange={setPaying}

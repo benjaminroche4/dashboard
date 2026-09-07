@@ -40,7 +40,7 @@ export function DocumentRequestRowActions({
 
     const remove = () => {
         setBusy(true);
-        router.delete(destroy({ documentRequest: request.id }).url, {
+        router.delete(destroy({ documentRequest: request.uuid }).url, {
             onFinish: () => setBusy(false),
         });
     };
@@ -61,19 +61,24 @@ export function DocumentRequestRowActions({
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                     {!hideView && (
                         <DropdownMenuItem asChild>
-                            <Link href={show({ documentRequest: request.id })}>
+                            <Link
+                                href={show({ documentRequest: request.uuid })}
+                            >
                                 Voir la liste
                             </Link>
                         </DropdownMenuItem>
                     )}
                     <DropdownMenuItem asChild>
-                        <Link href={edit({ documentRequest: request.id })}>
+                        <Link href={edit({ documentRequest: request.uuid })}>
                             Modifier
                         </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                         onClick={() =>
-                            downloadDocumentRequestPdf(request.id, request.name)
+                            downloadDocumentRequestPdf(
+                                request.uuid,
+                                request.name,
+                            )
                         }
                     >
                         Télécharger le PDF

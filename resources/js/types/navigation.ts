@@ -20,6 +20,8 @@ export type NavItem = {
 export type NavSubItem = {
     title: string;
     href: NonNullable<InertiaLinkProps['href']>;
+    /** Compteur affiché à droite du sous-lien. */
+    badge?: number;
 };
 
 export type NavGroup = {

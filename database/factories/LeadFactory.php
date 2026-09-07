@@ -68,6 +68,25 @@ class LeadFactory extends Factory
         ]);
     }
 
+    /**
+     * Lead arrivé à une date aléatoire des derniers mois, contacté peu après
+     * (5 min à 3 h) s'il n'est plus « À traiter » : les rapports ont ainsi
+     * une vraie courbe et un délai de premier contact plausible.
+     */
+    public function overLastMonths(int $months = 6): static
+    {
+        return $this->state(function (array $attributes) use ($months): array {
+            $createdAt = fake()->dateTimeBetween("-{$months} months", 'now');
+            $status = $attributes['status'] ?? LeadStatus::Todo;
+
+            return [
+                'created_at' => $createdAt,
+                'updated_at' => $createdAt,
+                'last_contacted_at' => $status === LeadStatus::Todo ? null : (clone $createdAt)->modify('+'.fake()->numberBetween(5, 180).' minutes'),
+            ];
+        });
+    }
+
     public function assignedTo(User $user): static
     {
         return $this->state(fn (): array => ['assigned_to' => $user->id]);

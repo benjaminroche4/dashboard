@@ -13,6 +13,7 @@ import { downloadInvoicePdf } from '@/lib/download-invoice-pdf';
 import { invoiceToForm } from '@/lib/invoice-to-form';
 import { cn } from '@/lib/utils';
 import { index as invoicesIndex } from '@/routes/invoices';
+import { index as toolsIndex } from '@/routes/tools';
 import type {
     Company,
     InvoiceDetail,
@@ -101,7 +102,7 @@ export default function InvoicesShow({
                         <Button
                             variant="outline"
                             onClick={() =>
-                                downloadInvoicePdf(invoice.id, invoice.number)
+                                downloadInvoicePdf(invoice.uuid, invoice.number)
                             }
                         >
                             <Download />
@@ -144,7 +145,7 @@ export default function InvoicesShow({
 
                     <aside className="flex flex-col gap-6">
                         <InvoiceLeadLink
-                            invoiceId={invoice.id}
+                            invoiceUuid={invoice.uuid}
                             lead={invoice.lead}
                             canEdit={auth.user.role !== 'member'}
                         />
@@ -223,14 +224,14 @@ export default function InvoicesShow({
             </div>
 
             <SendInvoiceDialog
-                invoiceId={invoice.id}
+                invoiceUuid={invoice.uuid}
                 invoiceNumber={invoice.number}
                 clientEmail={invoice.client_email}
                 open={sending}
                 onOpenChange={setSending}
             />
             <MarkPaidDialog
-                invoiceId={invoice.id}
+                invoiceUuid={invoice.uuid}
                 invoiceNumber={invoice.number}
                 open={paying}
                 onOpenChange={setPaying}
@@ -242,7 +243,7 @@ export default function InvoicesShow({
 // Objet et non fonction : Inertia v3 traiterait une fonction comme un composant de layout.
 InvoicesShow.layout = {
     breadcrumbs: [
-        { title: 'Leads', href: '#' },
+        { title: 'Outils', href: toolsIndex() },
         { title: 'Factures', href: invoicesIndex() },
         { title: 'Détail', href: '#' },
     ],

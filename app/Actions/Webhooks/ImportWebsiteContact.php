@@ -57,7 +57,11 @@ final readonly class ImportWebsiteContact
             externalReference: $contact->reference,
         );
 
-        return $this->createLead->handle($data);
+        $lead = $this->createLead->handle($data);
+        // Le type de demande sépare les propriétaires (gestion locative) des locataires.
+        $lead->forceFill(['help_type' => $contact->helpType])->save();
+
+        return $lead;
     }
 
     private function sourceNote(WebsiteContactData $contact): string

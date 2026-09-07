@@ -8,6 +8,8 @@ import {
     ShieldCheck,
     Sparkles,
     UserCircle,
+    Building2,
+    Handshake,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { search as leadsSearch } from '@/routes/leads';
@@ -22,7 +24,15 @@ import {
 } from '@/components/ui/command';
 import { dashboard } from '@/routes';
 import { edit as editAppearance } from '@/routes/appearance';
+import { index as agenciesIndex } from '@/routes/agencies';
+import { index as agentsIndex } from '@/routes/agents';
 import { index as invoicesIndex } from '@/routes/invoices';
+import {
+    index as partnersIndex,
+    search as partnersSearch,
+} from '@/routes/partners';
+import { partnerTypeIcons } from '@/lib/partner-type-icons';
+import type { PartnerType } from '@/types';
 import { create as leadsCreate, index as leadsIndex } from '@/routes/leads';
 import { edit as editProfile } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
@@ -34,6 +44,16 @@ type LeadHit = {
     email: string | null;
     company: string | null;
     status_label: string;
+    url: string;
+};
+
+type PartnerHit = {
+    id: number;
+    uuid: string;
+    name: string;
+    type: PartnerType;
+    type_label: string;
+    contact: string | null;
     url: string;
 };
 
@@ -71,6 +91,24 @@ const destinations: Destination[] = [
         keywords: 'leads facturation paiement',
         url: invoicesIndex().url,
         icon: FileText,
+    },
+    {
+        title: 'Agents immobiliers',
+        keywords: 'agent immobilier négociateur partenaire',
+        url: agentsIndex().url,
+        icon: Building2,
+    },
+    {
+        title: 'Agences immobilières',
+        keywords: 'agence immobilière partenaire',
+        url: agenciesIndex().url,
+        icon: Building2,
+    },
+    {
+        title: 'Partenaires',
+        keywords: 'partenaire gestion assurance banque déménagement',
+        url: partnersIndex().url,
+        icon: Handshake,
     },
     {
         title: 'Mon compte',
@@ -118,6 +156,7 @@ export function SearchCommand() {
 
     const [query, setQuery] = useState('');
     const [leads, setLeads] = useState<LeadHit[]>([]);
+    const [partners, setPartners] = useState<PartnerHit[]>([]);
 
     // Recherche de leads côté serveur, avec un léger délai pour ne pas spammer.
     useEffect(() => {
@@ -125,6 +164,7 @@ export function SearchCommand() {
 
         if (needle.length < 2) {
             setLeads([]);
+            setPartners([]);
 
             return;
         }
@@ -138,6 +178,14 @@ export function SearchCommand() {
             })
                 .then((response) => (response.ok ? response.json() : []))
                 .then((hits: LeadHit[]) => setLeads(hits))
+                .catch(() => undefined);
+            fetch(partnersSearch({ query: { q: needle } }).url, {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json' },
+                signal: controller.signal,
+            })
+                .then((response) => (response.ok ? response.json() : []))
+                .then((hits: PartnerHit[]) => setPartners(hits))
                 .catch(() => undefined);
         }, 200);
 
@@ -175,7 +223,7 @@ export function SearchCommand() {
                 description="Naviguer dans le backoffice"
             >
                 <CommandInput
-                    placeholder="Rechercher une page ou un lead…"
+                    placeholder="Rechercher une page, un lead ou un partenaire…"
                     value={query}
                     onValueChange={setQuery}
                 />
@@ -209,6 +257,36 @@ export function SearchCommand() {
                                     </span>
                                 </CommandItem>
                             ))}
+                        </CommandGroup>
+                    )}
+                    {partners.length > 0 && (
+                        <CommandGroup heading="Partenaires">
+                            {partners.map((partner) => {
+                                const Icon =
+                                    partnerTypeIcons[partner.type] ?? Handshake;
+
+                                return (
+                                    <CommandItem
+                                        key={partner.uuid}
+                                        value={`partenaire ${partner.name} ${partner.contact ?? ''} ${partner.type_label}`}
+                                        onSelect={() => go(partner.url)}
+                                    >
+                                        <Icon />
+                                        <span className="truncate">
+                                            {partner.name}
+                                            {partner.contact && (
+                                                <span className="text-muted-foreground">
+                                                    {' '}
+                                                    · {partner.contact}
+                                                </span>
+                                            )}
+                                        </span>
+                                        <span className="text-muted-foreground ml-auto truncate text-xs">
+                                            {partner.type_label}
+                                        </span>
+                                    </CommandItem>
+                                );
+                            })}
                         </CommandGroup>
                     )}
                     <CommandGroup heading="Pages">

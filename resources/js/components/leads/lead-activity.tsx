@@ -181,12 +181,12 @@ function groupActivity(items: ActivityItem[]): Group[] {
 function NoteBubble({
     note,
     mine,
-    leadId,
+    leadUuid,
     staffNames,
 }: {
     note: LeadNote;
     mine: boolean;
-    leadId: number;
+    leadUuid: string;
     staffNames: string[];
 }) {
     const [editing, setEditing] = useState(false);
@@ -205,7 +205,7 @@ function NoteBubble({
 
         setBusy(true);
         router.patch(
-            updateNote({ lead: leadId, note: note.id }).url,
+            updateNote({ lead: leadUuid, note: note.uuid }).url,
             { body: draft },
             {
                 preserveScroll: true,
@@ -216,7 +216,7 @@ function NoteBubble({
     };
     const remove = () => {
         setBusy(true);
-        router.delete(destroyNote({ lead: leadId, note: note.id }).url, {
+        router.delete(destroyNote({ lead: leadUuid, note: note.uuid }).url, {
             preserveScroll: true,
             onFinish: () => {
                 setBusy(false);
@@ -363,14 +363,14 @@ function NoteBubble({
  * ligne), dans l'ordre chronologique, avec un filtre par type.
  */
 export function LeadActivity({
-    leadId,
+    leadUuid,
     notes,
     history,
     staffNames = [],
     filter,
     className,
 }: {
-    leadId: number;
+    leadUuid: string;
     notes: LeadNote[];
     history: LeadStatusChange[];
     /** Noms du staff, pour mettre en valeur les mentions. */
@@ -402,8 +402,9 @@ export function LeadActivity({
                 <MessageScrollerViewport>
                     <MessageScrollerContent
                         role="list"
-                        // pb-5 : le fondu du bas du viewport ne masque pas la dernière bulle.
-                        className="min-h-0 gap-1 pt-0.5 pb-8"
+                        // justify-end : le fil est collé en bas, comme une discussion.
+                        // pb-8 : le fondu du bas du viewport ne masque pas la dernière bulle.
+                        className="min-h-full justify-end gap-1 pt-0.5 pb-8"
                     >
                         {groups.map((group) => {
                             if (group.kind === 'status') {
@@ -482,7 +483,7 @@ export function LeadActivity({
                                                         key={note.id}
                                                         note={note}
                                                         mine={mine}
-                                                        leadId={leadId}
+                                                        leadUuid={leadUuid}
                                                         staffNames={staffNames}
                                                     />
                                                 ))}

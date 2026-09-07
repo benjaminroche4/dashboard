@@ -74,7 +74,7 @@ export function LeadRecontact({
     const save = (clear = false) => {
         setBusy(true);
         router.patch(
-            leadRecontact({ lead: lead.id }).url,
+            leadRecontact({ lead: lead.uuid }).url,
             clear
                 ? { recontact_at: null, recontact_channel: null }
                 : { recontact_at: date, recontact_channel: channel || null },

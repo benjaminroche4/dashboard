@@ -5,6 +5,7 @@ import {
     Pencil,
     PlaneLanding,
     Star,
+    TriangleAlert,
 } from 'lucide-react';
 import { useState } from 'react';
 import { CountryFlag } from '@/components/country-flag';
@@ -12,15 +13,22 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DistrictMap } from '@/components/leads/district-map';
 import { LeadDocumentRequests } from '@/components/leads/lead-document-requests';
 import { LeadInvoices } from '@/components/leads/lead-invoices';
+import { LeadQuotes } from '@/components/leads/lead-quotes';
 import { LeadSendDialog } from '@/components/leads/lead-send-dialog';
 import { LeadVisioDialog } from '@/components/leads/lead-visio-dialog';
+import { LeadAgentCard } from '@/components/leads/lead-agent-card';
+import { LeadPartnersCard } from '@/components/leads/lead-partners-card';
+import { LeadConvertDialog } from '@/components/leads/lead-convert-dialog';
 import { LeadHeaderMenu } from '@/components/leads/lead-header-menu';
+import { LeadInboundMessage as InboundMessage } from '@/components/leads/lead-inbound-message';
 import {
     LeadActivity,
     activityFilters,
     buildActivity,
     type ActivityFilter,
 } from '@/components/leads/lead-activity';
+import { LeadProject } from '@/components/leads/lead-project';
+import { LeadActivitySheet } from '@/components/leads/lead-activity-sheet';
 import { LeadNoteComposer } from '@/components/leads/lead-note-composer';
 import { LeadRecontact } from '@/components/leads/lead-recontact';
 import { LeadReference } from '@/components/leads/lead-reference';
@@ -40,7 +48,9 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { formatDate, formatMoney } from '@/lib/format';
-import { daysUntil, leadUrgency } from '@/lib/lead-urgency';
+import { daysUntil, firstContactTimer, leadUrgency } from '@/lib/lead-urgency';
+import { useNow } from '@/hooks/use-now';
+import { FirstContactBadge } from '@/components/leads/first-contact-badge';
 import { budgetTier, budgetTierLabels } from '@/lib/paris-budget';
 import { notify } from '@/lib/toast';
 import { describeDistricts } from '@/lib/paris-districts';
@@ -55,12 +65,18 @@ import { store as storeNote } from '@/routes/leads/notes';
 import type {
     LabeledOption,
     LeadDetail,
+    AgentOption,
+    LeadPartnerLink,
+    PartnerOption,
+    PartnerRoleOption,
     LeadDuplicate,
+    LeadInboundMessage,
     LeadInvoice,
     LeadLossReason,
     LeadDocumentRequest,
     LeadNote,
     LeadStatusChange,
+    LeadQuote,
     LeadStatusOption,
     LeadSending,
     RecontactChannel,
@@ -69,6 +85,7 @@ import type {
 type Props = {
     lead: LeadDetail;
     invoices: LeadInvoice[];
+    quotes: LeadQuote[];
     documentRequests: LeadDocumentRequest[];
     notes: LeadNote[];
     history: LeadStatusChange[];
@@ -76,6 +93,14 @@ type Props = {
     sending: LeadSending;
     recontactChannels: LabeledOption<RecontactChannel>[];
     duplicates: LeadDuplicate[];
+    /** Message d'arrivée du lead (site, appel, SMS), null s'il a été saisi par l'équipe. */
+    inbound: LeadInboundMessage | null;
+    /** Annuaire des agents immobiliers pour la carte « Agent en contact ». */
+    agents: AgentOption[];
+    /** Partenaires du dossier, annuaire et rôles pour la carte « Partenaires du dossier ». */
+    partners: LeadPartnerLink[];
+    partnerOptions: PartnerOption[];
+    partnerRoles: PartnerRoleOption[];
     can: { delete: boolean };
     lossReasons: LabeledOption<LeadLossReason>[];
 };
@@ -96,6 +121,7 @@ const dateTime = new Intl.DateTimeFormat('fr-FR', {
 export default function LeadsShow({
     lead,
     invoices,
+    quotes,
     documentRequests,
     notes,
     history,
@@ -103,6 +129,11 @@ export default function LeadsShow({
     sending,
     recontactChannels,
     duplicates,
+    inbound,
+    agents,
+    partners,
+    partnerOptions,
+    partnerRoles,
     can,
     lossReasons,
 }: Props) {
@@ -115,7 +146,7 @@ export default function LeadsShow({
     const moveToQuoteSent = () => {
         setMovingToQuote(true);
         router.patch(
-            leadStatusRoute({ lead: lead.id }).url,
+            leadStatusRoute({ lead: lead.uuid }).url,
             { status: 'quote_sent' },
             {
                 preserveScroll: true,
@@ -136,7 +167,7 @@ export default function LeadsShow({
     const touchContact = () => {
         setTouchingContact(true);
         router.patch(
-            leadContact({ lead: lead.id }).url,
+            leadContact({ lead: lead.uuid }).url,
             {},
             {
                 preserveScroll: true,
@@ -145,9 +176,10 @@ export default function LeadsShow({
         );
     };
     const urgency = leadUrgency(lead);
+    const firstContact = firstContactTimer(lead, useNow(1_000));
 
     const submitNote = () => {
-        noteForm.post(storeNote({ lead: lead.id }).url, {
+        noteForm.post(storeNote({ lead: lead.uuid }).url, {
             preserveScroll: true,
             onSuccess: () => noteForm.reset(),
         });
@@ -169,10 +201,15 @@ export default function LeadsShow({
                 : `Dans ${arrivalDays} j`;
     const tier = budgetTier(lead.budget_cents ?? 0, lead.districts);
     const facts: Fact[] = [
-        { label: 'Offre visée', value: lead.offer_label ?? missing() },
+        {
+            label: 'Offre visée',
+            value: lead.offer_label ?? missing(),
+            empty: lead.offer_label === null,
+        },
         {
             label: 'Budget mensuel',
             value: budget ? `${budget} / mois` : missing(),
+            empty: budget === null,
             badge: tier ? budgetTierLabels[tier] : null,
             badgeTone:
                 tier === 'tight'
@@ -185,14 +222,17 @@ export default function LeadsShow({
             label: "Date d'arrivée",
             value: lead.arrival_at ? formatDate(lead.arrival_at) : missing(),
             badge: arrivalBadge,
+            empty: lead.arrival_at === null,
         },
         {
             label: "Ville d'origine",
             value: lead.origin_city ?? missing(),
+            empty: lead.origin_city === null,
         },
         {
             label: 'Quartiers visés',
             value: describeDistricts(lead.districts) ?? missing(),
+            empty: lead.districts.length === 0,
         },
         {
             label: 'Type de bien',
@@ -200,15 +240,22 @@ export default function LeadsShow({
                 lead.property_types.length > 0
                     ? lead.property_types.map((type) => type.label).join(', ')
                     : missing(),
+            empty: lead.property_types.length === 0,
         },
         {
             label: "Durée d'installation",
             value: lead.duration_label ?? missing(),
+            empty: lead.duration_label === null,
         },
-        { label: 'Garant', value: lead.guarantor_label ?? missing() },
+        {
+            label: 'Garant',
+            value: lead.guarantor_label ?? missing(),
+            empty: lead.guarantor_label === null,
+        },
         {
             label: 'Meublé',
             value: lead.furnished_label ?? missing('Indifférent'),
+            empty: lead.furnished_label === null,
         },
         {
             label: 'Source',
@@ -221,6 +268,7 @@ export default function LeadsShow({
     const contact: Fact[] = [
         {
             label: 'E-mail',
+            empty: !lead.email,
             value: lead.email ? (
                 <a
                     href={`mailto:${lead.email}`}
@@ -234,6 +282,7 @@ export default function LeadsShow({
         },
         {
             label: 'Téléphone',
+            empty: !lead.phone,
             value: lead.phone ? (
                 <a
                     href={`tel:${lead.phone.replace(/\s+/g, '')}`}
@@ -248,6 +297,7 @@ export default function LeadsShow({
         {
             label: 'Société',
             value: lead.company ?? missing(),
+            empty: lead.company === null,
         },
         {
             label: 'Langue',
@@ -266,11 +316,13 @@ export default function LeadsShow({
         {
             label: 'Qualité du lead',
             value: lead.score === null ? missing() : `${lead.score} / 5`,
+            empty: lead.score === null,
         },
         {
             label: 'Note de qualification',
             multiline: true,
             value: lead.qualification_note ?? missing(),
+            empty: lead.qualification_note === null,
         },
     ];
     const kpis: Kpi[] = [
@@ -296,6 +348,19 @@ export default function LeadsShow({
                 ),
         },
     ];
+    // Lead arrivé du site ou du téléphone et pas encore traité : son message
+    // prime, les champs vides disparaissent au profit d'un bouton « Compléter ».
+    const condensed = inbound !== null && lead.status === 'todo';
+    const onlyFilled = (list: Fact[]): Fact[] =>
+        condensed ? list.filter((fact) => !fact.empty) : list;
+    const visibleFacts = onlyFilled(
+        condensed ? facts.filter((fact) => fact.label !== 'Source') : facts,
+    );
+    const hasKpi =
+        budget !== null ||
+        lead.arrival_at !== null ||
+        lead.offer_label !== null ||
+        lead.score !== null;
     const map = (
         <div className="grid gap-2">
             <p className="text-muted-foreground text-sm">
@@ -325,13 +390,15 @@ export default function LeadsShow({
         ? dateTime.format(new Date(lead.last_contacted_at))
         : 'Jamais';
     const staffNames = staff.map((member) => member.name);
+    const activityCount = buildActivity(notes, history).length;
     const activityNode = (
         <LeadActivity
-            leadId={lead.id}
+            leadUuid={lead.uuid}
             notes={notes}
             history={history}
             staffNames={staffNames}
             filter={filter}
+            className="max-h-none"
         />
     );
     const filtersNode = (
@@ -453,10 +520,12 @@ export default function LeadsShow({
                                     </span>
                                 )}
                             </p>
-                            {(urgency.contact === 'warn' ||
+                            {(firstContact !== null ||
+                                urgency.contact === 'warn' ||
                                 urgency.contact === 'late' ||
                                 urgency.arrivalInDays !== null) && (
                                 <div className="flex flex-wrap gap-1.5 pt-2">
+                                    <FirstContactBadge timer={firstContact} />
                                     {(urgency.contact === 'warn' ||
                                         urgency.contact === 'late') && (
                                         <Badge
@@ -499,11 +568,16 @@ export default function LeadsShow({
                     </div>
                     <div className="flex items-center gap-2">
                         <Button variant="outline" asChild>
-                            <Link href={leadEdit({ lead: lead.id })}>
+                            <Link href={leadEdit({ lead: lead.uuid })}>
                                 <Pencil />
                                 Modifier
                             </Link>
                         </Button>
+                        <LeadConvertDialog
+                            leadUuid={lead.uuid}
+                            leadName={lead.name}
+                            status={lead.status}
+                        />
                         <LeadHeaderMenu
                             lead={lead}
                             canDelete={can.delete}
@@ -513,7 +587,12 @@ export default function LeadsShow({
                 </div>
 
                 {duplicates.length > 0 && (
-                    <Alert className="mb-6" data-testid="lead-duplicates">
+                    <Alert
+                        variant="warning"
+                        className="mb-6"
+                        data-testid="lead-duplicates"
+                    >
+                        <TriangleAlert aria-hidden />
                         <AlertTitle>
                             {duplicates.length > 1
                                 ? `${duplicates.length} autres leads partagent cet e-mail ou ce téléphone`
@@ -528,11 +607,11 @@ export default function LeadsShow({
                                     <li key={duplicate.id}>
                                         <Link
                                             href={duplicate.url}
-                                            className="text-foreground underline-offset-4 hover:underline"
+                                            className="font-medium underline-offset-4 hover:underline"
                                         >
                                             {duplicate.name}
                                         </Link>
-                                        <span className="text-muted-foreground">
+                                        <span className="opacity-80">
                                             {' '}
                                             · {duplicate.status_label}
                                         </span>
@@ -543,30 +622,65 @@ export default function LeadsShow({
                     </Alert>
                 )}
 
+                {inbound && (
+                    <InboundMessage
+                        lead={lead}
+                        inbound={inbound}
+                        className="mb-8"
+                    />
+                )}
+
                 <LeadShowBody
+                    completeUrl={
+                        condensed
+                            ? leadEdit({ lead: lead.uuid }).url
+                            : undefined
+                    }
                     invoices={
                         <LeadInvoices
                             leadId={lead.id}
+                            leadUuid={lead.uuid}
                             invoices={invoices}
+                            canEdit={auth.user.role !== 'member'}
+                        />
+                    }
+                    quotes={
+                        <LeadQuotes
+                            leadUuid={lead.uuid}
+                            quotes={quotes}
                             canEdit={auth.user.role !== 'member'}
                         />
                     }
                     documents={
                         <LeadDocumentRequests
-                            leadId={lead.id}
+                            leadUuid={lead.uuid}
                             requests={documentRequests}
                         />
                     }
-                    contact={contact}
-                    facts={facts}
-                    message={lead.message}
-                    qualification={qualification}
+                    contact={onlyFilled(contact)}
+                    facts={visibleFacts}
+                    project={<LeadProject facts={visibleFacts} map={map} />}
+                    message={
+                        inbound?.kind === 'website' && condensed
+                            ? null
+                            : lead.message
+                    }
+                    qualification={onlyFilled(qualification)}
                     map={map}
                     assign={assign}
                     recontact={
                         <LeadRecontact
                             lead={lead}
                             channels={recontactChannels}
+                        />
+                    }
+                    agent={<LeadAgentCard lead={lead} agents={agents} />}
+                    partners={
+                        <LeadPartnersCard
+                            lead={lead}
+                            links={partners}
+                            partners={partnerOptions}
+                            roles={partnerRoles}
                         />
                     }
                     lastContact={lastContact}
@@ -594,11 +708,17 @@ export default function LeadsShow({
                             )}
                         </div>
                     }
-                    activity={activityNode}
-                    activityCount={buildActivity(notes, history).length}
-                    activityFilters={filtersNode}
-                    composer={composerNode}
-                    kpis={kpis}
+                    activity={
+                        <LeadActivitySheet
+                            count={activityCount}
+                            filters={filtersNode}
+                            composer={composerNode}
+                        >
+                            {activityNode}
+                        </LeadActivitySheet>
+                    }
+                    activityCount={activityCount}
+                    kpis={condensed && !hasKpi ? [] : kpis}
                 />
             </div>
         </>

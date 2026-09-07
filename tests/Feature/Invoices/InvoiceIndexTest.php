@@ -22,6 +22,7 @@ test('staff can list every invoice, newest first', function (): void {
             ->component('invoices/index')
             ->has('invoices', 4)
             ->where('invoices.0.number', $latest->number)
+            ->where('invoices.0.uuid', $latest->uuid)
             ->where('invoices.0.status', 'paid')
             ->where('invoices.0.status_label', 'Payée')
             ->has('statuses', count(InvoiceStatus::cases())));

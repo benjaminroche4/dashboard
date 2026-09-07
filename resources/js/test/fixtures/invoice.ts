@@ -4,6 +4,7 @@ import type { Invoice, InvoiceDetail, InvoiceStatusChange } from '@/types';
 export function makeInvoice(overrides: Partial<Invoice> = {}): Invoice {
     return {
         id: 1,
+        uuid: '0199a9a0-0000-7000-8000-000000000101',
         number: 'RP-27001',
         client_name: 'Jean Dupont',
         client_email: 'client@exemple.com',

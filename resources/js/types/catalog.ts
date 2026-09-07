@@ -1,6 +1,7 @@
 /** Pièce du catalogue telle qu'administrée (identifiant, clé stable, traductions). */
 export type CatalogDocumentItem = {
     id: number;
+    uuid: string;
     key: string;
     label: string;
     label_en: string | null;

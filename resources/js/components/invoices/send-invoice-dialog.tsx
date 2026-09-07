@@ -18,13 +18,13 @@ import { send } from '@/routes/invoices';
  * Envoyer une facture au client : confirme le destinataire puis poste sur invoices.send.
  */
 export function SendInvoiceDialog({
-    invoiceId,
+    invoiceUuid,
     invoiceNumber,
     clientEmail,
     open,
     onOpenChange,
 }: {
-    invoiceId: number;
+    invoiceUuid: string;
     invoiceNumber: string;
     clientEmail: string | null;
     open: boolean;
@@ -37,7 +37,7 @@ export function SendInvoiceDialog({
         setError(undefined);
         setProcessing(true);
         router.post(
-            send({ invoice: invoiceId }).url,
+            send({ invoice: invoiceUuid }).url,
             {},
             {
                 preserveScroll: true,

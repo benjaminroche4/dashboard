@@ -131,6 +131,7 @@ final class DocumentCatalog
 
                 return [
                     'id' => $document->id,
+                    'uuid' => $document->uuid,
                     'key' => $document->key,
                     'label' => $document->label,
                     'label_en' => $document->label_en,

@@ -49,13 +49,14 @@ class DocumentRequestController extends Controller
     {
         $this->authorize('create', DocumentRequest::class);
 
-        // ?lead=ID : liste créée depuis la fiche d'un lead, première personne et langue préremplies, liste rattachée.
-        $lead = $request->filled('lead') ? Lead::query()->find((int) $request->query('lead')) : null;
+        // ?lead=UUID : liste créée depuis la fiche d'un lead, première personne et langue préremplies, liste rattachée.
+        $lead = $request->filled('lead') ? Lead::query()->where('uuid', (string) $request->query('lead'))->first() : null;
 
         return Inertia::render('documents/create', [
             ...$this->formProps(),
             'prefill' => $lead === null ? null : [
                 'lead_id' => $lead->id,
+                'lead_uuid' => $lead->uuid,
                 'lead_name' => $lead->fullName(),
                 'first_name' => $lead->first_name,
                 'last_name' => $lead->last_name,
@@ -72,6 +73,7 @@ class DocumentRequestController extends Controller
             ...$this->formProps(),
             'request' => [
                 'id' => $documentRequest->id,
+                'uuid' => $documentRequest->uuid,
                 'name' => $documentRequest->fullName(),
                 'lead_id' => $documentRequest->lead_id,
                 'language' => $documentRequest->language->value,
@@ -178,6 +180,7 @@ class DocumentRequestController extends Controller
     {
         return [
             'id' => $request->id,
+            'uuid' => $request->uuid,
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'name' => $request->fullName(),
@@ -189,6 +192,7 @@ class DocumentRequestController extends Controller
             'creator_avatar' => $request->creator?->avatar,
             'lead' => $request->lead === null ? null : [
                 'id' => $request->lead->id,
+                'uuid' => $request->lead->uuid,
                 'name' => $request->lead->fullName(),
                 'reference' => $request->lead->reference,
             ],

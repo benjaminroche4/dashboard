@@ -80,7 +80,7 @@ export const documentColumns: ColumnDef<DocumentRequestSummary>[] = [
         cell: ({ row }) => (
             <div className="grid">
                 <Link
-                    href={documentsShow({ documentRequest: row.original.id })}
+                    href={documentsShow({ documentRequest: row.original.uuid })}
                     className="font-medium hover:underline"
                 >
                     {row.original.name}

@@ -6,7 +6,7 @@ import { pdf } from '@/routes/tools/documents';
  * toast qui suit la génération.
  */
 export async function downloadDocumentRequestPdf(
-    requestId: number,
+    requestUuid: string,
     clientName: string,
 ): Promise<boolean> {
     const pending = notify.loading(
@@ -15,10 +15,13 @@ export async function downloadDocumentRequestPdf(
     );
 
     try {
-        const response = await fetch(pdf({ documentRequest: requestId }).url, {
-            credentials: 'same-origin',
-            headers: { Accept: 'application/pdf' },
-        });
+        const response = await fetch(
+            pdf({ documentRequest: requestUuid }).url,
+            {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/pdf' },
+            },
+        );
 
         if (!response.ok) {
             throw new Error(String(response.status));

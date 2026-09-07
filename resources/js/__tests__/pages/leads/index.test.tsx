@@ -176,7 +176,9 @@ describe('Leads kanban page', () => {
 
         await user.click(screen.getByRole('button', { name: 'Léa Durand' }));
 
-        expect(visit).toHaveBeenCalledWith('/leads/1');
+        expect(visit).toHaveBeenCalledWith(
+            '/leads/0199a9a0-0000-7000-8000-000000000001',
+        );
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
@@ -290,5 +292,84 @@ describe('Leads kanban page', () => {
         );
 
         expect(names()).toEqual(['Haut', 'Bas']);
+    });
+});
+
+describe('First contact countdown on the kanban', () => {
+    it('shows the 30-minute timer on a fresh lead and hides it once contacted', () => {
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60_000).toISOString();
+
+        render(
+            <LeadsIndex
+                leads={[
+                    makeLead({
+                        id: 1,
+                        name: 'Léa Durand',
+                        created_at: fiveMinutesAgo,
+                        last_contacted_at: null,
+                    }),
+                    makeLead({
+                        id: 2,
+                        name: 'Marc Petit',
+                        created_at: fiveMinutesAgo,
+                        last_contacted_at: new Date().toISOString(),
+                    }),
+                ]}
+                statuses={leadStatuses}
+                offers={offers}
+                lossReasons={lossReasons}
+            />,
+        );
+
+        const timers = screen.getAllByRole('timer');
+        expect(timers).toHaveLength(1);
+        expect(timers[0]).toHaveTextContent(/^À contacter · 2[45]:\d{2}$/);
+        expect(timers[0]).toHaveAttribute('data-late', 'false');
+    });
+
+    it('switches to a table view like the clients list, and remembers it', async () => {
+        const user = userEvent.setup();
+        localStorage.removeItem('leads.view');
+        const { unmount } = render(
+            <LeadsIndex
+                leads={[
+                    makeLead({
+                        id: 1,
+                        name: 'Léa Durand',
+                        assignee: { id: 2, name: 'Camille', avatar: null },
+                    }),
+                ]}
+                statuses={leadStatuses}
+                offers={offers}
+                lossReasons={lossReasons}
+            />,
+        );
+
+        expect(screen.queryByRole('table')).toBeNull();
+        await user.click(
+            within(screen.getByLabelText('Affichage')).getByRole('radio', {
+                name: 'Tableau',
+            }),
+        );
+
+        const table = within(screen.getByRole('table'));
+        expect(table.getByRole('link', { name: 'Léa Durand' })).toHaveAttribute(
+            'href',
+            expect.stringMatching(/^\/leads\//),
+        );
+        expect(table.getByText('Camille')).toBeInTheDocument();
+        expect(localStorage.getItem('leads.view')).toBe('table');
+        unmount();
+
+        render(
+            <LeadsIndex
+                leads={[makeLead()]}
+                statuses={leadStatuses}
+                offers={offers}
+                lossReasons={lossReasons}
+            />,
+        );
+        expect(screen.getByRole('table')).toBeInTheDocument();
+        localStorage.removeItem('leads.view');
     });
 });

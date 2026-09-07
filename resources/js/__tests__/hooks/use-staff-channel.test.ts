@@ -119,7 +119,9 @@ describe('useStaffChannel', () => {
 
         lastListener()(fromOther);
 
-        expect(reload).toHaveBeenCalledWith({ only: ['orders', 'stats'] });
+        expect(reload).toHaveBeenCalledWith({
+            only: ['orders', 'stats', 'counts'],
+        });
     });
 
     it('can disable the toast and the reload', () => {
@@ -177,7 +179,7 @@ describe('mentions', () => {
 
         lastListener()(fromOther);
 
-        expect(reload).toHaveBeenCalledWith({ only: ['leads'] });
+        expect(reload).toHaveBeenCalledWith({ only: ['leads', 'counts'] });
         page.realtimeOnly = undefined;
     });
 });

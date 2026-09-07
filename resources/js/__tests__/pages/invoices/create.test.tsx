@@ -207,12 +207,38 @@ describe('Invoice creation page', () => {
         await user.click(
             screen.getByRole('button', { name: 'Ajouter une ligne' }),
         );
+        await user.click(
+            await screen.findByRole('menuitem', { name: 'Offre' }),
+        );
         expect(screen.getAllByLabelText(/Quantité ligne/)).toHaveLength(2);
+        expect(screen.getByLabelText('Offre ligne 2')).toBeInTheDocument();
 
         await user.click(
             screen.getByRole('button', { name: 'Supprimer la ligne 2' }),
         );
         expect(screen.getAllByLabelText(/Quantité ligne/)).toHaveLength(1);
+    });
+
+    it('adds a free line with a label instead of an offer and previews it', async () => {
+        const user = userEvent.setup();
+        render(<InvoicesCreate {...props} />);
+
+        await user.click(
+            screen.getByRole('button', { name: 'Ajouter une ligne' }),
+        );
+        await user.click(
+            await screen.findByRole('menuitem', { name: 'Ligne libre' }),
+        );
+
+        expect(screen.queryByLabelText('Offre ligne 2')).toBeNull();
+        expect(screen.getByLabelText('Prix unitaire ligne 2')).toHaveValue('');
+        await user.type(
+            screen.getByLabelText('Libellé ligne 2'),
+            'État des lieux',
+        );
+        await user.type(screen.getByLabelText('Prix unitaire ligne 2'), '150');
+
+        expect(screen.getAllByText('État des lieux').length).toBeGreaterThan(0);
     });
 
     it('submits offers, cents and numbers to the store route', async () => {
@@ -231,12 +257,24 @@ describe('Invoice creation page', () => {
         const payload = transformer({
             client_name: 'Acme SA',
             vat_rate: '8.1',
-            items: [{ offer: 'confie', quantity: '1,5', unit_price: '99,99' }],
+            items: [
+                {
+                    offer: 'confie',
+                    description: '',
+                    quantity: '1,5',
+                    unit_price: '99,99',
+                },
+            ],
         });
 
         expect(payload.vat_rate).toBe(8.1);
         expect(payload.items).toEqual([
-            { offer: 'confie', quantity: 1.5, unit_price_cents: 9999 },
+            {
+                offer: 'confie',
+                description: null,
+                quantity: 1.5,
+                unit_price_cents: 9999,
+            },
         ]);
         expect(post).toHaveBeenCalledWith('/invoices');
     });
@@ -283,7 +321,14 @@ describe('Invoice creation page', () => {
             vat_rate: '8.1',
             discount_percent: '10',
             deposit: '100,50',
-            items: [{ offer: 'accompagne', quantity: '1', unit_price: '2500' }],
+            items: [
+                {
+                    offer: 'accompagne',
+                    description: '',
+                    quantity: '1',
+                    unit_price: '2500',
+                },
+            ],
         });
         expect(payload.discount_percent).toBe(10);
         expect(payload.deposit_cents).toBe(10_050);

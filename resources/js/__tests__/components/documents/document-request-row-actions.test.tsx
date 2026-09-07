@@ -52,15 +52,24 @@ describe('DocumentRequestRowActions', () => {
 
         expect(
             await screen.findByRole('menuitem', { name: 'Voir la liste' }),
-        ).toHaveAttribute('href', '/tools/documents/1');
+        ).toHaveAttribute(
+            'href',
+            '/tools/documents/0199b0c0-0000-7000-8000-000000000001',
+        );
         expect(
             screen.getByRole('menuitem', { name: 'Modifier' }),
-        ).toHaveAttribute('href', '/tools/documents/1/edit');
+        ).toHaveAttribute(
+            'href',
+            '/tools/documents/0199b0c0-0000-7000-8000-000000000001/edit',
+        );
 
         await user.click(
             screen.getByRole('menuitem', { name: 'Télécharger le PDF' }),
         );
-        expect(download).toHaveBeenCalledWith(1, 'Léa Martin');
+        expect(download).toHaveBeenCalledWith(
+            '0199b0c0-0000-7000-8000-000000000001',
+            'Léa Martin',
+        );
 
         await user.click(
             screen.getByRole('button', { name: 'Actions pour Léa Martin' }),
@@ -75,7 +84,7 @@ describe('DocumentRequestRowActions', () => {
             screen.getByRole('button', { name: 'Supprimer la liste' }),
         );
         expect(destroy).toHaveBeenCalledWith(
-            '/tools/documents/1',
+            '/tools/documents/0199b0c0-0000-7000-8000-000000000001',
             expect.any(Object),
         );
     });

@@ -1,5 +1,5 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, PencilLine, Plus, Tag, Trash2 } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { AddressAutocomplete } from '@/components/address-autocomplete';
 import { CountryFlag } from '@/components/country-flag';
@@ -8,6 +8,12 @@ import { FormActionBar } from '@/components/form-action-bar';
 import InputError from '@/components/input-error';
 import { InvoicePreview } from '@/components/invoices/invoice-preview';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -31,6 +37,7 @@ import {
 } from '@/lib/invoice-totals';
 import { index as invoicesIndex, store } from '@/routes/invoices';
 import { show as leadShow } from '@/routes/leads';
+import { index as toolsIndex } from '@/routes/tools';
 import type {
     Company,
     CountryOption,
@@ -104,8 +111,16 @@ export default function InvoicesCreate({
     const firstOffer = offers[0]?.value ?? 'accompagne';
     const emptyLine = (currency: Currency): InvoiceLineForm => ({
         offer: firstOffer,
+        description: '',
         quantity: '1',
         unit_price: defaultPrice(offers, firstOffer, currency),
+    });
+    // Ligne libre : libellé saisi, prix à renseigner.
+    const freeLine = (): InvoiceLineForm => ({
+        offer: null,
+        description: '',
+        quantity: '1',
+        unit_price: '',
     });
 
     const initialCurrency = prefill?.currency ?? defaults.currency;
@@ -127,6 +142,7 @@ export default function InvoicesCreate({
         items: [
             {
                 offer: initialOffer,
+                description: '',
                 quantity: '1',
                 unit_price: defaultPrice(offers, initialOffer, initialCurrency),
             },
@@ -155,21 +171,30 @@ export default function InvoicesCreate({
             unit_price: defaultPrice(offers, offer, form.data.currency),
         });
 
-    // Changer de devise recalcule les prix par défaut de toutes les lignes.
+    // Changer de devise recalcule les prix par défaut des lignes d'offre ;
+    // les lignes libres gardent leur prix saisi.
     const setCurrency = (currency: Currency) =>
         form.setData({
             ...form.data,
             currency,
-            items: form.data.items.map((line) => ({
-                ...line,
-                unit_price: defaultPrice(offers, line.offer, currency),
-            })),
+            items: form.data.items.map((line) =>
+                line.offer === null
+                    ? line
+                    : {
+                          ...line,
+                          unit_price: defaultPrice(
+                              offers,
+                              line.offer,
+                              currency,
+                          ),
+                      },
+            ),
         });
 
-    const addLine = () =>
+    const addLine = (kind: 'offer' | 'free') =>
         form.setData('items', [
             ...form.data.items,
-            emptyLine(form.data.currency),
+            kind === 'offer' ? emptyLine(form.data.currency) : freeLine(),
         ]);
 
     const removeLine = (index: number) =>
@@ -203,6 +228,8 @@ export default function InvoicesCreate({
             deposit_cents: toCents(data.deposit || 0),
             items: data.items.map((line) => ({
                 offer: line.offer,
+                description:
+                    line.offer === null ? line.description.trim() : null,
                 quantity: toNumber(line.quantity),
                 unit_price_cents: toCents(line.unit_price),
             })),
@@ -212,7 +239,7 @@ export default function InvoicesCreate({
 
     const lineError = (
         index: number,
-        field: 'offer' | 'quantity' | 'unit_price',
+        field: 'offer' | 'description' | 'quantity' | 'unit_price',
     ) =>
         errors[
             `items.${index}.${field === 'unit_price' ? 'unit_price_cents' : field}`
@@ -233,7 +260,7 @@ export default function InvoicesCreate({
                                     Pour le lead{' '}
                                     <Link
                                         href={leadShow({
-                                            lead: prefill.lead_id,
+                                            lead: prefill.lead_uuid,
                                         })}
                                         className="text-foreground font-medium underline-offset-4 hover:underline"
                                     >
@@ -497,18 +524,37 @@ export default function InvoicesCreate({
                                         Lignes
                                     </h2>
                                     <p className="text-muted-foreground text-sm">
-                                        Une ligne par offre facturée.
+                                        Une ligne par offre ou prestation
+                                        facturée.
                                     </p>
                                 </div>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={addLine}
-                                >
-                                    <Plus />
-                                    Ajouter une ligne
-                                </Button>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                        >
+                                            <Plus />
+                                            Ajouter une ligne
+                                            <ChevronDown className="opacity-60" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem
+                                            onClick={() => addLine('offer')}
+                                        >
+                                            <Tag />
+                                            Offre
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            onClick={() => addLine('free')}
+                                        >
+                                            <PencilLine />
+                                            Ligne libre
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
                             <InputError message={errors.items} />
                             <ol role="list" className="grid gap-4">
@@ -527,6 +573,8 @@ export default function InvoicesCreate({
                                             <div className="flex items-center justify-between">
                                                 <p className="text-muted-foreground text-xs font-medium uppercase">
                                                     Ligne {index + 1}
+                                                    {line.offer === null &&
+                                                        ' · Libre'}
                                                 </p>
                                                 {form.data.items.length > 1 && (
                                                     <Button
@@ -544,49 +592,91 @@ export default function InvoicesCreate({
                                                 )}
                                             </div>
 
-                                            <RadioGroup
-                                                aria-label={`Offre ligne ${index + 1}`}
-                                                value={line.offer}
-                                                onValueChange={(value) =>
-                                                    setOffer(
-                                                        index,
-                                                        value as OfferValue,
-                                                    )
-                                                }
-                                                className="grid gap-3 sm:grid-cols-2"
-                                            >
-                                                {offers.map((offer) => (
+                                            {line.offer === null ? (
+                                                <div className="grid gap-1.5">
                                                     <Label
-                                                        key={offer.value}
-                                                        htmlFor={`line-${index}-${offer.value}`}
-                                                        className="bg-muted/40 has-data-[state=checked]:border-primary has-data-[state=checked]:ring-primary/20 hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-3 font-normal transition-colors has-data-[state=checked]:ring-2"
+                                                        htmlFor={`line-${index}-description`}
                                                     >
-                                                        <RadioGroupItem
-                                                            id={`line-${index}-${offer.value}`}
-                                                            value={offer.value}
-                                                            className="mt-0.5"
-                                                        />
-                                                        <span className="grid gap-0.5">
-                                                            <span className="font-medium">
-                                                                {offer.label}
-                                                            </span>
-                                                            <span className="text-muted-foreground text-xs">
-                                                                {formatMoney(
-                                                                    offer.prices
-                                                                        .EUR,
-                                                                    'EUR',
-                                                                )}
-                                                            </span>
-                                                        </span>
+                                                        Libellé
                                                     </Label>
-                                                ))}
-                                            </RadioGroup>
-                                            <InputError
-                                                message={lineError(
-                                                    index,
-                                                    'offer',
-                                                )}
-                                            />
+                                                    <Input
+                                                        id={`line-${index}-description`}
+                                                        aria-label={`Libellé ligne ${index + 1}`}
+                                                        className="bg-background"
+                                                        placeholder="Ex. État des lieux d'entrée"
+                                                        maxLength={255}
+                                                        value={line.description}
+                                                        onChange={(e) =>
+                                                            setLine(index, {
+                                                                description:
+                                                                    e.target
+                                                                        .value,
+                                                            })
+                                                        }
+                                                    />
+                                                    <InputError
+                                                        message={lineError(
+                                                            index,
+                                                            'description',
+                                                        )}
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <RadioGroup
+                                                        aria-label={`Offre ligne ${index + 1}`}
+                                                        value={line.offer}
+                                                        onValueChange={(
+                                                            value,
+                                                        ) =>
+                                                            setOffer(
+                                                                index,
+                                                                value as OfferValue,
+                                                            )
+                                                        }
+                                                        className="grid gap-3 sm:grid-cols-2"
+                                                    >
+                                                        {offers.map((offer) => (
+                                                            <Label
+                                                                key={
+                                                                    offer.value
+                                                                }
+                                                                htmlFor={`line-${index}-${offer.value}`}
+                                                                className="bg-muted/40 has-data-[state=checked]:border-primary has-data-[state=checked]:ring-primary/20 hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-3 font-normal transition-colors has-data-[state=checked]:ring-2"
+                                                            >
+                                                                <RadioGroupItem
+                                                                    id={`line-${index}-${offer.value}`}
+                                                                    value={
+                                                                        offer.value
+                                                                    }
+                                                                    className="mt-0.5"
+                                                                />
+                                                                <span className="grid gap-0.5">
+                                                                    <span className="font-medium">
+                                                                        {
+                                                                            offer.label
+                                                                        }
+                                                                    </span>
+                                                                    <span className="text-muted-foreground text-xs">
+                                                                        {formatMoney(
+                                                                            offer
+                                                                                .prices
+                                                                                .EUR,
+                                                                            'EUR',
+                                                                        )}
+                                                                    </span>
+                                                                </span>
+                                                            </Label>
+                                                        ))}
+                                                    </RadioGroup>
+                                                    <InputError
+                                                        message={lineError(
+                                                            index,
+                                                            'offer',
+                                                        )}
+                                                    />
+                                                </>
+                                            )}
 
                                             <div className="grid gap-3 sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:items-end">
                                                 <div className="grid gap-1.5">
@@ -777,7 +867,7 @@ export default function InvoicesCreate({
 
 InvoicesCreate.layout = {
     breadcrumbs: [
-        { title: 'Leads', href: '#' },
+        { title: 'Outils', href: toolsIndex() },
         { title: 'Factures', href: invoicesIndex() },
         { title: 'Nouvelle facture', href: '#' },
     ],

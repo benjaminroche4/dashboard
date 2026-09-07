@@ -80,7 +80,7 @@ export function CatalogDocumentDialog({
         };
 
         if (document) {
-            form.patch(update({ catalogDocument: document.id }).url, options);
+            form.patch(update({ catalogDocument: document.uuid }).url, options);
         } else {
             form.post(store().url, options);
         }

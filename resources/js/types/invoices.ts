@@ -13,7 +13,8 @@ export type Offer = {
 };
 
 export type InvoiceLine = {
-    offer: OfferValue;
+    /** `null` pour une ligne libre (service hors offres). */
+    offer: OfferValue | null;
     description: string;
     quantity: number;
     unit_price_cents: number;
@@ -22,6 +23,7 @@ export type InvoiceLine = {
 /** Ligne de la liste des factures. */
 export type Invoice = {
     id: number;
+    uuid: string;
     number: string;
     client_name: string;
     client_email: string | null;
@@ -37,12 +39,13 @@ export type Invoice = {
     can_send: boolean;
     can_pay: boolean;
     /** Lead rattaché à la facture, ou null. */
-    lead: { id: number; name: string } | null;
+    lead: { id: number; uuid: string; name: string } | null;
 };
 
 /** Facture vue depuis une fiche lead. */
 export type LeadInvoice = {
     id: number;
+    uuid: string;
     number: string;
     client_name: string;
     amount_cents: number;
@@ -55,17 +58,19 @@ export type LeadInvoice = {
 /** Résultat de la recherche de factures (rattachement depuis un lead). */
 export type InvoiceSearchHit = {
     id: number;
+    uuid: string;
     number: string;
     client_name: string;
     amount_cents: number;
     currency: Currency;
     status_label: string;
-    lead: { id: number; name: string } | null;
+    lead: { id: number; uuid: string; name: string } | null;
 };
 
-/** Préremplissage de la création depuis une fiche lead (?lead=ID). */
+/** Préremplissage de la création depuis une fiche lead (?lead=UUID). */
 export type InvoicePrefill = {
     lead_id: number;
+    lead_uuid: string;
     lead_name: string;
     client_name: string;
     client_email: string;
@@ -116,7 +121,9 @@ export type Company = {
 
 /** Ligne du formulaire : les montants sont saisis en unités (francs / euros), pas en centimes. */
 export type InvoiceLineForm = {
-    offer: OfferValue;
+    /** `null` pour une ligne libre : le libellé est saisi dans `description`. */
+    offer: OfferValue | null;
+    description: string;
     quantity: string;
     unit_price: string;
 };

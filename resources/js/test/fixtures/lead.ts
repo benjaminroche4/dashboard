@@ -1,9 +1,15 @@
-import type { Lead, LeadDetail, LeadStatusOption } from '@/types';
+import type {
+    Lead,
+    LeadDetail,
+    LeadInboundMessage,
+    LeadStatusOption,
+} from '@/types';
 
 /** Miroir de LeadFactory : lead nouveau, offre Accompagné, budget 2 500 EUR. */
 export function makeLead(overrides: Partial<Lead> = {}): Lead {
     return {
         id: 1,
+        uuid: '0199a9a0-0000-7000-8000-000000000001',
         reference: 'LD-4821',
         name: 'Léa Durand',
         email: 'lea@example.com',
@@ -63,8 +69,21 @@ export function makeLeadDetail(
         last_name: 'Durand',
         source: 'referral',
         updated_at: '2026-09-04T10:00:00+00:00',
+        agent: null,
         ...overrides,
     } as LeadDetail;
+}
+
+export function makeInbound(
+    overrides: Partial<LeadInboundMessage> = {},
+): LeadInboundMessage {
+    return {
+        kind: 'website',
+        body: "Bonjour, j'arrive à Paris en octobre avec ma famille.",
+        meta: 'Formulaire de contact · Recherche de logement · CT-4F2A11',
+        at: '2026-09-06T17:03:00+02:00',
+        ...overrides,
+    };
 }
 
 export const lossReasons = [

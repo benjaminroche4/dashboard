@@ -1,10 +1,17 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Sparkles } from 'lucide-react';
+import { Kanban, Sparkles, Table2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { DataTable } from '@/components/data-table';
 import { LeadKanban } from '@/components/leads/kanban-board';
+import {
+    leadTableColumnLabels,
+    leadTableColumns,
+} from '@/components/leads/lead-table-columns';
 import { LeadFilterBar } from '@/components/leads/lead-filter-bar';
 import { Button } from '@/components/ui/button';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { defaultFilters, filterLeads, type LeadFilters } from '@/lib/kanban';
+import { cn } from '@/lib/utils';
 import {
     create as leadsCreate,
     index as leadsIndex,
@@ -17,6 +24,29 @@ import type {
     LeadOfferOption,
     LeadStatusOption,
 } from '@/types';
+
+type LeadView = 'kanban' | 'table';
+
+const viewStorageKey = 'leads.view';
+
+/** Vue choisie par l'utilisateur, mémorisée entre deux visites. */
+function readView(): LeadView {
+    try {
+        return localStorage.getItem(viewStorageKey) === 'table'
+            ? 'table'
+            : 'kanban';
+    } catch {
+        return 'kanban';
+    }
+}
+
+function storeView(view: LeadView): void {
+    try {
+        localStorage.setItem(viewStorageKey, view);
+    } catch {
+        // Stockage indisponible : la vue reste en mémoire.
+    }
+}
 
 type Props = {
     leads: Lead[];
@@ -32,6 +62,11 @@ export default function LeadsIndex({
     lossReasons,
 }: Props) {
     const [filters, setFilters] = useState<LeadFilters>(defaultFilters);
+    const [view, setView] = useState<LeadView>(readView);
+    const changeView = (next: LeadView) => {
+        setView(next);
+        storeView(next);
+    };
     const filtered = useMemo(
         () => filterLeads(leads, filters),
         [leads, filters],
@@ -50,7 +85,13 @@ export default function LeadsIndex({
     return (
         <>
             <Head title="Leads" />
-            <div className="flex w-full flex-1 flex-col px-4 pb-6">
+            <div
+                className={cn(
+                    'flex w-full flex-1 flex-col px-4',
+                    // En tableau, même gabarit centré que les dossiers clients ; le kanban garde toute la largeur.
+                    view === 'table' ? 'mx-auto max-w-7xl pb-10' : 'pb-6',
+                )}
+            >
                 <div className="flex items-end justify-between pt-8 pb-6">
                     <div>
                         <h1 className="text-lg font-medium">Leads</h1>
@@ -58,12 +99,40 @@ export default function LeadsIndex({
                             {summary}
                         </p>
                     </div>
-                    <Button asChild>
-                        <Link href={leadsCreate()}>
-                            <Sparkles />
-                            Converting Machine
-                        </Link>
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <ToggleGroup
+                            type="single"
+                            value={view}
+                            onValueChange={(value) =>
+                                value && changeView(value as LeadView)
+                            }
+                            aria-label="Affichage"
+                            className="gap-1"
+                        >
+                            <ToggleGroupItem
+                                value="kanban"
+                                aria-label="Kanban"
+                                className="h-9 rounded-md px-3 first:rounded-md last:rounded-md"
+                            >
+                                <Kanban aria-hidden />
+                                Kanban
+                            </ToggleGroupItem>
+                            <ToggleGroupItem
+                                value="table"
+                                aria-label="Tableau"
+                                className="h-9 rounded-md px-3 first:rounded-md last:rounded-md"
+                            >
+                                <Table2 aria-hidden />
+                                Tableau
+                            </ToggleGroupItem>
+                        </ToggleGroup>
+                        <Button asChild>
+                            <Link href={leadsCreate()}>
+                                <Sparkles />
+                                Converting Machine
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
 
                 {leads.length === 0 ? (
@@ -93,15 +162,28 @@ export default function LeadsIndex({
                             leads={leads}
                             onChange={patch}
                         />
-                        <LeadKanban
-                            leads={filtered}
-                            statuses={statuses}
-                            reorderable={filters.sort === 'manual'}
-                            lossReasons={lossReasons}
-                            onOpen={(lead) =>
-                                router.visit(leadShow({ lead: lead.id }).url)
-                            }
-                        />
+                        {view === 'table' ? (
+                            <DataTable
+                                columns={leadTableColumns}
+                                data={filtered}
+                                filterColumn="name"
+                                filterPlaceholder="Filtrer par nom…"
+                                columnLabels={leadTableColumnLabels}
+                                frame="panel"
+                            />
+                        ) : (
+                            <LeadKanban
+                                leads={filtered}
+                                statuses={statuses}
+                                reorderable={filters.sort === 'manual'}
+                                lossReasons={lossReasons}
+                                onOpen={(lead) =>
+                                    router.visit(
+                                        leadShow({ lead: lead.uuid }).url,
+                                    )
+                                }
+                            />
+                        )}
                     </>
                 )}
             </div>

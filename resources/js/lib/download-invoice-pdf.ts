@@ -6,7 +6,7 @@ import { pdf } from '@/routes/invoices';
  * récupéré en arrière-plan puis proposé au navigateur, avec un toast.
  */
 export async function downloadInvoicePdf(
-    invoiceId: number,
+    invoiceUuid: string,
     invoiceNumber: string,
 ): Promise<boolean> {
     const pending = notify.loading(
@@ -15,7 +15,7 @@ export async function downloadInvoicePdf(
     );
 
     try {
-        const response = await fetch(pdf({ invoice: invoiceId }).url, {
+        const response = await fetch(pdf({ invoice: invoiceUuid }).url, {
             credentials: 'same-origin',
             headers: { Accept: 'application/pdf' },
         });

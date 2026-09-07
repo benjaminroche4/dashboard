@@ -6,17 +6,20 @@ namespace App\Http\Controllers\Leads;
 
 use App\Actions\Leads\AddLeadNote;
 use App\Actions\Leads\AssignLead;
+use App\Actions\Leads\ConvertLeadToClient;
 use App\Actions\Leads\CreateLead;
 use App\Actions\Leads\DeleteLead;
 use App\Actions\Leads\DeleteLeadNote;
 use App\Actions\Leads\ScheduleLeadRecontact;
 use App\Actions\Leads\ScheduleLeadVisio;
 use App\Actions\Leads\SendLeadDossier;
+use App\Actions\Leads\SetLeadAgent;
 use App\Actions\Leads\TouchLeadContact;
 use App\Actions\Leads\UpdateLead;
 use App\Actions\Leads\UpdateLeadNote;
 use App\Actions\Leads\UpdateLeadStatus;
 use App\Data\LeadData;
+use App\Data\LeadInboundMessageData;
 use App\Enums\Currency;
 use App\Enums\Furnished;
 use App\Enums\GuarantorType;
@@ -26,6 +29,7 @@ use App\Enums\LeadLossReason;
 use App\Enums\LeadSource;
 use App\Enums\LeadStatus;
 use App\Enums\Offer;
+use App\Enums\PartnerRole;
 use App\Enums\PaymentPlan;
 use App\Enums\PropertyType;
 use App\Enums\RecontactChannel;
@@ -34,16 +38,22 @@ use App\Http\Requests\Leads\AssignLeadRequest;
 use App\Http\Requests\Leads\ScheduleLeadRecontactRequest;
 use App\Http\Requests\Leads\ScheduleLeadVisioRequest;
 use App\Http\Requests\Leads\SendLeadDossierRequest;
+use App\Http\Requests\Leads\SetLeadAgentRequest;
 use App\Http\Requests\Leads\StoreLeadNoteRequest;
 use App\Http\Requests\Leads\StoreLeadRequest;
 use App\Http\Requests\Leads\UpdateLeadNoteRequest;
 use App\Http\Requests\Leads\UpdateLeadRequest;
 use App\Http\Requests\Leads\UpdateLeadStatusRequest;
+use App\Models\Agent;
 use App\Models\DocumentRequest;
 use App\Models\Invoice;
 use App\Models\Lead;
 use App\Models\LeadNote;
+use App\Models\LeadPartner;
 use App\Models\LeadStatusChange;
+use App\Models\Partner;
+use App\Models\PartnerContact;
+use App\Models\Quote;
 use App\Models\User;
 use App\Services\PaymentLinks;
 use App\Services\Yousign;
@@ -124,6 +134,7 @@ class LeadController extends Controller
             ->get()
             ->map(fn (Lead $lead): array => [
                 'id' => $lead->id,
+                'uuid' => $lead->uuid,
                 'name' => $lead->fullName(),
                 'email' => $lead->email,
                 'phone' => $lead->phone,
@@ -158,6 +169,7 @@ class LeadController extends Controller
             ->get()
             ->map(fn (Lead $lead): array => [
                 'id' => $lead->id,
+                'uuid' => $lead->uuid,
                 'reference' => $lead->reference,
                 'company' => $lead->company,
                 'name' => $lead->fullName(),
@@ -195,7 +207,38 @@ class LeadController extends Controller
             'statuses' => $this->statuses(),
             'recontactChannels' => RecontactChannel::options(),
             'lossReasons' => LeadLossReason::options(),
+            // Annuaire des agents immobiliers pour la carte « Agent en contact ».
+            'agents' => Agent::query()->with('agency')->orderBy('last_name')->orderBy('first_name')->get()
+                ->map(fn (Agent $agent): array => [
+                    'id' => $agent->id,
+                    'uuid' => $agent->uuid,
+                    'name' => $agent->fullName(),
+                    'agency' => $agent->agency?->name,
+                    'phone' => $agent->phone,
+                ])->all(),
+            // Partenaires du dossier, annuaire et rôles possibles pour la carte « Partenaires du dossier ».
+            'partners' => $lead->partnerLinks->map(fn (LeadPartner $link): array => [
+                'id' => $link->id,
+                'role' => $link->role->value,
+                'role_label' => $link->role->label(),
+                'note' => $link->note,
+                'partner' => [
+                    'id' => $link->partner->id,
+                    'uuid' => $link->partner->uuid,
+                    'name' => $link->partner->name,
+                    'type' => $link->partner->type->value,
+                    'type_label' => $link->partner->type->label(),
+                    'email' => $link->partner->email,
+                    'phone' => $link->partner->phone,
+                    'contacts' => $link->partner->contacts->map(fn (PartnerContact $contact): array => ['id' => $contact->id, 'name' => $contact->fullName(), 'email' => $contact->email])->all(),
+                ],
+            ])->all(),
+            'partnerOptions' => Partner::query()->orderBy('name')->get()
+                ->map(fn (Partner $partner): array => ['id' => $partner->id, 'name' => $partner->name, 'type' => $partner->type->value, 'type_label' => $partner->type->label()])->all(),
+            'partnerRoles' => PartnerRole::options(),
             'duplicates' => $this->findDuplicates($lead->email, $lead->phone, $lead->id),
+            // Message reçu à l'arrivée du lead (site, appel ou SMS), mis en avant tant qu'il est à traiter.
+            'inbound' => LeadInboundMessageData::fromLead($lead)?->toArray(),
             'can' => ['delete' => Auth::user()?->can('delete', $lead) ?? false],
             // Ce qu'on peut envoyer au lead depuis la fiche, selon les services configurés.
             'sending' => [
@@ -244,6 +287,14 @@ class LeadController extends Controller
         return back();
     }
 
+    public function agent(SetLeadAgentRequest $request, Lead $lead, SetLeadAgent $setLeadAgent): RedirectResponse
+    {
+        $agentId = $request->validated('agent_id');
+        $setLeadAgent->handle($lead, $agentId === null ? null : Agent::query()->findOrFail((int) $agentId));
+
+        return back();
+    }
+
     public function assign(AssignLeadRequest $request, Lead $lead, AssignLead $assignLead): RedirectResponse
     {
         $userId = $request->validated('user_id');
@@ -257,7 +308,7 @@ class LeadController extends Controller
      */
     private function detail(Lead $lead): array
     {
-        $lead->load(['author', 'assignee', 'notes.author', 'statusChanges.author', 'invoices', 'documentRequests']);
+        $lead->load(['author', 'assignee', 'agent.agency', 'partnerLinks.partner.contacts', 'notes.author', 'statusChanges.author', 'invoices', 'quotes', 'documentRequests']);
 
         return [
             'lead' => [
@@ -266,9 +317,19 @@ class LeadController extends Controller
                 'last_name' => $lead->last_name,
                 'source' => $lead->source->value,
                 'updated_at' => $lead->updated_at?->toIso8601String(),
+                'agent' => $lead->agent === null ? null : [
+                    'id' => $lead->agent->id,
+                    'uuid' => $lead->agent->uuid,
+                    'name' => $lead->agent->fullName(),
+                    'agency' => $lead->agent->agency?->name,
+                    'position' => $lead->agent->position,
+                    'phone' => $lead->agent->phone,
+                    'email' => $lead->agent->email,
+                ],
             ],
             'invoices' => $lead->invoices->map(fn (Invoice $invoice): array => [
                 'id' => $invoice->id,
+                'uuid' => $invoice->uuid,
                 'number' => $invoice->number,
                 'client_name' => $invoice->client_name,
                 'amount_cents' => $invoice->amount_cents,
@@ -277,8 +338,21 @@ class LeadController extends Controller
                 'status_label' => $invoice->status->label(),
                 'issued_at' => $invoice->issued_at->toDateString(),
             ])->all(),
+            'quotes' => $lead->quotes->map(fn (Quote $quote): array => [
+                'id' => $quote->id,
+                'uuid' => $quote->uuid,
+                'number' => $quote->number,
+                'client_name' => $quote->client_name,
+                'amount_cents' => $quote->amount_cents,
+                'currency' => $quote->currency->value,
+                'status' => $quote->status->value,
+                'status_label' => $quote->status->label(),
+                'issued_at' => $quote->issued_at->toDateString(),
+                'valid_until' => $quote->valid_until->toDateString(),
+            ])->all(),
             'documentRequests' => $lead->documentRequests->map(fn (DocumentRequest $request): array => [
                 'id' => $request->id,
+                'uuid' => $request->uuid,
                 'name' => $request->fullName(),
                 'person_count' => count($request->persons),
                 'document_count' => $request->documentCount(),
@@ -286,6 +360,7 @@ class LeadController extends Controller
             ])->all(),
             'notes' => $lead->notes->map(fn (LeadNote $note): array => [
                 'id' => $note->id,
+                'uuid' => $note->uuid,
                 'body' => $note->body,
                 'by' => $note->author?->name,
                 'avatar' => $note->author?->avatar,
@@ -313,6 +388,7 @@ class LeadController extends Controller
             ...$this->formProps(),
             'lead' => [
                 'id' => $lead->id,
+                'uuid' => $lead->uuid,
                 'name' => $lead->fullName(),
                 'first_name' => $lead->first_name,
                 'last_name' => $lead->last_name,
@@ -365,6 +441,18 @@ class LeadController extends Controller
         );
 
         return back();
+    }
+
+    /** Transforme le lead en client : il quitte le kanban pour les dossiers. */
+    public function convert(Lead $lead, ConvertLeadToClient $convertLeadToClient): RedirectResponse
+    {
+        $this->authorize('update', $lead);
+
+        $convertLeadToClient->handle($lead, auth()->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __(':name est maintenant client : son dossier est ouvert.', ['name' => $lead->fullName()])]);
+
+        return to_route('clients.index');
     }
 
     public function storeNote(StoreLeadNoteRequest $request, Lead $lead, AddLeadNote $addLeadNote): RedirectResponse
@@ -424,6 +512,7 @@ class LeadController extends Controller
     {
         return [
             'id' => $lead->id,
+            'uuid' => $lead->uuid,
             'reference' => $lead->reference,
             'name' => $lead->fullName(),
             'email' => $lead->email,

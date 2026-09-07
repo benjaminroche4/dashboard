@@ -23,10 +23,11 @@ describe('LeadDocumentRequests', () => {
     it('lists the lead lists and links to a prefilled creation', () => {
         render(
             <LeadDocumentRequests
-                leadId={7}
+                leadUuid="0199a9a0-0000-7000-8000-000000000007"
                 requests={[
                     {
                         id: 3,
+                        uuid: '0199b0c0-0000-7000-8000-000000000003',
                         name: 'Léa Durand',
                         person_count: 2,
                         document_count: 5,
@@ -38,17 +39,28 @@ describe('LeadDocumentRequests', () => {
 
         expect(
             screen.getByRole('link', { name: /Léa Durand/ }),
-        ).toHaveAttribute('href', '/tools/documents/3');
+        ).toHaveAttribute(
+            'href',
+            '/tools/documents/0199b0c0-0000-7000-8000-000000000003',
+        );
         expect(
             screen.getByText(/2 personne\(s\) · 5 pièce\(s\)/),
         ).toBeInTheDocument();
         expect(
             screen.getByRole('link', { name: /Créer une liste de documents/ }),
-        ).toHaveAttribute('href', '/tools/documents/create?lead=7');
+        ).toHaveAttribute(
+            'href',
+            '/tools/documents/create?lead=0199a9a0-0000-7000-8000-000000000007',
+        );
     });
 
     it('shows an empty state', () => {
-        render(<LeadDocumentRequests leadId={7} requests={[]} />);
+        render(
+            <LeadDocumentRequests
+                leadUuid="0199a9a0-0000-7000-8000-000000000007"
+                requests={[]}
+            />,
+        );
 
         expect(
             screen.getByText('Aucune liste de documents pour ce lead.'),

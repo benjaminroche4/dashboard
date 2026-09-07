@@ -2,21 +2,40 @@ import { formatLongDate, formatMoney } from '@/lib/format';
 import { computeInvoiceTotals } from '@/lib/invoice-totals';
 import type { Company, InvoiceForm, Offer } from '@/types';
 
+/** Libellés propres à chaque document partageant cet aperçu. */
+const wording = {
+    invoice: {
+        title: 'Facture',
+        aria: 'Aperçu de la facture',
+        recipient: 'Facturé à',
+        deadline: 'Échéance',
+    },
+    quote: {
+        title: 'Devis',
+        aria: 'Aperçu du devis',
+        recipient: 'Adressé à',
+        deadline: "Valable jusqu'au",
+    },
+} as const;
+
 /**
- * Aperçu de la facture, mis à jour en direct depuis le formulaire.
- * Sert aussi de rendu sur la page de détail (voir invoiceToForm).
+ * Aperçu de la facture (ou du devis, `kind="quote"`), mis à jour en direct
+ * depuis le formulaire. Sert aussi de rendu sur la page de détail (voir invoiceToForm).
  */
 export function InvoicePreview({
     form,
     company,
     offers,
     number = 'Aperçu',
+    kind = 'invoice',
 }: {
     form: InvoiceForm;
     company: Company;
     offers: Offer[];
     number?: string;
+    kind?: keyof typeof wording;
 }) {
+    const words = wording[kind];
     const totals = computeInvoiceTotals(form.items, form.vat_rate, offers, {
         discountPercent: form.discount_percent,
         deposit: form.deposit,
@@ -30,7 +49,7 @@ export function InvoicePreview({
 
     return (
         <article
-            aria-label="Aperçu de la facture"
+            aria-label={words.aria}
             className="bg-background text-foreground flex aspect-[1/1.3] w-full flex-col gap-8 overflow-hidden rounded-lg border p-8 text-sm"
         >
             <header className="flex items-start justify-between gap-6">
@@ -56,7 +75,7 @@ export function InvoicePreview({
                 </div>
                 <div className="text-right">
                     <p className="text-2xl font-semibold tracking-tight">
-                        Facture
+                        {words.title}
                     </p>
                     <p
                         className="text-muted-foreground tabular-nums"
@@ -70,7 +89,7 @@ export function InvoicePreview({
             <section className="grid grid-cols-2 gap-6">
                 <div className="space-y-1">
                     <p className="text-muted-foreground text-xs font-medium uppercase">
-                        Facturé à
+                        {words.recipient}
                     </p>
                     <p className="font-medium">
                         {form.client_name || 'Nom du client'}
@@ -89,7 +108,7 @@ export function InvoicePreview({
                 <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 self-start text-right">
                     <dt className="text-muted-foreground">Date d'émission</dt>
                     <dd>{formatLongDate(form.issued_at) || '—'}</dd>
-                    <dt className="text-muted-foreground">Échéance</dt>
+                    <dt className="text-muted-foreground">{words.deadline}</dt>
                     <dd>{formatLongDate(form.due_at) || '—'}</dd>
                     <dt className="text-muted-foreground">Devise</dt>
                     <dd>{form.currency}</dd>
@@ -178,9 +197,16 @@ export function InvoicePreview({
                         {form.notes}
                     </p>
                 )}
+                {kind === 'quote' && (
+                    <p>
+                        Devis valable jusqu'au{' '}
+                        {formatLongDate(form.due_at) || '—'}. Bon pour accord :
+                        date et signature du client.
+                    </p>
+                )}
                 <p>
-                    Paiement par virement sur {company.bank}, IBAN{' '}
-                    {company.iban}, en {form.currency}.
+                    {kind === 'quote' ? 'Règlement' : 'Paiement'} par virement
+                    sur {company.bank}, IBAN {company.iban}, en {form.currency}.
                 </p>
             </footer>
         </article>

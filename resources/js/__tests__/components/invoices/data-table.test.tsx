@@ -11,6 +11,7 @@ import type { Invoice } from '@/types';
 const invoices: Invoice[] = [
     {
         id: 1,
+        uuid: '0199a9a0-0000-7000-8000-000000000101',
         number: 'F-2026-0001',
         client_name: 'Acme SAS',
         client_email: 'compta@acme.fr',
@@ -29,6 +30,7 @@ const invoices: Invoice[] = [
     },
     {
         id: 2,
+        uuid: '0199a9a0-0000-7000-8000-000000000102',
         number: 'F-2026-0002',
         client_name: 'Globex',
         client_email: null,
@@ -65,7 +67,10 @@ describe('Invoices DataTable', () => {
 
         expect(
             screen.getByRole('link', { name: 'F-2026-0001' }),
-        ).toHaveAttribute('href', '/invoices/1');
+        ).toHaveAttribute(
+            'href',
+            '/invoices/0199a9a0-0000-7000-8000-000000000101',
+        );
     });
 
     it('renders invoice rows with badge, money and dates', () => {

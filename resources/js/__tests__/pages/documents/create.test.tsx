@@ -252,7 +252,7 @@ describe('Documents create page', () => {
         );
         expect(screen.getByRole('link', { name: 'Annuler' })).toHaveAttribute(
             'href',
-            '/tools/documents/1',
+            '/tools/documents/0199b0c0-0000-7000-8000-000000000001',
         );
 
         await user.click(
@@ -263,6 +263,8 @@ describe('Documents create page', () => {
 
         expect(toastError).not.toHaveBeenCalled();
         expect(post).not.toHaveBeenCalled();
-        expect(put).toHaveBeenCalledWith('/tools/documents/1');
+        expect(put).toHaveBeenCalledWith(
+            '/tools/documents/0199b0c0-0000-7000-8000-000000000001',
+        );
     });
 });

@@ -8,6 +8,7 @@ use App\Enums\LeadLanguage;
 use Carbon\CarbonInterface;
 use Database\Factories\DocumentRequestFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * foyer, pièces cochées par personne, message et lien de dépôt sécurisé.
  *
  * @property int $id
+ * @property string $uuid
  * @property string $first_name
  * @property string $last_name
  * @property LeadLanguage $language
@@ -33,6 +35,23 @@ class DocumentRequest extends Model
 {
     /** @use HasFactory<DocumentRequestFactory> */
     use HasFactory;
+
+    use HasUuids;
+
+    /**
+     * L'UUID est l'identifiant public (URL) ; l'identifiant numérique reste la clé primaire.
+     *
+     * @return list<string>
+     */
+    public function uniqueIds(): array
+    {
+        return ['uuid'];
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
 
     /**
      * @return array<string, string>

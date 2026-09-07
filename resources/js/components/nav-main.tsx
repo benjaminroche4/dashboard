@@ -21,7 +21,7 @@ import {
     SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
-import { activeHref, matchesSection } from '@/lib/nav-active';
+import { activeHref } from '@/lib/nav-active';
 import { toUrl } from '@/lib/utils';
 import type { NavGroup, NavItem } from '@/types';
 
@@ -48,14 +48,19 @@ function NavBadge({ value }: { value: NavItem['badge'] }) {
 const hoverClasses =
     'transition-colors duration-150 ease-out hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent';
 
-function NavLeaf({ item }: { item: NavItem }) {
-    const { currentUrl } = useCurrentUrl();
-
+function NavLeaf({
+    item,
+    activeUrl,
+}: {
+    item: NavItem;
+    /** Lien actif de toute la navigation (voir `NavMain`). */
+    activeUrl: string | null;
+}) {
     return (
         <SidebarMenuItem>
             <SidebarMenuButton
                 asChild
-                isActive={matchesSection(toUrl(item.href), currentUrl)}
+                isActive={toUrl(item.href) === activeUrl}
                 tooltip={{ children: item.title }}
                 className={hoverClasses}
             >
@@ -91,17 +96,20 @@ function writeBranchOpen(title: string, open: boolean): void {
     }
 }
 
-function NavBranch({ item }: { item: NavItem }) {
-    const { currentUrl } = useCurrentUrl();
+function NavBranch({
+    item,
+    activeUrl,
+}: {
+    item: NavItem;
+    activeUrl: string | null;
+}) {
     const items = item.items ?? [];
-    // Le sous-lien actif est le plus précis : /leads/create sélectionne
-    // « Converting Machine », pas « Liste des leads » ; /invoices/12 garde « Factures ».
-    const activeSub = activeHref(
-        items.map((sub) => toUrl(sub.href)),
-        currentUrl,
-    );
-    const hasActiveChild =
-        activeSub !== null || matchesSection(toUrl(item.href), currentUrl);
+    // Le sous-lien actif est celui qui porte la sélection globale.
+    const activeSub =
+        activeUrl !== null && items.some((sub) => toUrl(sub.href) === activeUrl)
+            ? activeUrl
+            : null;
+    const hasActiveChild = activeSub !== null || toUrl(item.href) === activeUrl;
     const linkable = typeof item.href === 'string' ? item.href !== '#' : true;
     // L'état choisi par l'utilisateur survit au rechargement de la page ;
     // à défaut, le menu s'ouvre si la page courante est un sous-lien.
@@ -188,6 +196,17 @@ function NavBranch({ item }: { item: NavItem }) {
                                 >
                                     <Link href={sub.href} prefetch>
                                         <span>{sub.title}</span>
+                                        {/* Compteur dans le flux du lien (pas en absolu : le sous-lien n'a pas de repère `peer`), hors nom accessible comme pour les entrées parentes. */}
+                                        {sub.badge !== undefined &&
+                                            sub.badge > 0 && (
+                                                <span
+                                                    aria-hidden="true"
+                                                    data-sidebar="menu-badge"
+                                                    className="bg-sidebar-primary text-sidebar-primary-foreground ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1 text-xs font-medium tabular-nums"
+                                                >
+                                                    {sub.badge}
+                                                </span>
+                                            )}
                                     </Link>
                                 </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
@@ -199,11 +218,28 @@ function NavBranch({ item }: { item: NavItem }) {
     );
 }
 
+/** Tous les liens de la navigation, parents et sous-liens confondus. */
+function collectHrefs(groups: NavGroup[]): string[] {
+    return groups.flatMap((group) =>
+        group.items.flatMap((item) => [
+            toUrl(item.href),
+            ...(item.items ?? []).map((sub) => toUrl(sub.href)),
+        ]),
+    );
+}
+
 /**
  * Navigation principale : un SidebarGroup par section, avec libellé masqué en
  * mode icône et remplacé par un séparateur entre les groupes.
+ *
+ * Un seul lien est actif à la fois : le plus précis de toute la navigation.
+ * Ainsi /tools/reports sélectionne « Rapports » sans allumer « Outils »
+ * (/tools), et /leads/create « Converting Machine » sans « Liste des leads ».
  */
 export function NavMain({ groups }: { groups: NavGroup[] }) {
+    const { currentUrl } = useCurrentUrl();
+    const activeUrl = activeHref(collectHrefs(groups), currentUrl);
+
     return (
         <>
             {groups.map((group, index) => (
@@ -216,9 +252,17 @@ export function NavMain({ groups }: { groups: NavGroup[] }) {
                         <SidebarMenu>
                             {group.items.map((item) =>
                                 item.items?.length ? (
-                                    <NavBranch key={item.title} item={item} />
+                                    <NavBranch
+                                        key={item.title}
+                                        item={item}
+                                        activeUrl={activeUrl}
+                                    />
                                 ) : (
-                                    <NavLeaf key={item.title} item={item} />
+                                    <NavLeaf
+                                        key={item.title}
+                                        item={item}
+                                        activeUrl={activeUrl}
+                                    />
                                 ),
                             )}
                         </SidebarMenu>

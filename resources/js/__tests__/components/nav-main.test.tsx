@@ -20,10 +20,12 @@ vi.mock('@inertiajs/react', () => ({
     usePage: () => ({ url: '/people/employees', props: {} }),
 }));
 
+const current = vi.hoisted(() => ({ url: '/people/employees' }));
+
 vi.mock('@/hooks/use-current-url', () => ({
     useCurrentUrl: () => ({
-        currentUrl: '/people/employees',
-        isCurrentUrl: (href: string) => href === '/people/employees',
+        currentUrl: current.url,
+        isCurrentUrl: (href: string) => href === current.url,
     }),
 }));
 
@@ -53,7 +55,8 @@ const groups: NavGroup[] = [
                 icon: Users,
                 items: [
                     { title: "Vue d'ensemble", href: '/people' },
-                    { title: 'Employés', href: '/people/employees' },
+                    { title: 'Employés', href: '/people/employees', badge: 7 },
+                    { title: 'Anciens', href: '/people/former', badge: 0 },
                 ],
             },
         ],
@@ -70,7 +73,10 @@ function renderNav() {
     );
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+    localStorage.clear();
+    current.url = '/people/employees';
+});
 
 describe('NavMain', () => {
     it('renders one group per section with its label', () => {
@@ -90,6 +96,18 @@ describe('NavMain', () => {
             'data-sidebar',
             'menu-badge',
         );
+    });
+
+    it('renders a counter on a sub item, hidden when it is zero', () => {
+        renderNav();
+
+        const badge = screen.getByText('7');
+        expect(badge).toHaveAttribute('data-sidebar', 'menu-badge');
+        // Dans le lien lui-même, à droite du libellé : jamais en absolu sous la ligne.
+        expect(screen.getByRole('link', { name: /Employés/ })).toContainElement(
+            badge,
+        );
+        expect(screen.queryByText('0')).not.toBeInTheDocument();
     });
 
     it('opens the branch that contains the current page and marks it active', () => {
@@ -128,6 +146,59 @@ describe('NavMain section selection', () => {
         expect(
             screen.getByRole('button', { name: /Personnes/ }),
         ).toHaveAttribute('data-active', 'true');
+    });
+});
+
+describe('NavMain single active link', () => {
+    const tools: NavGroup[] = [
+        {
+            label: 'Outils',
+            items: [
+                {
+                    title: 'Outils',
+                    href: '/tools',
+                    icon: LayoutGrid,
+                    items: [{ title: 'Documents', href: '/tools/documents' }],
+                },
+                { title: 'Rapports', href: '/tools/reports', icon: Users },
+            ],
+        },
+    ];
+    const renderTools = () =>
+        render(
+            <TooltipProvider>
+                <SidebarProvider>
+                    <NavMain groups={tools} />
+                </SidebarProvider>
+            </TooltipProvider>,
+        );
+
+    it('selects only « Rapports » on /tools/reports, not the « Outils » parent', () => {
+        current.url = '/tools/reports';
+        renderTools();
+
+        expect(screen.getByRole('link', { name: 'Rapports' })).toHaveAttribute(
+            'data-active',
+            'true',
+        );
+        expect(screen.getByRole('link', { name: 'Outils' })).toHaveAttribute(
+            'data-active',
+            'false',
+        );
+    });
+
+    it('selects only « Outils » on /tools', () => {
+        current.url = '/tools';
+        renderTools();
+
+        expect(screen.getByRole('link', { name: 'Outils' })).toHaveAttribute(
+            'data-active',
+            'true',
+        );
+        expect(screen.getByRole('link', { name: 'Rapports' })).toHaveAttribute(
+            'data-active',
+            'false',
+        );
     });
 });
 

@@ -43,7 +43,7 @@ describe('LeadAssignMenu', () => {
         await user.click(screen.getByRole('menuitem', { name: /Camille Roy/ }));
 
         expect(patch).toHaveBeenCalledWith(
-            '/leads/1/assign',
+            '/leads/0199a9a0-0000-7000-8000-000000000001/assign',
             { user_id: 2 },
             expect.objectContaining({ preserveScroll: true }),
         );
@@ -68,7 +68,7 @@ describe('LeadAssignMenu', () => {
         );
 
         expect(patch).toHaveBeenCalledWith(
-            '/leads/1/assign',
+            '/leads/0199a9a0-0000-7000-8000-000000000001/assign',
             { user_id: null },
             expect.anything(),
         );

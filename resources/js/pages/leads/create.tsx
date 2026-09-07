@@ -20,6 +20,7 @@ import { DatePicker } from '@/components/date-picker';
 import InputError from '@/components/input-error';
 import { FormActionBar } from '@/components/form-action-bar';
 import { ConditionChoices } from '@/components/leads/condition-choices';
+import { LeadClosingGuide } from '@/components/leads/lead-closing-guide';
 import { DistrictMap } from '@/components/leads/district-map';
 import { PhoneInput } from '@/components/phone-input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -494,7 +495,7 @@ export default function LeadsCreate({
                 ) === null
             ) {
                 router.visit(
-                    lead ? leadShow({ lead: lead.id }).url : leadsIndex().url,
+                    lead ? leadShow({ lead: lead.uuid }).url : leadsIndex().url,
                 );
             }
         };
@@ -557,13 +558,13 @@ export default function LeadsCreate({
         }));
 
         if (lead) {
-            form.put(update({ lead: lead.id }).url);
+            form.put(update({ lead: lead.uuid }).url);
         } else {
             form.post(store().url);
         }
     };
 
-    const cancelHref = lead ? leadShow({ lead: lead.id }) : leadsIndex();
+    const cancelHref = lead ? leadShow({ lead: lead.uuid }) : leadsIndex();
 
     return (
         <>
@@ -572,17 +573,22 @@ export default function LeadsCreate({
             />
             <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4">
                 <div className="grid gap-6 pt-8 pb-8">
-                    <div>
-                        <h1 className="text-2xl font-semibold tracking-tight">
-                            {editing
-                                ? `Modifier ${lead.name}`
-                                : 'Converting Machine'}
-                        </h1>
-                        <p className="text-muted-foreground text-sm">
-                            {editing
-                                ? 'Le statut et la place dans le kanban ne changent pas.'
-                                : 'Le contact suffit pour créer le lead. Le projet et la qualification peuvent attendre.'}
-                        </p>
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <h1 className="text-2xl font-semibold tracking-tight">
+                                {editing
+                                    ? `Modifier ${lead.name}`
+                                    : 'Converting Machine'}
+                            </h1>
+                            <p className="text-muted-foreground text-sm">
+                                {editing
+                                    ? 'Le statut et la place dans le kanban ne changent pas.'
+                                    : 'Le contact suffit pour créer le lead. Le projet et la qualification peuvent attendre.'}
+                            </p>
+                        </div>
+                        <LeadClosingGuide
+                            storageKey={editing ? String(lead.id) : 'new'}
+                        />
                     </div>
                     <Stepper current={step} visited={visited} onSelect={goTo} />
                 </div>
@@ -732,8 +738,11 @@ export default function LeadsCreate({
                                     </Field>
                                 </div>
                                 {duplicates.length > 0 && (
-                                    <Alert data-test="duplicates">
-                                        <TriangleAlert />
+                                    <Alert
+                                        variant="warning"
+                                        data-test="duplicates"
+                                    >
+                                        <TriangleAlert aria-hidden />
                                         <AlertTitle>
                                             {duplicates.length > 1
                                                 ? 'Des leads existent déjà avec ce contact'
@@ -755,7 +764,7 @@ export default function LeadsCreate({
                                                         >
                                                             {duplicate.name}
                                                         </Link>
-                                                        <span className="text-muted-foreground text-xs">
+                                                        <span className="text-xs opacity-80">
                                                             {[
                                                                 duplicate.email,
                                                                 duplicate.phone,

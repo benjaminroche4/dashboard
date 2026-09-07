@@ -43,7 +43,7 @@ export function LeadAssignMenu({
     lead,
     size = 'sm',
 }: {
-    lead: Pick<Lead, 'id' | 'name' | 'assignee'>;
+    lead: Pick<Lead, 'id' | 'uuid' | 'name' | 'assignee'>;
     size?: 'sm' | 'md';
 }) {
     const { staff } = usePage().props;
@@ -57,7 +57,7 @@ export function LeadAssignMenu({
 
         setPending(true);
         router.patch(
-            leadAssign({ lead: lead.id }).url,
+            leadAssign({ lead: lead.uuid }).url,
             { user_id: userId },
             { preserveScroll: true, onFinish: () => setPending(false) },
         );

@@ -41,7 +41,9 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { formatDate, formatMoney } from '@/lib/format';
 import { applyMove, columnOf, columnStats } from '@/lib/kanban';
-import { leadUrgency } from '@/lib/lead-urgency';
+import { firstContactTimer, leadUrgency } from '@/lib/lead-urgency';
+import { useNow } from '@/hooks/use-now';
+import { FirstContactBadge } from '@/components/leads/first-contact-badge';
 import { describeDistricts } from '@/lib/paris-districts';
 import { cn } from '@/lib/utils';
 import { status as leadStatusRoute } from '@/routes/leads';
@@ -149,6 +151,7 @@ export function LeadKanban({
     // Carte déposée dans Archivé : on demande le motif avant d'envoyer.
     const [archiving, setArchiving] = useState<{
         id: number;
+        uuid: string;
         name: string;
         position: number;
     } | null>(null);
@@ -336,6 +339,7 @@ export function LeadKanban({
         ) {
             setArchiving({
                 id,
+                uuid: moved.uuid,
                 name: original.name,
                 position: moved.position,
             });
@@ -344,7 +348,7 @@ export function LeadKanban({
         }
 
         router.patch(
-            leadStatusRoute({ lead: id }).url,
+            leadStatusRoute({ lead: moved.uuid }).url,
             { status: moved.status, position: moved.position },
             { preserveScroll: true, onError: () => setItems(leads) },
         );
@@ -356,7 +360,7 @@ export function LeadKanban({
         }
 
         router.patch(
-            leadStatusRoute({ lead: archiving.id }).url,
+            leadStatusRoute({ lead: archiving.uuid }).url,
             {
                 status: 'archived',
                 position: archiving.position,
@@ -735,6 +739,7 @@ export function LeadCard({
             ? null
             : formatMoney(lead.budget_cents, lead.currency);
     const urgency = leadUrgency(lead);
+    const firstContact = firstContactTimer(lead, useNow(1_000));
     const rows: { label: string; value: string }[] = [
         { label: 'Offre', value: lead.offer_label ?? '—' },
         { label: 'Budget', value: budget ? `${budget} / mois` : '—' },
@@ -796,10 +801,12 @@ export function LeadCard({
                     />
                 </div>
             </div>
-            {(urgency.contact === 'warn' ||
+            {(firstContact !== null ||
+                urgency.contact === 'warn' ||
                 urgency.contact === 'late' ||
                 urgency.arrivalInDays !== null) && (
                 <div className="flex min-w-0 flex-wrap gap-1.5">
+                    <FirstContactBadge timer={firstContact} />
                     {(urgency.contact === 'warn' ||
                         urgency.contact === 'late') && (
                         <Badge

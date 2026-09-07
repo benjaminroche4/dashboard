@@ -7,12 +7,14 @@ namespace App\Models;
 use Carbon\CarbonInterface;
 use Database\Factories\LeadNoteFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int $id
+ * @property string $uuid
  * @property int $lead_id
  * @property int|null $user_id
  * @property string $body
@@ -24,6 +26,23 @@ class LeadNote extends Model
 {
     /** @use HasFactory<LeadNoteFactory> */
     use HasFactory;
+
+    use HasUuids;
+
+    /**
+     * L'UUID est l'identifiant public (URL) ; l'identifiant numérique reste la clé primaire.
+     *
+     * @return list<string>
+     */
+    public function uniqueIds(): array
+    {
+        return ['uuid'];
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
 
     /**
      * @return BelongsTo<User, $this>

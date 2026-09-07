@@ -35,6 +35,7 @@ describe('InvoiceLeadLink', () => {
                         Promise.resolve([
                             {
                                 id: 7,
+                                uuid: '0199a9a0-0000-7000-8000-000000000007',
                                 name: 'Léa Durand',
                                 email: 'lea@example.com',
                             },
@@ -48,19 +49,26 @@ describe('InvoiceLeadLink', () => {
         const user = userEvent.setup();
         render(
             <InvoiceLeadLink
-                invoiceId={3}
-                lead={{ id: 7, name: 'Léa Durand' }}
+                invoiceUuid="0199a9a0-0000-7000-8000-000000000103"
+                lead={{
+                    id: 7,
+                    uuid: '0199a9a0-0000-7000-8000-000000000007',
+                    name: 'Léa Durand',
+                }}
                 canEdit
             />,
         );
 
         expect(
             screen.getByRole('link', { name: /Léa Durand/ }),
-        ).toHaveAttribute('href', '/leads/7');
+        ).toHaveAttribute(
+            'href',
+            '/leads/0199a9a0-0000-7000-8000-000000000007',
+        );
         await user.click(screen.getByRole('button', { name: 'Détacher' }));
 
         expect(patch).toHaveBeenCalledWith(
-            '/invoices/3/lead',
+            '/invoices/0199a9a0-0000-7000-8000-000000000103/lead',
             { lead_id: null },
             expect.objectContaining({ preserveScroll: true }),
         );
@@ -68,7 +76,13 @@ describe('InvoiceLeadLink', () => {
 
     it('searches leads and links the chosen one', async () => {
         const user = userEvent.setup();
-        render(<InvoiceLeadLink invoiceId={3} lead={null} canEdit />);
+        render(
+            <InvoiceLeadLink
+                invoiceUuid="0199a9a0-0000-7000-8000-000000000103"
+                lead={null}
+                canEdit
+            />,
+        );
 
         expect(screen.getByText('Aucun lead rattaché.')).toBeInTheDocument();
         await user.click(
@@ -84,7 +98,7 @@ describe('InvoiceLeadLink', () => {
         await user.click(await screen.findByText('Léa Durand'));
         await waitFor(() =>
             expect(patch).toHaveBeenCalledWith(
-                '/invoices/3/lead',
+                '/invoices/0199a9a0-0000-7000-8000-000000000103/lead',
                 { lead_id: 7 },
                 expect.anything(),
             ),
@@ -96,7 +110,13 @@ describe('InvoiceLeadLink', () => {
     });
 
     it('hides the actions for members', () => {
-        render(<InvoiceLeadLink invoiceId={3} lead={null} canEdit={false} />);
+        render(
+            <InvoiceLeadLink
+                invoiceUuid="0199a9a0-0000-7000-8000-000000000103"
+                lead={null}
+                canEdit={false}
+            />,
+        );
 
         expect(
             screen.queryByRole('button', { name: 'Lier à un lead' }),

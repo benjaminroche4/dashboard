@@ -34,14 +34,73 @@ describe('invoice totals', () => {
     it('computes totals with the same rounding as the backend', () => {
         const totals = computeInvoiceTotals(
             [
-                { offer: 'accompagne', quantity: '2', unit_price: '150' },
-                { offer: 'confie', quantity: '1.5', unit_price: '99.99' },
+                {
+                    offer: 'accompagne',
+                    description: '',
+                    quantity: '2',
+                    unit_price: '150',
+                },
+                {
+                    offer: 'confie',
+                    description: '',
+                    quantity: '1.5',
+                    unit_price: '99.99',
+                },
             ],
             '8.1',
             offers,
         );
 
         expect(totals.lines[0].description).toBe('Offre Accompagné');
+    });
+
+    it('describes a free line by its label and falls back to « Ligne libre »', () => {
+        const totals = computeInvoiceTotals(
+            [
+                {
+                    offer: null,
+                    description: '  État des lieux ',
+                    quantity: '2',
+                    unit_price: '150',
+                },
+                {
+                    offer: null,
+                    description: '',
+                    quantity: '1',
+                    unit_price: '10',
+                },
+            ],
+            '0',
+            offers,
+        );
+
+        expect(totals.lines[0].description).toBe('État des lieux');
+        expect(totals.lines[0].totalCents).toBe(30_000);
+        expect(totals.lines[1].description).toBe('Ligne libre');
+        expect(totals.lines[1].totalCents).toBe(1_000);
+        expect(totals.subtotalCents).toBe(31_000);
+    });
+
+    it('computes totals with the same rounding as the backend (continued)', () => {
+        const totals = computeInvoiceTotals(
+            [
+                {
+                    offer: 'accompagne',
+                    description: '',
+                    quantity: '2',
+                    unit_price: '150',
+                },
+                {
+                    offer: 'confie',
+                    description: '',
+                    quantity: '1.5',
+                    unit_price: '99.99',
+                },
+            ],
+            '8.1',
+            offers,
+        );
+
         expect(totals.lines[1].totalCents).toBe(14_999);
         expect(totals.subtotalCents).toBe(44_999);
         expect(totals.vatCents).toBe(Math.round((44_999 * 8.1) / 100));
@@ -65,7 +124,12 @@ describe('discount, deposit and local validation', () => {
         due_at: '2026-10-04',
         notes: '',
         items: [
-            { offer: 'accompagne' as const, quantity: '1', unit_price: '1190' },
+            {
+                offer: 'accompagne' as const,
+                description: '',
+                quantity: '1',
+                unit_price: '1190',
+            },
         ],
     };
 
@@ -95,7 +159,14 @@ describe('discount, deposit and local validation', () => {
             due_at: '2026-09-01',
             discount_percent: '150',
             deposit: '999999',
-            items: [{ offer: 'confie', quantity: '-1', unit_price: '' }],
+            items: [
+                {
+                    offer: 'confie',
+                    description: '',
+                    quantity: '-1',
+                    unit_price: '',
+                },
+            ],
         });
 
         expect(errors.client_name).toBe('Le nom du client est obligatoire.');

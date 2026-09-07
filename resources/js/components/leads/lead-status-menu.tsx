@@ -52,7 +52,7 @@ export function LeadStatusMenu({
     statuses,
     lossReasons,
 }: {
-    lead: Pick<Lead, 'id' | 'name' | 'status' | 'status_label'>;
+    lead: Pick<Lead, 'id' | 'uuid' | 'name' | 'status' | 'status_label'>;
     statuses: LeadStatusOption[];
     /** Motifs proposés à l'archivage ; sans eux, l'archivage patch directement. */
     lossReasons?: LabeledOption<LeadLossReason>[];
@@ -62,7 +62,7 @@ export function LeadStatusMenu({
 
     const patch = (payload: Record<string, string>) => {
         setPending(true);
-        router.patch(leadStatusRoute({ lead: lead.id }).url, payload, {
+        router.patch(leadStatusRoute({ lead: lead.uuid }).url, payload, {
             preserveScroll: true,
             onSuccess: () => setArchiving(false),
             onFinish: () => setPending(false),

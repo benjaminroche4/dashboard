@@ -97,6 +97,36 @@ test('discount and deposit are stored and reflected in the totals', function ():
         ->and($invoice->dueCents())->toBe(10_000);
 });
 
+test('a free line is stored with its label and no offer', function (): void {
+    $this->actingAs(User::factory()->admin()->create())
+        ->post(route('invoices.store'), validInvoiceInput([
+            'items' => [
+                ['offer' => 'confie', 'quantity' => 1, 'unit_price_cents' => 100_000],
+                ['offer' => null, 'description' => 'État des lieux', 'quantity' => 2, 'unit_price_cents' => 15_000],
+            ],
+        ]))
+        ->assertSessionHasNoErrors();
+
+    $items = Invoice::query()->latest('id')->firstOrFail()->items;
+
+    expect($items)->toHaveCount(2)
+        ->and($items[1]['offer'])->toBeNull()
+        ->and($items[1]['description'])->toBe('État des lieux')
+        ->and($items[0]['description'])->toBe('Offre Confié');
+});
+
+test('a line needs an offer or a label', function (): void {
+    $this->actingAs(User::factory()->admin()->create())
+        ->from(route('invoices.create'))
+        ->post(route('invoices.store'), validInvoiceInput([
+            'items' => [['offer' => null, 'description' => '', 'quantity' => 1, 'unit_price_cents' => 100]],
+        ]))
+        ->assertRedirect(route('invoices.create'))
+        ->assertSessionHasErrors(['items.0.offer', 'items.0.description']);
+
+    expect(session('errors')->first('items.0.description'))->toBe('Le champ libellé est obligatoire quand offre n\'est pas présent.');
+});
+
 test('the request is validated in French', function (): void {
     $this->actingAs(User::factory()->admin()->create())
         ->from(route('invoices.create'))

@@ -95,7 +95,10 @@ export function useStaffChannel({
             flushPrefetchCache();
 
             if (reload) {
-                router.reload({ only: scope.length ? scope : undefined });
+                // Rechargement ciblé : les compteurs du menu (leads « À traiter ») suivent toujours.
+                router.reload({
+                    only: scope.length ? [...scope, 'counts'] : undefined,
+                });
             }
         },
         [currentUserId, notify, reload, scope.join(',')],

@@ -48,6 +48,7 @@ class InvoiceController extends Controller
             ->get()
             ->map(fn (Invoice $invoice): array => [
                 'id' => $invoice->id,
+                'uuid' => $invoice->uuid,
                 'number' => $invoice->number,
                 'client_name' => $invoice->client_name,
                 'client_email' => $invoice->client_email,
@@ -78,12 +79,13 @@ class InvoiceController extends Controller
     {
         $this->authorize('create', Invoice::class);
 
-        // ?lead=ID : facture créée depuis la fiche d'un lead, client prérempli et facture rattachée.
-        $lead = $request->filled('lead') ? Lead::query()->find((int) $request->query('lead')) : null;
+        // ?lead=UUID : facture créée depuis la fiche d'un lead, client prérempli et facture rattachée.
+        $lead = $request->filled('lead') ? Lead::query()->where('uuid', (string) $request->query('lead'))->first() : null;
 
         return Inertia::render('invoices/create', [
             'prefill' => $lead === null ? null : [
                 'lead_id' => $lead->id,
+                'lead_uuid' => $lead->uuid,
                 'lead_name' => $lead->fullName(),
                 'client_name' => $lead->company !== null && $lead->company !== '' ? $lead->company : $lead->fullName(),
                 'client_email' => $lead->email ?? '',
@@ -165,6 +167,7 @@ class InvoiceController extends Controller
             ->get()
             ->map(fn (Invoice $invoice): array => [
                 'id' => $invoice->id,
+                'uuid' => $invoice->uuid,
                 'number' => $invoice->number,
                 'client_name' => $invoice->client_name,
                 'amount_cents' => $invoice->amount_cents,
@@ -182,7 +185,7 @@ class InvoiceController extends Controller
      */
     private function leadSummary(Invoice $invoice): ?array
     {
-        return $invoice->lead === null ? null : ['id' => $invoice->lead->id, 'name' => $invoice->lead->fullName()];
+        return $invoice->lead === null ? null : ['id' => $invoice->lead->id, 'uuid' => $invoice->lead->uuid, 'name' => $invoice->lead->fullName()];
     }
 
     public function pdf(Invoice $invoice): HttpResponse
@@ -216,6 +219,7 @@ class InvoiceController extends Controller
         return Inertia::render('invoices/show', [
             'invoice' => [
                 'id' => $invoice->id,
+                'uuid' => $invoice->uuid,
                 'number' => $invoice->number,
                 'client_name' => $invoice->client_name,
                 'client_email' => $invoice->client_email,

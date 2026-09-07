@@ -8,6 +8,7 @@ use App\Enums\DocumentCategory;
 use Carbon\CarbonInterface;
 use Database\Factories\CatalogDocumentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\Model;
  * en français, traductions anglaises facultatives, ordre dans sa catégorie.
  *
  * @property int $id
+ * @property string $uuid
  * @property string $key
  * @property DocumentCategory $category
  * @property string $label
@@ -31,6 +33,23 @@ class CatalogDocument extends Model
 {
     /** @use HasFactory<CatalogDocumentFactory> */
     use HasFactory;
+
+    use HasUuids;
+
+    /**
+     * L'UUID est l'identifiant public (URL) ; l'identifiant numérique reste la clé primaire.
+     *
+     * @return list<string>
+     */
+    public function uniqueIds(): array
+    {
+        return ['uuid'];
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
 
     /**
      * @return array<string, string>

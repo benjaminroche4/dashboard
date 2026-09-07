@@ -159,14 +159,14 @@ export default function DocumentsCreate({
         }));
 
         if (request) {
-            form.put(update({ documentRequest: request.id }).url);
+            form.put(update({ documentRequest: request.uuid }).url);
         } else {
             form.post(store().url);
         }
     };
 
     const cancelHref = request
-        ? documentsShow({ documentRequest: request.id })
+        ? documentsShow({ documentRequest: request.uuid })
         : toolsIndex();
 
     const errorsFor = (index: number) => ({
@@ -201,7 +201,7 @@ export default function DocumentsCreate({
                                     Pour le lead{' '}
                                     <Link
                                         href={leadShow({
-                                            lead: prefill.lead_id,
+                                            lead: prefill.lead_uuid,
                                         })}
                                         className="text-foreground font-medium underline-offset-4 hover:underline"
                                     >

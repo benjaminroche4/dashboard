@@ -95,7 +95,7 @@ describe('Documents show page', () => {
         ).not.toBeInTheDocument();
         expect(screen.getByRole('link', { name: /Modifier/ })).toHaveAttribute(
             'href',
-            '/tools/documents/1/edit',
+            '/tools/documents/0199b0c0-0000-7000-8000-000000000001/edit',
         );
         expect(
             screen.getByRole('button', { name: 'Actions pour Léa Martin' }),
@@ -115,7 +115,10 @@ describe('Documents show page', () => {
         await user.click(
             screen.getByRole('button', { name: /Télécharger le PDF/ }),
         );
-        expect(download).toHaveBeenCalledWith(1, 'Léa Martin');
+        expect(download).toHaveBeenCalledWith(
+            '0199b0c0-0000-7000-8000-000000000001',
+            'Léa Martin',
+        );
     });
 
     it('disables the PDF without DocRaptor and falls back to the person number', () => {

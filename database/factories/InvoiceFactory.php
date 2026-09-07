@@ -22,7 +22,7 @@ class InvoiceFactory extends Factory
      */
     public function definition(): array
     {
-        $issuedAt = fake()->dateTimeBetween('-90 days', 'now');
+        $issuedAt = fake()->dateTimeBetween('-6 months', 'now');
         $currency = fake()->randomElement(Currency::cases());
         $items = collect(range(1, fake()->numberBetween(1, 2)))
             ->map(function () use ($currency): array {

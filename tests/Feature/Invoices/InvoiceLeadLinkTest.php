@@ -78,7 +78,7 @@ test('creating an invoice from a lead prefills the client and links it', functio
     $manager = User::factory()->manager()->create();
     $lead = Lead::factory()->create(['first_name' => 'Léa', 'last_name' => 'Durand', 'email' => 'lea@example.com', 'company' => 'Nestlé', 'offer' => Offer::Confie]);
 
-    $this->actingAs($manager)->get(route('invoices.create', ['lead' => $lead->id]))
+    $this->actingAs($manager)->get(route('invoices.create', ['lead' => $lead->uuid]))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->where('prefill.lead_id', $lead->id)
             ->where('prefill.lead_name', 'Léa Durand')

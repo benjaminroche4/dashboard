@@ -27,7 +27,7 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
 
     const download = async () => {
         setDownloading(true);
-        await downloadDocumentRequestPdf(request.id, request.name);
+        await downloadDocumentRequestPdf(request.uuid, request.name);
         setDownloading(false);
     };
 
@@ -54,7 +54,7 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                         <Button variant="outline" asChild>
                             <Link
                                 href={documentsEdit({
-                                    documentRequest: request.id,
+                                    documentRequest: request.uuid,
                                 })}
                             >
                                 <Pencil />
@@ -110,7 +110,7 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                         {request.lead && (
                             <Panel title="Lead">
                                 <Link
-                                    href={leadShow({ lead: request.lead.id })}
+                                    href={leadShow({ lead: request.lead.uuid })}
                                     className="bg-background flex items-center gap-2 rounded-lg border p-3 text-sm font-medium underline-offset-4 hover:underline"
                                 >
                                     <UserRound

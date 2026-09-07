@@ -125,7 +125,7 @@ export function LeadVisioDialog({
             `Invitation à ${lead.email}`,
         );
         router.post(
-            visio({ lead: lead.id }).url,
+            visio({ lead: lead.uuid }).url,
             { visio_at: value },
             {
                 preserveScroll: true,

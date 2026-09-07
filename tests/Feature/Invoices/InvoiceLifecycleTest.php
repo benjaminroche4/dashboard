@@ -28,6 +28,7 @@ test('the detail page shows the invoice, its totals and its history', function (
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->component('invoices/show')
             ->where('invoice.number', 'RP-27010')
+            ->where('invoice.uuid', $invoice->uuid)
             ->where('invoice.deposit_cents', 10_000)
             ->where('invoice.due_cents', $invoice->amount_cents - 10_000)
             ->where('invoice.can_send', true)
@@ -36,6 +37,18 @@ test('the detail page shows the invoice, its totals and its history', function (
             ->where('history.0.to', 'Brouillon')
             ->has('company.name')
             ->has('offers', 2));
+});
+
+test('the invoice routes use the UUID and refuse the numeric id', function (): void {
+    $invoice = Invoice::factory()->create();
+
+    expect($invoice->uuid)->toBeString()->not->toBeEmpty()
+        ->and(route('invoices.show', $invoice))->toContain($invoice->uuid)
+        ->and(route('invoices.show', $invoice))->not->toContain("/invoices/{$invoice->id}");
+
+    $this->actingAs(User::factory()->create())
+        ->get("/invoices/{$invoice->id}")
+        ->assertNotFound();
 });
 
 test('managers send an invoice from the detail page', function (): void {

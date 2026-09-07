@@ -36,7 +36,7 @@ describe('LeadHeaderMenu', () => {
         await user.click(dialog.getByRole('button', { name: 'Archiver' }));
 
         expect(patch).toHaveBeenCalledWith(
-            '/leads/1/status',
+            '/leads/0199a9a0-0000-7000-8000-000000000001/status',
             {
                 status: 'archived',
                 loss_reason: 'went_elsewhere',
@@ -68,6 +68,9 @@ describe('LeadHeaderMenu', () => {
             }),
         );
 
-        expect(destroy).toHaveBeenCalledWith('/leads/1', expect.anything());
+        expect(destroy).toHaveBeenCalledWith(
+            '/leads/0199a9a0-0000-7000-8000-000000000001',
+            expect.anything(),
+        );
     });
 });

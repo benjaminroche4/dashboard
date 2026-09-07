@@ -27,10 +27,15 @@ describe('downloadInvoicePdf', () => {
             .spyOn(HTMLAnchorElement.prototype, 'click')
             .mockImplementation(() => undefined);
 
-        await expect(downloadInvoicePdf(1, 'RP-27001')).resolves.toBe(true);
+        await expect(
+            downloadInvoicePdf(
+                '0199a9a0-0000-7000-8000-000000000101',
+                'RP-27001',
+            ),
+        ).resolves.toBe(true);
 
         expect(fetch).toHaveBeenCalledWith(
-            '/invoices/1/pdf',
+            '/invoices/0199a9a0-0000-7000-8000-000000000101/pdf',
             expect.objectContaining({ credentials: 'same-origin' }),
         );
         expect(click).toHaveBeenCalled();
@@ -51,7 +56,12 @@ describe('downloadInvoicePdf', () => {
             vi.fn(async () => ({ ok: false, status: 503 })),
         );
 
-        await expect(downloadInvoicePdf(2, 'RP-27002')).resolves.toBe(false);
+        await expect(
+            downloadInvoicePdf(
+                '0199a9a0-0000-7000-8000-000000000102',
+                'RP-27002',
+            ),
+        ).resolves.toBe(false);
 
         expect(reject).toHaveBeenCalledWith(
             'toast-1',

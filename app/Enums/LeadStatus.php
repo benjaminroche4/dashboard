@@ -26,6 +26,24 @@ enum LeadStatus: string
         };
     }
 
+    /**
+     * Libellé côté propriétaires : le devis y est un mandat en signature.
+     */
+    public function ownerLabel(): string
+    {
+        return $this === self::QuoteSent ? 'En signature' : $this->label();
+    }
+
+    /**
+     * Colonnes du kanban des leads propriétaires.
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    public static function ownerOptions(): array
+    {
+        return array_map(fn (self $status): array => ['value' => $status->value, 'label' => $status->ownerLabel()], self::cases());
+    }
+
     /** Un lead clos ne demande plus de relance. */
     public function isClosed(): bool
     {

@@ -10,6 +10,7 @@ export function makeCatalogDocument(
 ): CatalogDocumentItem {
     return {
         id: 1,
+        uuid: '0199b0d0-0000-7000-8000-000000000001',
         key: 'identity_document',
         label: "Passeport ou carte d'identité",
         label_en: 'Passport or ID card',
@@ -28,6 +29,7 @@ export const catalogAdminGroups: CatalogAdminGroup[] = [
             makeCatalogDocument(),
             makeCatalogDocument({
                 id: 2,
+                uuid: '0199b0d0-0000-7000-8000-000000000002',
                 key: 'family_record_book',
                 label: 'Livret de famille',
                 label_en: null,

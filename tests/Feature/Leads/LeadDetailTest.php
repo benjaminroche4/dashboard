@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\LeadSource;
 use App\Enums\LeadStatus;
 use App\Events\DashboardUpdated;
 use App\Models\Lead;
@@ -34,6 +35,23 @@ test('the detail page shows the lead, its notes and its status history', functio
             ->has('history', 1)
             ->where('history.0.to', 'À traiter')
             ->has('statuses', count(LeadStatus::cases())));
+});
+
+test('the detail page exposes the inbound message of a website lead and nothing for a manual lead', function (): void {
+    $user = User::factory()->create();
+    $fromSite = Lead::factory()->create(['source' => LeadSource::Website, 'source_note' => 'Formulaire de contact · Autre · CT-1', 'message' => 'Je cherche un studio.']);
+    $manual = Lead::factory()->create(['source' => LeadSource::Referral, 'message' => 'Note.']);
+
+    $this->actingAs($user)
+        ->get(route('leads.show', $fromSite))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('inbound.kind', 'website')
+            ->where('inbound.body', 'Je cherche un studio.')
+            ->where('inbound.meta', 'Formulaire de contact · Autre · CT-1'));
+
+    $this->actingAs($user)
+        ->get(route('leads.show', $manual))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->where('inbound', null));
 });
 
 test('the edit page reuses the converting machine form with the lead prefilled', function (): void {

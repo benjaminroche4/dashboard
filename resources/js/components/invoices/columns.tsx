@@ -80,7 +80,7 @@ export const invoiceColumns: ColumnDef<Invoice>[] = [
         ),
         cell: ({ row }) => (
             <Link
-                href={invoiceShow({ invoice: row.original.id })}
+                href={invoiceShow({ invoice: row.original.uuid })}
                 className="font-medium hover:underline"
             >
                 {row.getValue('number')}

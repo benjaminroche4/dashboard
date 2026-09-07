@@ -22,6 +22,7 @@ import type { Invoice } from '@/types';
 
 const invoice = (id: number, status: Invoice['status']): Invoice => ({
     id,
+    uuid: `0199a9a0-0000-7000-8000-0000000001${String(id).padStart(2, '0')}`,
     number: `F-2026-000${id}`,
     client_name: `Client ${id}`,
     client_email: null,

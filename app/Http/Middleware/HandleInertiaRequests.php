@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Enums\LeadStatus;
+use App\Models\Lead;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -65,6 +67,10 @@ class HandleInertiaRequests extends Middleware
                 'addressAutocomplete' => (bool) config('services.google.maps_key'),
                 // Clé navigateur : publique par nature, à restreindre par référent dans la console Google.
                 'googleMapsKey' => config('services.google.maps_browser_key') ?: null,
+            ],
+            // Compteurs du menu : leads « À traiter », rafraîchis à chaque événement temps réel.
+            'counts' => fn (): array => [
+                'leadsTodo' => $request->user() === null ? 0 : Lead::query()->where('status', LeadStatus::Todo)->count(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

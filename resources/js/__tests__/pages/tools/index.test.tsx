@@ -29,7 +29,37 @@ describe('Tools page', () => {
         expect(
             screen.getByRole('link', { name: 'Voir les demandes' }),
         ).toHaveAttribute('href', '/tools/documents');
-        expect(screen.getAllByRole('link')).toHaveLength(1);
+        expect(screen.getAllByRole('link')).toHaveLength(3);
+    });
+
+    it('shows the quotes card linking to the quotes list', () => {
+        render(<ToolsIndex />);
+
+        const card = screen.getByRole('region', { name: 'Devis' });
+        expect(card).toHaveTextContent(/facture créée d'un clic/);
+        expect(
+            screen.getByRole('link', { name: 'Voir les devis' }),
+        ).toHaveAttribute('href', '/tools/quotes');
+    });
+
+    it('shows the invoices card linking to the invoices list', () => {
+        render(<ToolsIndex />);
+
+        expect(
+            screen.getByRole('region', { name: 'Factures' }),
+        ).toHaveTextContent(/retards détectés/);
+        expect(
+            screen.getByRole('link', { name: 'Voir les factures' }),
+        ).toHaveAttribute('href', '/invoices');
+    });
+
+    it('does not list the reports among the tools', () => {
+        render(<ToolsIndex />);
+
+        expect(screen.queryByRole('region', { name: 'Rapports' })).toBeNull();
+        expect(
+            screen.queryByRole('link', { name: 'Voir les rapports' }),
+        ).toBeNull();
     });
 
     it('declares a breadcrumb to the tools page', () => {

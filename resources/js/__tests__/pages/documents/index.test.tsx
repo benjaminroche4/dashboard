@@ -44,7 +44,10 @@ describe('Documents index page', () => {
         expect(screen.getByText('2 demande(s)')).toBeInTheDocument();
         expect(
             screen.getByRole('link', { name: 'Léa Martin' }),
-        ).toHaveAttribute('href', '/tools/documents/1');
+        ).toHaveAttribute(
+            'href',
+            '/tools/documents/0199b0c0-0000-7000-8000-000000000001',
+        );
         expect(screen.queryByText('À envoyer')).toBeNull();
         expect(screen.queryByText('Statut')).toBeNull();
         expect(

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { InvoicePreview } from '@/components/invoices/invoice-preview';
 import type { Company, InvoiceForm, Offer } from '@/types';
@@ -45,7 +45,14 @@ const form: InvoiceForm = {
     issued_at: '2026-09-04',
     due_at: '2026-10-04',
     notes: 'Merci.',
-    items: [{ offer: 'accompagne', quantity: '2', unit_price: '150' }],
+    items: [
+        {
+            offer: 'accompagne',
+            description: '',
+            quantity: '2',
+            unit_price: '150',
+        },
+    ],
 };
 
 function text(container: HTMLElement, test: string) {
@@ -98,7 +105,14 @@ describe('InvoicePreview', () => {
                     ...form,
                     client_name: '',
                     issued_at: '',
-                    items: [{ offer: 'confie', quantity: '1', unit_price: '' }],
+                    items: [
+                        {
+                            offer: 'confie',
+                            description: '',
+                            quantity: '1',
+                            unit_price: '',
+                        },
+                    ],
                 }}
                 company={company}
                 offers={offers}
@@ -108,5 +122,25 @@ describe('InvoicePreview', () => {
         expect(screen.getByText('Nom du client')).toBeInTheDocument();
         expect(screen.getByText('Offre Confié')).toBeInTheDocument();
         expect(screen.getByText('Aperçu')).toBeInTheDocument();
+    });
+
+    it('renders as a quote with its own wording when kind is "quote"', () => {
+        render(
+            <InvoicePreview
+                form={form}
+                company={company}
+                offers={offers}
+                number="DV-27001"
+                kind="quote"
+            />,
+        );
+
+        const preview = within(screen.getByLabelText('Aperçu du devis'));
+        expect(preview.getByText('Devis')).toBeInTheDocument();
+        expect(preview.getByText('Adressé à')).toBeInTheDocument();
+        expect(preview.getByText("Valable jusqu'au")).toBeInTheDocument();
+        expect(preview.getByText(/Bon pour accord/)).toBeInTheDocument();
+        expect(preview.getByText(/Règlement par virement/)).toBeInTheDocument();
+        expect(screen.queryByText('Facturé à')).toBeNull();
     });
 });

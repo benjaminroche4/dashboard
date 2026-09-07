@@ -1,4 +1,5 @@
-import { Clock, RefreshCw } from 'lucide-react';
+import { Link } from '@inertiajs/react';
+import { Clock, Pencil, RefreshCw } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,8 @@ export type Fact = {
     /** Teinte du badge. */
     badgeTone?: 'default' | 'warn' | 'good';
     multiline?: boolean;
+    /** Valeur absente (« Non renseigné »). */
+    empty?: boolean;
 };
 
 /** `hint` s'affiche en badge à droite de la valeur (ex. « Dans 145 j »). */
@@ -22,6 +25,8 @@ export type Kpi = { label: string; value: ReactNode; hint?: string };
 type Props = {
     contact: Fact[];
     facts: Fact[];
+    /** Rendu personnalisé de la section Projet (remplace les lignes et la carte). */
+    project?: ReactNode;
     message: string | null;
     qualification: Fact[];
     /** Carte des arrondissements. */
@@ -30,6 +35,10 @@ type Props = {
     assign: ReactNode;
     /** Prochain recontact : canal, date, retard, planification. */
     recontact?: ReactNode;
+    /** Carte « Agent en contact », sous « Suivi par ». */
+    agent?: ReactNode;
+    /** Carte « Partenaires du dossier », sous l'agent. */
+    partners?: ReactNode;
     /** Date du dernier contact, déjà formatée, ou « Jamais ». */
     lastContact: string;
     /** Marque le lead comme contacté maintenant. */
@@ -37,17 +46,20 @@ type Props = {
     touchingContact?: boolean;
     /** Actions vers le lead (ex. « Envoyer au lead »), sous le dernier contact. */
     actions?: ReactNode;
-    /** Fil d'activité : notes, envois et statuts. */
+    /** Accès au fil d'activité (bouton ouvrant le volet). */
     activity: ReactNode;
     activityCount: number;
-    /** Filtres du fil, à droite du titre Activité. */
-    activityFilters?: ReactNode;
-    /** Zone de saisie d'une note, sous le fil. */
-    composer: ReactNode;
-    /** Résumé chiffré affiché en bandeau : budget, arrivée, offre, qualité. */
+    /** Résumé chiffré affiché en bandeau : budget, arrivée, offre, qualité (masqué si vide). */
     kpis: Kpi[];
+    /**
+     * Page de modification, proposée à la place d'une section sans aucune
+     * donnée (lead arrivé du site ou du téléphone, pas encore qualifié).
+     */
+    completeUrl?: string;
     /** Factures rattachées au lead, section après la qualification. */
     invoices?: ReactNode;
+    /** Devis rattachés au lead, entre les factures et les documents. */
+    quotes?: ReactNode;
     documents?: ReactNode;
 };
 
@@ -158,50 +170,84 @@ function Kpis({ kpis }: { kpis: Kpi[] }) {
 export function LeadShowBody({
     contact,
     facts,
+    project,
     message,
     qualification,
     map,
     assign,
     recontact,
+    agent,
+    partners,
     lastContact,
     onTouchContact,
     touchingContact = false,
     actions,
     activity,
     activityCount,
-    activityFilters,
-    composer,
     kpis,
+    completeUrl,
     invoices,
+    quotes,
     documents,
 }: Props) {
+    const placeholder = (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-muted-foreground text-sm">Non renseigné</p>
+            {completeUrl && (
+                <Button variant="outline" size="sm" asChild>
+                    <Link href={completeUrl}>
+                        <Pencil aria-hidden />
+                        Compléter
+                    </Link>
+                </Button>
+            )}
+        </div>
+    );
+
     return (
         <div className="grid gap-8">
-            <Kpis kpis={kpis} />
+            {kpis.length > 0 && <Kpis kpis={kpis} />}
             <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
                 <div className="divide-y">
                     <Section title="Contact">
-                        <Rows facts={contact} />
-                    </Section>
-                    <Section title="Projet">
-                        <Rows facts={facts} />
-                        {map}
-                    </Section>
-                    <Section title="Note sur le projet">
-                        {message ? (
-                            <p className="text-sm/6 whitespace-pre-line">
-                                {message}
-                            </p>
+                        {contact.length === 0 ? (
+                            placeholder
                         ) : (
-                            <p className="text-muted-foreground text-sm">
-                                Non renseignée
-                            </p>
+                            <Rows facts={contact} />
                         )}
                     </Section>
+                    <Section title="Projet">
+                        {facts.length === 0
+                            ? placeholder
+                            : (project ?? (
+                                  <>
+                                      <Rows facts={facts} />
+                                      {map}
+                                  </>
+                              ))}
+                    </Section>
+                    {(message !== null || !completeUrl) && (
+                        <Section title="Note sur le projet">
+                            {message ? (
+                                <p className="text-sm/6 whitespace-pre-line">
+                                    {message}
+                                </p>
+                            ) : (
+                                <p className="text-muted-foreground text-sm">
+                                    Non renseignée
+                                </p>
+                            )}
+                        </Section>
+                    )}
                     <Section title="Qualification">
-                        <Rows facts={qualification} />
+                        {qualification.length === 0 ? (
+                            placeholder
+                        ) : (
+                            <Rows facts={qualification} />
+                        )}
                     </Section>
                     {invoices && <Section title="Factures">{invoices}</Section>}
+                    {quotes && <Section title="Devis">{quotes}</Section>}
                     {documents && (
                         <Section title="Documents">{documents}</Section>
                     )}
@@ -248,6 +294,8 @@ export function LeadShowBody({
                             <div className="border-t pt-3">{actions}</div>
                         )}
                     </section>
+                    {agent}
+                    {partners}
                     <section
                         aria-label="Activité"
                         className="bg-sidebar grid gap-2 rounded-xl border p-4"
@@ -263,10 +311,8 @@ export function LeadShowBody({
                                     {activityCount}
                                 </Badge>
                             </h2>
-                            {activityFilters}
                         </header>
                         {activity}
-                        {composer}
                     </section>
                 </aside>
             </div>

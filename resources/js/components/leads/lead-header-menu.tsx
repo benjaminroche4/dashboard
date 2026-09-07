@@ -49,7 +49,7 @@ export function LeadHeaderMenu({
     const archive = ({ reason, note }: ArchiveChoice) => {
         setBusy(true);
         router.patch(
-            leadStatusRoute({ lead: lead.id }).url,
+            leadStatusRoute({ lead: lead.uuid }).url,
             { status: 'archived', loss_reason: reason, loss_note: note },
             {
                 preserveScroll: true,
@@ -62,7 +62,7 @@ export function LeadHeaderMenu({
     };
     const remove = () => {
         setBusy(true);
-        router.delete(leadDestroy({ lead: lead.id }).url, {
+        router.delete(leadDestroy({ lead: lead.uuid }).url, {
             onFinish: () => setBusy(false),
         });
     };

@@ -19,12 +19,12 @@ import { pay } from '@/routes/invoices';
  * Marquer une facture payée : demande la date de paiement puis poste sur invoices.pay.
  */
 export function MarkPaidDialog({
-    invoiceId,
+    invoiceUuid,
     invoiceNumber,
     open,
     onOpenChange,
 }: {
-    invoiceId: number;
+    invoiceUuid: string;
     invoiceNumber: string;
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -45,7 +45,7 @@ export function MarkPaidDialog({
         setError(undefined);
         setProcessing(true);
         router.post(
-            pay({ invoice: invoiceId }).url,
+            pay({ invoice: invoiceUuid }).url,
             { paid_at: paidAt },
             {
                 preserveScroll: true,
@@ -69,11 +69,11 @@ export function MarkPaidDialog({
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-2">
-                    <Label htmlFor={`paid-at-${invoiceId}`}>
+                    <Label htmlFor={`paid-at-${invoiceUuid}`}>
                         Date de paiement
                     </Label>
                     <DatePicker
-                        id={`paid-at-${invoiceId}`}
+                        id={`paid-at-${invoiceUuid}`}
                         aria-label="Date de paiement"
                         value={paidAt}
                         onChange={setPaidAt}

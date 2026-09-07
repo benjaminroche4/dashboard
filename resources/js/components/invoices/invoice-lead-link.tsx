@@ -23,12 +23,12 @@ type Hit = { id: number; name: string; email: string | null };
 
 /** PATCH invoices.link : rattache (id) ou détache (null) la facture. */
 export function linkInvoice(
-    invoiceId: number,
+    invoiceUuid: string,
     leadId: number | null,
     onDone?: () => void,
 ) {
     router.patch(
-        link({ invoice: invoiceId }).url,
+        link({ invoice: invoiceUuid }).url,
         { lead_id: leadId },
         {
             preserveScroll: true,
@@ -47,12 +47,12 @@ export function linkInvoice(
  * rattacher (nom, e-mail, téléphone) et détachement.
  */
 export function InvoiceLeadLink({
-    invoiceId,
+    invoiceUuid,
     lead,
     canEdit,
 }: {
-    invoiceId: number;
-    lead: { id: number; name: string } | null;
+    invoiceUuid: string;
+    lead: { id: number; uuid: string; name: string } | null;
     canEdit: boolean;
 }) {
     const [open, setOpen] = useState(false);
@@ -89,7 +89,7 @@ export function InvoiceLeadLink({
 
     const choose = (hit: Hit) => {
         setBusy(true);
-        linkInvoice(invoiceId, hit.id, () => {
+        linkInvoice(invoiceUuid, hit.id, () => {
             setOpen(false);
             setQuery('');
         });
@@ -102,7 +102,7 @@ export function InvoiceLeadLink({
             {lead ? (
                 <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                     <Link
-                        href={leadShow({ lead: lead.id })}
+                        href={leadShow({ lead: lead.uuid })}
                         className="inline-flex items-center gap-1.5 font-medium underline-offset-4 hover:underline"
                     >
                         <UserRound
@@ -117,7 +117,7 @@ export function InvoiceLeadLink({
                             variant="ghost"
                             size="sm"
                             disabled={busy}
-                            onClick={() => linkInvoice(invoiceId, null)}
+                            onClick={() => linkInvoice(invoiceUuid, null)}
                         >
                             <Unlink aria-hidden />
                             Détacher

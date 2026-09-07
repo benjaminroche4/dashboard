@@ -17,6 +17,8 @@ declare module '@inertiajs/core' {
                 /** Clé navigateur Google Maps, null sans carte réelle. */
                 googleMapsKey: string | null;
             };
+            /** Compteurs affichés dans le menu. */
+            counts: { leadsTodo: number };
             sidebarOpen: boolean;
             /** Props à recharger sur un événement temps réel (vide = toute la page). */
             realtimeOnly?: string[];

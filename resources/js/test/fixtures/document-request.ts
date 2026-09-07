@@ -71,6 +71,7 @@ export function makeDocumentRequest(
 ): DocumentRequestSummary {
     return {
         id: 1,
+        uuid: '0199b0c0-0000-7000-8000-000000000001',
         first_name: 'Léa',
         last_name: 'Martin',
         name: 'Léa Martin',
@@ -131,6 +132,7 @@ export function makeDocumentRequestEdit(
 ): DocumentRequestEdit {
     return {
         id: 1,
+        uuid: '0199b0c0-0000-7000-8000-000000000001',
         name: 'Léa Martin',
         lead_id: null,
         language: 'en',

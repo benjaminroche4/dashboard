@@ -6,7 +6,9 @@ use App\Events\DashboardUpdated;
 use App\Models\CatalogDocument;
 use App\Models\User;
 use App\Support\DocumentCatalog;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
 
 test('the catalog page is reserved to admins and lists every category with its documents', function (): void {
@@ -106,4 +108,32 @@ test('a new catalog document is accepted by the list form', function (): void {
             'persons' => [['first_name' => 'Léa', 'last_name' => 'Martin', 'role' => 'tenant', 'documents' => [$document->key]]],
         ])
         ->assertSessionHasNoErrors();
+});
+
+test('catalog document routes use the UUID and refuse the numeric id', function (): void {
+    $admin = User::factory()->admin()->create();
+    $document = CatalogDocument::factory()->create();
+
+    expect($document->uuid)->not->toBeNull()
+        ->and(Str::isUuid($document->uuid))->toBeTrue()
+        ->and(route('tools.documents.catalog.update', $document))->toEndWith('/tools/documents/catalog/'.$document->uuid)
+        ->and(route('tools.documents.catalog.update', $document))->not->toContain('/tools/documents/catalog/'.$document->id);
+
+    $payload = ['category' => $document->category->value, 'label' => 'Libellé modifié', 'label_en' => null, 'hint' => null, 'hint_en' => null];
+
+    $this->actingAs($admin)->patch('/tools/documents/catalog/'.$document->id, $payload)->assertNotFound();
+    $this->actingAs($admin)->delete('/tools/documents/catalog/'.$document->id)->assertNotFound();
+    $this->actingAs($admin)->patch('/tools/documents/catalog/'.Str::uuid(), $payload)->assertNotFound();
+
+    $this->actingAs($admin)
+        ->from(route('tools.documents.catalog.index'))
+        ->patch('/tools/documents/catalog/'.$document->uuid, $payload)
+        ->assertRedirect(route('tools.documents.catalog.index'));
+
+    expect($document->fresh()?->label)->toBe('Libellé modifié');
+
+    $this->actingAs($admin)
+        ->get(route('tools.documents.catalog.index'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('groups', fn (Collection $groups): bool => $groups->flatMap(fn (array $group): array => $group['items'])->contains('uuid', $document->uuid)));
 });

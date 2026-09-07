@@ -8,6 +8,7 @@ use App\Models\Lead;
 use App\Models\User;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
 
 test('guests are redirected to the login page', function (): void {
@@ -194,7 +195,7 @@ test('creating a list from a lead prefills the first person and links the list',
     $staff = User::factory()->create();
     $lead = Lead::factory()->create(['first_name' => 'Léa', 'last_name' => 'Durand', 'language' => 'en']);
 
-    $this->actingAs($staff)->get(route('tools.documents.create', ['lead' => $lead->id]))
+    $this->actingAs($staff)->get(route('tools.documents.create', ['lead' => $lead->uuid]))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->where('prefill.lead_id', $lead->id)
             ->where('prefill.lead_name', 'Léa Durand')
@@ -225,4 +226,34 @@ test('creating a list from a lead prefills the first person and links the list',
             ->has('documentRequests', 1)
             ->where('documentRequests.0.name', 'Léa Durand')
             ->where('documentRequests.0.document_count', 1));
+});
+
+test('document request routes use the UUID and refuse the numeric id', function (): void {
+    $staff = User::factory()->staff()->create();
+    $request = DocumentRequest::factory()->create();
+
+    expect($request->uuid)->not->toBeNull()
+        ->and(Str::isUuid($request->uuid))->toBeTrue()
+        ->and(route('tools.documents.show', $request))->toEndWith('/tools/documents/'.$request->uuid)
+        ->and(route('tools.documents.show', $request))->not->toContain('/tools/documents/'.$request->id)
+        ->and(route('tools.documents.pdf', $request))->toEndWith('/tools/documents/'.$request->uuid.'/pdf')
+        ->and(route('tools.documents.edit', $request))->toEndWith('/tools/documents/'.$request->uuid.'/edit');
+
+    $this->actingAs($staff)
+        ->get('/tools/documents/'.$request->uuid)
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('documents/show')
+            ->where('request.id', $request->id)
+            ->where('request.uuid', $request->uuid));
+
+    $this->actingAs($staff)->get('/tools/documents/'.$request->id)->assertNotFound();
+    $this->actingAs($staff)->get('/tools/documents/'.$request->id.'/edit')->assertNotFound();
+    $this->actingAs($staff)->get('/tools/documents/'.$request->id.'/pdf')->assertNotFound();
+    $this->actingAs($staff)->get('/tools/documents/'.Str::uuid())->assertNotFound();
+
+    $this->actingAs($staff)
+        ->get(route('tools.documents.index'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('requests.0.uuid', $request->uuid));
 });

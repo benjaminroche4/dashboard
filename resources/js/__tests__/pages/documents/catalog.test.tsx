@@ -122,7 +122,7 @@ describe('Documents catalog page', () => {
         );
 
         expect(patch).toHaveBeenCalledWith(
-            '/tools/documents/catalog/1',
+            '/tools/documents/catalog/0199b0d0-0000-7000-8000-000000000001',
             expect.objectContaining({ preserveScroll: true }),
         );
     });
@@ -142,7 +142,7 @@ describe('Documents catalog page', () => {
         );
 
         expect(del).toHaveBeenCalledWith(
-            '/tools/documents/catalog/2',
+            '/tools/documents/catalog/0199b0d0-0000-7000-8000-000000000002',
             expect.objectContaining({ preserveScroll: true }),
         );
     });

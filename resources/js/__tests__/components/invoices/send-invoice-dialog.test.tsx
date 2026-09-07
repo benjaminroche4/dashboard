@@ -29,7 +29,7 @@ describe('SendInvoiceDialog', () => {
 
         render(
             <SendInvoiceDialog
-                invoiceId={7}
+                invoiceUuid="0199a9a0-0000-7000-8000-000000000107"
                 invoiceNumber="RP-27007"
                 clientEmail="client@exemple.com"
                 open
@@ -47,7 +47,7 @@ describe('SendInvoiceDialog', () => {
         );
 
         expect(post).toHaveBeenCalledWith(
-            '/invoices/7/send',
+            '/invoices/0199a9a0-0000-7000-8000-000000000107/send',
             {},
             expect.objectContaining({ preserveScroll: true }),
         );
@@ -68,7 +68,7 @@ describe('SendInvoiceDialog', () => {
 
         render(
             <SendInvoiceDialog
-                invoiceId={7}
+                invoiceUuid="0199a9a0-0000-7000-8000-000000000107"
                 invoiceNumber="RP-27007"
                 clientEmail="client@exemple.com"
                 open
@@ -93,7 +93,7 @@ describe('SendInvoiceDialog', () => {
 
         render(
             <SendInvoiceDialog
-                invoiceId={7}
+                invoiceUuid="0199a9a0-0000-7000-8000-000000000107"
                 invoiceNumber="RP-27007"
                 clientEmail={null}
                 open

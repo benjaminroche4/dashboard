@@ -116,7 +116,7 @@ describe('LeadSendDialog', () => {
         await user.click(screen.getByRole('button', { name: 'Envoyer' }));
 
         expect(post).toHaveBeenCalledWith(
-            '/leads/1/send',
+            '/leads/0199a9a0-0000-7000-8000-000000000001/send',
             { items: ['recap', 'payment_link'], payment_plan: 'deposit' },
             expect.objectContaining({ preserveScroll: true }),
         );

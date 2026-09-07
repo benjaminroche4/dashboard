@@ -121,7 +121,7 @@ describe('Invoice detail page', () => {
         );
 
         expect(post).toHaveBeenCalledWith(
-            '/invoices/1/send',
+            '/invoices/0199a9a0-0000-7000-8000-000000000101/send',
             {},
             expect.objectContaining({ preserveScroll: true }),
         );
@@ -150,7 +150,7 @@ describe('Invoice detail page', () => {
         );
 
         expect(post).toHaveBeenCalledWith(
-            '/invoices/1/pay',
+            '/invoices/0199a9a0-0000-7000-8000-000000000101/pay',
             { paid_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) },
             expect.objectContaining({ preserveScroll: true }),
         );

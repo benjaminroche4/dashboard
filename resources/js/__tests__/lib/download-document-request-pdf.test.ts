@@ -32,11 +32,14 @@ describe('downloadDocumentRequestPdf', () => {
             .spyOn(HTMLAnchorElement.prototype, 'click')
             .mockImplementation(() => undefined);
 
-        const ok = await downloadDocumentRequestPdf(7, 'Léa Martin');
+        const ok = await downloadDocumentRequestPdf(
+            '0199b0c0-0000-7000-8000-000000000007',
+            'Léa Martin',
+        );
 
         expect(ok).toBe(true);
         expect(fetch).toHaveBeenCalledWith(
-            '/tools/documents/7/pdf',
+            '/tools/documents/0199b0c0-0000-7000-8000-000000000007/pdf',
             expect.objectContaining({ credentials: 'same-origin' }),
         );
         expect(click).toHaveBeenCalledOnce();
@@ -49,7 +52,10 @@ describe('downloadDocumentRequestPdf', () => {
             vi.fn().mockResolvedValue({ ok: false, status: 500 }),
         );
 
-        const ok = await downloadDocumentRequestPdf(7, 'Léa Martin');
+        const ok = await downloadDocumentRequestPdf(
+            '0199b0c0-0000-7000-8000-000000000007',
+            'Léa Martin',
+        );
 
         expect(ok).toBe(false);
         expect(reject).toHaveBeenCalledWith(

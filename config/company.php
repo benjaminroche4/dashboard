@@ -20,6 +20,18 @@ return [
     // Préfixe des numéros de facture : RP + code activité (27 = agent immobilier), puis séquence.
     'invoice_prefix' => env('COMPANY_INVOICE_PREFIX', 'RP-27'),
 
+    // Préfixe des numéros de devis (DV = devis), même séquence à 3 chiffres minimum.
+    'quote_prefix' => env('COMPANY_QUOTE_PREFIX', 'DV-27'),
+
+    /*
+     * Premier contact d'un nouveau lead : au-delà du délai sans contact, une alerte
+     * part à l'adresse de contact de l'équipe (une seule fois par lead).
+     */
+    'first_contact' => [
+        'minutes' => (int) env('LEAD_FIRST_CONTACT_MINUTES', 30),
+        'alert_email' => env('LEAD_FIRST_CONTACT_ALERT_EMAIL', env('COMPANY_EMAIL', 'contact@relocation-in-paris.com')),
+    ],
+
     /*
      * Identité des e-mails envoyés aux leads (même charte que le site Relocation In Paris).
      */
@@ -44,6 +56,8 @@ return [
     ],
     'default_currency' => env('COMPANY_DEFAULT_CURRENCY', 'EUR'),
     'default_payment_terms_days' => (int) env('COMPANY_PAYMENT_TERMS_DAYS', 30),
+    // Durée de validité d'un devis, en jours, proposée par défaut.
+    'default_quote_validity_days' => (int) env('COMPANY_QUOTE_VALIDITY_DAYS', 30),
 
     // Pays proposés pour l'adresse du client (le premier est présélectionné).
     'countries' => [

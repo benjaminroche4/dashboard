@@ -9,6 +9,7 @@ use App\Enums\InvoiceStatus;
 use Carbon\CarbonInterface;
 use Database\Factories\InvoiceFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property int $id
+ * @property string $uuid
  * @property string $number
  * @property string $client_name
  * @property string|null $client_email
@@ -24,7 +26,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $client_city
  * @property string|null $client_country
  * @property string|null $client_address
- * @property list<array{offer: string, description: string, quantity: float, unit_price_cents: int}>|null $items
+ * @property list<array{offer: string|null, description: string, quantity: float, unit_price_cents: int}>|null $items
  * @property float $vat_rate
  * @property float $discount_percent
  * @property int $discount_cents
@@ -54,6 +56,23 @@ class Invoice extends Model
 {
     /** @use HasFactory<InvoiceFactory> */
     use HasFactory;
+
+    use HasUuids;
+
+    /**
+     * L'UUID est l'identifiant public (URL) ; l'identifiant numérique reste la clé primaire.
+     *
+     * @return list<string>
+     */
+    public function uniqueIds(): array
+    {
+        return ['uuid'];
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
 
     /**
      * @return array<string, string>

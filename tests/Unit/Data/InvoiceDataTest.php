@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Data\InvoiceData;
+use App\Data\InvoiceLineData;
 use App\Enums\Currency;
 use App\Enums\InvoiceStatus;
 
@@ -52,6 +53,28 @@ test('lines carry the offer and its generated description', function (): void {
     expect($data->lines[0]->offer->value)->toBe('accompagne')
         ->and($data->lines[0]->toArray()['description'])->toBe('Offre Accompagné')
         ->and($data->lines[1]->toArray()['description'])->toBe('Offre Confié');
+});
+
+test('a free line carries no offer and uses its trimmed label as description', function (): void {
+    $data = InvoiceData::from(invoicePayload([
+        'items' => [['offer' => null, 'description' => '  État des lieux  ', 'quantity' => 2, 'unit_price_cents' => 15_000]],
+    ]));
+
+    $line = $data->lines[0];
+
+    expect($line->offer)->toBeNull()
+        ->and($line->isFree())->toBeTrue()
+        ->and($line->description())->toBe('État des lieux')
+        ->and($line->totalCents())->toBe(30_000)
+        ->and($line->toArray())->toBe(['offer' => null, 'description' => 'État des lieux', 'quantity' => 2.0, 'unit_price_cents' => 15_000]);
+});
+
+test('a label sent with an offer is ignored in favour of the offer description', function (): void {
+    $line = InvoiceLineData::from(['offer' => 'confie', 'description' => 'Autre chose', 'quantity' => 1, 'unit_price_cents' => 100]);
+
+    expect($line->isFree())->toBeFalse()
+        ->and($line->label)->toBeNull()
+        ->and($line->description())->toBe('Offre Confié');
 });
 
 test('it composes the postal address from its parts', function (): void {

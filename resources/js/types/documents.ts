@@ -34,6 +34,7 @@ export type DocumentRequestForm = {
 /** Ligne de la liste des demandes de pièces. Le client est la première personne du foyer. */
 export type DocumentRequestSummary = {
     id: number;
+    uuid: string;
     first_name: string;
     last_name: string;
     name: string;
@@ -44,7 +45,12 @@ export type DocumentRequestSummary = {
     creator: string | null;
     creator_avatar: string | null;
     /** Lead à l'origine de la liste, s'il y en a un. */
-    lead: { id: number; name: string; reference: string | null } | null;
+    lead: {
+        id: number;
+        uuid: string;
+        name: string;
+        reference: string | null;
+    } | null;
     created_at: string | null;
 };
 
@@ -74,6 +80,7 @@ export type DocumentRequestDetail = DocumentRequestSummary & {
 /** Liste existante chargée dans le formulaire pour modification. */
 export type DocumentRequestEdit = {
     id: number;
+    uuid: string;
     name: string;
     lead_id: number | null;
     language: DocumentLanguage;
@@ -82,9 +89,10 @@ export type DocumentRequestEdit = {
     persons: HouseholdPersonForm[];
 };
 
-/** Préremplissage depuis une fiche lead (`?lead=ID`). */
+/** Préremplissage depuis une fiche lead (`?lead=UUID`). */
 export type DocumentRequestPrefill = {
     lead_id: number;
+    lead_uuid: string;
     lead_name: string;
     first_name: string;
     last_name: string;
@@ -94,6 +102,7 @@ export type DocumentRequestPrefill = {
 /** Liste de documents telle que listée sur la fiche d'un lead. */
 export type LeadDocumentRequest = {
     id: number;
+    uuid: string;
     name: string;
     person_count: number;
     document_count: number;

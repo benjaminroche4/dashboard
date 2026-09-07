@@ -17,6 +17,7 @@ import type { LeadNote, LeadStatusChange } from '@/types';
 
 const note = (overrides: Partial<LeadNote>): LeadNote => ({
     id: 1,
+    uuid: '0199a9a0-0000-7000-8000-0000000000c1',
     body: 'Rappeler mardi.',
     by: 'Admin 2',
     avatar: null,
@@ -36,6 +37,7 @@ const change: LeadStatusChange = {
 };
 const mine = note({
     id: 2,
+    uuid: '0199a9a0-0000-7000-8000-0000000000c2',
     body: 'Je rappelle.',
     by: 'Admin',
     mine: true,
@@ -79,7 +81,7 @@ describe('LeadActivity', () => {
     it('renders bubbles, a status marker and highlighted mentions', () => {
         render(
             <LeadActivity
-                leadId={1}
+                leadUuid="0199a9a0-0000-7000-8000-000000000001"
                 notes={[note({ id: 1, body: 'Vu avec @Admin.' }), mine]}
                 history={[change]}
                 staffNames={['Admin', 'Admin 2']}
@@ -107,7 +109,7 @@ describe('LeadActivity', () => {
         const user = userEvent.setup();
         render(
             <LeadActivity
-                leadId={1}
+                leadUuid="0199a9a0-0000-7000-8000-000000000001"
                 notes={[mine]}
                 history={[]}
                 filter="all"
@@ -124,7 +126,7 @@ describe('LeadActivity', () => {
         );
 
         expect(destroy).toHaveBeenCalledWith(
-            '/leads/1/notes/2',
+            '/leads/0199a9a0-0000-7000-8000-000000000001/notes/0199a9a0-0000-7000-8000-0000000000c2',
             expect.objectContaining({ preserveScroll: true }),
         );
     });
@@ -133,7 +135,7 @@ describe('LeadActivity', () => {
         const user = userEvent.setup();
         render(
             <LeadActivity
-                leadId={1}
+                leadUuid="0199a9a0-0000-7000-8000-000000000001"
                 notes={[mine]}
                 history={[]}
                 filter="all"
@@ -149,7 +151,7 @@ describe('LeadActivity', () => {
         await user.keyboard('{Meta>}{Enter}{/Meta}');
 
         expect(patch).toHaveBeenCalledWith(
-            '/leads/1/notes/2',
+            '/leads/0199a9a0-0000-7000-8000-000000000001/notes/0199a9a0-0000-7000-8000-0000000000c2',
             { body: 'Je rappelle jeudi.' },
             expect.objectContaining({ preserveScroll: true }),
         );
@@ -158,7 +160,7 @@ describe('LeadActivity', () => {
     it('hides the actions on notes I cannot touch and shows an empty state per filter', () => {
         const { rerender } = render(
             <LeadActivity
-                leadId={1}
+                leadUuid="0199a9a0-0000-7000-8000-000000000001"
                 notes={[note({})]}
                 history={[]}
                 filter="all"
@@ -170,7 +172,12 @@ describe('LeadActivity', () => {
         ).not.toBeInTheDocument();
 
         rerender(
-            <LeadActivity leadId={1} notes={[]} history={[]} filter="sends" />,
+            <LeadActivity
+                leadUuid="0199a9a0-0000-7000-8000-000000000001"
+                notes={[]}
+                history={[]}
+                filter="sends"
+            />,
         );
         expect(
             screen.getByText('Rien dans cette catégorie.'),

@@ -46,6 +46,8 @@ export type LabeledOption<T extends string = string> = {
 /** Ligne de la liste des leads. */
 export type Lead = {
     id: number;
+    /** Identifiant public, utilisé dans les URL. */
+    uuid: string;
     /** Référence publique « LD-XXXX ». */
     reference: string | null;
     name: string;
@@ -145,10 +147,23 @@ export type LeadDetail = Lead & {
     last_name: string;
     source: LeadSource;
     updated_at: string | null;
+    /** Agent immobilier en contact sur ce dossier. */
+    agent: LeadAgent | null;
+};
+
+export type LeadAgent = {
+    id: number;
+    uuid: string;
+    name: string;
+    agency: string | null;
+    position: string | null;
+    phone: string | null;
+    email: string | null;
 };
 
 export type LeadNote = {
     id: number;
+    uuid: string;
     body: string;
     by: string | null;
     /** URL de l'avatar de l'auteur, si renseigné. */
@@ -162,9 +177,22 @@ export type LeadNote = {
     at: string | null;
 };
 
+/**
+ * Ce que le lead nous a dit en arrivant : message du formulaire du site,
+ * résumé du premier appel entrant ou texte du premier SMS reçu.
+ */
+export type LeadInboundMessage = {
+    kind: 'website' | 'call' | 'sms';
+    body: string;
+    /** Contexte court : formulaire et référence, ou durée et issue de l'appel. */
+    meta: string;
+    at: string | null;
+};
+
 /** Autre lead partageant l'e-mail ou le téléphone. */
 export type LeadDuplicate = {
     id: number;
+    uuid: string;
     name: string;
     email: string | null;
     phone: string | null;
@@ -191,7 +219,11 @@ export type LeadOfferOption = {
 };
 
 /** Lead pré-rempli pour la modification (Converting Machine en mode édition). */
-export type LeadEditable = LeadForm & { id: number; name: string };
+export type LeadEditable = LeadForm & {
+    id: number;
+    uuid: string;
+    name: string;
+};
 
 export type LeadSortKey = 'manual' | 'score' | 'arrival' | 'created';
 

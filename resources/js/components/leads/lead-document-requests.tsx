@@ -18,10 +18,10 @@ const dateFormat = new Intl.DateTimeFormat('fr-FR', {
  * création préremplie depuis la fiche.
  */
 export function LeadDocumentRequests({
-    leadId,
+    leadUuid,
     requests,
 }: {
-    leadId: number;
+    leadUuid: string;
     requests: LeadDocumentRequest[];
 }) {
     return (
@@ -39,7 +39,7 @@ export function LeadDocumentRequests({
                         >
                             <Link
                                 href={documentsShow({
-                                    documentRequest: request.id,
+                                    documentRequest: request.uuid,
                                 })}
                                 className="inline-flex min-w-0 items-center gap-1.5 font-medium underline-offset-4 hover:underline"
                             >
@@ -67,7 +67,7 @@ export function LeadDocumentRequests({
             )}
             <div>
                 <Button variant="outline" size="sm" asChild>
-                    <Link href={documentsCreate({ query: { lead: leadId } })}>
+                    <Link href={documentsCreate({ query: { lead: leadUuid } })}>
                         <FilePlus2 aria-hidden />
                         Créer une liste de documents
                     </Link>

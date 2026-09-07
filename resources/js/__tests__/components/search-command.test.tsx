@@ -26,7 +26,7 @@ describe('SearchCommand', () => {
 
         expect(
             await screen.findByPlaceholderText(
-                'Rechercher une page ou un lead…',
+                'Rechercher une page, un lead ou un partenaire…',
             ),
         ).toBeInTheDocument();
         expect(screen.getByText('Sécurité')).toBeInTheDocument();
@@ -44,7 +44,7 @@ describe('SearchCommand', () => {
 
         expect(
             await screen.findByPlaceholderText(
-                'Rechercher une page ou un lead…',
+                'Rechercher une page, un lead ou un partenaire…',
             ),
         ).toBeInTheDocument();
     });
@@ -53,19 +53,32 @@ describe('SearchCommand', () => {
         const user = userEvent.setup();
         vi.stubGlobal(
             'fetch',
-            vi.fn(async () => ({
+            vi.fn(async (url: string) => ({
                 ok: true,
-                json: async () => [
-                    {
-                        id: 7,
-                        reference: 'LD-7777',
-                        name: 'Zoé Martin',
-                        email: 'zoe@example.com',
-                        company: 'Nestlé',
-                        status_label: 'En cours',
-                        url: '/leads/7',
-                    },
-                ],
+                json: async () =>
+                    url.includes('/partners/search')
+                        ? [
+                              {
+                                  id: 3,
+                                  uuid: 'p-3',
+                                  name: 'Zoom Assurances',
+                                  type: 'insurance',
+                                  type_label: 'Assurance',
+                                  contact: 'Marie Durand',
+                                  url: '/partners/p-3',
+                              },
+                          ]
+                        : [
+                              {
+                                  id: 7,
+                                  reference: 'LD-7777',
+                                  name: 'Zoé Martin',
+                                  email: 'zoe@example.com',
+                                  company: 'Nestlé',
+                                  status_label: 'En cours',
+                                  url: '/leads/7',
+                              },
+                          ],
             })),
         );
         render(<SearchCommand />);
@@ -73,12 +86,17 @@ describe('SearchCommand', () => {
         await user.click(screen.getByRole('button', { name: 'Rechercher' }));
         await user.type(
             await screen.findByPlaceholderText(
-                'Rechercher une page ou un lead…',
+                'Rechercher une page, un lead ou un partenaire…',
             ),
             'zo',
         );
 
-        await user.click(await screen.findByText('Zoé Martin'));
+        expect(await screen.findByText('Zoom Assurances')).toBeInTheDocument();
+        expect(fetch).toHaveBeenCalledWith(
+            expect.stringContaining('/partners/search?q=zo'),
+            expect.objectContaining({ credentials: 'same-origin' }),
+        );
+        await user.click(screen.getByText('Zoé Martin'));
 
         expect(fetch).toHaveBeenCalledWith(
             expect.stringContaining('/leads/search?q=zo'),
