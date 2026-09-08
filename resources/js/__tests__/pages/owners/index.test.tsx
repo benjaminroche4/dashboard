@@ -102,18 +102,26 @@ describe('Owners index page', () => {
         expect(screen.getByText('Jamais')).toBeInTheDocument();
         expect(
             screen.getByRole('link', { name: 'Lead LD-0042 · En cours' }),
-        ).toHaveAttribute('href', '/leads/lead-uuid');
+        ).toHaveAttribute('href', '/locataires/lead-uuid');
 
-        const filter = within(screen.getByLabelText('Filtrer par statut'));
+        await user.click(screen.getByRole('button', { name: 'Filtres' }));
         expect(
-            filter.getByRole('radio', { name: /À contacter/ }),
+            await screen.findByRole('menuitemcheckbox', {
+                name: /À contacter/,
+            }),
         ).toHaveTextContent('1');
-        await user.click(filter.getByRole('radio', { name: /Intéressé/ }));
+        await user.click(
+            screen.getByRole('menuitemcheckbox', { name: /Intéressé/ }),
+        );
+        await user.keyboard('{Escape}');
         expect(
-            screen.queryByRole('button', { name: 'Zoé Martin' }),
+            screen.getByRole('button', { name: /Filtres/ }),
+        ).toHaveTextContent('1');
+        expect(
+            screen.queryByRole('link', { name: 'Zoé Martin' }),
         ).not.toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Ali Bensaïd' }),
+            screen.getByRole('link', { name: 'Ali Bensaïd' }),
         ).toBeInTheDocument();
     });
 
@@ -171,17 +179,29 @@ describe('Owners index page', () => {
             await screen.findByRole('menuitem', {
                 name: 'Ouvrir le lead LD-0042',
             }),
-        ).toHaveAttribute('href', '/leads/lead-uuid');
+        ).toHaveAttribute('href', '/locataires/lead-uuid');
         expect(
             screen.getByRole('menuitem', { name: 'Supprimer' }),
         ).toBeInTheDocument();
     });
 
-    it('edits an owner from its name and patches', async () => {
+    it('links an owner to its page and edits it from the menu', async () => {
         const user = userEvent.setup();
         render(<OwnersIndex owners={owners} statuses={ownerStatuses} />);
 
-        await user.click(screen.getByRole('button', { name: 'Zoé Martin' }));
+        // Le nom ouvre la fiche ; la modification passe par le menu « ⋯ ».
+        expect(
+            screen.getByRole('link', { name: 'Zoé Martin' }),
+        ).toHaveAttribute(
+            'href',
+            '/owners/0199a9a0-0000-7000-8000-0000000000d1',
+        );
+        await user.click(
+            screen.getByRole('button', { name: 'Actions pour Zoé Martin' }),
+        );
+        await user.click(
+            await screen.findByRole('menuitem', { name: 'Modifier' }),
+        );
         const dialog = screen.getByRole('dialog', {
             name: 'Modifier Zoé Martin',
         });

@@ -137,6 +137,12 @@ export function LeadAssignMenu({
                                 )}
                             >
                                 {member.name}
+                                {member.functions &&
+                                    member.functions.length > 0 && (
+                                        <span className="text-muted-foreground block truncate text-xs font-normal">
+                                            {member.functions.join(' · ')}
+                                        </span>
+                                    )}
                             </span>
                             <Check
                                 aria-hidden

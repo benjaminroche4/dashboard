@@ -4,10 +4,17 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Clients;
 
+use App\Actions\Clients\SetClientPriority;
+use App\Actions\Clients\SuggestClientProperties;
+use App\Enums\ClientPriority;
 use App\Enums\GuarantorType;
 use App\Enums\LeadStatus;
 use App\Enums\PropertyType;
+use App\Enums\VisitStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Tools\ActivityController;
+use App\Http\Requests\Clients\SetClientPriorityRequest;
+use App\Models\Activity;
 use App\Models\DocumentRequest;
 use App\Models\Invoice;
 use App\Models\Lead;
@@ -15,8 +22,11 @@ use App\Models\LeadNote;
 use App\Models\LeadPartner;
 use App\Models\LeadStatusChange;
 use App\Models\PartnerContact;
+use App\Models\Property;
 use App\Models\Quote;
+use App\Models\Visit;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -27,7 +37,7 @@ class ClientController extends Controller
 {
     use AuthorizesRequests;
 
-    /** Dossiers : un client par lead converti, du plus récent au plus ancien. */
+    /** Dossiers : un client par lead converti, les plus prioritaires puis les plus récents. */
     public function index(): Response
     {
         $this->authorize('viewAny', Lead::class);
@@ -41,18 +51,32 @@ class ClientController extends Controller
             ->withCount(['invoices', 'documentRequests'])
             ->get()
             ->map(fn (Lead $lead): array => $this->summary($lead))
-            ->sortByDesc('converted_at')
+            ->sortBy([['priority_rank', 'desc'], ['converted_at', 'desc']])
             ->values()
             ->all();
 
         return Inertia::render('clients/index', [
             'clients' => $clients,
+            'priorities' => ClientPriority::options(),
             'realtimeOnly' => ['clients'],
         ]);
     }
 
+    /** Priorité d'un dossier (menu de la fiche). */
+    public function priority(SetClientPriorityRequest $request, Lead $lead, SetClientPriority $setPriority): RedirectResponse
+    {
+        $this->authorize('update', $lead);
+        abort_unless($lead->status === LeadStatus::Converted, 404);
+
+        $lead = $setPriority->handle($lead, ClientPriority::from((string) $request->validated('priority')), $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Dossier :name en priorité :priority.', ['name' => $lead->fullName(), 'priority' => mb_strtolower($lead->priority->label())])]);
+
+        return back();
+    }
+
     /** Dossier d'un client : coordonnées, projet, devis, factures, documents, partenaires et notes. */
-    public function show(Lead $lead): Response
+    public function show(Lead $lead, SuggestClientProperties $suggest): Response
     {
         $this->authorize('view', $lead);
 
@@ -67,6 +91,12 @@ class ClientController extends Controller
             'documentRequests',
             'partnerLinks.partner.contacts',
             'notes.author',
+            'visits.property',
+            'visits.agent.agency',
+            'visits.assignee',
+            'visits.creator',
+            'visits.reportAuthor',
+            'visits.lead',
         ]);
         $lead->loadCount(['invoices', 'documentRequests']);
 
@@ -105,6 +135,7 @@ class ClientController extends Controller
                 'message' => $lead->message,
                 'score' => $lead->score,
             ],
+            'priorities' => ClientPriority::options(),
             'totals' => array_values($totals),
             'invoices' => $lead->invoices->map(fn (Invoice $invoice): array => [
                 'id' => $invoice->id,
@@ -152,6 +183,36 @@ class ClientController extends Controller
                     'contacts' => $link->partner->contacts->map(fn (PartnerContact $contact): array => ['id' => $contact->id, 'name' => $contact->fullName(), 'email' => $contact->email])->all(),
                 ],
             ])->all(),
+            // Visites du client, les plus récentes en premier, même forme que la page Visites.
+            'visits' => $lead->visits->sortByDesc('scheduled_at')->values()->map(fn (Visit $visit): array => VisitController::summary($visit))->all(),
+            // Biens rattachés au dossier, avec les visites de ce client sur chacun.
+            'properties' => $lead->properties()->with(['agent'])->orderByPivot('created_at', 'desc')->get()->map(function (Property $property) use ($lead): array {
+                $visits = $lead->visits->where('property_id', $property->id);
+                $next = $visits->where('status', VisitStatus::Planned)->sortBy('scheduled_at')->first();
+
+                return [
+                    'id' => $property->id,
+                    'uuid' => $property->uuid,
+                    'label' => $property->label(),
+                    'street' => $property->street,
+                    'postal_code' => $property->postal_code,
+                    'city' => $property->city,
+                    'property_type_label' => $property->property_type?->label(),
+                    'surface_m2' => $property->surface_m2,
+                    'rent_cents' => $property->rent_cents,
+                    'currency' => $property->currency->value,
+                    'listing_url' => $property->listing_url,
+                    'agent' => $property->agent?->fullName(),
+                    'visits_count' => $visits->count(),
+                    'next_visit_at' => $next instanceof Visit ? $next->scheduled_at->toIso8601String() : null,
+                ];
+            })->all(),
+            // Biens de l'annuaire qui correspondent au projet (budget, quartiers, type, meublé), hors rattachés et visités.
+            'suggestedProperties' => array_map(SuggestClientProperties::summary(...), $suggest->handle($lead)),
+            // Biens de l'annuaire non encore rattachés, pour « Lier un bien ».
+            'propertyOptions' => Property::query()->whereDoesntHave('leads', fn ($query) => $query->whereKey($lead->id))->latest()->get()
+                ->map(fn (Property $property): array => ['id' => $property->id, 'label' => $property->label(), 'street' => $property->street, 'postal_code' => $property->postal_code, 'city' => $property->city, 'photo' => $property->photoUrls()[0] ?? null])
+                ->all(),
             'notes' => $lead->notes->map(fn (LeadNote $note): array => [
                 'id' => $note->id,
                 'body' => $note->body,
@@ -159,17 +220,14 @@ class ClientController extends Controller
                 'avatar' => $note->author?->avatar,
                 'at' => $note->created_at?->toIso8601String(),
             ])->all(),
+            // Journal : les 10 dernières actions du backoffice sur ce dossier.
+            'activities' => Activity::query()->with(['actor', 'lead'])->where('lead_id', $lead->id)->latest('created_at')->latest('id')->limit(10)->get()
+                ->map(fn (Activity $activity): array => ActivityController::summary($activity))
+                ->all(),
         ]);
     }
 
     /** Visites : page prête à accueillir les visites planifiées pour les clients. */
-    public function visits(): Response
-    {
-        $this->authorize('viewAny', Lead::class);
-
-        return Inertia::render('clients/visits');
-    }
-
     /**
      * @return array<string, mixed>
      */
@@ -187,6 +245,9 @@ class ClientController extends Controller
             'email' => $lead->email,
             'phone' => $lead->phone,
             'offer_label' => $lead->offer?->label(),
+            'priority' => $lead->priority->value,
+            'priority_label' => $lead->priority->label(),
+            'priority_rank' => $lead->priority->rank(),
             'arrival_at' => $lead->arrival_at?->toDateString(),
             'converted_at' => ($conversion instanceof LeadStatusChange ? $conversion->created_at : $lead->updated_at)?->toIso8601String(),
             'assignee' => $lead->assignee === null ? null : [

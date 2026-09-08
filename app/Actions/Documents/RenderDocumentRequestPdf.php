@@ -54,7 +54,7 @@ final readonly class RenderDocumentRequestPdf
      * Personnes avec leurs pièces libellées et traduites dans la locale
      * courante, regroupées par catégorie dans l'ordre du catalogue.
      *
-     * @return list<array{name: string, role: string, categories: list<array{value: string, label: string, documents: list<array{label: string, hint: string|null}>}>}>
+     * @return list<array{name: string, role: string, categories: list<array{value: string, label: string, documents: list<array{key: string, label: string, hint: string|null}>}>}>
      */
     public static function persons(DocumentRequest $request): array
     {
@@ -77,6 +77,7 @@ final readonly class RenderDocumentRequestPdf
                     'value' => $group['value'],
                     'label' => __($group['label']),
                     'documents' => array_map(fn (string $key): array => [
+                        'key' => $key,
                         'label' => DocumentCatalog::label($key),
                         'hint' => DocumentCatalog::hint($key),
                     ], $keys),

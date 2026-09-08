@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Concerns\Favoritable;
 use App\Enums\AgentPosition;
 use App\Support\ContactMatch;
 use Carbon\CarbonInterface;
@@ -42,6 +43,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['agency_id', 'first_name', 'last_name', 'position', 'street', 'postal_code', 'city', 'email', 'phone', 'notes', 'created_by'])]
 class Agent extends Model
 {
+    use Favoritable;
+
     /** @use HasFactory<AgentFactory> */
     use HasFactory;
 

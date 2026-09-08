@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Enums\SiteSection;
 use App\Models\User;
 
 /**
@@ -14,21 +15,21 @@ final class CatalogDocumentPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->isAdmin();
+        return $user->canManage(SiteSection::Documents);
     }
 
     public function create(User $user): bool
     {
-        return $user->isAdmin();
+        return $user->canManage(SiteSection::Documents);
     }
 
     public function update(User $user): bool
     {
-        return $user->isAdmin();
+        return $user->canManage(SiteSection::Documents);
     }
 
     public function delete(User $user): bool
     {
-        return $user->isAdmin();
+        return $user->canManage(SiteSection::Documents);
     }
 }

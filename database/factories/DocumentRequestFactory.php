@@ -9,6 +9,7 @@ use App\Enums\LeadLanguage;
 use App\Models\DocumentRequest;
 use App\Support\DocumentCatalog;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /**
  * @extends Factory<DocumentRequest>
@@ -29,6 +30,8 @@ class DocumentRequestFactory extends Factory
             'language' => LeadLanguage::French,
             'message' => fake()->boolean() ? fake()->sentence(12) : null,
             'upload_url' => 'https://drive.google.com/drive/folders/'.fake()->regexify('[A-Za-z0-9_-]{20}'),
+            'public_token' => Str::random(48),
+            'access_code' => str_pad((string) fake()->numberBetween(0, 999_999), 6, '0', STR_PAD_LEFT),
             // La première personne est le client de la demande : mêmes nom et prénom.
             'persons' => [[
                 'first_name' => $firstName,

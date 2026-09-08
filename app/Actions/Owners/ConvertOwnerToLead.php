@@ -15,6 +15,7 @@ use App\Events\DashboardUpdated;
 use App\Models\Lead;
 use App\Models\Owner;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -34,43 +35,45 @@ final readonly class ConvertOwnerToLead
             throw ValidationException::withMessages(['lead' => __('Un lead existe déjà pour ce propriétaire.')]);
         }
 
-        $lead = $this->createLead->handle(new LeadData(
-            firstName: $owner->first_name,
-            lastName: $owner->last_name,
-            email: $owner->email,
-            phone: $owner->phone,
-            company: $owner->company,
-            language: LeadLanguage::French,
-            offer: null,
-            source: LeadSource::Other,
-            sourceNote: __('Propriétaire prospecté · :count bien(s)', ['count' => $owner->property_count]),
-            budgetCents: null,
-            currency: Currency::EUR,
-            arrivalAt: null,
-            districts: [],
-            propertyTypes: [],
-            duration: null,
-            guarantors: [],
-            furnished: null,
-            originCity: null,
-            message: $owner->notes,
-            score: null,
-            recontactChannel: null,
-            recontactAt: null,
-            qualificationNote: null,
-            assignedTo: $by?->id,
-        ), $by);
+        return DB::transaction(function () use ($owner, $by): Lead {
+            $lead = $this->createLead->handle(new LeadData(
+                firstName: $owner->first_name,
+                lastName: $owner->last_name,
+                email: $owner->email,
+                phone: $owner->phone,
+                company: $owner->company,
+                language: LeadLanguage::French,
+                offer: null,
+                source: LeadSource::Other,
+                sourceNote: __('Propriétaire prospecté · :count bien(s)', ['count' => $owner->property_count]),
+                budgetCents: null,
+                currency: Currency::EUR,
+                arrivalAt: null,
+                districts: [],
+                propertyTypes: [],
+                duration: null,
+                guarantors: [],
+                furnished: null,
+                originCity: null,
+                message: $owner->notes,
+                score: null,
+                recontactChannel: null,
+                recontactAt: null,
+                qualificationNote: null,
+                assignedTo: $by?->id,
+            ), $by);
 
-        $lead->forceFill(['help_type' => WebsiteHelpType::RentalManagement])->save();
+            $lead->forceFill(['help_type' => WebsiteHelpType::RentalManagement])->save();
 
-        $owner->forceFill([
-            'lead_id' => $lead->id,
-            'status' => $owner->status === OwnerStatus::ToContact || $owner->status === OwnerStatus::Contacted ? OwnerStatus::Interested : $owner->status,
-            'last_contacted_at' => $owner->last_contacted_at ?? now(),
-        ])->save();
+            $owner->forceFill([
+                'lead_id' => $lead->id,
+                'status' => $owner->status === OwnerStatus::ToContact || $owner->status === OwnerStatus::Contacted ? OwnerStatus::Interested : $owner->status,
+                'last_contacted_at' => $owner->last_contacted_at ?? now(),
+            ])->save();
 
-        event(new DashboardUpdated('owners', ['id' => $owner->id, 'lead_id' => $lead->id], "a créé le lead du propriétaire {$owner->fullName()}"));
+            event(new DashboardUpdated('owners', ['id' => $owner->id, 'lead_id' => $lead->id], "a créé le lead du propriétaire {$owner->fullName()}"));
 
-        return $lead;
+            return $lead;
+        });
     }
 }

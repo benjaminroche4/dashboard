@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Enums\LeadStatus;
+use App\Enums\WebsiteHelpType;
 use App\Models\Lead;
 use App\Models\LeadNote;
+use App\Models\LeadProperty;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -25,6 +27,12 @@ final class LeadSeeder extends Seeder
             ...Lead::factory()->count(8)->status(LeadStatus::QuoteSent)->overLastMonths()->create(),
             ...Lead::factory()->count(22)->converted()->overLastMonths()->create(),
             ...Lead::factory()->count(12)->status(LeadStatus::Archived)->overLastMonths()->create(),
+            // Leads propriétaires (gestion locative), visibles sous « Propriétaires › Liste des leads ».
+            ...Lead::factory()->count(3)->rentalManagement()->create(),
+            ...Lead::factory()->count(3)->rentalManagement()->status(LeadStatus::InProgress)->overLastMonths()->create(),
+            ...Lead::factory()->count(2)->rentalManagement()->status(LeadStatus::QuoteSent)->overLastMonths()->create(),
+            ...Lead::factory()->count(3)->rentalManagement()->converted()->overLastMonths()->create(),
+            ...Lead::factory()->count(1)->rentalManagement()->status(LeadStatus::Archived)->overLastMonths()->create(),
         ]);
 
         $leads->groupBy(fn (Lead $lead): string => $lead->status->value)
@@ -37,6 +45,10 @@ final class LeadSeeder extends Seeder
                 $lead->statusChanges()->create(['from_status' => LeadStatus::Todo, 'to_status' => $lead->status, 'changed_by' => null, 'created_at' => $lead->last_contacted_at ?? now()]);
             }
         });
+
+        // Chaque lead propriétaire décrit le bien qu'il propose.
+        $leads->filter(fn (Lead $lead): bool => $lead->help_type === WebsiteHelpType::RentalManagement)
+            ->each(fn (Lead $lead) => LeadProperty::factory()->create(['lead_id' => $lead->id]));
 
         $staff = User::all();
         $leads->each(fn (Lead $lead) => fake()->boolean(70) ? $lead->update(['assigned_to' => $staff->random()->id]) : null);

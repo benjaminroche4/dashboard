@@ -98,6 +98,8 @@ export function columnStats(leads: Lead[]): ColumnStats {
 
 export type LeadFilters = {
     query: string;
+    /** Statut, utile en vue tableau (le kanban a déjà une colonne par statut). */
+    status: LeadStatus | 'all';
     offer: OfferValue | 'all';
     minScore: number;
     sort: LeadSortKey;
@@ -106,11 +108,26 @@ export type LeadFilters = {
 
 export const defaultFilters: LeadFilters = {
     query: '',
+    status: 'all',
     offer: 'all',
     minScore: 0,
     sort: 'manual',
     assignee: 'all',
 };
+
+/**
+ * Vrai dès qu'un filtre restreint la liste (le tri n'en est pas un) : la
+ * liste est alors partielle et une position calculée dessus serait fausse.
+ */
+export function hasActiveFilters(filters: LeadFilters): boolean {
+    return (
+        filters.query.trim() !== '' ||
+        filters.status !== 'all' ||
+        filters.offer !== 'all' ||
+        filters.minScore > 0 ||
+        filters.assignee !== defaultFilters.assignee
+    );
+}
 
 /** Filtre puis trie (le tri manuel garde l'ordre des positions). */
 export function filterLeads(leads: Lead[], filters: LeadFilters): Lead[] {
@@ -143,6 +160,10 @@ export function filterLeads(leads: Lead[], filters: LeadFilters): Lead[] {
                 .toLowerCase()
                 .includes(needle)
         ) {
+            return false;
+        }
+
+        if (filters.status !== 'all' && lead.status !== filters.status) {
             return false;
         }
 

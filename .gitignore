@@ -29,3 +29,5 @@ yarn-error.log
 /.zed
 
 .env.prod
+/tests/browser/results/
+/playwright-report/

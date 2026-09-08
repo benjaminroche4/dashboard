@@ -29,7 +29,7 @@ describe('Tools page', () => {
         expect(
             screen.getByRole('link', { name: 'Voir les demandes' }),
         ).toHaveAttribute('href', '/tools/documents');
-        expect(screen.getAllByRole('link')).toHaveLength(3);
+        expect(screen.getAllByRole('link')).toHaveLength(4);
     });
 
     it('shows the quotes card linking to the quotes list', () => {
@@ -51,6 +51,17 @@ describe('Tools page', () => {
         expect(
             screen.getByRole('link', { name: 'Voir les factures' }),
         ).toHaveAttribute('href', '/invoices');
+    });
+
+    it('shows the activity log card linking to the journal', () => {
+        render(<ToolsIndex />);
+
+        expect(
+            screen.getByRole('region', { name: "Journal d'activité" }),
+        ).toHaveTextContent(/qui a fait quoi/);
+        expect(
+            screen.getByRole('link', { name: 'Voir le journal' }),
+        ).toHaveAttribute('href', '/tools/activity');
     });
 
     it('does not list the reports among the tools', () => {

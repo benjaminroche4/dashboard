@@ -58,7 +58,7 @@ describe('LeadInboundMessage', () => {
         );
 
         expect(patch).toHaveBeenCalledWith(
-            `/leads/${lead.uuid}/assign`,
+            `/locataires/${lead.uuid}/assign`,
             { user_id: 7 },
             expect.objectContaining({ preserveScroll: true }),
         );
@@ -66,7 +66,7 @@ describe('LeadInboundMessage', () => {
         const options = patch.mock.calls[0]?.[2] as { onSuccess: () => void };
         options.onSuccess();
         expect(patch).toHaveBeenLastCalledWith(
-            `/leads/${lead.uuid}/status`,
+            `/locataires/${lead.uuid}/status`,
             { status: 'in_progress' },
             expect.objectContaining({ preserveScroll: true }),
         );

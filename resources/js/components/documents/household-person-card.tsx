@@ -88,7 +88,7 @@ export function HouseholdPersonCard({
             </header>
 
             <div className="grid divide-y px-4 pb-4 [&>*]:py-5 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="grid gap-2">
                         <Label htmlFor={`${id}-first_name`}>
                             Prénom <span className="text-red-600">*</span>
@@ -217,7 +217,7 @@ export function HouseholdPersonCard({
                                         </Button>
                                     </div>
                                     {/* auto-rows-fr : toutes les pièces de la catégorie ont la même hauteur, avec ou sans aide. */}
-                                    <ul className="grid auto-rows-fr gap-0.5 p-2 sm:grid-cols-2">
+                                    <ul className="grid auto-rows-fr grid-cols-1 gap-0.5 p-2 sm:grid-cols-2">
                                         {group.items.map((item) => {
                                             const itemId = `${id}-${item.key}`;
                                             const isChecked =

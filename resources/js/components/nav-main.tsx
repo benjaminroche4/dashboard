@@ -113,13 +113,14 @@ function NavBranch({
     const linkable = typeof item.href === 'string' ? item.href !== '#' : true;
     // L'état choisi par l'utilisateur survit au rechargement de la page ;
     // à défaut, le menu s'ouvre si la page courante est un sous-lien.
+    const storageKey = item.key ?? item.title;
     const [open, setOpen] = useState(
-        () => readBranchOpen(item.title) ?? hasActiveChild,
+        () => readBranchOpen(storageKey) ?? hasActiveChild,
     );
 
     const toggle = (next: boolean) => {
         setOpen(next);
-        writeBranchOpen(item.title, next);
+        writeBranchOpen(storageKey, next);
     };
 
     return (
@@ -234,7 +235,7 @@ function collectHrefs(groups: NavGroup[]): string[] {
  *
  * Un seul lien est actif à la fois : le plus précis de toute la navigation.
  * Ainsi /tools/reports sélectionne « Rapports » sans allumer « Outils »
- * (/tools), et /leads/create « Converting Machine » sans « Liste des leads ».
+ * (/tools), et /locataires/create « Converting Machine » sans « Leads locataires ».
  */
 export function NavMain({ groups }: { groups: NavGroup[] }) {
     const { currentUrl } = useCurrentUrl();
@@ -243,11 +244,14 @@ export function NavMain({ groups }: { groups: NavGroup[] }) {
     return (
         <>
             {groups.map((group, index) => (
-                <SidebarGroup key={group.label}>
+                <SidebarGroup key={group.label || `group-${index}`}>
                     {index > 0 && (
                         <SidebarSeparator className="mx-0 mb-2 hidden w-auto group-data-[collapsible=icon]:block" />
                     )}
-                    <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                    {/* Un groupe sans libellé (ex. « Tableau de bord » seul en tête) n'affiche pas d'en-tête. */}
+                    {group.label !== '' && (
+                        <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                    )}
                     <SidebarGroupContent>
                         <SidebarMenu>
                             {group.items.map((item) =>

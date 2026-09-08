@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Demande de pièces justificatives adressée à un client : personnes du
@@ -23,14 +24,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $last_name
  * @property LeadLanguage $language
  * @property string|null $message
- * @property string $upload_url
+ * @property string|null $upload_url
+ * @property string $public_token
+ * @property string $access_code
+ * @property string|null $link_sent_to
+ * @property CarbonInterface|null $link_sent_at
  * @property list<array{first_name?: string, last_name?: string, role: string, documents: list<string>}> $persons
  * @property int|null $created_by
  * @property int|null $lead_id
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  */
-#[Fillable(['first_name', 'last_name', 'language', 'message', 'upload_url', 'persons', 'created_by', 'lead_id'])]
+#[Fillable(['first_name', 'last_name', 'language', 'message', 'upload_url', 'public_token', 'access_code', 'link_sent_to', 'link_sent_at', 'persons', 'created_by', 'lead_id'])]
 class DocumentRequest extends Model
 {
     /** @use HasFactory<DocumentRequestFactory> */
@@ -61,6 +66,7 @@ class DocumentRequest extends Model
         return [
             'language' => LeadLanguage::class,
             'persons' => 'array',
+            'link_sent_at' => 'datetime',
         ];
     }
 
@@ -80,6 +86,22 @@ class DocumentRequest extends Model
     public function lead(): BelongsTo
     {
         return $this->belongsTo(Lead::class);
+    }
+
+    /**
+     * Pièces déposées par le client sur la page publique.
+     *
+     * @return HasMany<DocumentUpload, $this>
+     */
+    public function uploads(): HasMany
+    {
+        return $this->hasMany(DocumentUpload::class);
+    }
+
+    /** Adresse publique de dépôt des pièces, à transmettre au client. */
+    public function publicUrl(): string
+    {
+        return route('documents.public.show', ['documentRequest' => $this->public_token]);
     }
 
     public function fullName(): string

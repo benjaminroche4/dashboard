@@ -31,7 +31,7 @@ describe('LeadConvertDialog', () => {
         await user.click(screen.getByRole('button', { name: 'Confirmer' }));
 
         expect(post).toHaveBeenCalledWith(
-            '/leads/abc/convert',
+            '/locataires/abc/convert',
             {},
             expect.any(Object),
         );

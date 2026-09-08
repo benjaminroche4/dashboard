@@ -50,7 +50,7 @@ export function InvoicePreview({
     return (
         <article
             aria-label={words.aria}
-            className="bg-background text-foreground flex aspect-[1/1.3] w-full flex-col gap-8 overflow-hidden rounded-lg border p-8 text-sm"
+            className="bg-background text-foreground flex w-full flex-col gap-8 overflow-hidden rounded-lg border p-5 text-sm sm:aspect-[1/1.3] sm:p-8"
         >
             <header className="flex items-start justify-between gap-6">
                 <div className="space-y-1">

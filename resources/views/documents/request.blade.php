@@ -83,7 +83,12 @@
     <div class="link">
         <div class="label">{{ __('Où déposer vos pièces') }}</div>
         <div>{{ __('Déposez vos documents via ce lien sécurisé :') }}</div>
-        <a href="{{ $request->upload_url }}">{{ $request->upload_url }}</a>
+        <a href="{{ $request->publicUrl() }}">{{ $request->publicUrl() }}</a>
+        <div>{{ __('Code d’appairage à saisir sur la page :') }} <strong style="letter-spacing: 3px;">{{ $request->access_code }}</strong></div>
+        @if ($request->upload_url)
+            <div>{{ __('Ou, si vous préférez, dans ce dossier partagé :') }}</div>
+            <a href="{{ $request->upload_url }}">{{ $request->upload_url }}</a>
+        @endif
     </div>
 
     <div class="footer">

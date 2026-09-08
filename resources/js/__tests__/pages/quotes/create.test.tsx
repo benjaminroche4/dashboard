@@ -161,7 +161,7 @@ describe('Quote creation page', () => {
 
         expect(
             screen.getByRole('link', { name: 'Léa Durand' }),
-        ).toHaveAttribute('href', '/leads/abc');
+        ).toHaveAttribute('href', '/locataires/abc');
         expect(screen.getByLabelText('Nom / Prénom')).toHaveValue('Nestlé');
         expect(screen.getByRole('radio', { name: /Confié/ })).toBeChecked();
         expect(screen.getByLabelText('Prix unitaire ligne 1')).toHaveValue(

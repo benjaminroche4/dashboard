@@ -238,7 +238,7 @@ export default function QuotesCreate({
         <>
             <Head title="Nouveau devis" />
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4">
-                <div className="flex items-end justify-between pt-8 pb-6">
+                <div className="flex flex-wrap items-end justify-between gap-4 pt-8 pb-6">
                     <div>
                         <h1 className="text-lg font-medium">Nouveau devis</h1>
                         <p className="text-muted-foreground text-sm">
@@ -262,7 +262,7 @@ export default function QuotesCreate({
                     </div>
                 </div>
 
-                <div className="grid gap-8 pb-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <div className="grid grid-cols-1 gap-8 pb-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                     <form
                         id="quote-form"
                         onSubmit={submit}
@@ -271,7 +271,7 @@ export default function QuotesCreate({
                     >
                         <section className="grid gap-5">
                             <h2 className="text-base font-medium">Client</h2>
-                            <div className="grid gap-5 sm:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                                 <div className="grid gap-2">
                                     <Label htmlFor="client_name">
                                         Nom / Prénom
@@ -335,7 +335,7 @@ export default function QuotesCreate({
                                 />
                                 <InputError message={errors.client_street} />
                             </div>
-                            <div className="grid gap-5 sm:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)]">
+                            <div className="grid grid-cols-1 gap-5 sm:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)]">
                                 <div className="grid gap-2">
                                     <Label htmlFor="client_postal_code">
                                         Code postal
@@ -418,7 +418,7 @@ export default function QuotesCreate({
                             <h2 className="text-base font-medium">
                                 Conditions
                             </h2>
-                            <div className="grid gap-5 sm:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                                 <div className="grid gap-2">
                                     <Label htmlFor="currency">Devise</Label>
                                     <Select
@@ -623,7 +623,7 @@ export default function QuotesCreate({
                                                                 value as OfferValue,
                                                             )
                                                         }
-                                                        className="grid gap-3 sm:grid-cols-2"
+                                                        className="grid grid-cols-1 gap-3 sm:grid-cols-2"
                                                     >
                                                         {offers.map((offer) => (
                                                             <Label
@@ -667,7 +667,7 @@ export default function QuotesCreate({
                                                 </>
                                             )}
 
-                                            <div className="grid gap-3 sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:items-end">
+                                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:items-end">
                                                 <div className="grid gap-1.5">
                                                     <Label
                                                         htmlFor={`line-${index}-quantity`}
@@ -757,7 +757,7 @@ export default function QuotesCreate({
                                     sous-total, avant la TVA.
                                 </p>
                             </div>
-                            <div className="grid gap-5 sm:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                                 <div className="grid gap-2">
                                     <Label htmlFor="discount_percent">
                                         Remise (%)

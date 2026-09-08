@@ -66,7 +66,7 @@ test('a staff member creates a request and lands on its page', function (): void
             ->where('pdfAvailable', false));
 });
 
-test('validation requires a name per person, an https link, one to four persons each with documents from the catalog', function (): void {
+test('validation requires a name per person, an https link when given, one to four persons each with documents from the catalog', function (): void {
     $this->actingAs(User::factory()->create())
         ->from(route('tools.documents.create'))
         ->post(route('tools.documents.store'), [

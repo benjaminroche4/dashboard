@@ -30,6 +30,8 @@ final class DatabaseSeeder extends Seeder
             RealEstateSeeder::class,
             PartnerSeeder::class,
             OwnerSeeder::class,
+            PropertySeeder::class,
+            ActivitySeeder::class,
         ]);
     }
 }

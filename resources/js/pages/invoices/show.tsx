@@ -130,7 +130,7 @@ export default function InvoicesShow({
                     </div>
                 </div>
 
-                <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                     <section className="bg-sidebar rounded-xl border p-2">
                         <InvoicePreview
                             form={invoiceToForm(invoice)}

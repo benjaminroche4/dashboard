@@ -8,15 +8,18 @@ use App\Actions\Documents\CreateDocumentRequest;
 use App\Actions\Documents\DeleteDocumentRequest;
 use App\Actions\Documents\DeleteDocumentRequests;
 use App\Actions\Documents\RenderDocumentRequestPdf;
+use App\Actions\Documents\SendDocumentUploadLink;
 use App\Actions\Documents\UpdateDocumentRequest;
 use App\Data\DocumentRequestData;
 use App\Enums\HouseholdRole;
 use App\Enums\LeadLanguage;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Documents\BulkDocumentRequestsRequest;
+use App\Http\Requests\Documents\SendDocumentUploadLinkRequest;
 use App\Http\Requests\Documents\StoreDocumentRequestRequest;
 use App\Http\Requests\Documents\UpdateDocumentRequestRequest;
 use App\Models\DocumentRequest;
+use App\Models\DocumentUpload;
 use App\Models\Lead;
 use App\Support\DocumentCatalog;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -125,17 +128,36 @@ class DocumentRequestController extends Controller
     {
         $this->authorize('view', $documentRequest);
 
-        $documentRequest->load(['creator', 'lead']);
+        $documentRequest->load(['creator', 'lead', 'uploads']);
 
         return Inertia::render('documents/show', [
             'request' => [
                 ...$this->summary($documentRequest),
                 'message' => $documentRequest->message,
                 'upload_url' => $documentRequest->upload_url,
-                'persons' => RenderDocumentRequestPdf::persons($documentRequest),
+                'public_url' => $documentRequest->publicUrl(),
+                'access_code' => $documentRequest->access_code,
+                'link_sent_to' => $documentRequest->link_sent_to,
+                'link_sent_at' => $documentRequest->link_sent_at?->toIso8601String(),
+                'lead_email' => $documentRequest->lead?->email,
+                'uploads_count' => $documentRequest->uploads->count(),
+                'persons' => $this->personsWithUploads($documentRequest),
             ],
             'pdfAvailable' => $pdf->isConfigured(),
         ]);
+    }
+
+    /** Envoie au client l'e-mail avec le lien public de dépôt et le code d'appairage. */
+    public function sendLink(SendDocumentUploadLinkRequest $request, DocumentRequest $documentRequest, SendDocumentUploadLink $send): RedirectResponse
+    {
+        $this->authorize('update', $documentRequest);
+
+        $email = (string) $request->validated('email');
+        $send->handle($documentRequest, $email, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Lien de dépôt envoyé à :email.', ['email' => $email])]);
+
+        return back();
     }
 
     public function pdf(DocumentRequest $documentRequest, RenderDocumentRequestPdf $pdf): HttpResponse
@@ -174,6 +196,41 @@ class DocumentRequestController extends Controller
     }
 
     /**
+     * Personnes et pièces, avec les fichiers déposés par le client sur chaque pièce.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function personsWithUploads(DocumentRequest $documentRequest): array
+    {
+        return array_map(function (array $person, int $index) use ($documentRequest): array {
+            $person['categories'] = array_map(function (array $category) use ($documentRequest, $index): array {
+                $category['documents'] = array_map(function (array $document) use ($documentRequest, $index): array {
+                    $document['uploads'] = $documentRequest->uploads
+                        ->where('person_index', $index)
+                        ->where('document_key', $document['key'])
+                        ->sortBy('created_at')
+                        ->values()
+                        ->map(fn (DocumentUpload $upload): array => [
+                            'id' => $upload->id,
+                            'uuid' => $upload->uuid,
+                            'name' => $upload->original_name,
+                            'size' => $upload->size,
+                            'uploaded_at' => $upload->created_at?->toIso8601String(),
+                            'download_url' => route('tools.documents.uploads.download', ['documentRequest' => $documentRequest, 'upload' => $upload]),
+                        ])
+                        ->all();
+
+                    return $document;
+                }, $category['documents']);
+
+                return $category;
+            }, $person['categories']);
+
+            return $person;
+        }, RenderDocumentRequestPdf::persons($documentRequest), array_keys($documentRequest->persons));
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function summary(DocumentRequest $request): array
@@ -188,6 +245,7 @@ class DocumentRequestController extends Controller
             'language_label' => $request->language->label(),
             'person_count' => count($request->persons),
             'document_count' => $request->documentCount(),
+            'public_url' => $request->publicUrl(),
             'creator' => $request->creator?->name,
             'creator_avatar' => $request->creator?->avatar,
             'lead' => $request->lead === null ? null : [

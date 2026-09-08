@@ -79,6 +79,10 @@ export type Lead = {
     score: number | null;
     status: LeadStatus;
     status_label: string;
+    /** Liste où vit le lead : « Tous les leads » ou « Leads propriétaires ». */
+    segment: LeadSegment;
+    /** Une qualification proposée par l'assistant IA attend d'être relue. */
+    ai_pending: boolean;
     /** Motif d'archivage, présent seulement sur un lead archivé. */
     loss_reason: LeadLossReason | null;
     loss_reason_label: string | null;
@@ -89,12 +93,18 @@ export type Lead = {
     /** Appel vidéo programmé (ISO), et son lien Google Meet. */
     visio_at: string | null;
     visio_meet_link: string | null;
+    /** Compte rendu de l'appel vidéo ; `visio_report_due` = visio passée sans compte rendu depuis ce créneau. */
+    visio_report: string | null;
+    visio_report_submitted_at: string | null;
+    visio_report_due: boolean;
     created_at: string | null;
     /** Membre du staff qui a créé la fiche. */
     author: { id: number; name: string; avatar: string | null } | null;
     /** Membre du staff responsable du suivi. */
     assignee: { id: number; name: string; avatar: string | null } | null;
 };
+
+export type LeadSegment = 'tenant' | 'owner';
 
 export type LeadStatusOption = { value: LeadStatus; label: string };
 
@@ -140,6 +150,8 @@ export type LeadForm = {
     qualification_note: string;
     /** Responsable du suivi, pré-rempli avec l'utilisateur courant. */
     assigned_to: number | null;
+    /** Liste de destination à la création : locataires ou propriétaires. */
+    segment: LeadSegment;
 };
 
 export type LeadDetail = Lead & {
@@ -225,7 +237,24 @@ export type LeadEditable = LeadForm & {
     name: string;
 };
 
+/** Leads archivés : chargés à la demande pour alléger la liste. */
+export type ArchivedLeads = {
+    loaded: boolean;
+    count: number;
+};
+
 export type LeadSortKey = 'manual' | 'score' | 'arrival' | 'created';
 
 /** Tous, non attribués, ou l'identifiant d'un membre du staff. */
 export type LeadAssigneeFilter = 'all' | 'none' | number;
+
+/** Qualification proposée par l'assistant IA, en attente de relecture sur la fiche. */
+export type LeadQualification = {
+    at: string | null;
+    /** Le projet en une ou deux phrases. */
+    summary: string;
+    score: number | null;
+    score_reason: string | null;
+    /** Champs proposés (vides sur le lead), avec la valeur affichable. */
+    fields: { key: string; label: string; value: string }[];
+};

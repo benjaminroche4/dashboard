@@ -1,6 +1,13 @@
-import type { ReactNode } from 'react';
+import { ChevronDown, Map } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 import type { Fact } from '@/components/leads/lead-show-body';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -18,12 +25,14 @@ const badgeTones = {
 /**
  * Bloc « Projet » de la fiche lead : caractéristiques du projet logement sur
  * deux colonnes (libellé au-dessus de la valeur), puis carte des
- * arrondissements.
+ * arrondissements, repliée par défaut pour alléger la fiche.
  */
 export function LeadProject({ facts, map }: Props) {
+    const [mapOpen, setMapOpen] = useState(false);
+
     return (
         <>
-            <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
+            <dl className="grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
                 {facts.map((fact) => (
                     <div key={fact.label} className="grid min-w-0 gap-0.5">
                         <dt className="text-muted-foreground flex items-center gap-1.5">
@@ -47,7 +56,33 @@ export function LeadProject({ facts, map }: Props) {
                     </div>
                 ))}
             </dl>
-            {map}
+            <Collapsible
+                open={mapOpen}
+                onOpenChange={setMapOpen}
+                className="grid gap-3"
+            >
+                <CollapsibleTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-fit"
+                    >
+                        <Map aria-hidden />
+                        {mapOpen
+                            ? 'Masquer la carte'
+                            : 'Voir la carte des quartiers'}
+                        <ChevronDown
+                            aria-hidden
+                            className={cn(
+                                'transition-transform',
+                                mapOpen && 'rotate-180',
+                            )}
+                        />
+                    </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>{map}</CollapsibleContent>
+            </Collapsible>
         </>
     );
 }

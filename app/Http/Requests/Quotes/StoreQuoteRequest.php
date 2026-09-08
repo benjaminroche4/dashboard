@@ -37,11 +37,11 @@ class StoreQuoteRequest extends FormRequest
             'issued_at' => ['required', 'date'],
             'valid_until' => ['required', 'date', 'after_or_equal:issued_at'],
             'notes' => ['nullable', 'string', 'max:2000'],
-            'items' => ['required', 'array', 'min:1'],
+            'items' => ['required', 'array', 'min:1', 'max:50'],
             'items.*.offer' => ['nullable', 'required_without:items.*.description', Rule::enum(Offer::class)],
             'items.*.description' => ['nullable', 'required_without:items.*.offer', 'string', 'max:255'],
-            'items.*.quantity' => ['required', 'numeric', 'min:0'],
-            'items.*.unit_price_cents' => ['required', 'integer', 'min:0'],
+            'items.*.quantity' => ['required', 'numeric', 'min:0', 'max:10000'],
+            'items.*.unit_price_cents' => ['required', 'integer', 'min:0', 'max:100000000'],
         ];
     }
 

@@ -61,7 +61,7 @@ describe('LeadRecontact', () => {
         await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
         expect(patch).toHaveBeenCalledWith(
-            '/leads/0199a9a0-0000-7000-8000-000000000001/recontact',
+            '/locataires/0199a9a0-0000-7000-8000-000000000001/recontact',
             {
                 recontact_at: format(fifteenth, 'yyyy-MM-dd'),
                 recontact_channel: 'whatsapp',
@@ -89,7 +89,7 @@ describe('LeadRecontact', () => {
         );
 
         expect(patch).toHaveBeenCalledWith(
-            '/leads/0199a9a0-0000-7000-8000-000000000001/recontact',
+            '/locataires/0199a9a0-0000-7000-8000-000000000001/recontact',
             { recontact_at: null, recontact_channel: null },
             expect.anything(),
         );

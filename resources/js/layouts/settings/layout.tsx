@@ -1,6 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
-import { Palette, ShieldCheck, UserRound } from 'lucide-react';
+import { Palette, ShieldCheck, UserRound, UsersRound } from 'lucide-react';
 import type { PropsWithChildren } from 'react';
 import { initials, memberTone } from '@/components/leads/lead-assign-menu';
 import { useCurrentUrl } from '@/hooks/use-current-url';
@@ -8,6 +8,7 @@ import { cn, toUrl } from '@/lib/utils';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editProfile } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
+import { index as teamIndex } from '@/routes/team';
 import type { Auth } from '@/types';
 import { staffRoleLabels } from '@/types/auth';
 
@@ -16,6 +17,8 @@ type Item = {
     description: string;
     href: ReturnType<typeof editProfile>;
     icon: LucideIcon;
+    /** Réservé aux administrateurs (`auth.can.manageStaff`). */
+    adminOnly?: boolean;
 };
 
 const items: Item[] = [
@@ -37,11 +40,21 @@ const items: Item[] = [
         href: editAppearance(),
         icon: Palette,
     },
+    {
+        title: 'Équipe',
+        description: 'Membres ayant accès au dashboard',
+        href: teamIndex(),
+        icon: UsersRound,
+        adminOnly: true,
+    },
 ];
 
 export default function SettingsLayout({ children }: PropsWithChildren) {
     const { isCurrentOrParentUrl } = useCurrentUrl();
     const { auth } = usePage<{ auth: Auth }>().props;
+    const visible = items.filter(
+        (item) => !item.adminOnly || auth.can?.manageStaff,
+    );
 
     return (
         <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pb-10">
@@ -68,7 +81,7 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                 </div>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-[14rem_minmax(0,1fr)]">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[14rem_minmax(0,1fr)]">
                 <nav
                     aria-label="Paramètres"
                     className="lg:sticky lg:top-6 lg:self-start"
@@ -77,7 +90,7 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
                         role="list"
                         className="flex gap-1 overflow-x-auto lg:flex-col"
                     >
-                        {items.map((item) => {
+                        {visible.map((item) => {
                             const current = isCurrentOrParentUrl(item.href);
 
                             return (

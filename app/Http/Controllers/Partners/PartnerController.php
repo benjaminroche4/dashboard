@@ -139,9 +139,13 @@ class PartnerController extends Controller
     {
         $this->authorize('create', Partner::class);
 
-        $partner = $create->handle(PartnerData::from($request->validated()), $request->user());
+        $notify = $request->boolean('notify');
+        $partner = $create->handle(PartnerData::from($request->validated()), $request->user(), $notify);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Partenaire :name ajouté.', ['name' => $partner->name])]);
+        $message = $notify && $partner->email !== null
+            ? __('Partenaire :name ajouté, e-mail de bienvenue envoyé.', ['name' => $partner->name])
+            : __('Partenaire :name ajouté.', ['name' => $partner->name]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
 
         return back();
     }

@@ -22,7 +22,7 @@ class StoreDocumentRequestRequest extends FormRequest
             'lead_id' => ['nullable', 'integer', 'exists:leads,id'],
             'language' => ['required', Rule::enum(LeadLanguage::class)],
             'message' => ['nullable', 'string', 'max:3000'],
-            'upload_url' => ['required', 'url:https', 'max:2048'],
+            'upload_url' => ['nullable', 'url:https', 'max:2048'],
             'persons' => ['required', 'array', 'min:1', 'max:4'],
             'persons.*.first_name' => ['required', 'string', 'max:255'],
             'persons.*.last_name' => ['required', 'string', 'max:255'],

@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
 export type Fact = {
@@ -19,14 +20,15 @@ export type Fact = {
     empty?: boolean;
 };
 
-/** `hint` s'affiche en badge à droite de la valeur (ex. « Dans 145 j »). */
-export type Kpi = { label: string; value: ReactNode; hint?: string };
-
 type Props = {
     contact: Fact[];
     facts: Fact[];
     /** Rendu personnalisé de la section Projet (remplace les lignes et la carte). */
     project?: ReactNode;
+    /** Titre de cette section (« Projet » par défaut, « Bien proposé » pour un propriétaire). */
+    projectTitle?: string;
+    /** Vrai quand `project` a du contenu même sans `facts` (bien proposé d'un propriétaire). */
+    projectFilled?: boolean;
     message: string | null;
     qualification: Fact[];
     /** Carte des arrondissements. */
@@ -35,9 +37,9 @@ type Props = {
     assign: ReactNode;
     /** Prochain recontact : canal, date, retard, planification. */
     recontact?: ReactNode;
-    /** Carte « Agent en contact », sous « Suivi par ». */
+    /** Carte « Agent en contact », onglet Partenaires. */
     agent?: ReactNode;
-    /** Carte « Partenaires du dossier », sous l'agent. */
+    /** Carte « Partenaires du dossier », onglet Partenaires. */
     partners?: ReactNode;
     /** Date du dernier contact, déjà formatée, ou « Jamais ». */
     lastContact: string;
@@ -49,18 +51,18 @@ type Props = {
     /** Accès au fil d'activité (bouton ouvrant le volet). */
     activity: ReactNode;
     activityCount: number;
-    /** Résumé chiffré affiché en bandeau : budget, arrivée, offre, qualité (masqué si vide). */
-    kpis: Kpi[];
     /**
      * Page de modification, proposée à la place d'une section sans aucune
      * donnée (lead arrivé du site ou du téléphone, pas encore qualifié).
      */
     completeUrl?: string;
-    /** Factures rattachées au lead, section après la qualification. */
+    /** Factures rattachées au lead, onglet Commercial. */
     invoices?: ReactNode;
-    /** Devis rattachés au lead, entre les factures et les documents. */
+    /** Devis rattachés au lead, onglet Commercial. */
     quotes?: ReactNode;
     documents?: ReactNode;
+    /** Compteurs affichés sur les onglets Commercial et Partenaires. */
+    counts?: { commercial: number; partners: number };
 };
 
 const badgeTones = {
@@ -76,7 +78,7 @@ function Rows({ facts }: { facts: Fact[] }) {
             {facts.map((fact) => (
                 <div
                     key={fact.label}
-                    className="grid gap-0.5 text-sm sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4"
+                    className="grid grid-cols-1 gap-0.5 text-sm sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4"
                 >
                     <dt className="text-muted-foreground flex items-center gap-1.5">
                         {fact.icon}
@@ -131,46 +133,45 @@ function Section({
     );
 }
 
-/** Bandeau des chiffres clés : une carte divisée en quatre colonnes. */
-function Kpis({ kpis }: { kpis: Kpi[] }) {
+/** Onglet avec compteur facultatif. */
+function Tab({
+    value,
+    label,
+    count,
+}: {
+    value: string;
+    label: string;
+    count?: number;
+}) {
     return (
-        <dl
-            aria-label="Chiffres clés"
-            className="bg-sidebar grid divide-y rounded-xl border sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4"
-        >
-            {kpis.map((kpi) => (
-                <div key={kpi.label} className="grid gap-1 p-4">
-                    <dt className="text-muted-foreground text-xs">
-                        {kpi.label}
-                    </dt>
-                    <dd className="flex items-center justify-between gap-2">
-                        <span className="truncate text-lg font-semibold tabular-nums">
-                            {kpi.value}
-                        </span>
-                        {kpi.hint && (
-                            <Badge
-                                variant="secondary"
-                                className="shrink-0 font-medium tabular-nums"
-                            >
-                                {kpi.hint}
-                            </Badge>
-                        )}
-                    </dd>
-                </div>
-            ))}
-        </dl>
+        <TabsTrigger value={value} className="flex-none px-3">
+            {label}
+            {count !== undefined && count > 0 && (
+                <Badge
+                    variant="secondary"
+                    className="font-medium tabular-nums"
+                    aria-label={`${count} ${count > 1 ? 'éléments' : 'élément'}`}
+                >
+                    {count}
+                </Badge>
+            )}
+        </TabsTrigger>
     );
 }
 
 /**
- * Corps de la fiche lead : bandeau de chiffres clés, puis sections nues à
- * gauche et, à droite, la carte du responsable (recontact, dernier contact,
- * actions) puis la carte du fil d'activité.
+ * Corps de la fiche lead : à gauche, trois onglets (« Dossier » : contact,
+ * projet, note et qualification ; « Commercial » : devis, factures,
+ * documents ; « Partenaires » : agent immobilier et partenaires), à droite la
+ * carte du responsable (recontact, dernier contact, actions) puis celle du
+ * fil d'activité. Les chiffres clés sont lus dans la section Projet.
  */
 export function LeadShowBody({
     contact,
     facts,
     project,
+    projectTitle = 'Projet',
+    projectFilled = false,
     message,
     qualification,
     map,
@@ -184,11 +185,11 @@ export function LeadShowBody({
     actions,
     activity,
     activityCount,
-    kpis,
     completeUrl,
     invoices,
     quotes,
     documents,
+    counts,
 }: Props) {
     const placeholder = (
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -203,12 +204,30 @@ export function LeadShowBody({
             )}
         </div>
     );
+    const hasCommercial = Boolean(invoices || quotes || documents);
+    const hasPartners = Boolean(agent || partners);
 
     return (
-        <div className="grid gap-8">
-            {kpis.length > 0 && <Kpis kpis={kpis} />}
-            <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-                <div className="divide-y">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+            <Tabs defaultValue="dossier" className="gap-6">
+                <TabsList variant="line" className="w-full border-b">
+                    <Tab value="dossier" label="Dossier" />
+                    {hasCommercial && (
+                        <Tab
+                            value="commercial"
+                            label="Commercial"
+                            count={counts?.commercial}
+                        />
+                    )}
+                    {hasPartners && (
+                        <Tab
+                            value="partenaires"
+                            label="Partenaires"
+                            count={counts?.partners}
+                        />
+                    )}
+                </TabsList>
+                <TabsContent value="dossier" className="divide-y">
                     <Section title="Contact">
                         {contact.length === 0 ? (
                             placeholder
@@ -216,8 +235,8 @@ export function LeadShowBody({
                             <Rows facts={contact} />
                         )}
                     </Section>
-                    <Section title="Projet">
-                        {facts.length === 0
+                    <Section title={projectTitle}>
+                        {facts.length === 0 && !projectFilled
                             ? placeholder
                             : (project ?? (
                                   <>
@@ -246,76 +265,84 @@ export function LeadShowBody({
                             <Rows facts={qualification} />
                         )}
                     </Section>
-                    {invoices && <Section title="Factures">{invoices}</Section>}
-                    {quotes && <Section title="Devis">{quotes}</Section>}
-                    {documents && (
-                        <Section title="Documents">{documents}</Section>
+                </TabsContent>
+                {hasCommercial && (
+                    <TabsContent value="commercial" className="divide-y">
+                        {quotes && <Section title="Devis">{quotes}</Section>}
+                        {invoices && (
+                            <Section title="Factures">{invoices}</Section>
+                        )}
+                        {documents && (
+                            <Section title="Documents">{documents}</Section>
+                        )}
+                    </TabsContent>
+                )}
+                {hasPartners && (
+                    <TabsContent value="partenaires" className="grid gap-6">
+                        {agent}
+                        {partners}
+                    </TabsContent>
+                )}
+            </Tabs>
+            <aside className="grid h-fit content-start gap-6 lg:sticky lg:top-6">
+                <section
+                    aria-label="Responsable"
+                    className="bg-sidebar grid gap-3 rounded-xl border p-4"
+                >
+                    <h2 className="text-base font-medium">Suivi par</h2>
+                    {assign}
+                    {recontact && (
+                        <div className="border-t pt-3">{recontact}</div>
                     )}
-                </div>
-                <aside className="grid h-fit content-start gap-6 lg:sticky lg:top-6">
-                    <section
-                        aria-label="Responsable"
-                        className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                    >
-                        <h2 className="text-base font-medium">Suivi par</h2>
-                        {assign}
-                        {recontact && (
-                            <div className="border-t pt-3">{recontact}</div>
-                        )}
-                        <div className="flex items-end justify-between gap-3 border-t pt-3 text-sm">
-                            <div className="grid min-w-0 gap-0.5">
-                                <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                                    <Clock className="size-3.5" aria-hidden />
-                                    Dernier contact
-                                </span>
-                                <span className="truncate font-medium">
-                                    {lastContact}
-                                </span>
-                            </div>
-                            {onTouchContact && (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="shrink-0"
-                                    disabled={touchingContact}
-                                    onClick={onTouchContact}
-                                >
-                                    {touchingContact ? (
-                                        <Spinner />
-                                    ) : (
-                                        <RefreshCw aria-hidden />
-                                    )}
-                                    Mettre à jour
-                                </Button>
-                            )}
+                    <div className="flex items-end justify-between gap-3 border-t pt-3 text-sm">
+                        <div className="grid min-w-0 gap-0.5">
+                            <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                                <Clock className="size-3.5" aria-hidden />
+                                Dernier contact
+                            </span>
+                            <span className="truncate font-medium">
+                                {lastContact}
+                            </span>
                         </div>
-                        {actions && (
-                            <div className="border-t pt-3">{actions}</div>
+                        {onTouchContact && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="shrink-0"
+                                disabled={touchingContact}
+                                onClick={onTouchContact}
+                            >
+                                {touchingContact ? (
+                                    <Spinner />
+                                ) : (
+                                    <RefreshCw aria-hidden />
+                                )}
+                                Mettre à jour
+                            </Button>
                         )}
-                    </section>
-                    {agent}
-                    {partners}
-                    <section
-                        aria-label="Activité"
-                        className="bg-sidebar grid gap-2 rounded-xl border p-4"
-                    >
-                        <header className="flex flex-wrap items-center justify-between gap-2">
-                            <h2 className="flex items-center gap-2 text-base font-medium">
-                                Activité
-                                <Badge
-                                    variant="secondary"
-                                    className="font-medium tabular-nums"
-                                    aria-label={`${activityCount} ${activityCount > 1 ? 'entrées' : 'entrée'}`}
-                                >
-                                    {activityCount}
-                                </Badge>
-                            </h2>
-                        </header>
-                        {activity}
-                    </section>
-                </aside>
-            </div>
+                    </div>
+                    {actions && <div className="border-t pt-3">{actions}</div>}
+                </section>
+                <section
+                    aria-label="Activité"
+                    className="bg-sidebar grid gap-2 rounded-xl border p-4"
+                >
+                    <header className="flex flex-wrap items-center justify-between gap-2">
+                        <h2 className="flex items-center gap-2 text-base font-medium">
+                            Activité
+                            <Badge
+                                variant="secondary"
+                                className="font-medium tabular-nums"
+                                aria-label={`${activityCount} ${activityCount > 1 ? 'entrées' : 'entrée'}`}
+                            >
+                                {activityCount}
+                            </Badge>
+                        </h2>
+                    </header>
+                    {activity}
+                </section>
+            </aside>
         </div>
     );
 }

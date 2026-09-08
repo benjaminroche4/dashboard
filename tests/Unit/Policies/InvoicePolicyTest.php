@@ -14,8 +14,8 @@ function staffWithRole(StaffRole $role): User
 test('everyone on the staff can view invoices', function (StaffRole $role): void {
     $policy = new InvoicePolicy;
 
-    expect($policy->viewAny())->toBeTrue()
-        ->and($policy->view())->toBeTrue();
+    expect($policy->viewAny(staffWithRole($role)))->toBeTrue()
+        ->and($policy->view(staffWithRole($role)))->toBeTrue();
 })->with(StaffRole::cases());
 
 test('managers and admins manage invoices, only admins delete', function (): void {

@@ -143,6 +143,7 @@ const lead = {
     recontact_at: '',
     qualification_note: '',
     assigned_to: 2,
+    segment: 'tenant' as const,
 };
 
 /** Remplit l'étape 1 avec le minimum requis. */
@@ -237,7 +238,7 @@ describe('Converting Machine page', () => {
             screen.getByRole('button', { name: 'Ajouter le lead' }),
         );
 
-        expect(post).toHaveBeenCalledWith('/leads');
+        expect(post).toHaveBeenCalledWith('/locataires');
         const transformer = transform.mock.calls.at(-1)?.[0] as (
             data: Record<string, unknown>,
         ) => Record<string, unknown>;
@@ -299,7 +300,7 @@ describe('Converting Machine page', () => {
             screen.getByRole('button', { name: 'Passer et enregistrer' }),
         );
 
-        expect(post).toHaveBeenCalledWith('/leads');
+        expect(post).toHaveBeenCalledWith('/locataires');
     });
 
     it('goes back with « Précédent » and through the stepper', async () => {
@@ -340,7 +341,7 @@ describe('Converting Machine page', () => {
         expect(screen.getByRole('radio', { name: 'Confié' })).toBeChecked();
         expect(screen.getByRole('link', { name: 'Annuler' })).toHaveAttribute(
             'href',
-            '/leads/0199a9a0-0000-7000-8000-000000000007',
+            '/locataires/0199a9a0-0000-7000-8000-000000000007',
         );
 
         await user.click(
@@ -353,7 +354,7 @@ describe('Converting Machine page', () => {
         await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
         expect(put).toHaveBeenCalledWith(
-            '/leads/0199a9a0-0000-7000-8000-000000000007',
+            '/locataires/0199a9a0-0000-7000-8000-000000000007',
         );
         expect(post).not.toHaveBeenCalled();
     });
@@ -392,7 +393,7 @@ describe('Converting Machine page', () => {
                         email: 'lea@example.com',
                         phone: null,
                         status_label: 'En cours',
-                        url: '/leads/0199a9a0-0000-7000-8000-000000000009',
+                        url: '/locataires/0199a9a0-0000-7000-8000-000000000009',
                     },
                 ],
             })),
@@ -409,10 +410,10 @@ describe('Converting Machine page', () => {
             screen.getByRole('link', { name: 'Léa Durand' }),
         ).toHaveAttribute(
             'href',
-            '/leads/0199a9a0-0000-7000-8000-000000000009',
+            '/locataires/0199a9a0-0000-7000-8000-000000000009',
         );
         expect(fetch).toHaveBeenCalledWith(
-            expect.stringContaining('/leads/duplicates?'),
+            expect.stringContaining('/locataires/duplicates?'),
             expect.anything(),
         );
         vi.unstubAllGlobals();
@@ -453,7 +454,7 @@ describe('Converting Machine page', () => {
 
         await user.keyboard('{Escape}');
 
-        expect(visit).toHaveBeenCalledWith('/leads');
+        expect(visit).toHaveBeenCalledWith('/locataires');
     });
 
     it('names the score and answers conditions with segments', async () => {

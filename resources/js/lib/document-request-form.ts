@@ -132,9 +132,11 @@ export function validateDocumentRequestForm(
 ): DocumentRequestFormErrors {
     const errors: DocumentRequestFormErrors = {};
 
-    if (data.upload_url.trim() === '') {
-        errors.upload_url = 'Le lien de dépôt est obligatoire.';
-    } else if (!/^https:\/\/\S+$/.test(data.upload_url.trim())) {
+    // Lien externe facultatif : la page publique de dépôt est générée automatiquement.
+    if (
+        data.upload_url.trim() !== '' &&
+        !/^https:\/\/\S+$/.test(data.upload_url.trim())
+    ) {
         errors.upload_url =
             'Le lien de dépôt doit être une adresse https valide.';
     }

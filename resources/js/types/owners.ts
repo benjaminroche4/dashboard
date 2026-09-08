@@ -1,5 +1,3 @@
-import type { LeadStatus } from './leads';
-
 export type OwnerStatus =
     | 'to_contact'
     | 'contacted'
@@ -48,21 +46,138 @@ export type OwnerForm = {
     notes: string;
 };
 
-/** Lead propriétaire (demande de gestion locative), vu depuis la liste dédiée. */
-export type OwnerLead = {
+/* ---------- Leads propriétaires : bien proposé (Converting Machine propriétaire) ---------- */
+
+import type { LeadLanguage, LeadSource } from './leads';
+
+export type OwnerPropertyType =
+    | 'studio'
+    | 't1'
+    | 't2'
+    | 't3'
+    | 't4'
+    | 'large_apartment'
+    | 'duplex'
+    | 'loft'
+    | 'house';
+
+export type PropertyStatus = 'available' | 'rented' | 'under_renovation';
+
+export type LeaseType =
+    | 'alur'
+    | 'civil_code'
+    | 'mobility'
+    | 'airbnb'
+    | 'no_idea';
+
+export type Orientation = 'north' | 'south' | 'east' | 'west';
+
+export type PropertyAmenity =
+    | 'elevator'
+    | 'balcony'
+    | 'terrace'
+    | 'wifi'
+    | 'washing_machine'
+    | 'dishwasher'
+    | 'oven'
+    | 'tv'
+    | 'air_conditioning'
+    | 'parking'
+    | 'cellar'
+    | 'garden'
+    | 'dryer'
+    | 'microwave'
+    | 'bathtub'
+    | 'intercom'
+    | 'concierge'
+    | 'natural_light'
+    | 'double_glazing'
+    | 'wheelchair_access'
+    | 'bike_storage'
+    | 'workspace'
+    | 'gym'
+    | 'pool';
+
+/** Meublé ou vide, tel que saisi pour un bien proposé. */
+export type PropertyFurnishing = 'furnished' | 'unfurnished';
+
+/** Bien proposé par un propriétaire, tel qu'enregistré (`lead_properties`). */
+export type LeadProperty = {
+    address: string | null;
+    place_id: string | null;
+    property_type: OwnerPropertyType | null;
+    property_status: PropertyStatus | null;
+    bedrooms: number | null;
+    bathrooms: number | null;
+    surface: number | null;
+    floor: number | null;
+    building_floors: number | null;
+    furnishing: PropertyFurnishing | null;
+    orientations: Orientation[];
+    lease_types: LeaseType[];
+    rent_cents: number | null;
+    charges_cents: number | null;
+    deposit_cents: number | null;
+    amenities: PropertyAmenity[];
+    note: string | null;
+};
+
+/** Le bien avec ses libellés, pour la fiche lead. */
+export type LeadPropertyDetail = LeadProperty & {
+    property_type_label: string | null;
+    property_status_label: string | null;
+    furnishing_label: string | null;
+    orientation_labels: string[];
+    lease_type_labels: string[];
+    amenity_labels: string[];
+};
+
+/** Formulaire de la Converting Machine propriétaire : les nombres saisis restent des chaînes. */
+export type OwnerLeadForm = {
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    company: string;
+    language: LeadLanguage;
+    source: LeadSource;
+    source_note: string;
+    assigned_to: number | null;
+    property: {
+        address: string;
+        place_id: string;
+        property_type: OwnerPropertyType | '';
+        property_status: PropertyStatus | '';
+        bedrooms: number | null;
+        bathrooms: number | null;
+        surface: string;
+        floor: string;
+        building_floors: string;
+        furnishing: PropertyFurnishing | '';
+        orientations: Orientation[];
+        lease_types: LeaseType[];
+        /** Montants en euros, tels que saisis. */
+        rent: string;
+        charges: string;
+        deposit: string;
+        amenities: PropertyAmenity[];
+        note: string;
+    };
+};
+
+/** Lead propriétaire tel que reçu par la page en mode modification. */
+export type OwnerLeadEditable = {
     id: number;
     uuid: string;
-    reference: string;
     name: string;
-    company: string | null;
-    email: string | null;
-    phone: string | null;
-    status: LeadStatus;
-    status_label: string;
-    source_label: string;
-    source_note: string | null;
-    assignee: string | null;
-    assignee_avatar: string | null;
-    last_contacted_at: string | null;
-    created_at: string | null;
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    company: string;
+    language: LeadLanguage;
+    source: LeadSource;
+    source_note: string;
+    assigned_to: number | null;
+    property: LeadProperty | null;
 };

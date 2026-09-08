@@ -27,8 +27,8 @@ export function matchesSection(href: string, currentPath: string): boolean {
 
 /**
  * Parmi des liens frères, celui qui correspond le plus précisément au chemin
- * courant (le plus long préfixe), ou null. Ainsi /leads/create sélectionne
- * « Converting Machine » (/leads/create) et non « Liste des leads » (/leads).
+ * courant (le plus long préfixe), ou null. Ainsi /locataires/create sélectionne
+ * « Converting Machine » (/locataires/create) et non « Leads locataires » (/locataires).
  */
 export function activeHref(
     hrefs: string[],

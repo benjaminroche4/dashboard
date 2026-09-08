@@ -52,3 +52,8 @@ for (const method of [
         });
     }
 }
+
+// input-otp (saisie du code d'appairage) interroge document.elementFromPoint, absent de jsdom.
+if (typeof document.elementFromPoint !== 'function') {
+    document.elementFromPoint = () => null;
+}

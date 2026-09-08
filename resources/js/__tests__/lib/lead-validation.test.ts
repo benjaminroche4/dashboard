@@ -28,6 +28,7 @@ const base: LeadForm = {
     recontact_at: '',
     qualification_note: '',
     assigned_to: null,
+    segment: 'tenant',
 };
 const today = new Date('2026-09-05T12:00:00Z');
 

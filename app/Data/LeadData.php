@@ -9,6 +9,7 @@ use App\Enums\Furnished;
 use App\Enums\GuarantorType;
 use App\Enums\LeadDuration;
 use App\Enums\LeadLanguage;
+use App\Enums\LeadSegment;
 use App\Enums\LeadSource;
 use App\Enums\Offer;
 use App\Enums\PropertyType;
@@ -53,6 +54,8 @@ final readonly class LeadData
         public ?string $qualificationNote,
         public ?int $assignedTo = null,
         public ?string $externalReference = null,
+        /** Liste de destination à la création (« Leads locataires » ou « Leads propriétaires »), ignorée à la modification. */
+        public LeadSegment $segment = LeadSegment::Tenant,
     ) {}
 
     /**
@@ -85,6 +88,7 @@ final readonly class LeadData
             recontactAt: isset($data['recontact_at']) ? Date::parse($data['recontact_at']) : null,
             qualificationNote: self::blankToNull($data['qualification_note'] ?? null),
             assignedTo: isset($data['assigned_to']) ? (int) $data['assigned_to'] : null,
+            segment: LeadSegment::from($data['segment'] ?? LeadSegment::Tenant->value),
         );
     }
 

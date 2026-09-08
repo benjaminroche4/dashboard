@@ -19,7 +19,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { show as agencyShow } from '@/routes/agencies';
-import { destroy as agentDestroy, index as agentsIndex } from '@/routes/agents';
+import {
+    destroy as agentDestroy,
+    favorite as agentFavorite,
+    index as agentsIndex,
+} from '@/routes/agents';
 import { show as leadShow } from '@/routes/leads';
 import type { AgencyOption, Agent, AgentAgencyCard } from '@/types';
 
@@ -72,9 +76,13 @@ export default function AgentShow({ agent, agency, agencies }: Props) {
                     deleteDescription="Sa fiche sera effacée et les leads qu'il suivait n'auront plus d'agent. Cette action est irréversible."
                     backHref={agentsIndex().url}
                     backLabel="Tous les agents"
+                    favorite={{
+                        active: agent.is_favorite,
+                        url: agentFavorite({ agent: agent.uuid }).url,
+                    }}
                 />
 
-                <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+                <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
                     <div className="divide-y">
                         <DetailSection title="Contact">
                             <dl className="grid gap-3">

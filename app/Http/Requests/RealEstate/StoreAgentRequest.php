@@ -27,6 +27,8 @@ class StoreAgentRequest extends FormRequest
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:40'],
             'notes' => ['nullable', 'string', 'max:3000'],
+            // Prévenir le contact par e-mail qu'il rejoint l'annuaire (décoché par défaut).
+            'notify' => ['nullable', 'boolean'],
         ];
     }
 

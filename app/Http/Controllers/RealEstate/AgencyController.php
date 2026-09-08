@@ -6,6 +6,7 @@ namespace App\Http\Controllers\RealEstate;
 
 use App\Actions\RealEstate\CreateAgency;
 use App\Actions\RealEstate\DeleteAgency;
+use App\Actions\RealEstate\ToggleFavorite;
 use App\Actions\RealEstate\UpdateAgency;
 use App\Data\AgencyData;
 use App\Http\Controllers\Controller;
@@ -25,13 +26,16 @@ class AgencyController extends Controller
 {
     use AuthorizesRequests;
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $this->authorize('viewAny', Agency::class);
 
+        // Les favoris du membre connecté d'abord, puis l'ordre alphabétique.
         $agencies = Agency::query()
             ->with(['creator', 'agents'])
             ->withCount('agents')
+            ->withFavoriteOf($request->user())
+            ->orderByDesc('is_favorite')
             ->orderBy('name')
             ->get()
             ->map(fn (Agency $agency): array => self::summary($agency))
@@ -40,11 +44,11 @@ class AgencyController extends Controller
         return Inertia::render('real-estate/agencies', ['agencies' => $agencies]);
     }
 
-    public function show(Agency $agency): Response
+    public function show(Request $request, Agency $agency): Response
     {
         $this->authorize('view', $agency);
 
-        $agency->load(['creator', 'agents.leads', 'leads.agent']);
+        $agency->load(['creator', 'agents.leads', 'leads.agent'])->loadFavoriteOf($request->user());
         $agency->loadCount('agents');
 
         return Inertia::render('real-estate/agency', [
@@ -87,13 +91,27 @@ class AgencyController extends Controller
             ->all());
     }
 
+    /** Pose ou retire l'étoile du membre connecté sur cette agence (favori personnel). */
+    public function favorite(Request $request, Agency $agency, ToggleFavorite $toggle): RedirectResponse
+    {
+        $this->authorize('view', $agency);
+
+        $toggle->handle($request->user(), $agency);
+
+        return back();
+    }
+
     public function store(StoreAgencyRequest $request, CreateAgency $create): RedirectResponse
     {
         $this->authorize('create', Agency::class);
 
-        $agency = $create->handle(AgencyData::from($request->validated()), $request->user());
+        $notify = $request->boolean('notify');
+        $agency = $create->handle(AgencyData::from($request->validated()), $request->user(), $notify);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Agence :name ajoutée.', ['name' => $agency->name])]);
+        $message = $notify && $agency->email !== null
+            ? __('Agence :name ajoutée, e-mail de bienvenue envoyé.', ['name' => $agency->name])
+            : __('Agence :name ajoutée.', ['name' => $agency->name]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
 
         return back();
     }
@@ -137,6 +155,7 @@ class AgencyController extends Controller
             'email' => $agency->email,
             'website' => $agency->website,
             'notes' => $agency->notes,
+            'is_favorite' => (bool) $agency->is_favorite,
             'agents_count' => (int) ($agency->agents_count ?? 0),
             'agents' => $agency->agents->map(fn (Agent $agent): array => [
                 'id' => $agent->id,

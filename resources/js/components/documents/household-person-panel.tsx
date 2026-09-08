@@ -1,5 +1,6 @@
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
+import { DocumentUploadList } from '@/components/documents/document-upload-list';
 import { Badge } from '@/components/ui/badge';
 import {
     Collapsible,
@@ -18,10 +19,13 @@ export function HouseholdPersonPanel({
     person,
     index,
     defaultOpen = true,
+    requestUuid,
 }: {
     person: HouseholdPersonDetail;
     index: number;
     defaultOpen?: boolean;
+    /** UUID de la liste, pour supprimer un fichier déposé ; sans lui, les fichiers ne sont pas listés. */
+    requestUuid?: string;
 }) {
     const [open, setOpen] = useState(defaultOpen);
     const name = person.name !== '' ? person.name : `Personne ${index + 1}`;
@@ -92,6 +96,21 @@ export function HouseholdPersonPanel({
                                                         {document.hint}
                                                     </div>
                                                 )}
+                                                {requestUuid &&
+                                                    document.uploads &&
+                                                    document.uploads.length >
+                                                        0 && (
+                                                        <div className="mt-2">
+                                                            <DocumentUploadList
+                                                                requestUuid={
+                                                                    requestUuid
+                                                                }
+                                                                uploads={
+                                                                    document.uploads
+                                                                }
+                                                            />
+                                                        </div>
+                                                    )}
                                             </li>
                                         ))}
                                     </ul>

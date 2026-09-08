@@ -126,7 +126,7 @@ describe('LeadActivity', () => {
         );
 
         expect(destroy).toHaveBeenCalledWith(
-            '/leads/0199a9a0-0000-7000-8000-000000000001/notes/0199a9a0-0000-7000-8000-0000000000c2',
+            '/locataires/0199a9a0-0000-7000-8000-000000000001/notes/0199a9a0-0000-7000-8000-0000000000c2',
             expect.objectContaining({ preserveScroll: true }),
         );
     });
@@ -151,7 +151,7 @@ describe('LeadActivity', () => {
         await user.keyboard('{Meta>}{Enter}{/Meta}');
 
         expect(patch).toHaveBeenCalledWith(
-            '/leads/0199a9a0-0000-7000-8000-000000000001/notes/0199a9a0-0000-7000-8000-0000000000c2',
+            '/locataires/0199a9a0-0000-7000-8000-000000000001/notes/0199a9a0-0000-7000-8000-0000000000c2',
             { body: 'Je rappelle jeudi.' },
             expect.objectContaining({ preserveScroll: true }),
         );

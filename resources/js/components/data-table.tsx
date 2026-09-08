@@ -12,6 +12,7 @@ import {
 } from '@tanstack/react-table';
 import { ChevronDown, X } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
+import type { HTMLAttributes } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -51,9 +52,23 @@ const frames: Record<
     },
 };
 
+/** Pagination, recherche et tri délégués au serveur (voir `useServerTable`). */
+export type ServerTableState = {
+    page: number;
+    lastPage: number;
+    total: number;
+    query: string;
+    sorting: SortingState;
+    onQueryChange: (query: string) => void;
+    onPageChange: (page: number) => void;
+    onSortingChange: (sorting: SortingState) => void;
+};
+
 type DataTableProps<TData, TValue> = {
     columns: ColumnDef<TData, TValue>[];
     data: TData[];
+    /** Mode serveur : la page, la recherche et le tri viennent des props Inertia. */
+    server?: ServerTableState;
     /** Colonne utilisée par le champ de recherche. */
     filterColumn?: string;
     filterPlaceholder?: string;
@@ -71,6 +86,8 @@ type DataTableProps<TData, TValue> = {
      * avec les lignes sélectionnées et une fonction pour vider la sélection.
      */
     bulkActions?: (rows: TData[], clearSelection: () => void) => ReactNode;
+    /** Attributs ajoutés à chaque ligne (survol, focus, classes), à partir de sa donnée. */
+    rowProps?: (row: TData) => HTMLAttributes<HTMLTableRowElement>;
 };
 
 /**
@@ -89,9 +106,23 @@ export function DataTable<TData, TValue>({
     frame = 'bordered',
     className,
     bulkActions,
+    rowProps,
+    server,
 }: DataTableProps<TData, TValue>) {
     const styles = frames[frame];
-    const [sorting, setSorting] = useState<SortingState>([]);
+    const [localSorting, setLocalSorting] = useState<SortingState>([]);
+    const sorting = server ? server.sorting : localSorting;
+    const setSorting = (
+        updater: SortingState | ((previous: SortingState) => SortingState),
+    ) => {
+        const next = typeof updater === 'function' ? updater(sorting) : updater;
+
+        if (server) {
+            server.onSortingChange(next);
+        } else {
+            setLocalSorting(next);
+        }
+    };
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
     const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
         {},
@@ -111,29 +142,58 @@ export function DataTable<TData, TValue>({
         onRowSelectionChange: setRowSelection,
         initialState: { pagination: { pageSize } },
         state: { sorting, columnFilters, columnVisibility, rowSelection },
+        manualPagination: server !== undefined,
+        manualFiltering: server !== undefined,
+        manualSorting: server !== undefined,
+        pageCount: server?.lastPage,
     });
 
     const selectedRows = table.getFilteredSelectedRowModel().rows;
+    const totalRows = server
+        ? server.total
+        : table.getFilteredRowModel().rows.length;
+    const pageCount = server ? server.lastPage : table.getPageCount();
+    const canPrevious = server ? server.page > 1 : table.getCanPreviousPage();
+    const canNext = server
+        ? server.page < server.lastPage
+        : table.getCanNextPage();
+    const previous = () =>
+        server ? server.onPageChange(server.page - 1) : table.previousPage();
+    const next = () =>
+        server ? server.onPageChange(server.page + 1) : table.nextPage();
 
     return (
         <div className={cn('w-full', styles.wrapper, className)}>
             <div className={cn('flex items-center gap-2', styles.toolbar)}>
                 {title && <div className="mr-auto">{title}</div>}
-                {filterColumn && (
+                {server ? (
                     <Input
+                        type="search"
                         placeholder={filterPlaceholder}
-                        value={
-                            (table
-                                .getColumn(filterColumn)
-                                ?.getFilterValue() as string) ?? ''
-                        }
+                        value={server.query}
                         onChange={(event) =>
-                            table
-                                .getColumn(filterColumn)
-                                ?.setFilterValue(event.target.value)
+                            server.onQueryChange(event.target.value)
                         }
+                        aria-label={filterPlaceholder}
                         className="max-w-sm"
                     />
+                ) : (
+                    filterColumn && (
+                        <Input
+                            placeholder={filterPlaceholder}
+                            value={
+                                (table
+                                    .getColumn(filterColumn)
+                                    ?.getFilterValue() as string) ?? ''
+                            }
+                            onChange={(event) =>
+                                table
+                                    .getColumn(filterColumn)
+                                    ?.setFilterValue(event.target.value)
+                            }
+                            className="max-w-sm"
+                        />
+                    )
                 )}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -197,6 +257,7 @@ export function DataTable<TData, TValue>({
                                     data-state={
                                         row.getIsSelected() && 'selected'
                                     }
+                                    {...rowProps?.(row.original)}
                                 >
                                     {row.getVisibleCells().map((cell) => (
                                         <TableCell
@@ -236,25 +297,29 @@ export function DataTable<TData, TValue>({
             >
                 <div className="text-muted-foreground flex-1 text-sm">
                     {table.getFilteredSelectedRowModel().rows.length} sur{' '}
-                    {table.getFilteredRowModel().rows.length} ligne(s)
-                    sélectionnée(s).
+                    {totalRows} ligne(s) sélectionnée(s).
                 </div>
                 {/* Pagination affichée seulement au-delà d'une page. */}
-                {table.getPageCount() > 1 && (
-                    <div className="space-x-2">
+                {pageCount > 1 && (
+                    <div className="flex items-center gap-2">
+                        {server && (
+                            <span className="text-muted-foreground text-sm tabular-nums">
+                                Page {server.page} sur {server.lastPage}
+                            </span>
+                        )}
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => table.previousPage()}
-                            disabled={!table.getCanPreviousPage()}
+                            onClick={previous}
+                            disabled={!canPrevious}
                         >
                             Précédent
                         </Button>
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => table.nextPage()}
-                            disabled={!table.getCanNextPage()}
+                            onClick={next}
+                            disabled={!canNext}
                         >
                             Suivant
                         </Button>

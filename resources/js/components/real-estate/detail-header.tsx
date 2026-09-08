@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import { Pencil } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { CreatedBy } from '@/components/created-by';
+import { FavoriteButton } from '@/components/favorite-button';
 import { RealEstateRowActions } from '@/components/real-estate/real-estate-row-actions';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -33,8 +34,11 @@ export function DetailHeader({
     tone = 'bg-primary/10 text-primary',
     backHref,
     backLabel,
+    favorite,
 }: {
     name: string;
+    /** Étoile de favori personnel : état et route de bascule. */
+    favorite?: { active: boolean; url: string };
     subtitle?: ReactNode;
     creator: string | null;
     creatorAvatar: string | null;
@@ -84,6 +88,14 @@ export function DetailHeader({
                 </div>
             </div>
             <div className="flex items-center gap-2">
+                {favorite && (
+                    <FavoriteButton
+                        favorite={favorite.active}
+                        url={favorite.url}
+                        name={name}
+                        size="md"
+                    />
+                )}
                 <Button variant="outline" onClick={onEdit}>
                     <Pencil />
                     Modifier
@@ -133,9 +145,11 @@ export function DetailRow({
     children: ReactNode;
 }) {
     return (
-        <div className="grid gap-0.5 text-sm sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4">
+        <div className="grid grid-cols-1 gap-0.5 text-sm sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4">
             <dt className="text-muted-foreground">{label}</dt>
-            <dd className="min-w-0 font-medium">{children}</dd>
+            <dd className="min-w-0 font-medium [overflow-wrap:anywhere]">
+                {children}
+            </dd>
         </div>
     );
 }

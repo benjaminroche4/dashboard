@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { CreatedBy } from '@/components/created-by';
 import { DocumentRequestRowActions } from '@/components/documents/document-request-row-actions';
 import { HouseholdPersonPanel } from '@/components/documents/household-person-panel';
+import { PublicUploadLink } from '@/components/documents/public-upload-link';
 import { Panel } from '@/components/panel';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -77,7 +78,7 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                     </div>
                 </div>
 
-                <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+                <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
                     {/* content-start : une carte repliée ne s'étire pas à la hauteur de la colonne. */}
                     <div className="grid content-start gap-6">
                         {request.persons.map((person, index) => (
@@ -85,6 +86,7 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                                 key={index}
                                 person={person}
                                 index={index}
+                                requestUuid={request.uuid}
                             />
                         ))}
                     </div>
@@ -127,17 +129,34 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                             </Panel>
                         )}
 
-                        <Panel title="Lien de dépôt">
-                            <a
-                                href={request.upload_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="bg-background flex items-start gap-2 rounded-lg border p-3 text-sm break-all hover:underline"
-                            >
-                                <ExternalLink className="mt-0.5 size-4 shrink-0" />
-                                {request.upload_url}
-                            </a>
+                        <Panel
+                            title="Lien public de dépôt"
+                            description="À transmettre au client avec le code d’appairage : il y dépose ses pièces sans compte."
+                        >
+                            <PublicUploadLink
+                                requestUuid={request.uuid}
+                                url={request.public_url}
+                                accessCode={request.access_code}
+                                uploadsCount={request.uploads_count}
+                                defaultEmail={request.lead_email}
+                                linkSentTo={request.link_sent_to}
+                                linkSentAt={request.link_sent_at}
+                            />
                         </Panel>
+
+                        {request.upload_url && (
+                            <Panel title="Dossier partagé">
+                                <a
+                                    href={request.upload_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="bg-background flex items-start gap-2 rounded-lg border p-3 text-sm break-all hover:underline"
+                                >
+                                    <ExternalLink className="mt-0.5 size-4 shrink-0" />
+                                    {request.upload_url}
+                                </a>
+                            </Panel>
+                        )}
 
                         {request.message && (
                             <Panel title="Message au client">

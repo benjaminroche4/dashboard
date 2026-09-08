@@ -32,7 +32,7 @@ export default function DocumentsIndex({ requests }: Props) {
         <>
             <Head title="Demandes de documents" />
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-10">
-                <div className="flex items-end justify-between pt-8 pb-6">
+                <div className="flex flex-wrap items-end justify-between gap-4 pt-8 pb-6">
                     <div>
                         <h1 className="text-lg font-medium">
                             Demandes de documents

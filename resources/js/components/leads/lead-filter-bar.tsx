@@ -1,6 +1,7 @@
 import { usePage } from '@inertiajs/react';
 import {
     ArrowUpDown,
+    CircleDashed,
     Search,
     SlidersHorizontal,
     Star,
@@ -34,11 +35,14 @@ import {
 } from '@/components/ui/tooltip';
 import { defaultFilters, type LeadFilters } from '@/lib/kanban';
 import { cn } from '@/lib/utils';
+import { leadStatusDot } from '@/components/leads/lead-status-menu';
 import type {
     Lead,
     LeadAssigneeFilter,
     LeadOfferOption,
     LeadSortKey,
+    LeadStatus,
+    LeadStatusOption,
     OfferValue,
 } from '@/types';
 
@@ -219,16 +223,19 @@ function AssigneeAvatars({
 
 /**
  * Barre de filtres du kanban : recherche, avatars des responsables, et un
- * bouton « Filtres » qui regroupe offre, note minimale et tri.
+ * bouton « Filtres » qui regroupe statut (vue tableau), offre, note minimale et tri.
  */
 export function LeadFilterBar({
     filters,
     offers,
+    statuses,
     leads,
     onChange,
 }: {
     filters: LeadFilters;
     offers: LeadOfferOption[];
+    /** Statuts proposés dans le filtre ; absent sur le kanban, qui a déjà une colonne par statut. */
+    statuses?: LeadStatusOption[];
     /** Tous les leads (avant filtrage), pour connaître les responsables présents. */
     leads: Lead[];
     onChange: (changes: Partial<LeadFilters>) => void;
@@ -239,11 +246,13 @@ export function LeadFilterBar({
     ];
     const dirty =
         filters.query !== '' ||
+        filters.status !== defaultFilters.status ||
         filters.offer !== defaultFilters.offer ||
         filters.minScore !== defaultFilters.minScore ||
         filters.assignee !== defaultFilters.assignee ||
         filters.sort !== defaultFilters.sort;
     const activeCount =
+        Number(filters.status !== 'all') +
         Number(filters.offer !== 'all') +
         Number(filters.minScore > 0) +
         Number(filters.assignee !== 'all');
@@ -282,6 +291,43 @@ export function LeadFilterBar({
             <X />
             Réinitialiser
         </Button>
+    );
+    const statusSelect = statuses && (
+        <Select
+            value={filters.status}
+            onValueChange={(status) =>
+                onChange({ status: status as LeadStatus | 'all' })
+            }
+        >
+            <SelectTrigger
+                aria-label="Statut"
+                size="sm"
+                className="bg-background w-40"
+            >
+                <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value="all">
+                    <CircleDashed
+                        className="text-muted-foreground size-3.5"
+                        aria-hidden
+                    />
+                    Tous les statuts
+                </SelectItem>
+                {statuses.map((status) => (
+                    <SelectItem key={status.value} value={status.value}>
+                        <span
+                            className={cn(
+                                'size-2 rounded-full',
+                                leadStatusDot[status.value],
+                            )}
+                            aria-hidden
+                        />
+                        {status.label}
+                    </SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
     );
     const offerSelect = (
         <Select
@@ -392,6 +438,12 @@ export function LeadFilterBar({
                     </Button>
                 </div>
                 <div className="grid gap-4 p-4">
+                    {statusSelect && (
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="filter-status">Statut</Label>
+                            {statusSelect}
+                        </div>
+                    )}
                     <div className="grid gap-1.5">
                         <Label htmlFor="filter-offer">Offre</Label>
                         {offerSelect}

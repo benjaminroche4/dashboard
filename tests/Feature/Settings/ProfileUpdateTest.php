@@ -107,3 +107,26 @@ test('the profile name is capitalised on save', function (): void {
 
     expect($user->refresh()->name)->toBe('Benjamin Roche');
 });
+
+test('the profile phone is saved for SMS alerts, blank clears it and an invalid number is refused', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->patch(route('profile.update'), ['name' => $user->name, 'email' => $user->email, 'phone' => '+33 6 12 34 56 78'])
+        ->assertSessionHasNoErrors();
+    expect($user->refresh()->phone)->toBe('+33 6 12 34 56 78');
+
+    $this->actingAs($user)
+        ->from(route('profile.edit'))
+        ->patch(route('profile.update'), ['name' => $user->name, 'email' => $user->email, 'phone' => '+33 12'])
+        ->assertSessionHasErrors('phone');
+    expect($user->refresh()->phone)->toBe('+33 6 12 34 56 78');
+
+    $this->actingAs($user)
+        ->patch(route('profile.update'), ['name' => $user->name, 'email' => $user->email, 'phone' => ''])
+        ->assertSessionHasNoErrors();
+    expect($user->refresh()->phone)->toBeNull();
+
+    $this->actingAs($user)->get(route('profile.edit'))
+        ->assertInertia(fn ($page) => $page->where('auth.user.phone', null));
+});

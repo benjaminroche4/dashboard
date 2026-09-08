@@ -78,7 +78,7 @@ describe('AgentLeadsPopover', () => {
         );
         expect(
             screen.getByRole('link', { name: 'Léa Durand' }),
-        ).toHaveAttribute('href', '/leads/abc');
+        ).toHaveAttribute('href', '/locataires/abc');
         expect(screen.getByText('En cours')).toBeInTheDocument();
     });
 });

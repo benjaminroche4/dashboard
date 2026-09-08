@@ -21,7 +21,7 @@ final readonly class DocumentRequestData
         public ?int $leadId,
         public LeadLanguage $language,
         public ?string $message,
-        public string $uploadUrl,
+        public ?string $uploadUrl,
         public array $persons,
     ) {}
 
@@ -37,7 +37,7 @@ final readonly class DocumentRequestData
             leadId: isset($data['lead_id']) ? (int) $data['lead_id'] : null,
             language: LeadLanguage::from((string) ($data['language'] ?? 'fr')),
             message: isset($data['message']) && trim((string) $data['message']) !== '' ? trim((string) $data['message']) : null,
-            uploadUrl: trim((string) $data['upload_url']),
+            uploadUrl: isset($data['upload_url']) && trim((string) $data['upload_url']) !== '' ? trim((string) $data['upload_url']) : null,
             persons: array_map(fn (array $person): array => [
                 'first_name' => PersonName::capitalize($person['first_name']),
                 'last_name' => PersonName::capitalize($person['last_name']),

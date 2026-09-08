@@ -11,3 +11,6 @@ export type * from './real-estate';
 export type * from './partners';
 export type * from './owners';
 export type * from './clients';
+export type * from './properties';
+export type * from './visits';
+export type * from './activity';

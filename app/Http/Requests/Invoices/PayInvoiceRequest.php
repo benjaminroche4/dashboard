@@ -24,7 +24,8 @@ class PayInvoiceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'paid_at' => ['required', 'date', 'before_or_equal:today'],
+            // « Aujourd'hui » au sens de Paris, pas d'UTC (entre minuit et 2 h, la date locale est déjà passée en UTC).
+            'paid_at' => ['required', 'date', 'before_or_equal:'.now('Europe/Paris')->toDateString()],
         ];
     }
 

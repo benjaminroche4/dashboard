@@ -27,3 +27,23 @@ test('staff can list every lead with its status, newest first', function (): voi
             ->where('leads.0.status_label', 'Converti')
             ->has('statuses', count(LeadStatus::cases())));
 });
+
+test('archived leads are left out until asked for, their count being exposed', function (): void {
+    Lead::factory()->count(2)->create();
+    Lead::factory()->status(LeadStatus::Archived)->count(3)->create();
+    $member = User::factory()->create();
+
+    $this->actingAs($member)
+        ->get(route('leads.index'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->has('leads', 2)
+            ->where('archived.loaded', false)
+            ->where('archived.count', 3));
+
+    $this->actingAs($member)
+        ->get(route('leads.index', ['archived' => 1]))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->has('leads', 5)
+            ->where('archived.loaded', true)
+            ->where('archived.count', 3));
+});

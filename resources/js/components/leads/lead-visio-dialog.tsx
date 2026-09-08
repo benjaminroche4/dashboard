@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
+import { LeadVisioReportDialog } from '@/components/leads/lead-visio-report-dialog';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -173,6 +174,7 @@ export function LeadVisioDialog({
                             Rejoindre sur Google Meet
                         </a>
                     )}
+                    <LeadVisioReportDialog lead={lead} />
                 </div>
             )}
             <Dialog open={open} onOpenChange={setOpen}>

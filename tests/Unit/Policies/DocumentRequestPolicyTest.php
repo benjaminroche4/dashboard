@@ -14,10 +14,10 @@ test('every staff member views, creates and updates, only admins delete', functi
     $member = User::factory()->create();
     $admin = User::factory()->admin()->create();
 
-    expect($policy->viewAny())->toBeTrue()
-        ->and($policy->view())->toBeTrue()
-        ->and($policy->create())->toBeTrue()
-        ->and($policy->update())->toBeTrue()
+    expect($policy->viewAny($member))->toBeTrue()
+        ->and($policy->view($member))->toBeTrue()
+        ->and($policy->create($member))->toBeTrue()
+        ->and($policy->update($member))->toBeTrue()
         ->and($policy->delete($member))->toBeFalse()
         ->and($policy->delete($admin))->toBeTrue();
 });

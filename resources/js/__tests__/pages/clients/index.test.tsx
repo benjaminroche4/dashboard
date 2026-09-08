@@ -7,10 +7,12 @@ vi.mock('@inertiajs/react', () => ({
     Link: ({
         href,
         children,
+        prefetch: _prefetch,
         ...props
     }: {
         href: { url: string };
         children: ReactNode;
+        prefetch?: boolean;
     }) => (
         <a href={href.url} {...props}>
             {children}
@@ -59,8 +61,28 @@ describe('Clients index page', () => {
         expect(screen.getByText('Confié')).toBeInTheDocument();
         expect(screen.getByText('Admin')).toBeInTheDocument();
         expect(screen.getByText('Non attribué')).toBeInTheDocument();
-        expect(screen.getByText('1 facture · 2 demandes')).toBeInTheDocument();
-        expect(screen.getByText('0 facture · 1 demande')).toBeInTheDocument();
+        // La colonne Arrivée est une barre d'avancement vers la date d'arrivée.
+        const bars = screen.getAllByRole('progressbar', {
+            name: 'Avancement vers l’arrivée',
+        });
+        expect(bars.length).toBeGreaterThan(0);
+        expect(bars[0]).toHaveAttribute('aria-valuemax', '100');
+        expect(screen.queryByText(/facture/)).toBeNull();
+    });
+
+    it('puts a miniature folder next to each client name that opens when the row is hovered', () => {
+        render(<ClientsIndex clients={[makeClient()]} />);
+
+        const row = screen
+            .getByRole('link', { name: 'Léa Durand' })
+            .closest('tr');
+        expect(row).toHaveClass('group');
+        expect(
+            row?.querySelectorAll('img[src="/images/folder/front.svg"]'),
+        ).toHaveLength(1);
+        expect(row?.querySelector('.translate-y-12')).toHaveClass(
+            'group-hover:translate-y-0',
+        );
     });
 
     it('declares breadcrumbs under Clients', () => {

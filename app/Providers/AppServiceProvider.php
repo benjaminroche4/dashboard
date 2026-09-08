@@ -6,8 +6,11 @@ namespace App\Providers;
 
 use App\Broadcasting\ResilientBroadcaster;
 use App\Models\User;
+use App\Services\AlloSms;
+use App\Services\Assistant;
 use App\Services\DistrictStaticMap;
 use App\Services\DocRaptor;
+use App\Services\Geocoder;
 use App\Services\GoogleCalendar;
 use App\Services\PaymentLinks;
 use App\Services\Yousign;
@@ -30,10 +33,13 @@ class AppServiceProvider extends ServiceProvider
     {
         // Services externes construits depuis la config (injectables dans les Actions).
         $this->app->bind(DocRaptor::class, fn (): DocRaptor => DocRaptor::fromConfig());
+        $this->app->bind(Geocoder::class, fn (): Geocoder => Geocoder::fromConfig());
+        $this->app->bind(Assistant::class, fn (): Assistant => Assistant::fromConfig());
         $this->app->bind(DistrictStaticMap::class, fn (): DistrictStaticMap => DistrictStaticMap::fromConfig());
         $this->app->singleton(GoogleCalendar::class, fn (): GoogleCalendar => GoogleCalendar::fromConfig());
         $this->app->bind(PaymentLinks::class, fn (): PaymentLinks => PaymentLinks::fromConfig());
         $this->app->bind(Yousign::class, fn (): Yousign => Yousign::fromConfig());
+        $this->app->bind(AlloSms::class, fn (): AlloSms => AlloSms::fromConfig());
     }
 
     /**

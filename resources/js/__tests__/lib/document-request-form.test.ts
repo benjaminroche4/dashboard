@@ -73,11 +73,10 @@ describe('document request form helpers', () => {
         expect(personIndexFromErrorKey('persons')).toBeNull();
     });
 
-    it('validates each person, the https link and the household size', () => {
+    it('validates each person, the optional https link and the household size', () => {
         const form = emptyDocumentRequestForm();
 
         expect(validateDocumentRequestForm(form)).toEqual({
-            upload_url: 'Le lien de dépôt est obligatoire.',
             'persons.0.first_name': 'Le prénom est obligatoire.',
             'persons.0.last_name': 'Le nom est obligatoire.',
             'persons.0.documents':

@@ -5,6 +5,7 @@ import {
     columnStats,
     defaultFilters,
     filterLeads,
+    hasActiveFilters,
 } from '@/lib/kanban';
 import { leadStatuses, makeLead } from '@/test/fixtures/lead';
 
@@ -111,6 +112,12 @@ describe('filterLeads', () => {
             ),
         ).toEqual([2]);
         expect(
+            filterLeads(leads, {
+                ...defaultFilters,
+                status: 'in_progress',
+            }).map((lead) => lead.id),
+        ).toEqual([4]);
+        expect(
             filterLeads(leads, { ...defaultFilters, minScore: 4 }).map(
                 (lead) => lead.id,
             ),
@@ -120,5 +127,24 @@ describe('filterLeads', () => {
                 (lead) => lead.id,
             ),
         ).toEqual([1, 4, 2, 3]);
+    });
+});
+
+describe('hasActiveFilters', () => {
+    it('is false with the defaults and true as soon as any filter but the sort restricts the list', () => {
+        expect(hasActiveFilters(defaultFilters)).toBe(false);
+        expect(hasActiveFilters({ ...defaultFilters, sort: 'manual' })).toBe(
+            false,
+        );
+        expect(hasActiveFilters({ ...defaultFilters, query: 'léa' })).toBe(
+            true,
+        );
+        expect(hasActiveFilters({ ...defaultFilters, minScore: 3 })).toBe(true);
+        expect(hasActiveFilters({ ...defaultFilters, offer: 'confie' })).toBe(
+            true,
+        );
+        expect(hasActiveFilters({ ...defaultFilters, status: 'todo' })).toBe(
+            true,
+        );
     });
 });

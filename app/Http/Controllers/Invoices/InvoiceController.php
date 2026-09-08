@@ -17,6 +17,7 @@ use App\Enums\Offer;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Invoices\BulkPayInvoicesRequest;
 use App\Http\Requests\Invoices\BulkSendInvoicesRequest;
+use App\Http\Requests\Invoices\IndexInvoicesRequest;
 use App\Http\Requests\Invoices\LinkInvoiceLeadRequest;
 use App\Http\Requests\Invoices\PayInvoiceRequest;
 use App\Http\Requests\Invoices\StoreInvoiceRequest;
@@ -24,6 +25,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceStatusChange;
 use App\Models\Lead;
 use App\Services\DocRaptor;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -37,15 +39,26 @@ class InvoiceController extends Controller
 {
     use AuthorizesRequests;
 
-    public function index(): Response
+    /** Liste paginée côté serveur (50 par page) : recherche numéro ou client, statut, tri. */
+    public function index(IndexInvoicesRequest $request): Response
     {
         $this->authorize('viewAny', Invoice::class);
 
-        $invoices = Invoice::query()
+        $search = $request->search();
+        $status = $request->status();
+
+        $paginator = Invoice::query()
             ->with('lead')
-            ->latest('issued_at')
+            ->when($search !== '', fn (Builder $query): Builder => $query->where(fn (Builder $where): Builder => $where
+                ->where('number', 'like', "%{$search}%")
+                ->orWhere('client_name', 'like', "%{$search}%")))
+            ->when($status instanceof InvoiceStatus, fn (Builder $query): Builder => $query->where('status', $status))
+            ->orderBy($request->sort(), $request->direction())
             ->orderByDesc('id')
-            ->get()
+            ->paginate(50)
+            ->withQueryString();
+
+        $invoices = $paginator->getCollection()
             ->map(fn (Invoice $invoice): array => [
                 'id' => $invoice->id,
                 'uuid' => $invoice->uuid,
@@ -69,6 +82,20 @@ class InvoiceController extends Controller
 
         return Inertia::render('invoices/index', [
             'invoices' => $invoices,
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
+            'filters' => [
+                'q' => $search,
+                'status' => $status?->value,
+                'sort' => $request->sort(),
+                'dir' => $request->direction(),
+            ],
+            // Retards sur l'ensemble des factures, pas seulement la page affichée.
+            'overdueCount' => Invoice::query()->where('status', InvoiceStatus::Overdue)->count(),
             'statuses' => collect(InvoiceStatus::cases())
                 ->map(fn (InvoiceStatus $status): array => ['value' => $status->value, 'label' => $status->label()])
                 ->all(),
@@ -174,6 +201,7 @@ class InvoiceController extends Controller
                 'currency' => $invoice->currency->value,
                 'status_label' => $invoice->status->label(),
                 'lead' => $this->leadSummary($invoice),
+                'url' => route('invoices.show', $invoice),
             ])
             ->all();
 

@@ -28,7 +28,14 @@ import {
     PlaneLanding,
     Star,
 } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+    createContext,
+    useContext,
+    useEffect,
+    useRef,
+    useState,
+    type ReactNode,
+} from 'react';
 import { LeadAssignMenu } from '@/components/leads/lead-assign-menu';
 import {
     LeadArchiveDialog,
@@ -39,15 +46,18 @@ import {
     leadStatusClasses,
 } from '@/components/leads/lead-status-menu';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { formatDate, formatMoney } from '@/lib/format';
 import { applyMove, columnOf, columnStats } from '@/lib/kanban';
 import { firstContactTimer, leadUrgency } from '@/lib/lead-urgency';
 import { useNow } from '@/hooks/use-now';
+import { AiBadge } from '@/components/ai-badge';
 import { FirstContactBadge } from '@/components/leads/first-contact-badge';
 import { describeDistricts } from '@/lib/paris-districts';
 import { cn } from '@/lib/utils';
 import { status as leadStatusRoute } from '@/routes/leads';
 import type {
+    ArchivedLeads,
     LabeledOption,
     Lead,
     LeadLossReason,
@@ -64,61 +74,138 @@ type Props = {
     onOpen?: (lead: Lead) => void;
     /** Motifs de perte demandés à l'archivage. */
     lossReasons?: LabeledOption<LeadLossReason>[];
+    /** Jeu de couleurs des colonnes : locataires (défaut) ou propriétaires. */
+    palette?: KanbanPalette;
+    /** Archivés non chargés : nombre affiché et chargement à la demande. */
+    archived?: ArchivedLeads;
+    onLoadArchived?: () => void;
 };
 
-// Une teinte par colonne, en clair comme en sombre.
-const columnClasses: Record<LeadStatus, string> = {
-    todo: 'border-purple-200 bg-purple-50/70 dark:border-purple-900 dark:bg-purple-950/40',
-    in_progress:
-        'border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/40',
-    quote_sent:
-        'border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/40',
-    converted:
-        'border-green-200 bg-green-50/70 dark:border-green-900 dark:bg-green-950/40',
-    archived:
-        'border-neutral-200 bg-neutral-100/70 dark:border-neutral-800 dark:bg-neutral-900/40',
+export type KanbanPalette = 'tenant' | 'owner';
+
+type Tones = {
+    column: Record<LeadStatus, string>;
+    columnOver: Record<LeadStatus, string>;
+    title: Record<LeadStatus, string>;
+    glow: Record<LeadStatus, string>;
+    status: Record<LeadStatus, string>;
 };
 
-// Fond plus soutenu quand une carte survole la colonne.
-const columnOverClasses: Record<LeadStatus, string> = {
-    todo: 'border-purple-300 bg-purple-100 dark:border-purple-700 dark:bg-purple-950/70',
-    in_progress:
-        'border-sky-300 bg-sky-100 dark:border-sky-700 dark:bg-sky-950/70',
-    quote_sent:
-        'border-amber-300 bg-amber-100 dark:border-amber-700 dark:bg-amber-950/70',
-    converted:
-        'border-green-300 bg-green-100 dark:border-green-700 dark:bg-green-950/70',
-    archived:
-        'border-neutral-300 bg-neutral-200 dark:border-neutral-600 dark:bg-neutral-900/80',
+// Leads locataires : une teinte par colonne, en clair comme en sombre.
+const tenantTones: Tones = {
+    column: {
+        todo: 'border-purple-200 bg-purple-50/70 dark:border-purple-900 dark:bg-purple-950/40',
+        in_progress:
+            'border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/40',
+        quote_sent:
+            'border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/40',
+        converted:
+            'border-green-200 bg-green-50/70 dark:border-green-900 dark:bg-green-950/40',
+        archived:
+            'border-neutral-200 bg-neutral-100/70 dark:border-neutral-800 dark:bg-neutral-900/40',
+    },
+    // Fond plus soutenu quand une carte survole la colonne.
+    columnOver: {
+        todo: 'border-purple-300 bg-purple-100 dark:border-purple-700 dark:bg-purple-950/70',
+        in_progress:
+            'border-sky-300 bg-sky-100 dark:border-sky-700 dark:bg-sky-950/70',
+        quote_sent:
+            'border-amber-300 bg-amber-100 dark:border-amber-700 dark:bg-amber-950/70',
+        converted:
+            'border-green-300 bg-green-100 dark:border-green-700 dark:bg-green-950/70',
+        archived:
+            'border-neutral-300 bg-neutral-200 dark:border-neutral-600 dark:bg-neutral-900/80',
+    },
+    title: {
+        todo: 'text-purple-700 dark:text-purple-300',
+        in_progress: 'text-sky-700 dark:text-sky-300',
+        quote_sent: 'text-amber-700 dark:text-amber-300',
+        converted: 'text-green-700 dark:text-green-300',
+        archived: 'text-neutral-600 dark:text-neutral-400',
+    },
+    // Halo à l'atterrissage ou à l'apparition, dans la couleur de la colonne.
+    glow: {
+        todo: '[--lead-glow:var(--color-purple-400)]',
+        in_progress: '[--lead-glow:var(--color-sky-400)]',
+        quote_sent: '[--lead-glow:var(--color-amber-400)]',
+        converted: '[--lead-glow:var(--color-green-400)]',
+        archived: '[--lead-glow:var(--color-neutral-400)]',
+    },
+    status: {
+        todo: 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-200',
+        in_progress:
+            'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-200',
+        quote_sent:
+            'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200',
+        converted:
+            'bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-200',
+        archived:
+            'bg-neutral-200 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300',
+    },
 };
 
-const columnTitleClasses: Record<LeadStatus, string> = {
-    todo: 'text-purple-700 dark:text-purple-300',
-    in_progress: 'text-sky-700 dark:text-sky-300',
-    quote_sent: 'text-amber-700 dark:text-amber-300',
-    converted: 'text-green-700 dark:text-green-300',
-    archived: 'text-neutral-600 dark:text-neutral-400',
+// Leads propriétaires : autres teintes pour distinguer les deux kanbans au premier coup d'œil.
+const ownerTones: Tones = {
+    column: {
+        todo: 'border-rose-200 bg-rose-50/70 dark:border-rose-900 dark:bg-rose-950/40',
+        in_progress:
+            'border-teal-200 bg-teal-50/70 dark:border-teal-900 dark:bg-teal-950/40',
+        quote_sent:
+            'border-indigo-200 bg-indigo-50/70 dark:border-indigo-900 dark:bg-indigo-950/40',
+        converted:
+            'border-lime-200 bg-lime-50/70 dark:border-lime-900 dark:bg-lime-950/40',
+        archived:
+            'border-stone-200 bg-stone-100/70 dark:border-stone-800 dark:bg-stone-900/40',
+    },
+    columnOver: {
+        todo: 'border-rose-300 bg-rose-100 dark:border-rose-700 dark:bg-rose-950/70',
+        in_progress:
+            'border-teal-300 bg-teal-100 dark:border-teal-700 dark:bg-teal-950/70',
+        quote_sent:
+            'border-indigo-300 bg-indigo-100 dark:border-indigo-700 dark:bg-indigo-950/70',
+        converted:
+            'border-lime-300 bg-lime-100 dark:border-lime-700 dark:bg-lime-950/70',
+        archived:
+            'border-stone-300 bg-stone-200 dark:border-stone-600 dark:bg-stone-900/80',
+    },
+    title: {
+        todo: 'text-rose-700 dark:text-rose-300',
+        in_progress: 'text-teal-700 dark:text-teal-300',
+        quote_sent: 'text-indigo-700 dark:text-indigo-300',
+        converted: 'text-lime-700 dark:text-lime-300',
+        archived: 'text-stone-600 dark:text-stone-400',
+    },
+    glow: {
+        todo: '[--lead-glow:var(--color-rose-400)]',
+        in_progress: '[--lead-glow:var(--color-teal-400)]',
+        quote_sent: '[--lead-glow:var(--color-indigo-400)]',
+        converted: '[--lead-glow:var(--color-lime-400)]',
+        archived: '[--lead-glow:var(--color-stone-400)]',
+    },
+    status: {
+        todo: 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-200',
+        in_progress:
+            'bg-teal-100 text-teal-800 dark:bg-teal-950/60 dark:text-teal-200',
+        quote_sent:
+            'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-200',
+        converted:
+            'bg-lime-100 text-lime-800 dark:bg-lime-950/60 dark:text-lime-200',
+        archived:
+            'bg-stone-200 text-stone-700 dark:bg-stone-800 dark:text-stone-300',
+    },
 };
 
-// Halo à l'atterrissage ou à l'apparition, dans la couleur de la colonne.
-const landGlow: Record<LeadStatus, string> = {
-    todo: '[--lead-glow:var(--color-purple-400)]',
-    in_progress: '[--lead-glow:var(--color-sky-400)]',
-    quote_sent: '[--lead-glow:var(--color-amber-400)]',
-    converted: '[--lead-glow:var(--color-green-400)]',
-    archived: '[--lead-glow:var(--color-neutral-400)]',
+const palettes: Record<KanbanPalette, Tones> = {
+    tenant: tenantTones,
+    owner: ownerTones,
 };
 
-const statusSoft: Record<LeadStatus, string> = {
-    todo: 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-200',
-    in_progress: 'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-200',
-    quote_sent:
-        'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200',
-    converted:
-        'bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-200',
-    archived:
-        'bg-neutral-200 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300',
-};
+const PaletteContext = createContext<KanbanPalette>('tenant');
+
+/** Teintes du kanban courant (colonnes, titres, halos, badges de statut). */
+function useKanbanTones(): Tones {
+    return palettes[useContext(PaletteContext)];
+}
 
 const ARCHIVE_KEY = 'leads.kanban.archived-open';
 
@@ -146,6 +233,9 @@ export function LeadKanban({
     reorderable = true,
     onOpen,
     lossReasons = [],
+    palette = 'tenant',
+    archived,
+    onLoadArchived,
 }: Props) {
     const [items, setItems] = useState(leads);
     // Carte déposée dans Archivé : on demande le motif avant d'envoyer.
@@ -400,77 +490,93 @@ export function LeadKanban({
                 }}
                 onConfirm={confirmArchive}
             />
-            <DndContext
-                sensors={sensors}
-                collisionDetection={closestCorners}
-                onDragStart={onDragStart}
-                onDragOver={onDragOver}
-                onDragEnd={onDragEnd}
-                onDragCancel={() => {
-                    setActiveId(null);
-                    setItems(leads);
-                }}
-            >
-                <div
-                    ref={boardRef}
-                    role="list"
-                    aria-label="Kanban des leads"
-                    style={
-                        boardTop === null
-                            ? undefined
-                            : {
-                                  height: `calc(100svh - ${boardTop}px - 1.5rem)`,
-                              }
-                    }
-                    className="-mx-4 flex min-h-96 snap-x gap-4 overflow-x-auto px-4 pb-4"
+            <PaletteContext.Provider value={palette}>
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCorners}
+                    onDragStart={onDragStart}
+                    onDragOver={onDragOver}
+                    onDragEnd={onDragEnd}
+                    onDragCancel={() => {
+                        setActiveId(null);
+                        setItems(leads);
+                    }}
                 >
-                    {statuses.map((status) => {
-                        const column = columnLeads(status.value);
-                        const collapsed =
-                            status.value === 'archived' && !archivedOpen;
+                    <div
+                        ref={boardRef}
+                        role="list"
+                        aria-label="Kanban des leads"
+                        style={
+                            boardTop === null
+                                ? undefined
+                                : {
+                                      height: `calc(100svh - ${boardTop}px - 1.5rem)`,
+                                  }
+                        }
+                        className="-mx-4 flex min-h-96 snap-x gap-4 overflow-x-auto px-4 pb-4"
+                    >
+                        {statuses.map((status) => {
+                            const column = columnLeads(status.value);
+                            const collapsed =
+                                status.value === 'archived' && !archivedOpen;
 
-                        return (
-                            <KanbanColumn
-                                key={status.value}
-                                status={status}
-                                leads={column}
-                                collapsed={collapsed}
-                                dragging={activeId !== null}
-                                onToggle={
-                                    status.value === 'archived'
-                                        ? toggleArchive
-                                        : undefined
-                                }
-                            >
-                                {column.map((lead) => (
-                                    <SortableCard
-                                        key={lead.id}
-                                        lead={lead}
-                                        statuses={statuses}
-                                        lossReasons={lossReasons}
-                                        dragging={activeId === lead.id}
-                                        landedKey={
-                                            landed?.id === lead.id
-                                                ? landed.key
-                                                : null
-                                        }
-                                        entered={entered.has(lead.id)}
-                                        onOpen={onOpen}
-                                    />
-                                ))}
-                            </KanbanColumn>
-                        );
-                    })}
-                </div>
+                            return (
+                                <KanbanColumn
+                                    key={status.value}
+                                    status={status}
+                                    leads={column}
+                                    collapsed={collapsed}
+                                    dragging={activeId !== null}
+                                    onToggle={
+                                        status.value === 'archived'
+                                            ? toggleArchive
+                                            : undefined
+                                    }
+                                    pending={
+                                        status.value === 'archived' &&
+                                        archived !== undefined &&
+                                        !archived.loaded
+                                            ? {
+                                                  count: archived.count,
+                                                  load: onLoadArchived,
+                                              }
+                                            : undefined
+                                    }
+                                >
+                                    {column.map((lead) => (
+                                        <SortableCard
+                                            key={lead.id}
+                                            lead={lead}
+                                            statuses={statuses}
+                                            lossReasons={lossReasons}
+                                            dragging={activeId === lead.id}
+                                            landedKey={
+                                                landed?.id === lead.id
+                                                    ? landed.key
+                                                    : null
+                                            }
+                                            entered={entered.has(lead.id)}
+                                            onOpen={onOpen}
+                                        />
+                                    ))}
+                                </KanbanColumn>
+                            );
+                        })}
+                    </div>
 
-                <DragOverlay
-                    dropAnimation={{ duration: 180, easing: 'ease-out' }}
-                >
-                    {active ? (
-                        <LeadCard lead={active} statuses={statuses} overlay />
-                    ) : null}
-                </DragOverlay>
-            </DndContext>
+                    <DragOverlay
+                        dropAnimation={{ duration: 180, easing: 'ease-out' }}
+                    >
+                        {active ? (
+                            <LeadCard
+                                lead={active}
+                                statuses={statuses}
+                                overlay
+                            />
+                        ) : null}
+                    </DragOverlay>
+                </DndContext>
+            </PaletteContext.Provider>
         </>
     );
 }
@@ -481,6 +587,7 @@ function KanbanColumn({
     collapsed,
     dragging,
     onToggle,
+    pending,
     children,
 }: {
     status: LeadStatusOption;
@@ -489,13 +596,18 @@ function KanbanColumn({
     /** Une carte est en cours de déplacement quelque part sur le tableau. */
     dragging: boolean;
     onToggle?: () => void;
+    /** Leads de la colonne pas encore chargés (archivés) : compteur et bouton de chargement. */
+    pending?: { count: number; load?: () => void };
     children: ReactNode;
 }) {
+    const tones = useKanbanTones();
     const { setNodeRef, isOver } = useDroppable({
         id: columnId(status.value),
         data: { status: status.value },
     });
-    const stats = columnStats(leads);
+    const stats = pending
+        ? { ...columnStats(leads), count: pending.count }
+        : columnStats(leads);
     const breathing = dragging && isOver;
 
     if (collapsed) {
@@ -509,8 +621,8 @@ function KanbanColumn({
                 className={cn(
                     'flex w-12 shrink-0 snap-start flex-col items-center gap-3 rounded-xl border py-3 transition-[background-color,border-color,transform,box-shadow] duration-200',
                     breathing
-                        ? columnOverClasses[status.value]
-                        : columnClasses[status.value],
+                        ? tones.columnOver[status.value]
+                        : tones.column[status.value],
                     breathing && 'ring-primary/20 scale-[1.03] ring-2',
                 )}
             >
@@ -521,7 +633,7 @@ function KanbanColumn({
                     aria-expanded={false}
                     className={cn(
                         'flex flex-col items-center gap-2 rounded-md p-1 text-xs font-medium',
-                        columnTitleClasses[status.value],
+                        tones.title[status.value],
                     )}
                 >
                     <Archive className="size-4" aria-hidden />
@@ -551,8 +663,8 @@ function KanbanColumn({
             className={cn(
                 'flex min-h-0 min-w-72 flex-1 shrink-0 snap-start flex-col overflow-hidden rounded-xl border transition-[background-color,border-color,transform,box-shadow] duration-200 motion-reduce:transition-none',
                 breathing
-                    ? columnOverClasses[status.value]
-                    : columnClasses[status.value],
+                    ? tones.columnOver[status.value]
+                    : tones.column[status.value],
                 breathing && 'ring-primary/20 scale-[1.015] shadow-md ring-2',
             )}
         >
@@ -561,7 +673,7 @@ function KanbanColumn({
                     <h2
                         className={cn(
                             'truncate text-sm font-medium',
-                            columnTitleClasses[status.value],
+                            tones.title[status.value],
                         )}
                     >
                         {status.label}
@@ -622,7 +734,19 @@ function KanbanColumn({
                     className="flex min-h-24 flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2"
                 >
                     {children}
-                    {leads.length === 0 && (
+                    {pending && pending.count > 0 && (
+                        <li className="flex justify-center p-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={pending.load}
+                            >
+                                Afficher les {pending.count} lead(s) archivé(s)
+                            </Button>
+                        </li>
+                    )}
+                    {leads.length === 0 && !pending?.count && (
                         <li
                             className={cn(
                                 'text-muted-foreground flex flex-1 items-center justify-center rounded-lg border border-dashed p-4 text-center text-xs transition-colors',
@@ -658,6 +782,7 @@ function SortableCard({
     entered: boolean;
     onOpen?: (lead: Lead) => void;
 }) {
+    const tones = useKanbanTones();
     const { attributes, listeners, setNodeRef, transform, transition } =
         useSortable({
             id: cardId(lead.id),
@@ -683,7 +808,7 @@ function SortableCard({
                     'rounded-lg',
                     landedKey !== null && [
                         'animate-lead-land motion-reduce:animate-none',
-                        landGlow[lead.status],
+                        tones.glow[lead.status],
                     ],
                     entered &&
                         landedKey === null &&
@@ -733,6 +858,7 @@ export function LeadCard({
     overlay?: boolean;
     onOpen?: (lead: Lead) => void;
 }) {
+    const tones = useKanbanTones();
     const contact = lead.email ?? lead.phone ?? '';
     const budget =
         lead.budget_cents === null
@@ -781,7 +907,7 @@ export function LeadCard({
                     aria-hidden
                     className={cn(
                         'flex size-10 shrink-0 items-center justify-center rounded-md text-xs font-semibold',
-                        statusSoft[lead.status],
+                        tones.status[lead.status],
                     )}
                 >
                     {initials(lead.name)}
@@ -802,10 +928,12 @@ export function LeadCard({
                 </div>
             </div>
             {(firstContact !== null ||
+                lead.ai_pending ||
                 urgency.contact === 'warn' ||
                 urgency.contact === 'late' ||
                 urgency.arrivalInDays !== null) && (
                 <div className="flex min-w-0 flex-wrap gap-1.5">
+                    {lead.ai_pending && <AiBadge label="IA à relire" />}
                     <FirstContactBadge timer={firstContact} />
                     {(urgency.contact === 'warn' ||
                         urgency.contact === 'late') && (

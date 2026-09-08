@@ -4,9 +4,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 const { role } = vi.hoisted(() => ({ role: { value: 'admin' } }));
 
+const { get } = vi.hoisted(() => ({ get: vi.fn() }));
+
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
-    router: { post: vi.fn() },
+    router: { post: vi.fn(), get },
     usePage: () => ({ props: { auth: { user: { role: role.value } } } }),
     Link: ({
         href,
@@ -40,6 +42,14 @@ const invoice = (id: number, status: Invoice['status']): Invoice => ({
     lead: null,
 });
 
+const pagination = { current_page: 1, last_page: 1, per_page: 50, total: 3 };
+const filters = {
+    q: '',
+    sort: 'issued_at',
+    dir: 'desc' as const,
+    status: null,
+};
+
 describe('Invoices page', () => {
     it('shows the title, the summary with overdue count, the button and the panel table', () => {
         const { container } = render(
@@ -50,6 +60,9 @@ describe('Invoices page', () => {
                     invoice(3, 'overdue'),
                 ]}
                 statuses={[]}
+                pagination={pagination}
+                filters={filters}
+                overdueCount={2}
             />,
         );
 
@@ -69,7 +82,15 @@ describe('Invoices page', () => {
     });
 
     it('omits the overdue mention when there is none', () => {
-        render(<InvoicesIndex invoices={[invoice(1, 'paid')]} statuses={[]} />);
+        render(
+            <InvoicesIndex
+                invoices={[invoice(1, 'paid')]}
+                statuses={[]}
+                pagination={{ ...pagination, total: 1 }}
+                filters={filters}
+                overdueCount={0}
+            />,
+        );
 
         expect(screen.getByText('1 facture(s)')).toBeInTheDocument();
     });
@@ -81,6 +102,9 @@ describe('Invoices page', () => {
             <InvoicesIndex
                 invoices={[invoice(1, 'draft'), invoice(2, 'sent')]}
                 statuses={[]}
+                pagination={{ ...pagination, total: 2 }}
+                filters={filters}
+                overdueCount={0}
             />,
         );
 
@@ -100,7 +124,13 @@ describe('Invoices page', () => {
 
         role.value = 'member';
         render(
-            <InvoicesIndex invoices={[invoice(1, 'draft')]} statuses={[]} />,
+            <InvoicesIndex
+                invoices={[invoice(1, 'draft')]}
+                statuses={[]}
+                pagination={{ ...pagination, total: 1 }}
+                filters={filters}
+                overdueCount={0}
+            />,
         );
         await user.click(
             screen.getByRole('checkbox', { name: 'Tout sélectionner' }),
@@ -109,5 +139,60 @@ describe('Invoices page', () => {
             screen.queryByRole('group', { name: 'Actions groupées' }),
         ).toBeNull();
         role.value = 'admin';
+    });
+
+    it('paginates, searches and sorts on the server', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        const { userEvent } = await import('@testing-library/user-event');
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        get.mockReset();
+        render(
+            <InvoicesIndex
+                invoices={[invoice(1, 'paid')]}
+                statuses={[]}
+                pagination={{
+                    current_page: 2,
+                    last_page: 4,
+                    per_page: 50,
+                    total: 180,
+                }}
+                filters={filters}
+                overdueCount={0}
+            />,
+        );
+
+        expect(screen.getByText('180 facture(s)')).toBeInTheDocument();
+        expect(screen.getByText('Page 2 sur 4')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Suivant' }));
+        expect(get).toHaveBeenLastCalledWith(
+            '/invoices',
+            { sort: 'issued_at', dir: 'desc', page: 3 },
+            expect.objectContaining({
+                preserveState: true,
+                only: expect.arrayContaining(['invoices']),
+            }),
+        );
+
+        await user.type(
+            screen.getByRole('searchbox', {
+                name: 'Rechercher un numéro ou un client…',
+            }),
+            'RP-27',
+        );
+        vi.advanceTimersByTime(350);
+        expect(get).toHaveBeenLastCalledWith(
+            '/invoices',
+            { q: 'RP-27', sort: 'issued_at', dir: 'desc' },
+            expect.anything(),
+        );
+
+        await user.click(screen.getByRole('button', { name: /Client/ }));
+        expect(get).toHaveBeenLastCalledWith(
+            '/invoices',
+            expect.objectContaining({ sort: 'client_name', dir: 'asc' }),
+            expect.anything(),
+        );
+        vi.useRealTimers();
     });
 });

@@ -32,6 +32,12 @@ final class UserPolicy
         return $user->isAdmin() || $user->is($target);
     }
 
+    /** Sections et fonctions d'un membre : administrateurs seulement. */
+    public function updateAccess(User $user): bool
+    {
+        return $user->isAdmin();
+    }
+
     public function updateRole(User $user, User $target): bool
     {
         return $user->isAdmin() && ! $user->is($target);

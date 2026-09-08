@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Enums\SiteSection;
 use App\Models\User;
 
 /**
@@ -12,28 +13,28 @@ use App\Models\User;
  */
 final class PartnerPolicy
 {
-    public function viewAny(): bool
+    public function viewAny(User $user): bool
     {
-        return true;
+        return $user->canRead(SiteSection::Partners);
     }
 
-    public function view(): bool
+    public function view(User $user): bool
     {
-        return true;
+        return $user->canRead(SiteSection::Partners);
     }
 
-    public function create(): bool
+    public function create(User $user): bool
     {
-        return true;
+        return $user->canWrite(SiteSection::Partners);
     }
 
-    public function update(): bool
+    public function update(User $user): bool
     {
-        return true;
+        return $user->canWrite(SiteSection::Partners);
     }
 
     public function delete(User $user): bool
     {
-        return $user->isAdmin();
+        return $user->canManage(SiteSection::Partners);
     }
 }

@@ -4,35 +4,53 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Enums\LeadSegment;
+use App\Enums\LeadStatus;
+use App\Enums\SiteSection;
+use App\Models\Lead;
 use App\Models\User;
 
 /**
- * Tout le staff consulte, crée et fait avancer les leads ; seuls les admins suppriment.
+ * Droits sur un lead selon la section dont il relève : un dossier client
+ * (lead converti) dépend de « Clients », un lead propriétaire de « Leads
+ * propriétaires », les autres de « Leads ». Un membre qui n'a accès qu'aux
+ * dossiers clients ne modifie donc jamais un lead en cours.
  */
 final class LeadPolicy
 {
-    public function viewAny(): bool
+    /** Section dont relève un lead. */
+    public static function section(Lead $lead): SiteSection
     {
-        return true;
+        if ($lead->status === LeadStatus::Converted) {
+            return SiteSection::Clients;
+        }
+
+        return LeadSegment::fromLead($lead) === LeadSegment::Owner ? SiteSection::OwnerLeads : SiteSection::Leads;
     }
 
-    public function view(): bool
+    /** Un lead se consulte depuis les leads locataires, les leads propriétaires ou les dossiers clients. */
+    public function viewAny(User $user): bool
     {
-        return true;
+        return $user->canRead(SiteSection::Leads, SiteSection::OwnerLeads, SiteSection::Clients);
     }
 
-    public function create(): bool
+    public function view(User $user, Lead $lead): bool
     {
-        return true;
+        return $user->canRead(self::section($lead));
     }
 
-    public function update(): bool
+    public function create(User $user): bool
     {
-        return true;
+        return $user->canWrite(SiteSection::LeadsCreate, SiteSection::OwnerLeadsCreate);
     }
 
-    public function delete(User $user): bool
+    public function update(User $user, Lead $lead): bool
     {
-        return $user->isAdmin();
+        return $user->canWrite(self::section($lead));
+    }
+
+    public function delete(User $user, Lead $lead): bool
+    {
+        return $user->canManage(self::section($lead));
     }
 }

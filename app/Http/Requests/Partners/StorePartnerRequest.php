@@ -21,11 +21,13 @@ class StorePartnerRequest extends FormRequest
             'type' => ['required', Rule::enum(PartnerType::class)],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:40'],
-            'website' => ['nullable', 'url', 'max:2048'],
+            'website' => ['nullable', 'url:http,https', 'max:2048'],
             'street' => ['nullable', 'string', 'max:255'],
             'postal_code' => ['nullable', 'string', 'max:20'],
             'city' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:3000'],
+            // Prévenir le partenaire par e-mail qu'il rejoint l'annuaire (décoché par défaut).
+            'notify' => ['nullable', 'boolean'],
         ];
     }
 

@@ -7,7 +7,7 @@ describe('matchesSection', () => {
         expect(matchesSection('/invoices', '/invoices/create')).toBe(true);
         expect(matchesSection('/invoices', '/invoices/12')).toBe(true);
         expect(matchesSection('/invoices', '/invoices-archive')).toBe(false);
-        expect(matchesSection('/invoices', '/leads')).toBe(false);
+        expect(matchesSection('/invoices', '/locataires')).toBe(false);
         expect(matchesSection('/invoices/', '/invoices')).toBe(true);
     });
 
@@ -15,23 +15,25 @@ describe('matchesSection', () => {
         expect(matchesSection('#', '/anything')).toBe(false);
         expect(matchesSection('', '/anything')).toBe(false);
         expect(matchesSection('/', '/')).toBe(true);
-        expect(matchesSection('/', '/leads')).toBe(false);
+        expect(matchesSection('/', '/locataires')).toBe(false);
     });
 });
 
 describe('activeHref', () => {
-    const hrefs = ['/leads', '/leads/create', '/invoices'];
+    const hrefs = ['/locataires', '/locataires/create', '/invoices'];
 
     it('picks the most specific sibling', () => {
-        expect(activeHref(hrefs, '/leads')).toBe('/leads');
-        expect(activeHref(hrefs, '/leads/create')).toBe('/leads/create');
-        expect(activeHref(hrefs, '/leads/42')).toBe('/leads');
-        expect(activeHref(hrefs, '/leads/42/edit')).toBe('/leads');
+        expect(activeHref(hrefs, '/locataires')).toBe('/locataires');
+        expect(activeHref(hrefs, '/locataires/create')).toBe(
+            '/locataires/create',
+        );
+        expect(activeHref(hrefs, '/locataires/42')).toBe('/locataires');
+        expect(activeHref(hrefs, '/locataires/42/edit')).toBe('/locataires');
         expect(activeHref(hrefs, '/invoices/7')).toBe('/invoices');
     });
 
     it('returns null outside every section', () => {
         expect(activeHref(hrefs, '/tools/documents')).toBeNull();
-        expect(activeHref([], '/leads')).toBeNull();
+        expect(activeHref([], '/locataires')).toBeNull();
     });
 });

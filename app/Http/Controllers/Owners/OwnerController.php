@@ -14,10 +14,14 @@ use App\Enums\LeadStatus;
 use App\Enums\OwnerStatus;
 use App\Enums\WebsiteHelpType;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Leads\LeadController;
+use App\Http\Controllers\Properties\PropertyController;
 use App\Http\Requests\Owners\StoreOwnerRequest;
 use App\Http\Requests\Owners\UpdateOwnerRequest;
 use App\Models\Lead;
 use App\Models\Owner;
+use App\Models\Property;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -45,42 +49,52 @@ class OwnerController extends Controller
         return Inertia::render('owners/index', ['owners' => $owners, 'statuses' => OwnerStatus::options()]);
     }
 
-    /** Leads propriétaires : demandes de gestion locative (site ou conversion), les plus récentes en premier. */
-    public function leads(): Response
+    /** Leads propriétaires : demandes de gestion locative (site ou conversion), même vue que la liste des leads. */
+    public function leads(Request $request): Response
     {
         $this->authorize('viewAny', Lead::class);
 
+        $withArchived = $request->boolean('archived');
         $leads = Lead::query()
-            ->with('assignee')
+            ->with(['author', 'assignee'])
             ->where('help_type', WebsiteHelpType::RentalManagement)
+            ->unless($withArchived, fn (Builder $query): Builder => $query->where('status', '!=', LeadStatus::Archived))
+            ->orderBy('position')
             ->latest()
-            ->orderByDesc('id')
             ->get()
-            ->map(fn (Lead $lead): array => [
-                'id' => $lead->id,
-                'uuid' => $lead->uuid,
-                'reference' => $lead->reference,
-                'name' => $lead->fullName(),
-                'company' => $lead->company,
-                'email' => $lead->email,
-                'phone' => $lead->phone,
-                'status' => $lead->status->value,
-                'status_label' => $lead->status->ownerLabel(),
-                'source_label' => $lead->source->label(),
-                'source_note' => $lead->source_note,
-                'assignee' => $lead->assignee?->name,
-                'assignee_avatar' => $lead->assignee?->avatar,
-                'last_contacted_at' => $lead->last_contacted_at?->toIso8601String(),
-                'created_at' => $lead->created_at?->toIso8601String(),
-            ])
+            ->map(fn (Lead $lead): array => LeadController::summary($lead, ownerLabels: true))
             ->all();
 
         return Inertia::render('owners/leads', [
             'leads' => $leads,
+            'archived' => [
+                'loaded' => $withArchived,
+                'count' => Lead::query()->where('help_type', WebsiteHelpType::RentalManagement)->where('status', LeadStatus::Archived)->count(),
+            ],
             // Colonnes du kanban (« En signature » à la place de « Devis envoyé ») et motifs d'archivage.
             'statuses' => LeadStatus::ownerOptions(),
+            'offers' => LeadController::offers(),
             'lossReasons' => LeadLossReason::options(),
             'realtimeOnly' => ['leads'],
+        ]);
+    }
+
+    /** Fiche d'un propriétaire : coordonnées, lead, biens de l'annuaire, notes. */
+    public function show(Owner $owner): Response
+    {
+        $this->authorize('view', $owner);
+
+        $owner->load(['creator', 'lead', 'properties.agent.agency', 'properties.creator']);
+        $owner->properties->loadCount('visits');
+
+        return Inertia::render('owners/show', [
+            'owner' => self::summary($owner),
+            'properties' => $owner->properties
+                ->sortByDesc('created_at')
+                ->values()
+                ->map(fn (Property $property): array => PropertyController::summary($property))
+                ->all(),
+            'statuses' => OwnerStatus::options(),
         ]);
     }
 
@@ -104,6 +118,38 @@ class OwnerController extends Controller
                 'agency' => $owner->company,
                 'email' => $owner->email,
                 'phone' => $owner->phone,
+            ])
+            ->all());
+    }
+
+    /** Recherche ⌘K : prénom, nom, société, e-mail ou téléphone, huit résultats au plus. */
+    public function search(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Owner::class);
+
+        $query = trim((string) $request->query('q', ''));
+
+        if (mb_strlen($query) < 2) {
+            return response()->json([]);
+        }
+
+        return response()->json(Owner::query()
+            ->where(function ($builder) use ($query): void {
+                $builder->whereRaw("first_name || ' ' || last_name like ?", ["%{$query}%"])
+                    ->orWhere('company', 'like', "%{$query}%")
+                    ->orWhere('email', 'like', "%{$query}%")
+                    ->orWhere('phone', 'like', "%{$query}%");
+            })
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->limit(8)
+            ->get()
+            ->map(fn (Owner $owner): array => [
+                'id' => $owner->id,
+                'uuid' => $owner->uuid,
+                'title' => $owner->fullName(),
+                'subtitle' => $owner->company !== null && $owner->company !== '' ? $owner->company : $owner->status->label(),
+                'url' => route('owners.show', $owner),
             ])
             ->all());
     }
@@ -133,6 +179,7 @@ class OwnerController extends Controller
     public function convert(Owner $owner, ConvertOwnerToLead $convert): RedirectResponse
     {
         $this->authorize('update', $owner);
+        $this->authorize('create', Lead::class);
 
         $lead = $convert->handle($owner, auth()->user());
 

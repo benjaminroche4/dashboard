@@ -2,10 +2,6 @@ import { render, screen } from '@testing-library/react';
 import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/components/passkey-verify', () => ({
-    default: () => <div data-testid="passkey-verify" />,
-}));
-
 // Erreurs injectées dans le <Form> mocké, modifiables par test.
 const formState = vi.hoisted(() => ({ errors: {} as Record<string, string> }));
 
@@ -95,20 +91,6 @@ describe('Login page', () => {
         );
     });
 
-    it('puts the passkey button after the form', () => {
-        const page = renderVisible();
-        const form = page
-            .getByRole('button', { name: 'Connexion' })
-            .closest('form');
-        const passkey = page.getByTestId('passkey-verify');
-
-        expect(form).not.toBeNull();
-        expect(
-            form!.compareDocumentPosition(passkey) &
-                Node.DOCUMENT_POSITION_FOLLOWING,
-        ).toBeTruthy();
-    });
-
     it('uses no positive tabIndex so the tab order follows the DOM', () => {
         const { container } = render(<Login />);
 
@@ -128,10 +110,13 @@ describe('Login page', () => {
         expect(page.getByText(/Saisissez votre e-mail/)).toBeInTheDocument();
     });
 
-    it('offers passkey login', () => {
+    it('offers no passkey button nor « Ou » separator on the login screen', () => {
         const page = renderVisible();
 
-        expect(page.getByTestId('passkey-verify')).toBeInTheDocument();
+        expect(
+            page.queryByRole('button', { name: /clé d'accès/ }),
+        ).not.toBeInTheDocument();
+        expect(page.queryByText('Ou')).not.toBeInTheDocument();
     });
 });
 

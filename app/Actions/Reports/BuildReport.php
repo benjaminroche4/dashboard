@@ -10,10 +10,12 @@ use App\Enums\LeadSource;
 use App\Enums\LeadStatus;
 use App\Enums\Offer;
 use App\Enums\QuoteStatus;
+use App\Enums\VisitStatus;
 use App\Models\Invoice;
 use App\Models\Lead;
 use App\Models\Quote;
 use App\Models\User;
+use App\Models\Visit;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
@@ -34,7 +36,86 @@ final class BuildReport
             'leads' => $this->leads($from, $to),
             'quotes' => $this->quotes($from, $to),
             'invoices' => $this->invoices($from, $to),
+            'visits' => $this->visits($from, $to),
         ];
+    }
+
+    /**
+     * Visites : jour par jour sur les huit dernières semaines (indépendant de la
+     * période), et visites réservées par membre sur la période.
+     *
+     * @return array<string, mixed>
+     */
+    private function visits(CarbonInterface $from, CarbonInterface $to): array
+    {
+        $visits = Visit::query()
+            ->with('creator')
+            ->whereBetween('scheduled_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
+            ->get();
+
+        $byBooker = $visits
+            ->groupBy(fn (Visit $visit): string => (string) ($visit->created_by ?? 0))
+            ->map(fn (Collection $group, string $id): array => [
+                'user' => $id === '0' ? null : (int) $id,
+                'label' => $group->first()?->creator->name ?? 'Sans auteur',
+                'count' => $group->count(),
+                'done' => $group->where('status', VisitStatus::Done)->count(),
+                'cancelled' => $group->where('status', VisitStatus::Cancelled)->count(),
+            ])
+            ->sortByDesc('count')
+            ->values()
+            ->all();
+
+        return [
+            'total' => $visits->count(),
+            'done' => $visits->where('status', VisitStatus::Done)->count(),
+            'cancelled' => $visits->where('status', VisitStatus::Cancelled)->count(),
+            'weekly' => $this->weeklyVisits(),
+            'by_booker' => $byBooker,
+        ];
+    }
+
+    /**
+     * Visites (hors annulées) jour par jour, du lundi au dimanche, sur les huit
+     * dernières semaines, semaine en cours comprise.
+     *
+     * @return list<array{week: string, label: string, days: list<array{day: string, count: int}>, total: int, daily_average: float}>
+     */
+    private function weeklyVisits(): array
+    {
+        $weeks = 8;
+        $start = today()->startOfWeek()->subWeeks($weeks - 1);
+        $end = today()->endOfWeek();
+
+        $counts = Visit::query()
+            ->where('status', '!=', VisitStatus::Cancelled)
+            ->whereBetween('scheduled_at', [$start, $end])
+            ->get(['scheduled_at'])
+            ->countBy(fn (Visit $visit): string => $visit->scheduled_at->format('Y-m-d'));
+
+        $rows = [];
+        for ($index = 0; $index < $weeks; $index++) {
+            $monday = $start->copy()->addWeeks($index);
+            $days = [];
+            for ($offset = 0; $offset < 7; $offset++) {
+                $date = $monday->copy()->addDays($offset);
+                $days[] = [
+                    'day' => ucfirst(rtrim($date->translatedFormat('D'), '.')),
+                    'count' => (int) ($counts[$date->format('Y-m-d')] ?? 0),
+                ];
+            }
+            $total = array_sum(array_column($days, 'count'));
+
+            $rows[] = [
+                'week' => $monday->format('o-\WW'),
+                'label' => $monday->translatedFormat('j M').' – '.$monday->copy()->endOfWeek()->translatedFormat('j M'),
+                'days' => $days,
+                'total' => $total,
+                'daily_average' => round($total / 7, 1),
+            ];
+        }
+
+        return $rows;
     }
 
     /**
@@ -58,8 +139,9 @@ final class BuildReport
             ];
         })->filter(fn (array $row): bool => $row['count'] > 0)->values()->all();
 
-        $contacted = $leads->filter(fn (Lead $lead): bool => $lead->last_contacted_at !== null && $lead->created_at !== null);
-        $delays = $contacted->map(fn (Lead $lead): float => max(0, $lead->created_at->diffInMinutes($lead->last_contacted_at)));
+        // Délai jusqu'au tout premier contact, pas jusqu'au dernier échange.
+        $contacted = $leads->filter(fn (Lead $lead): bool => $lead->first_contacted_at !== null && $lead->created_at !== null);
+        $delays = $contacted->map(fn (Lead $lead): float => max(0, $lead->created_at->diffInMinutes($lead->first_contacted_at)));
 
         $assignees = User::query()->whereIn('id', $leads->pluck('assigned_to')->filter()->unique())->pluck('name', 'id');
         $byAssignee = $leads->groupBy(fn (Lead $lead): string => (string) ($lead->assigned_to ?? ''))

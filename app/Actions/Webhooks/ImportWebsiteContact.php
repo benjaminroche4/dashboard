@@ -10,6 +10,7 @@ use App\Data\WebsiteContactData;
 use App\Enums\Currency;
 use App\Enums\LeadSource;
 use App\Models\Lead;
+use Illuminate\Database\UniqueConstraintViolationException;
 
 /**
  * Transforme une demande de contact du site en lead « À traiter ».
@@ -57,7 +58,13 @@ final readonly class ImportWebsiteContact
             externalReference: $contact->reference,
         );
 
-        $lead = $this->createLead->handle($data);
+        try {
+            $lead = $this->createLead->handle($data);
+        } catch (UniqueConstraintViolationException) {
+            // Deux livraisons identiques en même temps : la seconde renvoie le lead créé par la première.
+            return Lead::query()->where('external_reference', $contact->reference)->firstOrFail();
+        }
+
         // Le type de demande sépare les propriétaires (gestion locative) des locataires.
         $lead->forceFill(['help_type' => $contact->helpType])->save();
 

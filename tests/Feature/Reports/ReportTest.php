@@ -8,10 +8,12 @@ use App\Enums\LeadSource;
 use App\Enums\LeadStatus;
 use App\Enums\Offer;
 use App\Enums\QuoteStatus;
+use App\Enums\VisitStatus;
 use App\Models\Invoice;
 use App\Models\Lead;
 use App\Models\Quote;
 use App\Models\User;
+use App\Models\Visit;
 use Illuminate\Support\Facades\Date;
 use Inertia\Testing\AssertableInertia;
 
@@ -119,4 +121,32 @@ test('the report compares leads day by day between the current and the previous 
         ->and(collect($report['leads']['by_offer'])->pluck('count', 'label')->all())->toBe(['Accompagné' => 0, 'Confié' => 2, 'Sans formule' => 1])
         ->and($report['leads']['by_assignee'][0])->toMatchArray(['label' => 'Charles', 'count' => 2])
         ->and($report['leads']['by_assignee'][1])->toMatchArray(['assignee' => null, 'label' => 'Non attribué', 'count' => 1]);
+});
+
+test('the report counts visits day by day over the last eight weeks and visits booked per member', function (): void {
+    Date::setTestNow('2026-09-08 10:00:00'); // mardi
+    $charles = User::factory()->create(['name' => 'Charles']);
+    $camille = User::factory()->create(['name' => 'Camille']);
+    Visit::factory()->count(2)->create(['scheduled_at' => '2026-09-07 10:00:00', 'created_by' => $charles->id]);
+    Visit::factory()->status(VisitStatus::Done)->create(['scheduled_at' => '2026-09-08 15:00:00', 'created_by' => $charles->id]);
+    Visit::factory()->status(VisitStatus::Cancelled)->create(['scheduled_at' => '2026-09-08 16:00:00', 'created_by' => $camille->id]);
+    Visit::factory()->create(['scheduled_at' => '2026-08-30 11:00:00', 'created_by' => null]); // dimanche, semaine précédente
+    Visit::factory()->create(['scheduled_at' => '2026-07-01 11:00:00', 'created_by' => $camille->id]); // hors des huit semaines
+
+    $report = (new BuildReport)->handle(now()->subMonths(3)->startOfMonth(), now());
+    $visits = $report['visits'];
+
+    expect($visits['total'])->toBe(6)
+        ->and($visits['done'])->toBe(1)
+        ->and($visits['cancelled'])->toBe(1)
+        ->and($visits['weekly'])->toHaveCount(8)
+        ->and($visits['weekly'][7]['week'])->toBe('2026-W37')
+        ->and(array_column($visits['weekly'][7]['days'], 'count'))->toBe([2, 1, 0, 0, 0, 0, 0])
+        ->and($visits['weekly'][7]['total'])->toBe(3)
+        ->and($visits['weekly'][7]['daily_average'])->toBe(0.4)
+        ->and($visits['weekly'][5]['days'][6])->toMatchArray(['day' => 'Dim', 'count' => 1])
+        ->and($visits['weekly'][0]['total'])->toBe(0)
+        ->and($visits['by_booker'][0])->toMatchArray(['label' => 'Charles', 'count' => 3, 'done' => 1, 'cancelled' => 0])
+        ->and($visits['by_booker'][1])->toMatchArray(['label' => 'Camille', 'count' => 2, 'cancelled' => 1])
+        ->and($visits['by_booker'][2])->toMatchArray(['user' => null, 'label' => 'Sans auteur', 'count' => 1]);
 });

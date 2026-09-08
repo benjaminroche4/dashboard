@@ -4,6 +4,7 @@ import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { Panel } from '@/components/panel';
 import { DetailBars } from '@/components/reports/detail-bars';
 import { MonthlyLeadsChart } from '@/components/reports/monthly-leads-chart';
+import { WeeklyVisitsChart } from '@/components/reports/weekly-visits-chart';
 import { reportColors } from '@/components/reports/report-palette';
 import {
     ChartContainer,
@@ -73,7 +74,7 @@ export default function ReportsIndex({ report, months, periods }: Props) {
         issued: month.issued[currency] / 100,
         paid: month.paid[currency] / 100,
     }));
-    const { leads, quotes, invoices } = report;
+    const { leads, quotes, invoices, visits } = report;
 
     const changePeriod = (value: string) =>
         router.get(
@@ -115,7 +116,7 @@ export default function ReportsIndex({ report, months, periods }: Props) {
 
                 <section
                     aria-label="Chiffres clés"
-                    className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+                    className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
                 >
                     <Stat
                         label="Leads reçus"
@@ -145,7 +146,7 @@ export default function ReportsIndex({ report, months, periods }: Props) {
 
                 <section
                     aria-label="Détail des leads"
-                    className="grid gap-8 lg:grid-cols-2"
+                    className="grid grid-cols-1 gap-8 lg:grid-cols-2"
                 >
                     <DetailBars
                         title="Leads par source"
@@ -271,6 +272,35 @@ export default function ReportsIndex({ report, months, periods }: Props) {
                             .
                         </p>
                     </Panel>
+                </section>
+
+                <section
+                    aria-label="Visites"
+                    className="grid grid-cols-1 gap-8 lg:grid-cols-2"
+                >
+                    <WeeklyVisitsChart weeks={visits.weekly} />
+                    <DetailBars
+                        title="Visites réservées par membre"
+                        description="Visites planifiées par chaque membre sur la période, et part effectuée."
+                        empty="Aucune visite sur la période."
+                        rows={visits.by_booker.map((row) => ({
+                            id: String(row.user ?? 'none'),
+                            label: row.label,
+                            values: { count: row.count, done: row.done },
+                        }))}
+                        series={[
+                            {
+                                key: 'count',
+                                label: 'Réservées',
+                                tone: 'primary',
+                            },
+                            {
+                                key: 'done',
+                                label: 'Effectuées',
+                                tone: 'success',
+                            },
+                        ]}
+                    />
                 </section>
 
                 <Panel

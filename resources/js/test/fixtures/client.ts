@@ -1,4 +1,4 @@
-import type { Client, ClientDetail } from '@/types';
+import type { Client, ClientDetail, ClientPriorityOption } from '@/types';
 
 /** Miroir de LeadFactory::converted() : un dossier client suivi par Admin. */
 export function makeClient(overrides: Partial<Client> = {}): Client {
@@ -11,6 +11,9 @@ export function makeClient(overrides: Partial<Client> = {}): Client {
         email: 'lea@example.com',
         phone: '+33 6 00 00 00 00',
         offer_label: 'Confié',
+        priority: 'normal',
+        priority_label: 'Normale',
+        priority_rank: 1,
         arrival_at: '2026-11-01',
         converted_at: '2026-09-01T10:00:00+02:00',
         assignee: { id: 1, name: 'Admin', avatar: null },
@@ -39,3 +42,11 @@ export function makeClientDetail(
         ...overrides,
     };
 }
+
+/** Miroir de ClientPriority::options(). */
+export const clientPriorities: ClientPriorityOption[] = [
+    { value: 'low', label: 'Basse' },
+    { value: 'normal', label: 'Normale' },
+    { value: 'high', label: 'Haute' },
+    { value: 'urgent', label: 'Urgente' },
+];

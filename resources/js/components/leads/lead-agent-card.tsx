@@ -21,7 +21,11 @@ function whatsAppUrl(phone: string): string {
     return `https://wa.me/${phone.replace(/\D+/g, '')}`;
 }
 
-/** Agents groupés par agence, les indépendants en dernier. */
+/**
+ * Agents groupés par agence, les indépendants en dernier ; les favoris du
+ * membre connecté forment un premier groupe « Favoris » (et restent aussi
+ * dans leur agence).
+ */
 export function groupAgents(
     agents: AgentOption[],
 ): { label: string; agents: AgentOption[] }[] {
@@ -32,12 +36,17 @@ export function groupAgents(
         groups.set(key, [...(groups.get(key) ?? []), agent]);
     }
 
-    return [...groups.entries()]
+    const favorites = agents.filter((agent) => agent.is_favorite);
+    const byAgency = [...groups.entries()]
         .sort(([a], [b]) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)))
         .map(([label, members]) => ({
             label: label === '' ? 'Indépendants' : label,
             agents: members,
         }));
+
+    return favorites.length > 0
+        ? [{ label: 'Favoris', agents: favorites }, ...byAgency]
+        : byAgency;
 }
 
 /**

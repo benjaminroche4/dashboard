@@ -7,8 +7,10 @@ use App\Enums\LeadStatus;
 use App\Models\Invoice;
 use App\Models\Lead;
 use App\Models\LeadStatusChange;
+use App\Models\Property;
 use App\Models\Quote;
 use App\Models\User;
+use App\Models\Visit;
 use Inertia\Testing\AssertableInertia;
 
 test('the clients page lists only converted leads, newest conversion first, with their follow-up data', function (): void {
@@ -54,6 +56,7 @@ test('a client file shows the converted lead with its invoices, quotes, document
     Invoice::factory()->status(InvoiceStatus::Cancelled)->create(['lead_id' => $client->id, 'currency' => 'EUR', 'amount_cents' => 999_999]);
     Quote::factory()->create(['lead_id' => $client->id, 'number' => 'DV-27009']);
     $client->notes()->create(['body' => 'Visite lundi.', 'user_id' => $member->id]);
+    Visit::factory()->create(['lead_id' => $client->id, 'property_id' => Property::factory()->create(['title' => 'T2 lumineux · 11e'])->id]);
 
     $this->actingAs($member)
         ->get(route('clients.show', $client))
@@ -74,7 +77,10 @@ test('a client file shows the converted lead with its invoices, quotes, document
             ->has('documentRequests', 0)
             ->has('partners', 0)
             ->has('notes', 1)
-            ->where('notes.0.by', 'Camille'));
+            ->where('notes.0.by', 'Camille')
+            ->has('visits', 1)
+            ->where('visits.0.property.label', 'T2 lumineux · 11e')
+            ->where('visits.0.client.name', 'Léa Durand'));
 });
 
 test('only converted leads have a client file, addressed by uuid', function (): void {

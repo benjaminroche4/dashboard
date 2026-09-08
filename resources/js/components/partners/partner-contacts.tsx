@@ -85,7 +85,7 @@ export function PartnerContacts({
                                         'Fonction non renseignée'}
                                 </span>
                             </div>
-                            <div className="flex items-center gap-1">
+                            <div className="flex min-w-0 flex-wrap items-center gap-1">
                                 {contact.phone && (
                                     <Button variant="ghost" size="sm" asChild>
                                         <a
@@ -104,25 +104,27 @@ export function PartnerContacts({
                                         </a>
                                     </Button>
                                 )}
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    aria-label={`Modifier ${contact.name}`}
-                                    onClick={() => {
-                                        setEditing(contact);
-                                        setDialogOpen(true);
-                                    }}
-                                >
-                                    <Pencil aria-hidden />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    aria-label={`Retirer ${contact.name}`}
-                                    onClick={() => setRemoving(contact)}
-                                >
-                                    <Trash2 aria-hidden />
-                                </Button>
+                                <span className="ml-auto flex shrink-0 items-center">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        aria-label={`Modifier ${contact.name}`}
+                                        onClick={() => {
+                                            setEditing(contact);
+                                            setDialogOpen(true);
+                                        }}
+                                    >
+                                        <Pencil aria-hidden />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        aria-label={`Retirer ${contact.name}`}
+                                        onClick={() => setRemoving(contact)}
+                                    >
+                                        <Trash2 aria-hidden />
+                                    </Button>
+                                </span>
                             </div>
                         </li>
                     ))}

@@ -63,7 +63,7 @@ describe('InvoiceLeadLink', () => {
             screen.getByRole('link', { name: /Léa Durand/ }),
         ).toHaveAttribute(
             'href',
-            '/leads/0199a9a0-0000-7000-8000-000000000007',
+            '/locataires/0199a9a0-0000-7000-8000-000000000007',
         );
         await user.click(screen.getByRole('button', { name: 'Détacher' }));
 
@@ -104,7 +104,7 @@ describe('InvoiceLeadLink', () => {
             ),
         );
         expect(fetch).toHaveBeenCalledWith(
-            expect.stringContaining('/leads/search?q=lea'),
+            expect.stringContaining('/locataires/search?q=lea'),
             expect.anything(),
         );
     });

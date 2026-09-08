@@ -3,11 +3,13 @@
 declare(strict_types=1);
 
 use App\Events\DashboardUpdated;
+use App\Mail\DirectoryWelcome;
 use App\Models\Agency;
 use App\Models\Agent;
 use App\Models\Lead;
 use App\Models\User;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia;
 
 beforeEach(function (): void {
@@ -110,4 +112,20 @@ test('an agency has a detail page with its agents and the leads they are in cont
             ->has('agency.leads', 1)
             ->where('agency.leads.0.name', 'Léa Durand')
             ->where('agency.leads.0.agent', 'Zoé Martin'));
+});
+
+test('a new agency is e-mailed only when asked, and only if it has an address', function (): void {
+    Mail::fake();
+    $member = User::factory()->create(['email' => 'charles@relocation-in-paris.fr']);
+
+    $this->actingAs($member)->post(route('agencies.store'), ['name' => 'Silencieuse', 'email' => 'a@example.com'])->assertSessionHasNoErrors();
+    $this->actingAs($member)->post(route('agencies.store'), ['name' => 'Sans adresse', 'phone' => '+33 1 00 00 00 00', 'notify' => true])->assertSessionHasNoErrors();
+    Mail::assertNothingSent();
+
+    $this->actingAs($member)->post(route('agencies.store'), ['name' => 'Agence du Marais', 'email' => 'marais@example.com', 'notify' => true])->assertSessionHasNoErrors();
+
+    Mail::assertSent(DirectoryWelcome::class, fn (DirectoryWelcome $mail): bool => $mail->hasTo('marais@example.com')
+        && $mail->name === 'Agence du Marais'
+        && $mail->hasReplyTo('charles@relocation-in-paris.fr')
+        && str_contains($mail->render(), 'agence immobilière partenaire'));
 });

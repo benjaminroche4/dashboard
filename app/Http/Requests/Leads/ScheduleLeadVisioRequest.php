@@ -17,7 +17,7 @@ class ScheduleLeadVisioRequest extends FormRequest
     {
         return [
             // Heure de Paris, saisie « AAAA-MM-JJTHH:MM » par le champ datetime-local.
-            'visio_at' => ['required', 'date_format:Y-m-d\TH:i', 'after:now'],
+            'visio_at' => ['required', 'date_format:Y-m-d\TH:i', 'after:'.CarbonImmutable::now('Europe/Paris')->format('Y-m-d\TH:i')],
         ];
     }
 

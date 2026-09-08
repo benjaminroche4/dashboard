@@ -37,6 +37,20 @@ export function describeEvent(
     return `${event.actor.name} ${event.message}`;
 }
 
+/** Vrai si l'événement vise des membres précis (payload `mentions`) dont l'utilisateur courant ne fait pas partie. */
+export function targetsOthers(
+    event: DashboardUpdatedEvent,
+    currentUserId: number,
+): boolean {
+    const mentions = event.payload.mentions;
+
+    return (
+        Array.isArray(mentions) &&
+        mentions.length > 0 &&
+        !mentions.includes(currentUserId)
+    );
+}
+
 /** Vrai si l'événement cite l'utilisateur courant (payload `mentions`). */
 export function mentionsMe(
     event: DashboardUpdatedEvent,
@@ -78,6 +92,12 @@ export function useStaffChannel({
         'staff',
         '.dashboard.updated',
         (event) => {
+            // Événement adressé à d'autres membres (rappels, alertes) : rien à
+            // afficher ni à recharger ici.
+            if (targetsOthers(event, currentUserId)) {
+                return;
+            }
+
             if (notify) {
                 if (mentionsMe(event, currentUserId)) {
                     toaster.warning(

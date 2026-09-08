@@ -326,5 +326,6 @@
     "Un lead existe déjà pour ce propriétaire.": "Un lead existe déjà pour ce propriétaire.",
     "Propriétaire prospecté · :count bien(s)": "Propriétaire prospecté · :count bien(s)",
     "Ce lead est déjà client.": "Ce lead est déjà client.",
-    ":name est maintenant client : son dossier est ouvert.": ":name est maintenant client : son dossier est ouvert."
+    ":name est maintenant client : son dossier est ouvert.": ":name est maintenant client : son dossier est ouvert.",
+    "Le numéro de téléphone est invalide.": "Le numéro de téléphone est invalide."
 }

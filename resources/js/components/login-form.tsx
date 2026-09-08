@@ -1,7 +1,6 @@
 import { Form } from '@inertiajs/react';
 import { InfoIcon } from 'lucide-react';
 import AlertError from '@/components/alert-error';
-import PasskeyVerify from '@/components/passkey-verify';
 import PasswordInput from '@/components/password-input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -19,16 +18,15 @@ export type LoginFormProps = {
     labelClassName?: string;
     buttonClassName?: string;
     submitLabel?: string;
-    /** Affiche le bouton de connexion par clé d'accès après le formulaire. */
-    passkey?: boolean;
 };
 
 /**
  * Formulaire de connexion. Toute la logique (routes, erreurs, état) vit ici,
  * les pages ne font que l'habiller.
  *
- * Ordre de tabulation : e-mail, mot de passe, se souvenir, connexion, clé d'accès
- * (ordre du DOM, aucun tabIndex positif).
+ * Ordre de tabulation : e-mail, mot de passe, se souvenir, connexion
+ * (ordre du DOM, aucun tabIndex positif). Les clés d'accès restent
+ * disponibles dans les paramètres de sécurité, mais pas sur cet écran.
  */
 export default function LoginForm({
     status,
@@ -37,7 +35,6 @@ export default function LoginForm({
     labelClassName,
     buttonClassName,
     submitLabel = 'Connexion',
-    passkey = true,
 }: LoginFormProps) {
     return (
         <div className={cn('flex flex-col gap-6', className)}>
@@ -131,12 +128,6 @@ export default function LoginForm({
                     );
                 }}
             </Form>
-
-            {passkey && (
-                <div>
-                    <PasskeyVerify separator="Ou" separatorPosition="above" />
-                </div>
-            )}
         </div>
     );
 }

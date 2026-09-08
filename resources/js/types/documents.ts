@@ -55,7 +55,14 @@ export type DocumentRequestSummary = {
 };
 
 /** Pièce imprimée : libellé traduit et aide facultative. */
-export type DocumentDetail = { label: string; hint: string | null };
+export type DocumentDetail = {
+    /** Clé du catalogue (sert au dépôt public). */
+    key?: string;
+    label: string;
+    hint: string | null;
+    /** Fichiers déposés par le client pour cette pièce (page de la liste). */
+    uploads?: DocumentUpload[];
+};
 
 /** Catégorie d'une personne avec ses pièces, dans l'ordre du catalogue. */
 export type DocumentCategoryDetail = {
@@ -71,9 +78,29 @@ export type HouseholdPersonDetail = {
     categories: DocumentCategoryDetail[];
 };
 
+/** Fichier déposé par le client sur la page publique. */
+export type DocumentUpload = {
+    id: number;
+    uuid: string;
+    name: string;
+    size: number;
+    uploaded_at: string | null;
+    download_url: string;
+};
+
 export type DocumentRequestDetail = DocumentRequestSummary & {
     message: string | null;
-    upload_url: string;
+    /** Lien externe facultatif (Drive…), en plus de la page publique. */
+    upload_url: string | null;
+    /** Page publique de dépôt, à transmettre au client. */
+    public_url: string;
+    /** Code d'appairage à 6 chiffres demandé sur la page publique. */
+    access_code: string;
+    link_sent_to: string | null;
+    link_sent_at: string | null;
+    /** E-mail du lead rattaché, pour préremplir l'envoi du lien. */
+    lead_email: string | null;
+    uploads_count: number;
     persons: HouseholdPersonDetail[];
 };
 
@@ -107,4 +134,34 @@ export type LeadDocumentRequest = {
     person_count: number;
     document_count: number;
     created_at: string | null;
+};
+
+/** Fichier déposé, vu depuis la page publique (sans lien de téléchargement). */
+export type PublicDocumentUpload = {
+    uuid: string;
+    name: string;
+    size: number;
+    uploaded_at: string | null;
+};
+
+/** Pièce demandée sur la page publique, avec les fichiers déjà reçus. */
+export type PublicDocumentDetail = {
+    key: string;
+    label: string;
+    hint: string | null;
+    uploads: PublicDocumentUpload[];
+};
+
+export type PublicDocumentCategory = {
+    value: string;
+    label: string;
+    documents: PublicDocumentDetail[];
+};
+
+/** Personne du foyer sur la page publique de dépôt. */
+export type PublicDocumentPerson = {
+    index: number;
+    name: string;
+    role: string;
+    categories: PublicDocumentCategory[];
 };

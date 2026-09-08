@@ -61,6 +61,7 @@ describe('Agent detail page', () => {
         render(
             <AgentShow
                 agent={makeAgent({
+                    is_favorite: true,
                     street: '5 rue de Bretagne',
                     postal_code: '75003',
                     city: 'Paris',
@@ -92,6 +93,11 @@ describe('Agent detail page', () => {
         expect(
             screen.getByRole('heading', { level: 1, name: 'Zoé Martin' }),
         ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', {
+                name: 'Retirer Zoé Martin des favoris',
+            }),
+        ).toHaveAttribute('aria-pressed', 'true');
         const agencyCard = within(
             screen.getByRole('region', { name: 'Agence' }),
         );
@@ -127,7 +133,7 @@ describe('Agent detail page', () => {
         );
         expect(leads.getByRole('link', { name: 'Léa Durand' })).toHaveAttribute(
             'href',
-            '/leads/abc',
+            '/locataires/abc',
         );
         expect(
             screen.getByRole('link', { name: 'Tous les agents' }),

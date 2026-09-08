@@ -45,12 +45,33 @@ final readonly class RecordPhoneEvent
      */
     public function handle(PhoneEventData $event, string $deliveryId): string
     {
-        if (! $this->claim($deliveryId)) {
+        // La réservation de la livraison vit dans la même transaction que le
+        // traitement : si celui-ci échoue, la relance d'Allo repart de zéro au
+        // lieu de répondre « duplicate » et de perdre l'appel.
+        try {
+            [$outcome, $lead, $by] = DB::transaction(function () use ($event, $deliveryId): array {
+                WebhookDelivery::query()->create(['provider' => 'allo', 'delivery_id' => $deliveryId, 'created_at' => now()]);
+
+                return $this->record($event);
+            });
+        } catch (UniqueConstraintViolationException) {
             return self::OUTCOME_DUPLICATE;
         }
 
+        if ($lead instanceof Lead) {
+            event(new DashboardUpdated('leads', ['id' => $lead->id], $this->message($event, $lead, $by), $by));
+        }
+
+        return $outcome;
+    }
+
+    /**
+     * @return array{0: self::OUTCOME_*, 1: Lead|null, 2: User|null}
+     */
+    private function record(PhoneEventData $event): array
+    {
         if (! $event->isContact()) {
-            return self::OUTCOME_IGNORED;
+            return [self::OUTCOME_IGNORED, null, null];
         }
 
         $by = $event->userEmail === null ? null : User::query()->where('email', $event->userEmail)->first();
@@ -59,33 +80,22 @@ final readonly class RecordPhoneEvent
 
         if (! $lead instanceof Lead) {
             if (! $event->inbound) {
-                return self::OUTCOME_IGNORED;
+                return [self::OUTCOME_IGNORED, null, null];
             }
 
             $lead = $this->createLead($event, $by);
             $created = true;
         }
 
-        DB::transaction(function () use ($lead, $event, $by): void {
-            $lead->notes()->create(['body' => $this->noteBody($event), 'user_id' => $by?->id]);
-            $lead->forceFill(['last_contacted_at' => $event->at ?? now()])->save();
-        });
+        $lead->notes()->create(['body' => $this->noteBody($event), 'user_id' => $by?->id]);
 
-        event(new DashboardUpdated('leads', ['id' => $lead->id], $this->message($event, $lead, $by), $by));
-
-        return $created ? self::OUTCOME_CREATED : self::OUTCOME_NOTED;
-    }
-
-    /** Réserve l'identifiant de livraison ; false s'il a déjà été traité. */
-    private function claim(string $deliveryId): bool
-    {
-        try {
-            WebhookDelivery::query()->create(['provider' => 'allo', 'delivery_id' => $deliveryId, 'created_at' => now()]);
-        } catch (UniqueConstraintViolationException) {
-            return false;
+        if ($event->touchesContact()) {
+            // Un webhook reçu en retard ne fait jamais reculer le dernier contact.
+            $at = $event->at ?? now();
+            $lead->forceFill(['last_contacted_at' => $lead->last_contacted_at === null || $lead->last_contacted_at->lt($at) ? $at : $lead->last_contacted_at])->save();
         }
 
-        return true;
+        return [$created ? self::OUTCOME_CREATED : self::OUTCOME_NOTED, $lead, $by];
     }
 
     private function findLead(string $number): ?Lead

@@ -12,7 +12,7 @@ export default function Login({ status }: Props) {
         <>
             <Head title="Connexion" />
 
-            <div className="bg-background grid min-h-svh lg:grid-cols-2">
+            <div className="bg-background grid min-h-svh grid-cols-1 lg:grid-cols-2">
                 <div className="flex items-center justify-center p-6 md:p-10">
                     <div className="animate-in fade-in w-full max-w-sm space-y-8 duration-500">
                         <ShimmerLogo src="/images/logo.jpg" alt="Dashboard" />

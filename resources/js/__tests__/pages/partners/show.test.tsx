@@ -99,7 +99,7 @@ describe('Partner detail page', () => {
         );
         expect(
             dossiers.getByRole('link', { name: 'Léa Durand' }),
-        ).toHaveAttribute('href', '/leads/abc');
+        ).toHaveAttribute('href', '/locataires/abc');
         expect(dossiers.getByText('Assurance habitation')).toBeInTheDocument();
         const reach = within(
             screen.getByRole('region', { name: 'Joindre le partenaire' }),

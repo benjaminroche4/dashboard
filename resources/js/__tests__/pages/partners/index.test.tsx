@@ -99,11 +99,19 @@ describe('Partners index page', () => {
         ).toBeInTheDocument();
         expect(screen.getAllByText('Admin')).toHaveLength(2);
 
-        const filter = within(screen.getByLabelText('Filtrer par type'));
+        const filter = screen.getByRole('button', { name: 'Filtres' });
+        await user.click(filter);
         expect(
-            filter.getByRole('radio', { name: /Assurance/ }),
+            await screen.findByRole('menuitemcheckbox', { name: /Assurance/ }),
         ).toHaveTextContent('1');
-        await user.click(filter.getByRole('radio', { name: /Gestion/ }));
+        await user.click(
+            screen.getByRole('menuitemcheckbox', { name: /Gestion/ }),
+        );
+        await user.keyboard('{Escape}');
+        expect(filter).toHaveTextContent('1');
+        expect(
+            screen.getByRole('button', { name: 'Réinitialiser' }),
+        ).toBeInTheDocument();
         expect(
             screen.queryByRole('link', { name: 'Zen Assurances' }),
         ).not.toBeInTheDocument();
@@ -125,6 +133,21 @@ describe('Partners index page', () => {
             within(dialog).getByRole('combobox', { name: 'Indicatif' }),
         ).toBeInTheDocument();
         await user.type(within(dialog).getByLabelText('Nom'), 'Beta Gestion');
+
+        // L'e-mail de bienvenue : décoché par défaut, et seulement avec un e-mail.
+        const notify = within(dialog).getByRole('checkbox', {
+            name: /Prévenir le partenaire par e-mail/,
+        });
+        expect(notify).toBeDisabled();
+        await user.type(
+            within(dialog).getByLabelText('E-mail'),
+            'contact@beta.example',
+        );
+        expect(notify).toBeEnabled();
+        expect(notify).not.toBeChecked();
+        await user.click(notify);
+        expect(notify).toBeChecked();
+
         await user.click(
             within(dialog).getByRole('button', {
                 name: 'Ajouter le partenaire',
@@ -134,6 +157,21 @@ describe('Partners index page', () => {
             '/partners',
             expect.objectContaining({ preserveScroll: true }),
         );
+    });
+
+    it('does not offer the welcome e-mail when editing a partner', async () => {
+        const user = userEvent.setup();
+        render(<PartnersIndex partners={partners} types={partnerTypes} />);
+
+        await user.click(
+            screen.getByRole('button', { name: 'Actions pour Zen Assurances' }),
+        );
+        await user.click(screen.getByRole('menuitem', { name: 'Modifier' }));
+        expect(
+            within(
+                screen.getByRole('dialog', { name: 'Modifier Zen Assurances' }),
+            ).queryByRole('checkbox', { name: /Prévenir le partenaire/ }),
+        ).toBeNull();
     });
 
     it('edits a partner from its menu', async () => {

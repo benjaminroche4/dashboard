@@ -3,8 +3,9 @@ import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { download } = vi.hoisted(() => ({
+const { download, post } = vi.hoisted(() => ({
     download: vi.fn().mockResolvedValue(true),
+    post: vi.fn(),
 }));
 
 vi.mock('@inertiajs/react', () => ({
@@ -16,7 +17,7 @@ vi.mock('@inertiajs/react', () => ({
         href: { url: string };
         children: ReactNode;
     }) => <a href={href.url}>{children}</a>,
-    router: { delete: vi.fn() },
+    router: { delete: vi.fn(), post },
     usePage: () => ({
         props: { auth: { user: { id: 1, name: 'Admin', role: 'admin' } } },
     }),
@@ -27,7 +28,10 @@ vi.mock('@/lib/download-document-request-pdf', () => ({
 }));
 
 import DocumentsShow from '@/pages/documents/show';
-import { makeDocumentRequestDetail } from '@/test/fixtures/document-request';
+import {
+    makeDocumentRequestDetail,
+    makeDocumentUpload,
+} from '@/test/fixtures/document-request';
 
 describe('Documents show page', () => {
     beforeEach(() => {
@@ -88,6 +92,15 @@ describe('Documents show page', () => {
             screen.getByRole('link', { name: /drive.google.com/ }),
         ).toHaveAttribute('href', 'https://drive.google.com/drive/folders/abc');
         expect(
+            screen.getByRole('link', { name: /depot\/tok-abc/ }),
+        ).toHaveAttribute('href', 'https://dashboard.test/depot/tok-abc');
+        expect(
+            screen.getByRole('button', { name: 'Copier le lien' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('Aucun fichier reçu pour le moment.'),
+        ).toBeInTheDocument();
+        expect(
             screen.getByText('Merci de tout déposer avant le 15.'),
         ).toBeInTheDocument();
         expect(
@@ -140,5 +153,75 @@ describe('Documents show page', () => {
             screen.getByRole('button', { name: /Télécharger le PDF/ }),
         ).toBeDisabled();
         expect(screen.getByText('Personne 1')).toBeInTheDocument();
+    });
+
+    it('lists the files received for a document with download links and hides the external folder without one', () => {
+        const detail = makeDocumentRequestDetail({
+            upload_url: null,
+            uploads_count: 1,
+        });
+        detail.persons[0].categories[0].documents[0].uploads = [
+            makeDocumentUpload(),
+        ];
+        render(<DocumentsShow request={detail} pdfAvailable />);
+
+        expect(screen.getByText('1 fichier reçu.')).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'passeport.pdf' }),
+        ).toHaveAttribute(
+            'href',
+            '/tools/documents/0199b0c0-0000-7000-8000-000000000001/uploads/0199b0c0-0000-7000-8000-0000000000aa',
+        );
+        expect(screen.getByText(/239 Ko/)).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Supprimer passeport.pdf' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('link', { name: /drive.google.com/ }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('shows the pairing code and emails the upload link to the lead address', async () => {
+        const user = userEvent.setup();
+        render(
+            <DocumentsShow
+                request={makeDocumentRequestDetail()}
+                pdfAvailable
+            />,
+        );
+
+        expect(
+            screen.getByLabelText('Code d’appairage 482913'),
+        ).toHaveTextContent('482913');
+
+        await user.click(
+            screen.getByRole('button', { name: 'Envoyer par e-mail' }),
+        );
+        expect(screen.getByLabelText('E-mail du client')).toHaveValue(
+            'lea@example.com',
+        );
+        await user.click(screen.getByRole('button', { name: 'Envoyer' }));
+
+        expect(post).toHaveBeenCalledWith(
+            '/tools/documents/0199b0c0-0000-7000-8000-000000000001/send-link',
+            { email: 'lea@example.com' },
+            expect.objectContaining({ preserveScroll: true }),
+        );
+    });
+
+    it('recalls the last sending of the link', () => {
+        render(
+            <DocumentsShow
+                request={makeDocumentRequestDetail({
+                    link_sent_to: 'lea@example.com',
+                    link_sent_at: '2026-09-08T10:00:00+02:00',
+                })}
+                pdfAvailable
+            />,
+        );
+
+        expect(
+            screen.getByText(/Envoyé à lea@example.com le 8 septembre/),
+        ).toBeInTheDocument();
     });
 });

@@ -157,11 +157,11 @@ export function OwnerDialog({
                         submit();
                     }}
                 >
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         {field('first_name', 'Prénom', { required: true })}
                         {field('last_name', 'Nom', { required: true })}
                     </div>
-                    <div className="grid gap-4 sm:grid-cols-[1fr_11rem]">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_11rem]">
                         {field('company', 'Société (SCI, etc.)', {
                             placeholder: 'Facultatif',
                         })}
@@ -193,7 +193,7 @@ export function OwnerDialog({
                             <InputError message={form.errors.status} />
                         </div>
                     </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="grid gap-2">
                             <Label htmlFor="owner-phone">Téléphone</Label>
                             <PhoneInput

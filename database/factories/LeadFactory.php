@@ -14,6 +14,7 @@ use App\Enums\LeadStatus;
 use App\Enums\Offer;
 use App\Enums\PropertyType;
 use App\Enums\RecontactChannel;
+use App\Enums\WebsiteHelpType;
 use App\Models\Lead;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -95,5 +96,25 @@ class LeadFactory extends Factory
     public function converted(): static
     {
         return $this->status(LeadStatus::Converted);
+    }
+
+    /** Lead propriétaire : demande de gestion locative reçue depuis le formulaire du site. */
+    public function rentalManagement(): static
+    {
+        return $this->state(fn (): array => [
+            'help_type' => WebsiteHelpType::RentalManagement,
+            'source' => LeadSource::Website,
+            'source_note' => 'Formulaire de contact · Gestion locative · CT-'.fake()->unique()->numerify('######'),
+            'offer' => null,
+            'budget_cents' => null,
+            'arrival_at' => null,
+            'company' => fake()->optional(0.4)->company(),
+            'message' => fake()->randomElement([
+                'Je possède un appartement dans le 11e que je souhaite mettre en gestion.',
+                'Deux studios à louer meublés, je cherche un gestionnaire de confiance.',
+                'Propriétaire d\'un T3 dans le 15e, actuellement vacant.',
+                'Je pars à l\'étranger et souhaite confier la gestion de mon bien.',
+            ]),
+        ]);
     }
 }

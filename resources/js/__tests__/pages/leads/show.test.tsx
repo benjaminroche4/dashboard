@@ -63,9 +63,22 @@ import {
     leadStatuses,
     lossReasons,
     makeLeadDetail,
+    makeLeadPropertyDetail,
     makeInbound,
 } from '@/test/fixtures/lead';
-import type { LeadNote } from '@/types';
+import type { LeadInvoice, LeadNote } from '@/types';
+
+const leadInvoice = (id: number): LeadInvoice => ({
+    id,
+    uuid: `0199a9a0-0000-7000-8000-0000000001${String(id).padStart(2, '0')}`,
+    number: `RP-2700${id}`,
+    client_name: 'Nestlé',
+    amount_cents: 128_639,
+    currency: 'EUR',
+    status: 'sent',
+    status_label: 'Envoyée',
+    issued_at: '2026-09-04',
+});
 
 const note = (overrides: Partial<LeadNote> = {}): LeadNote => ({
     id: 1,
@@ -106,6 +119,48 @@ const base = {
 };
 
 describe('Lead detail page', () => {
+    it('shows the proposed property of an owner lead and edits it in the owner Converting Machine', () => {
+        render(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail({ segment: 'owner' })}
+                property={makeLeadPropertyDetail()}
+                notes={[]}
+                history={[]}
+            />,
+        );
+
+        const section = within(
+            screen.getByRole('region', { name: 'Bien proposé' }),
+        );
+        expect(
+            section.getByText('12 rue de Rivoli, 75004 Paris'),
+        ).toBeInTheDocument();
+        expect(section.getByText('Ascenseur')).toBeInTheDocument();
+        expect(screen.queryByRole('region', { name: 'Projet' })).toBeNull();
+        expect(screen.getByRole('link', { name: 'Modifier' })).toHaveAttribute(
+            'href',
+            '/owners/leads/0199a9a0-0000-7000-8000-000000000001/edit',
+        );
+    });
+
+    it('offers to complete an owner lead without a property yet', () => {
+        render(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail({ segment: 'owner' })}
+                property={null}
+                notes={[]}
+                history={[]}
+            />,
+        );
+
+        const section = within(
+            screen.getByRole('region', { name: 'Bien proposé' }),
+        );
+        expect(section.getByText('Non renseigné')).toBeInTheDocument();
+    });
+
     it('shows contact links, project facts, message, activity and reference', async () => {
         render(
             <LeadsShow
@@ -148,7 +203,7 @@ describe('Lead detail page', () => {
         ).toHaveAttribute('href', 'tel:+33600000000');
         expect(screen.getByRole('link', { name: 'Modifier' })).toHaveAttribute(
             'href',
-            '/leads/0199a9a0-0000-7000-8000-000000000001/edit',
+            '/locataires/0199a9a0-0000-7000-8000-000000000001/edit',
         );
         expect(screen.getAllByText(/2.500,00.*\/ mois/).length).toBeGreaterThan(
             0,
@@ -160,8 +215,18 @@ describe('Lead detail page', () => {
                 /^(Dans \d+ j|Arrivé depuis \d+ j|Aujourd'hui)$/,
             ),
         ).toHaveLength(1);
-        const kpis = within(screen.getByLabelText('Chiffres clés'));
-        expect(kpis.getByText('Budget mensuel')).toBeInTheDocument();
+        // Plus de bandeau de chiffres clés : le budget vit dans la section Projet.
+        expect(
+            screen.queryByLabelText('Chiffres clés'),
+        ).not.toBeInTheDocument();
+        expect(screen.getAllByText('Budget mensuel')).toHaveLength(1);
+        // Carte des quartiers repliée par défaut.
+        expect(
+            screen.queryByRole('group', { name: 'Arrondissements visés' }),
+        ).not.toBeInTheDocument();
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Voir la carte des quartiers' }),
+        );
         const map = within(
             screen.getByRole('group', { name: 'Arrondissements visés' }),
         );
@@ -220,7 +285,7 @@ describe('Lead detail page', () => {
         await user.keyboard('{Meta>}{Enter}{/Meta}');
 
         expect(post).toHaveBeenCalledWith(
-            '/leads/0199a9a0-0000-7000-8000-000000000001/notes',
+            '/locataires/0199a9a0-0000-7000-8000-000000000001/notes',
             expect.objectContaining({ preserveScroll: true }),
         );
     });
@@ -244,7 +309,7 @@ describe('Lead detail page', () => {
         await user.click(screen.getByRole('button', { name: 'Mettre à jour' }));
 
         expect(patch).toHaveBeenCalledWith(
-            '/leads/0199a9a0-0000-7000-8000-000000000001/contact',
+            '/locataires/0199a9a0-0000-7000-8000-000000000001/contact',
             {},
             expect.objectContaining({ preserveScroll: true }),
         );
@@ -266,7 +331,7 @@ describe('Lead detail page', () => {
                         email: 'lea@example.com',
                         phone: null,
                         status_label: 'Converti',
-                        url: '/leads/0199a9a0-0000-7000-8000-000000000009',
+                        url: '/locataires/0199a9a0-0000-7000-8000-000000000009',
                     },
                 ]}
                 can={{ delete: true }}
@@ -280,7 +345,7 @@ describe('Lead detail page', () => {
             within(alert).getByRole('link', { name: 'Léa Durand (pro)' }),
         ).toHaveAttribute(
             'href',
-            '/leads/0199a9a0-0000-7000-8000-000000000009',
+            '/locataires/0199a9a0-0000-7000-8000-000000000009',
         );
 
         await user.click(
@@ -401,12 +466,9 @@ describe('First contact countdown on the lead page', () => {
             within(block).getByRole('button', { name: 'Je m’en occupe' }),
         ).toBeInTheDocument();
 
-        // Le message n'est pas répété dans « Note sur le projet », les chiffres clés vides disparaissent.
+        // Le message n'est pas répété dans « Note sur le projet ».
         expect(
             screen.queryByRole('region', { name: 'Note sur le projet' }),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.queryByLabelText('Chiffres clés'),
         ).not.toBeInTheDocument();
         // Projet et Qualification sont vides : une ligne et un bouton chacun, pas de grille de champs vides.
         expect(screen.getAllByText('Non renseigné')).toHaveLength(2);
@@ -419,7 +481,10 @@ describe('First contact countdown on the lead page', () => {
         expect(qualification.getByText('Non renseigné')).toBeInTheDocument();
         expect(
             qualification.getByRole('link', { name: 'Compléter' }),
-        ).toHaveAttribute('href', '/leads/' + makeLeadDetail().uuid + '/edit');
+        ).toHaveAttribute(
+            'href',
+            '/locataires/' + makeLeadDetail().uuid + '/edit',
+        );
     });
 
     it('collapses the inbound message once the lead is being handled', async () => {
@@ -454,5 +519,95 @@ describe('First contact countdown on the lead page', () => {
         ).not.toBeInTheDocument();
         // Les sections gardent leurs lignes « Non renseigné » sur un lead déjà pris en charge.
         expect(screen.getAllByText('Non renseigné').length).toBeGreaterThan(0);
+    });
+
+    it('splits the file into Dossier, Commercial and Partenaires tabs', async () => {
+        const user = userEvent.setup();
+        render(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail()}
+                notes={[]}
+                history={[]}
+                invoices={[]}
+                quotes={[]}
+                documentRequests={[]}
+            />,
+        );
+
+        const tabs = screen.getAllByRole('tab');
+        expect(tabs.map((tab) => tab.textContent)).toEqual([
+            'Dossier',
+            'Commercial',
+            'Partenaires',
+        ]);
+        // Onglet Dossier ouvert par défaut : contact, projet, qualification.
+        expect(
+            screen.getByRole('region', { name: 'Contact' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('region', { name: 'Qualification' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('region', { name: 'Factures' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('region', { name: 'Agent en contact' }),
+        ).not.toBeInTheDocument();
+        // La colonne droite reste limitée au suivi et à l'activité.
+        expect(
+            screen.getByRole('region', { name: 'Responsable' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('region', { name: 'Activité' }),
+        ).toBeInTheDocument();
+
+        await user.click(screen.getByRole('tab', { name: 'Commercial' }));
+        expect(
+            screen.getByRole('region', { name: 'Devis' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('region', { name: 'Factures' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('region', { name: 'Documents' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('region', { name: 'Contact' }),
+        ).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('tab', { name: 'Partenaires' }));
+        expect(
+            screen.getByRole('region', { name: 'Agent en contact' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('region', { name: 'Partenaires du dossier' }),
+        ).toBeInTheDocument();
+    });
+
+    it('shows a counter on the Commercial and Partenaires tabs', () => {
+        render(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail()}
+                notes={[]}
+                history={[]}
+                invoices={[leadInvoice(1), leadInvoice(2)]}
+                quotes={[]}
+                documentRequests={[]}
+            />,
+        );
+
+        expect(
+            screen.getByRole('tab', { name: /Commercial/ }),
+        ).toHaveTextContent('Commercial2');
+        expect(
+            within(
+                screen.getByRole('tab', { name: /Commercial/ }),
+            ).getByLabelText('2 éléments'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('tab', { name: 'Partenaires' }),
+        ).toHaveTextContent(/^Partenaires$/);
     });
 });

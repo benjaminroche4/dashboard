@@ -87,22 +87,20 @@ export function LeadInboundMessage({
             data-testid="lead-inbound"
             data-state={open ? 'open' : 'collapsed'}
             className={cn(
-                'bg-sidebar border-l-primary grid gap-3 rounded-xl border border-l-4 p-4',
+                'bg-sidebar grid gap-3 rounded-xl border p-4',
                 className,
             )}
         >
             <header className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-2">
-                    <span className="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-lg">
-                        <Icon className="size-4" aria-hidden />
-                    </span>
-                    <div className="min-w-0">
-                        <h2 className="text-base font-medium">{title}</h2>
-                        <p className="text-muted-foreground truncate text-xs">
+                <div className="grid min-w-0 gap-0.5">
+                    <h2 className="text-base font-medium">{title}</h2>
+                    <p className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
+                        <Icon className="size-3.5 shrink-0" aria-hidden />
+                        <span className="truncate">
                             {inbound.meta}
                             {when ? ` · ${when}` : ''}
-                        </p>
-                    </div>
+                        </span>
+                    </p>
                 </div>
                 {!pending && (
                     <Button
@@ -125,7 +123,7 @@ export function LeadInboundMessage({
             </header>
             {open && (
                 <>
-                    <blockquote className="text-base/7 whitespace-pre-line">
+                    <blockquote className="text-sm whitespace-pre-line">
                         {inbound.body}
                     </blockquote>
                     <div className="flex flex-wrap items-center gap-2 border-t pt-3">

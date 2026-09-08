@@ -114,10 +114,13 @@ function isoFor(code: string): CountryCode {
  */
 export function PhoneInput({
     id,
+    name = 'phone',
     value,
     onChange,
 }: {
     id: string;
+    /** Nom du champ national (par défaut « phone ») ; à changer quand un champ caché porte déjà le numéro complet. */
+    name?: string;
     value: string;
     onChange: (value: string) => void;
 }) {
@@ -202,7 +205,7 @@ export function PhoneInput({
             </Popover>
             <Input
                 id={id}
-                name="phone"
+                name={name}
                 type="tel"
                 inputMode="tel"
                 autoComplete="off"

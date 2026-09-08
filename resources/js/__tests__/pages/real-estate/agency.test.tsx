@@ -94,6 +94,11 @@ describe('Agency detail page', () => {
             screen.getByRole('heading', { level: 1, name: 'Agence du Marais' }),
         ).toBeInTheDocument();
         expect(
+            screen.getByRole('button', {
+                name: 'Ajouter Agence du Marais aux favoris',
+            }),
+        ).toHaveAttribute('aria-pressed', 'false');
+        expect(
             screen.getByText('12 rue de Turenne, 75003 Paris'),
         ).toBeInTheDocument();
         const agents = within(screen.getByRole('region', { name: 'Agents' }));
@@ -110,7 +115,7 @@ describe('Agency detail page', () => {
         );
         expect(leads.getByRole('link', { name: 'Léa Durand' })).toHaveAttribute(
             'href',
-            '/leads/abc',
+            '/locataires/abc',
         );
         expect(leads.getByText('via Zoé Martin')).toBeInTheDocument();
 

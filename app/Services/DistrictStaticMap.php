@@ -17,16 +17,22 @@ final readonly class DistrictStaticMap
 
     private const string STROKE = '0x71172eCC';
 
+    /**
+     * @param  string|null  $apiKey  clé **dédiée** à l'API Static Maps : elle part dans les e-mails, jamais la clé serveur
+     * @param  string|null  $signingSecret  secret de signature d'URL Google (base64 URL-safe) : l'URL signée est inutilisable ailleurs
+     */
     public function __construct(
         private ?string $apiKey,
         private ?string $mapId,
+        private ?string $signingSecret = null,
     ) {}
 
     public static function fromConfig(): self
     {
         return new self(
-            apiKey: config('services.google.maps_key'),
+            apiKey: config('services.google.static_maps_key') ?: null,
             mapId: config('services.google.static_map_id') ?: null,
+            signingSecret: config('services.google.static_maps_secret') ?: null,
         );
     }
 
@@ -67,7 +73,30 @@ final readonly class DistrictStaticMap
             $query .= '&path='.rawurlencode($path);
         }
 
-        return 'https://maps.googleapis.com/maps/api/staticmap?'.$query;
+        $path = '/maps/api/staticmap?'.$query;
+
+        return 'https://maps.googleapis.com'.$this->sign($path);
+    }
+
+    /**
+     * Signature d'URL Google Maps : HMAC-SHA1 du chemin et de la requête avec le
+     * secret décodé (base64 URL-safe), résultat encodé de la même façon.
+     */
+    private function sign(string $pathAndQuery): string
+    {
+        if ($this->signingSecret === null || $this->signingSecret === '') {
+            return $pathAndQuery;
+        }
+
+        $secret = base64_decode(strtr($this->signingSecret, '-_', '+/'), true);
+
+        if ($secret === false) {
+            return $pathAndQuery;
+        }
+
+        $signature = strtr(base64_encode(hash_hmac('sha1', $pathAndQuery, $secret, true)), '+/', '-_');
+
+        return $pathAndQuery.'&signature='.$signature;
     }
 
     /**

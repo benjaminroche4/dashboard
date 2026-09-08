@@ -2,7 +2,8 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { LeadClosingGuide } from '@/components/leads/lead-closing-guide';
-import { closingQuestionCount } from '@/lib/closing-guide';
+import { closingQuestionCount, questionCount } from '@/lib/closing-guide';
+import { ownerClosingGuide } from '@/lib/owner-closing-guide';
 
 describe('LeadClosingGuide', () => {
     beforeEach(() => {
@@ -69,6 +70,91 @@ describe('LeadClosingGuide', () => {
         expect(
             screen.getByRole('button', { name: /Guide de closing/ }),
         ).toHaveTextContent(`1/${closingQuestionCount}`);
+    });
+
+    it('switches the questions between French and English', async () => {
+        const user = userEvent.setup();
+        render(<LeadClosingGuide />);
+
+        await user.click(
+            screen.getByRole('button', { name: 'Guide de closing' }),
+        );
+        const panel = screen.getByRole('dialog', { name: 'Guide de closing' });
+        const languages = within(panel).getByLabelText('Langue des questions', {
+            selector: '[role]',
+        });
+
+        expect(
+            within(languages).getByRole('radio', { name: 'Français' }),
+        ).toHaveAttribute('aria-checked', 'true');
+        expect(
+            within(panel).getByText(/Où habitez-vous aujourd’hui/),
+        ).toBeInTheDocument();
+
+        await user.click(
+            within(languages).getByRole('radio', { name: 'Anglais' }),
+        );
+
+        expect(
+            within(panel).getByText(/Where do you live today/),
+        ).toBeInTheDocument();
+        expect(
+            within(panel).queryByText(/Où habitez-vous aujourd’hui/),
+        ).not.toBeInTheDocument();
+        expect(
+            within(panel).getByRole('checkbox', { name: 'Motivations' }),
+        ).toBeInTheDocument();
+    });
+
+    it('follows the language of the lead', async () => {
+        const user = userEvent.setup();
+        const { rerender } = render(<LeadClosingGuide language="en" />);
+
+        await user.click(
+            screen.getByRole('button', { name: 'Guide de closing' }),
+        );
+        const panel = screen.getByRole('dialog', { name: 'Guide de closing' });
+        expect(
+            within(panel).getByText(/Where do you live today/),
+        ).toBeInTheDocument();
+
+        rerender(<LeadClosingGuide language="fr" />);
+        expect(
+            within(panel).getByText(/Où habitez-vous aujourd’hui/),
+        ).toBeInTheDocument();
+    });
+
+    it('shows the owner questions when given the owner guide, with its own memory', async () => {
+        const user = userEvent.setup();
+        render(
+            <LeadClosingGuide
+                guide={ownerClosingGuide}
+                storageKey="owner:new"
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Guide de closing' }),
+        );
+        const panel = screen.getByRole('dialog', { name: 'Guide de closing' });
+
+        expect(within(panel).getByText('Le bien')).toBeInTheDocument();
+        expect(within(panel).getByText('Mandat proposé')).toBeInTheDocument();
+        expect(
+            within(panel).queryByText('Profil et situation du client'),
+        ).not.toBeInTheDocument();
+        expect(
+            within(panel).getByText(
+                `0 sur ${questionCount(ownerClosingGuide)} questions posées`,
+            ),
+        ).toBeInTheDocument();
+
+        await user.click(
+            within(panel).getByRole('checkbox', { name: 'Description' }),
+        );
+        expect(sessionStorage.getItem('lead-closing-guide:owner:new')).toBe(
+            '["description"]',
+        );
     });
 
     it('marks a theme complete and resets the progress', async () => {

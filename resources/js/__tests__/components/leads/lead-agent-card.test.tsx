@@ -30,6 +30,7 @@ const agents = [
         name: 'Zoé Martin',
         agency: 'Agence du Marais',
         phone: '+33 6 12 34 56 78',
+        is_favorite: false,
     },
     {
         id: 2,
@@ -37,6 +38,7 @@ const agents = [
         name: 'Ali Bensaïd',
         agency: null,
         phone: null,
+        is_favorite: false,
     },
     {
         id: 3,
@@ -44,10 +46,32 @@ const agents = [
         name: 'Paul Roux',
         agency: 'Bureau Paris Ouest',
         phone: null,
+        is_favorite: false,
     },
 ];
 
 describe('groupAgents', () => {
+    it('puts the favorites of the member in a first group, kept in their agency too', () => {
+        const groups = groupAgents([
+            { ...agents[0]!, is_favorite: true },
+            agents[1]!,
+            agents[2]!,
+        ]);
+
+        expect(groups.map((group) => group.label)).toEqual([
+            'Favoris',
+            'Agence du Marais',
+            'Bureau Paris Ouest',
+            'Indépendants',
+        ]);
+        expect(groups[0]!.agents.map((agent) => agent.name)).toEqual([
+            'Zoé Martin',
+        ]);
+        expect(groups[1]!.agents.map((agent) => agent.name)).toEqual([
+            'Zoé Martin',
+        ]);
+    });
+
     it('groups by agency, alphabetically, independents last', () => {
         expect(
             groupAgents(agents).map((group) => [
@@ -79,7 +103,7 @@ describe('LeadAgentCard', () => {
         await user.click(screen.getByRole('option', { name: 'Zoé Martin' }));
 
         expect(patch).toHaveBeenCalledWith(
-            `/leads/${lead.uuid}/agent`,
+            `/locataires/${lead.uuid}/agent`,
             { agent_id: 1 },
             expect.objectContaining({ preserveScroll: true }),
         );
@@ -125,7 +149,7 @@ describe('LeadAgentCard', () => {
             screen.getByRole('button', { name: 'Retirer l’agent' }),
         );
         expect(patch).toHaveBeenCalledWith(
-            `/leads/${lead.uuid}/agent`,
+            `/locataires/${lead.uuid}/agent`,
             { agent_id: null },
             expect.objectContaining({ preserveScroll: true }),
         );

@@ -9,6 +9,7 @@ use App\Enums\Furnished;
 use App\Enums\GuarantorType;
 use App\Enums\LeadDuration;
 use App\Enums\LeadLanguage;
+use App\Enums\LeadSegment;
 use App\Enums\LeadSource;
 use App\Enums\Offer;
 use App\Enums\PropertyType;
@@ -58,6 +59,7 @@ class StoreLeadRequest extends FormRequest
             'recontact_at' => ['nullable', 'date'],
             'qualification_note' => ['nullable', 'string', 'max:5000'],
             'assigned_to' => ['nullable', 'integer', Rule::exists('users', 'id')],
+            'segment' => ['nullable', Rule::enum(LeadSegment::class)],
         ];
     }
 

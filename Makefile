@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install hooks start stop clean fresh build test lint types check refactor
+.PHONY: help install hooks start stop clean fresh build test lint types check refactor e2e e2e-ui
 
 help: ## Liste les commandes
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -53,6 +53,12 @@ types: ## Vérifie les types PHP (PHPStan) + TypeScript
 	pnpm run types:check
 
 check: lint types test ## Lint + types + tests
+
+e2e: ## Tests navigateur Playwright (serveur `make start` et base seedée requis)
+	pnpm exec playwright test
+
+e2e-ui: ## Tests navigateur Playwright en mode interactif
+	pnpm exec playwright test --ui
 
 # Régénère package-lock.json (utilisé par `npm ci` sur Laravel Cloud) depuis package.json,
 # hors de node_modules (arborescence pnpm) : à lancer après tout changement de dépendance.

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 use App\Enums\PartnerType;
 use App\Events\DashboardUpdated;
+use App\Mail\DirectoryWelcome;
 use App\Models\Partner;
 use App\Models\User;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia;
 
 beforeEach(function (): void {
@@ -79,6 +81,31 @@ test('any member creates and updates a partner, the payload is validated', funct
 
     expect($partner->refresh()->type)->toBe(PartnerType::Partnership);
     Event::assertDispatched(DashboardUpdated::class, 2);
+});
+
+test('a new partner is e-mailed only when asked, and only if it has an address', function (): void {
+    Mail::fake();
+    $member = User::factory()->create(['name' => 'Charles', 'email' => 'charles@relocation-in-paris.fr']);
+
+    $this->actingAs($member)
+        ->post(route('partners.store'), ['name' => 'Silencieux', 'type' => 'bank', 'email' => 'bank@example.com'])
+        ->assertSessionHasNoErrors();
+    Mail::assertNothingSent();
+
+    $this->actingAs($member)
+        ->post(route('partners.store'), ['name' => 'Sans adresse', 'type' => 'bank', 'phone' => '+33 1 00 00 00 00', 'notify' => true])
+        ->assertSessionHasNoErrors();
+    Mail::assertNothingSent();
+
+    $this->actingAs($member)
+        ->post(route('partners.store'), ['name' => 'Zen Assurances', 'type' => 'insurance', 'email' => 'contact@zen.example', 'notify' => true])
+        ->assertSessionHasNoErrors();
+
+    Mail::assertSent(DirectoryWelcome::class, fn (DirectoryWelcome $mail): bool => $mail->hasTo('contact@zen.example')
+        && $mail->name === 'Zen Assurances'
+        && $mail->hasReplyTo('charles@relocation-in-paris.fr')
+        && str_contains($mail->render(), 'Bienvenue parmi nos partenaires')
+        && str_contains($mail->render(), 'Assurance'));
 });
 
 test('only admins delete a partner, and the duplicates lookup finds partners by contact', function (): void {

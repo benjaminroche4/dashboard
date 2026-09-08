@@ -1,6 +1,8 @@
 import { Link } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown } from 'lucide-react';
+import { ArrivalProgress } from '@/components/clients/arrival-progress';
+import { FolderIllustration } from '@/components/folder-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,10 +29,9 @@ export const clientColumnLabels: Record<string, string> = {
     name: 'Client',
     contact: 'Contact',
     offer_label: 'Formule',
-    arrival_at: 'Arrivée',
     converted_at: 'Client depuis',
     assignee: 'Suivi par',
-    documents: 'Dossier',
+    arrival_at: 'Arrivée',
 };
 
 const initials = (name: string) =>
@@ -53,16 +54,22 @@ export const clientColumns: ColumnDef<Client>[] = [
             />
         ),
         cell: ({ row }) => (
-            <div className="grid">
-                <Link
-                    href={clientShow({ lead: row.original.uuid })}
-                    className="font-medium hover:underline"
-                >
-                    {row.original.name}
-                </Link>
-                <span className="text-muted-foreground truncate text-xs">
-                    {row.original.company ?? row.original.reference}
-                </span>
+            <div className="flex items-center gap-3">
+                {/* Chemise miniature (maquette Figma « Folder Card ») : ses pages sortent au survol de la ligne. */}
+                <div className="h-7 w-9 shrink-0">
+                    <FolderIllustration className="origin-top-left scale-[0.2]" />
+                </div>
+                <div className="grid min-w-0">
+                    <Link
+                        href={clientShow({ lead: row.original.uuid })}
+                        className="font-medium hover:underline"
+                    >
+                        {row.original.name}
+                    </Link>
+                    <span className="text-muted-foreground truncate text-xs">
+                        {row.original.company ?? row.original.reference}
+                    </span>
+                </div>
             </div>
         ),
     },
@@ -106,23 +113,6 @@ export const clientColumns: ColumnDef<Client>[] = [
                 <Badge variant="secondary" className="font-medium">
                     {row.original.offer_label}
                 </Badge>
-            ) : (
-                <span className="text-muted-foreground">—</span>
-            ),
-    },
-    {
-        accessorKey: 'arrival_at',
-        header: ({ column }) => (
-            <SortableHeader
-                label="Arrivée"
-                onClick={() =>
-                    column.toggleSorting(column.getIsSorted() === 'asc')
-                }
-            />
-        ),
-        cell: ({ row }) =>
-            row.original.arrival_at ? (
-                formatDate(row.original.arrival_at)
             ) : (
                 <span className="text-muted-foreground">—</span>
             ),
@@ -172,18 +162,21 @@ export const clientColumns: ColumnDef<Client>[] = [
         },
     },
     {
-        id: 'documents',
-        header: 'Dossier',
-        cell: ({ row }) => {
-            const { invoices_count, document_requests_count } = row.original;
-
-            return (
-                <span className="text-muted-foreground text-sm tabular-nums">
-                    {invoices_count} facture{invoices_count > 1 ? 's' : ''} ·{' '}
-                    {document_requests_count} demande
-                    {document_requests_count > 1 ? 's' : ''}
-                </span>
-            );
-        },
+        accessorKey: 'arrival_at',
+        header: ({ column }) => (
+            <SortableHeader
+                label="Arrivée"
+                onClick={() =>
+                    column.toggleSorting(column.getIsSorted() === 'asc')
+                }
+            />
+        ),
+        // Barre d'avancement de la conversion à l'arrivée, avec la date et le compte à rebours.
+        cell: ({ row }) => (
+            <ArrivalProgress
+                convertedAt={row.original.converted_at}
+                arrivalAt={row.original.arrival_at}
+            />
+        ),
     },
 ];

@@ -11,6 +11,8 @@ type Props = {
     tone?: 'default' | 'destructive';
     children: ReactNode;
     className?: string;
+    /** Ancre HTML, pour les liens internes vers le panneau. */
+    id?: string;
 };
 
 /**
@@ -24,9 +26,11 @@ export function Panel({
     tone = 'default',
     children,
     className,
+    id,
 }: Props) {
     return (
         <section
+            id={id}
             aria-label={title}
             className={cn(
                 'bg-sidebar rounded-xl border',
@@ -35,7 +39,7 @@ export function Panel({
                 className,
             )}
         >
-            <header className="flex items-start justify-between gap-2 px-4 pt-4 pb-3">
+            <header className="flex flex-wrap items-start justify-between gap-2 px-4 pt-4 pb-3">
                 <div className="min-w-0">
                     <h2
                         className={cn(

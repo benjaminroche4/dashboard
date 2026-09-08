@@ -5,6 +5,7 @@ import { PhoneInput } from '@/components/phone-input';
 import { AddressFields } from '@/components/real-estate/address-fields';
 import { ContactDuplicatesAlert } from '@/components/real-estate/contact-duplicates-alert';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogContent,
@@ -61,6 +62,7 @@ function initial(
         postal_code: partner?.postal_code ?? '',
         city: partner?.city ?? '',
         notes: partner?.notes ?? '',
+        notify: false,
     };
 }
 
@@ -145,7 +147,7 @@ export function PartnerDialog({
                         submit();
                     }}
                 >
-                    <div className="grid gap-4 sm:grid-cols-[1fr_11rem]">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_11rem]">
                         {field('name', 'Nom', {
                             placeholder: 'Zen Assurances',
                             required: true,
@@ -178,7 +180,7 @@ export function PartnerDialog({
                             <InputError message={form.errors.type} />
                         </div>
                     </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="grid gap-2">
                             <Label htmlFor="partner-phone">Téléphone</Label>
                             <PhoneInput
@@ -228,6 +230,35 @@ export function PartnerDialog({
                         />
                         <InputError message={form.errors.notes} />
                     </div>
+                    {!editing && (
+                        <label
+                            htmlFor="partner-notify"
+                            className="bg-sidebar flex items-start gap-3 rounded-lg border p-3 text-sm"
+                        >
+                            <Checkbox
+                                id="partner-notify"
+                                checked={
+                                    form.data.notify &&
+                                    form.data.email.trim() !== ''
+                                }
+                                disabled={form.data.email.trim() === ''}
+                                onCheckedChange={(state) =>
+                                    form.setData('notify', state === true)
+                                }
+                                className="mt-0.5"
+                            />
+                            <span className="grid gap-0.5">
+                                <span className="font-medium">
+                                    Prévenir le partenaire par e-mail
+                                </span>
+                                <span className="text-muted-foreground text-xs">
+                                    {form.data.email.trim() === ''
+                                        ? 'Renseignez un e-mail pour envoyer le message de bienvenue.'
+                                        : 'Un message de bienvenue lui indique qu’il rejoint notre annuaire, avec votre contact en réponse.'}
+                                </span>
+                            </span>
+                        </label>
+                    )}
                     <DialogFooter>
                         <Button
                             type="button"

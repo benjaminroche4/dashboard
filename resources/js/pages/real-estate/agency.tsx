@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     destroy as agencyDestroy,
+    favorite as agencyFavorite,
     index as agenciesIndex,
 } from '@/routes/agencies';
 import { index as agentsIndex, show as agentShow } from '@/routes/agents';
@@ -58,9 +59,13 @@ export default function AgencyShow({ agency }: Props) {
                     tone="bg-muted text-muted-foreground"
                     backHref={agenciesIndex().url}
                     backLabel="Toutes les agences"
+                    favorite={{
+                        active: agency.is_favorite,
+                        url: agencyFavorite({ agency: agency.uuid }).url,
+                    }}
                 />
 
-                <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+                <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
                     <div className="divide-y">
                         <DetailSection title="Coordonnées">
                             <dl className="grid gap-3">

@@ -1,8 +1,9 @@
 import { Head, Link } from '@inertiajs/react';
-import { FileSignature, FileText, Receipt } from 'lucide-react';
+import { FileSignature, FileText, History, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { index as invoicesIndex } from '@/routes/invoices';
 import { index as toolsIndex } from '@/routes/tools';
+import { index as activityIndex } from '@/routes/tools/activity';
 import { index as documentsIndex } from '@/routes/tools/documents';
 import { index as quotesIndex } from '@/routes/tools/quotes';
 
@@ -18,7 +19,7 @@ export default function ToolsIndex() {
                     </p>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {/* Même panneau que les fiches : fond « sidebar », une seule bordure. */}
                     <section
                         aria-label="Devis"
@@ -102,6 +103,36 @@ export default function ToolsIndex() {
                             <Button size="sm" asChild>
                                 <Link href={documentsIndex()}>
                                     Voir les demandes
+                                </Link>
+                            </Button>
+                        </div>
+                    </section>
+                    <section
+                        aria-label="Journal d'activité"
+                        className="bg-sidebar flex flex-col gap-4 rounded-xl border p-4"
+                    >
+                        <div className="flex items-start gap-3">
+                            <span className="bg-background flex size-8 shrink-0 items-center justify-center rounded-md border">
+                                <History
+                                    aria-hidden="true"
+                                    className="text-muted-foreground size-4"
+                                />
+                            </span>
+                            <div className="grid gap-1">
+                                <h2 className="text-sm font-medium">
+                                    Journal d'activité
+                                </h2>
+                                <p className="text-muted-foreground text-sm">
+                                    Toutes les actions de l'équipe, jour par
+                                    jour : qui a fait quoi, sur quel dossier,
+                                    avec filtres par membre et par ressource.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="mt-auto flex justify-end">
+                            <Button size="sm" asChild>
+                                <Link href={activityIndex()}>
+                                    Voir le journal
                                 </Link>
                             </Button>
                         </div>

@@ -71,4 +71,30 @@ export type Report = {
         overdue: { count: number; amounts: CurrencyAmounts };
         by_month: ReportMonth[];
     };
+    visits: {
+        total: number;
+        done: number;
+        cancelled: number;
+        /** Visites (hors annulées) jour par jour sur les huit dernières semaines. */
+        weekly: ReportWeek[];
+        /** Visites réservées par membre sur la période. */
+        by_booker: {
+            user: number | null;
+            label: string;
+            count: number;
+            done: number;
+            cancelled: number;
+        }[];
+    };
+};
+
+export type ReportWeek = {
+    /** « 2026-W36 ». */
+    week: string;
+    /** « 31 août – 6 sept. ». */
+    label: string;
+    /** Lundi à dimanche. */
+    days: { day: string; count: number }[];
+    total: number;
+    daily_average: number;
 };

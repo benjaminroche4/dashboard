@@ -17,15 +17,15 @@ test('un lead reçoit un uuid à sa création', function (): void {
 test("l'url de la fiche porte l'uuid, jamais l'identifiant numérique", function (): void {
     $lead = Lead::factory()->create();
 
-    expect(route('leads.show', $lead))->toEndWith('/leads/'.$lead->uuid)
-        ->and(route('leads.show', $lead))->not->toContain('/leads/'.$lead->id);
+    expect(route('leads.show', $lead))->toEndWith('/locataires/'.$lead->uuid)
+        ->and(route('leads.show', $lead))->not->toContain('/locataires/'.$lead->id);
 });
 
 test("la fiche s'ouvre par uuid et expose l'uuid au front", function (): void {
     $staff = User::factory()->staff()->create();
     $lead = Lead::factory()->create();
 
-    $this->actingAs($staff)->get('/leads/'.$lead->uuid)
+    $this->actingAs($staff)->get('/locataires/'.$lead->uuid)
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('leads/show')
@@ -37,8 +37,8 @@ test("l'identifiant numérique ne résout plus la fiche", function (): void {
     $staff = User::factory()->staff()->create();
     $lead = Lead::factory()->create();
 
-    $this->actingAs($staff)->get('/leads/'.$lead->id)->assertNotFound();
-    $this->actingAs($staff)->get('/leads/'.Str::uuid())->assertNotFound();
+    $this->actingAs($staff)->get('/locataires/'.$lead->id)->assertNotFound();
+    $this->actingAs($staff)->get('/locataires/'.Str::uuid())->assertNotFound();
 });
 
 test('les recherches et doublons renvoient l\'uuid et une url par uuid', function (): void {

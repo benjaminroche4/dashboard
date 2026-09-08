@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
-use App\Enums\StaffRole;
+use App\Enums\SiteSection;
 use App\Models\User;
 
 /**
@@ -12,28 +12,28 @@ use App\Models\User;
  */
 final class InvoicePolicy
 {
-    public function viewAny(): bool
+    public function viewAny(User $user): bool
     {
-        return true;
+        return $user->canRead(SiteSection::Invoices);
     }
 
-    public function view(): bool
+    public function view(User $user): bool
     {
-        return true;
+        return $user->canRead(SiteSection::Invoices);
     }
 
     public function create(User $user): bool
     {
-        return $user->hasRoleAtLeast(StaffRole::Manager);
+        return $user->canWrite(SiteSection::Invoices);
     }
 
     public function update(User $user): bool
     {
-        return $user->hasRoleAtLeast(StaffRole::Manager);
+        return $user->canWrite(SiteSection::Invoices);
     }
 
     public function delete(User $user): bool
     {
-        return $user->isAdmin();
+        return $user->canManage(SiteSection::Invoices);
     }
 }

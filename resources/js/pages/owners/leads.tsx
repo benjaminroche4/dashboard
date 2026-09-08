@@ -1,74 +1,72 @@
 import { Head, Link } from '@inertiajs/react';
-import { Plus, Search } from 'lucide-react';
-import { useState } from 'react';
-import { OwnerLeadKanban } from '@/components/owners/lead-kanban';
+import { Building2, Plus } from 'lucide-react';
+import { LeadListView } from '@/components/leads/lead-list-view';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { filterOwnerLeads } from '@/lib/owner-kanban';
 import { index as ownersIndex, leads as ownersLeads } from '@/routes/owners';
 import type {
+    ArchivedLeads,
     LabeledOption,
+    Lead,
     LeadLossReason,
+    LeadOfferOption,
     LeadStatusOption,
-    OwnerLead,
 } from '@/types';
 
 type Props = {
-    leads: OwnerLead[];
+    leads: Lead[];
+    archived: ArchivedLeads;
     statuses: LeadStatusOption[];
+    offers: LeadOfferOption[];
     lossReasons: LabeledOption<LeadLossReason>[];
 };
 
-/** Leads propriétaires en kanban : demandes de gestion locative reçues du site ou créées depuis un propriétaire prospecté. */
-export default function OwnerLeads({ leads, statuses, lossReasons }: Props) {
-    const [query, setQuery] = useState('');
-    const todo = leads.filter((lead) => lead.status === 'todo').length;
-    const visible = filterOwnerLeads(leads, query);
+/** Leads propriétaires (demandes de gestion locative) : exactement la même vue que la liste des leads. */
+export default function OwnerLeads({
+    leads,
+    archived,
+    statuses,
+    offers,
+    lossReasons,
+}: Props) {
+    const open = leads.filter(
+        (lead) => lead.status !== 'converted' && lead.status !== 'archived',
+    ).length;
+    const converted = leads.filter(
+        (lead) => lead.status === 'converted',
+    ).length;
 
     return (
         <>
             <Head title="Leads propriétaires" />
-            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-10">
-                <div className="flex flex-wrap items-end justify-between gap-4 pt-8 pb-6">
-                    <div>
-                        <h1 className="text-lg font-medium">
-                            Leads propriétaires
-                        </h1>
-                        <p className="text-muted-foreground text-sm">
-                            {leads.length} demande(s) de gestion locative
-                            {todo > 0 && ` · ${todo} à traiter`}
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="relative">
-                            <Search
-                                className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
-                                aria-hidden
-                            />
-                            <Input
-                                aria-label="Filtrer les leads"
-                                placeholder="Filtrer par nom, société…"
-                                value={query}
-                                onChange={(event) =>
-                                    setQuery(event.target.value)
-                                }
-                                className="w-56 pl-8"
-                            />
-                        </div>
-                        <Button variant="outline" asChild>
-                            <Link href={ownersIndex()}>
-                                <Plus />
-                                Prospecter un propriétaire
-                            </Link>
-                        </Button>
-                    </div>
-                </div>
-                <OwnerLeadKanban
-                    leads={visible}
-                    statuses={statuses}
-                    lossReasons={lossReasons}
-                />
-            </div>
+            <LeadListView
+                leads={leads}
+                archived={archived}
+                statuses={statuses}
+                offers={offers}
+                lossReasons={lossReasons}
+                title="Leads propriétaires"
+                summary={`${leads.length + (archived.loaded ? 0 : archived.count)} lead(s) · ${open} en cours · ${converted} converti(s)`}
+                storageKey="owners.leads.view"
+                palette="owner"
+                action={
+                    <Button asChild>
+                        <Link href={ownersIndex()}>
+                            <Plus />
+                            Prospecter un propriétaire
+                        </Link>
+                    </Button>
+                }
+                empty={{
+                    icon: (
+                        <Building2 className="text-muted-foreground size-5" />
+                    ),
+                    title: 'Aucun lead propriétaire pour le moment',
+                    description:
+                        'Les demandes de gestion locative reçues du site et les propriétaires convertis apparaîtront ici dans la colonne « À traiter ».',
+                    href: ownersIndex(),
+                    label: 'Prospecter un propriétaire',
+                }}
+            />
         </>
     );
 }

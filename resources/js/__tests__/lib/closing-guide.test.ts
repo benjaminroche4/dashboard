@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
     closingGuide,
     closingQuestionCount,
+    guideLanguages,
     nextQuestion,
+    questionText,
     sectionProgress,
 } from '@/lib/closing-guide';
 
@@ -31,6 +33,28 @@ describe('closing guide', () => {
         expect(text).not.toContain('staff');
         expect(text).not.toContain('guided');
         expect(text).not.toContain('entrusted');
+    });
+
+    it('offers every question in French and in English', () => {
+        const questions = closingGuide.flatMap((section) => section.questions);
+
+        expect(guideLanguages.map((option) => option.value)).toEqual([
+            'fr',
+            'en',
+        ]);
+        for (const question of questions) {
+            expect(question.question).not.toBe('');
+            expect(question.questionEn).not.toBe('');
+            expect(question.questionEn).not.toBe(question.question);
+        }
+
+        const [
+            {
+                questions: [motivations],
+            },
+        ] = closingGuide;
+        expect(questionText(motivations, 'fr')).toMatch(/^Où habitez-vous/);
+        expect(questionText(motivations, 'en')).toMatch(/^Where do you live/);
     });
 
     it('counts the asked questions per section', () => {

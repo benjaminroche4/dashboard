@@ -70,6 +70,15 @@ final readonly class PhoneEventData
     }
 
     /**
+     * L'échange date `last_contacted_at` : SMS reçu, appel sortant, ou appel
+     * entrant réellement pris (pas un message vocal).
+     */
+    public function touchesContact(): bool
+    {
+        return ! $this->result instanceof PhoneCallResult || ! $this->inbound || $this->result->isConversation();
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function toArray(): array

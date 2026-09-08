@@ -10,6 +10,7 @@ use App\Enums\LeadStatus;
 use App\Enums\PropertyType;
 use App\Enums\RecontactChannel;
 use App\Enums\StaffRole;
+use App\Enums\WebsiteHelpType;
 use App\Events\DashboardUpdated;
 use App\Models\Lead;
 use App\Models\User;
@@ -36,6 +37,38 @@ test('the converting machine page lists offers, sources and currencies', functio
             ->has('furnishedOptions', 3)
             ->has('recontactChannels', 4)
             ->where('defaultCurrency', 'EUR'));
+});
+
+test('the owner converting machine pre-selects the owner segment', function (): void {
+    $this->actingAs(User::factory()->create(['role' => StaffRole::Member]))
+        ->get(route('leads.create', ['segment' => 'owner']))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->where('segment', 'owner'));
+
+    $this->actingAs(User::factory()->create(['role' => StaffRole::Member]))
+        ->get(route('leads.create', ['segment' => 'nope']))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->where('segment', 'tenant'));
+});
+
+test('a lead created with the owner segment joins the owner leads', function (): void {
+    $user = User::factory()->create(['role' => StaffRole::Member]);
+
+    $this->actingAs($user)
+        ->post(route('leads.store'), [
+            'first_name' => 'paul',
+            'last_name' => 'martin',
+            'email' => 'paul@example.com',
+            'segment' => 'owner',
+        ])
+        ->assertRedirect(route('owners.leads'));
+
+    $lead = Lead::query()->where('email', 'paul@example.com')->firstOrFail();
+    expect($lead->help_type)->toBe(WebsiteHelpType::RentalManagement);
+    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->message === 'a ajouté le lead propriétaire Paul Martin');
+
+    $this->actingAs($user)
+        ->post(route('leads.store'), ['first_name' => 'Zoé', 'last_name' => 'Roux', 'email' => 'zoe@example.com', 'segment' => 'buyer'])
+        ->assertSessionHasErrors(['segment']);
 });
 
 test('any staff member can add a lead, which starts as new and is broadcast', function (): void {

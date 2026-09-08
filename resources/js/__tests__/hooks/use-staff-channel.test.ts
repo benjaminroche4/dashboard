@@ -26,6 +26,7 @@ vi.mock('@/lib/toast', () => ({
 import {
     describeEvent,
     mentionsMe,
+    targetsOthers,
     useStaffChannel,
     type DashboardUpdatedEvent,
 } from '@/hooks/use-staff-channel';
@@ -151,6 +152,30 @@ describe('mentions', () => {
         expect(
             mentionsMe({ ...mention, actor: { id: 1, name: 'Admin' } }, 1),
         ).toBe(false);
+    });
+
+    it('ignores an event addressed to other members: no toast, no reload', () => {
+        useEchoPresence.mockClear();
+        toastInfo.mockClear();
+        toastWarning.mockClear();
+        reload.mockClear();
+        renderHook(() => useStaffChannel());
+
+        const reminder: DashboardUpdatedEvent = {
+            ...fromOther,
+            actor: null,
+            payload: { mentions: [3] },
+            message: 'vous rappelle 3 recontact(s)',
+        };
+        expect(targetsOthers(reminder, 1)).toBe(true);
+        expect(targetsOthers(reminder, 3)).toBe(false);
+        expect(targetsOthers(fromOther, 1)).toBe(false);
+
+        lastListener()(reminder);
+
+        expect(toastInfo).not.toHaveBeenCalled();
+        expect(toastWarning).not.toHaveBeenCalled();
+        expect(reload).not.toHaveBeenCalled();
     });
 
     it('shows a warning toast instead of the info toast when mentioned', () => {

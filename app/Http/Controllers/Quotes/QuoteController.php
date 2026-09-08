@@ -22,6 +22,7 @@ use App\Models\Quote;
 use App\Models\QuoteStatusChange;
 use App\Services\DocRaptor;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -50,6 +51,41 @@ class QuoteController extends Controller
                 ->map(fn (QuoteStatus $status): array => ['value' => $status->value, 'label' => $status->label()])
                 ->all(),
         ]);
+    }
+
+    /** Recherche ⌘K : numéro DV-… ou nom du client, huit résultats au plus. */
+    public function search(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Quote::class);
+
+        $query = trim((string) $request->query('q', ''));
+
+        if (mb_strlen($query) < 2) {
+            return response()->json([]);
+        }
+
+        return response()->json(Quote::query()
+            ->where(function ($builder) use ($query): void {
+                $builder->where('number', 'like', "%{$query}%")
+                    ->orWhere('client_name', 'like', "%{$query}%");
+            })
+            ->latest('issued_at')
+            ->orderByDesc('id')
+            ->limit(8)
+            ->get()
+            ->map(fn (Quote $quote): array => [
+                'id' => $quote->id,
+                'uuid' => $quote->uuid,
+                'title' => $quote->number,
+                'subtitle' => $quote->client_name.' · '.$this->money($quote->amount_cents, $quote->currency).' · '.$quote->status->label(),
+                'url' => route('tools.quotes.show', $quote),
+            ])
+            ->all());
+    }
+
+    private function money(int $cents, Currency $currency): string
+    {
+        return number_format($cents / 100, 2, ',', ' ').' '.($currency === Currency::EUR ? '€' : $currency->value);
     }
 
     public function create(Request $request): Response

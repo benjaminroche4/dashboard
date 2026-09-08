@@ -13,6 +13,7 @@ export function makeAgency(overrides: Partial<Agency> = {}): Agency {
         email: 'contact@marais.example',
         website: 'https://marais.example',
         notes: null,
+        is_favorite: false,
         agents_count: 2,
         agents: [
             {
@@ -67,6 +68,7 @@ export function makeAgent(overrides: Partial<Agent> = {}): Agent {
         email: 'zoe@marais.example',
         phone: '+33 6 12 34 56 78',
         notes: null,
+        is_favorite: false,
         agency: {
             id: 1,
             uuid: '0199a9a0-0000-7000-8000-0000000000a1',

@@ -48,7 +48,7 @@ export function AddressFields({
                 />
                 <InputError message={errors.street} />
             </div>
-            <div className="grid gap-4 sm:grid-cols-[8rem_1fr]">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-[8rem_1fr]">
                 <div className="grid gap-2">
                     <Label htmlFor={`${idPrefix}-postal_code`}>
                         Code postal

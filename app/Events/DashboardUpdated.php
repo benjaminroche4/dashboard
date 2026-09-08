@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Auth;
@@ -17,12 +18,14 @@ use Illuminate\Support\Facades\Auth;
  *
  * Diffusé immédiatement (pas de queue) : la latence perçue par les autres
  * membres est celle d'un appel HTTP à Reverb, quelques millisecondes.
+ * Dispatché après le commit quand il est levé dans une transaction : les
+ * autres onglets rechargent un état réellement écrit, jamais un rollback.
  *
  * Usage : DashboardUpdated::dispatch('orders', ['id' => 42], 'a expédié la commande #42');
  * Côté front, le hook useStaffChannel() affiche un toast "<acteur> <message>"
  * aux autres membres connectés et recharge les props Inertia.
  */
-final class DashboardUpdated implements ShouldBroadcastNow
+final class DashboardUpdated implements ShouldBroadcastNow, ShouldDispatchAfterCommit
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 

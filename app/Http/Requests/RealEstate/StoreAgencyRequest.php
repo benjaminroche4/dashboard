@@ -21,8 +21,10 @@ class StoreAgencyRequest extends FormRequest
             'city' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:40'],
             'email' => ['nullable', 'email', 'max:255'],
-            'website' => ['nullable', 'url', 'max:2048'],
+            'website' => ['nullable', 'url:http,https', 'max:2048'],
             'notes' => ['nullable', 'string', 'max:3000'],
+            // Prévenir le contact par e-mail qu'il rejoint l'annuaire (décoché par défaut).
+            'notify' => ['nullable', 'boolean'],
         ];
     }
 

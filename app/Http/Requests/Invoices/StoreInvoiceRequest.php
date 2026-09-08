@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Invoices;
 
+use App\Data\InvoiceData;
 use App\Enums\Currency;
-use App\Enums\InvoiceStatus;
 use App\Enums\Offer;
 use App\Models\Invoice;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreInvoiceRequest extends FormRequest
 {
@@ -35,17 +36,38 @@ class StoreInvoiceRequest extends FormRequest
             'currency' => ['required', Rule::enum(Currency::class)],
             'vat_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'deposit_cents' => ['nullable', 'integer', 'min:0'],
+            'deposit_cents' => ['nullable', 'integer', 'min:0', 'max:100000000'],
             'issued_at' => ['required', 'date'],
             'due_at' => ['required', 'date', 'after_or_equal:issued_at'],
-            'status' => ['nullable', Rule::enum(InvoiceStatus::class)],
             'notes' => ['nullable', 'string', 'max:2000'],
-            'items' => ['required', 'array', 'min:1'],
+            'items' => ['required', 'array', 'min:1', 'max:50'],
             'items.*.offer' => ['nullable', 'required_without:items.*.description', Rule::enum(Offer::class)],
             'items.*.description' => ['nullable', 'required_without:items.*.offer', 'string', 'max:255'],
-            'items.*.quantity' => ['required', 'numeric', 'min:0'],
-            'items.*.unit_price_cents' => ['required', 'integer', 'min:0'],
+            'items.*.quantity' => ['required', 'numeric', 'min:0', 'max:10000'],
+            'items.*.unit_price_cents' => ['required', 'integer', 'min:0', 'max:100000000'],
         ];
+    }
+
+    /**
+     * L'acompte ne dépasse jamais le total de la facture.
+     *
+     * @return list<callable>
+     */
+    public function after(): array
+    {
+        return [function (Validator $validator): void {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            /** @var array<string, mixed> $validated */
+            $validated = $validator->validated();
+            $data = InvoiceData::from($validated);
+
+            if ($data->depositCents > $data->totalCents()) {
+                $validator->errors()->add('deposit_cents', __("L'acompte ne peut pas dépasser le total de la facture."));
+            }
+        }];
     }
 
     /**

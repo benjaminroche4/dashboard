@@ -33,4 +33,13 @@ enum PhoneCallResult: string
     {
         return ! in_array($this, [self::Blocked, self::Failed], true);
     }
+
+    /**
+     * Quelqu'un a réellement parlé au lead : un message vocal est journalisé
+     * mais ne date pas le contact (le chrono des 30 min et l'alerte restent).
+     */
+    public function isConversation(): bool
+    {
+        return in_array($this, [self::Answered, self::TransferredAi, self::TransferredExternal], true);
+    }
 }

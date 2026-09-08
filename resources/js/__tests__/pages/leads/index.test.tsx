@@ -3,7 +3,11 @@ import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { patch, visit } = vi.hoisted(() => ({ patch: vi.fn(), visit: vi.fn() }));
+const { patch, visit, reload } = vi.hoisted(() => ({
+    patch: vi.fn(),
+    visit: vi.fn(),
+    reload: vi.fn(),
+}));
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
@@ -14,7 +18,7 @@ vi.mock('@inertiajs/react', () => ({
         href: { url: string };
         children: ReactNode;
     }) => <a href={href.url}>{children}</a>,
-    router: { patch, visit, on: () => () => undefined },
+    router: { patch, visit, reload, on: () => () => undefined },
     usePage: () => ({
         props: {
             auth: { user: { id: 1, name: 'Admin' } },
@@ -78,6 +82,7 @@ describe('Leads kanban page', () => {
         render(
             <LeadsIndex
                 leads={leads}
+                archived={{ loaded: true, count: 0 }}
                 statuses={leadStatuses}
                 offers={offers}
                 lossReasons={lossReasons}
@@ -114,11 +119,44 @@ describe('Leads kanban page', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('loads the archived leads on demand, from the column or from the table status filter', async () => {
+        const user = userEvent.setup();
+        localStorage.setItem('leads.kanban.archived-open', '1');
+        render(
+            <LeadsIndex
+                leads={leads.filter((lead) => lead.status !== 'archived')}
+                archived={{ loaded: false, count: 12 }}
+                statuses={leadStatuses}
+                offers={offers}
+                lossReasons={lossReasons}
+            />,
+        );
+
+        expect(
+            screen.getByText(
+                new RegExp(`^${leads.length - 1 + 12} lead\\(s\\)`),
+            ),
+        ).toBeInTheDocument();
+        const archived = screen.getByRole('listitem', { name: 'Archivé' });
+        expect(archived).toHaveTextContent('12');
+        await user.click(
+            within(archived).getByRole('button', {
+                name: 'Afficher les 12 lead(s) archivé(s)',
+            }),
+        );
+        expect(reload).toHaveBeenCalledWith({
+            data: { archived: 1 },
+            only: ['leads', 'archived'],
+        });
+        localStorage.clear();
+    });
+
     it('expands the archive column and remembers it', async () => {
         const user = userEvent.setup();
         render(
             <LeadsIndex
                 leads={leads}
+                archived={{ loaded: true, count: 0 }}
                 statuses={leadStatuses}
                 offers={offers}
                 lossReasons={lossReasons}
@@ -142,6 +180,7 @@ describe('Leads kanban page', () => {
         render(
             <LeadsIndex
                 leads={leads}
+                archived={{ loaded: true, count: 0 }}
                 statuses={leadStatuses}
                 offers={offers}
                 lossReasons={lossReasons}
@@ -168,6 +207,7 @@ describe('Leads kanban page', () => {
         render(
             <LeadsIndex
                 leads={leads}
+                archived={{ loaded: true, count: 0 }}
                 statuses={leadStatuses}
                 offers={offers}
                 lossReasons={lossReasons}
@@ -177,7 +217,7 @@ describe('Leads kanban page', () => {
         await user.click(screen.getByRole('button', { name: 'Léa Durand' }));
 
         expect(visit).toHaveBeenCalledWith(
-            '/leads/0199a9a0-0000-7000-8000-000000000001',
+            '/locataires/0199a9a0-0000-7000-8000-000000000001',
         );
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
@@ -186,6 +226,7 @@ describe('Leads kanban page', () => {
         const user = userEvent.setup();
         render(
             <LeadsIndex
+                archived={{ loaded: true, count: 0 }}
                 leads={[
                     makeLead({
                         assignee: { id: 1, name: 'Admin', avatar: null },
@@ -221,6 +262,7 @@ describe('Leads kanban page', () => {
         soon.setDate(soon.getDate() + 5);
         render(
             <LeadsIndex
+                archived={{ loaded: true, count: 0 }}
                 leads={[
                     makeLead({
                         created_at: '2026-01-01T10:00:00Z',
@@ -245,6 +287,7 @@ describe('Leads kanban page', () => {
         render(
             <LeadsIndex
                 leads={[]}
+                archived={{ loaded: true, count: 0 }}
                 statuses={leadStatuses}
                 offers={offers}
                 lossReasons={lossReasons}
@@ -256,7 +299,7 @@ describe('Leads kanban page', () => {
         ).toBeInTheDocument();
         expect(
             screen.getByRole('link', { name: 'Ouvrir la Converting Machine' }),
-        ).toHaveAttribute('href', '/leads/create');
+        ).toHaveAttribute('href', '/locataires/create');
         expect(
             screen.queryByRole('list', { name: 'Kanban des leads' }),
         ).not.toBeInTheDocument();
@@ -266,6 +309,7 @@ describe('Leads kanban page', () => {
         const user = userEvent.setup();
         render(
             <LeadsIndex
+                archived={{ loaded: true, count: 0 }}
                 leads={[
                     makeLead({ id: 1, name: 'Bas', position: 0, score: 1 }),
                     makeLead({ id: 2, name: 'Haut', position: 1, score: 5 }),
@@ -301,6 +345,7 @@ describe('First contact countdown on the kanban', () => {
 
         render(
             <LeadsIndex
+                archived={{ loaded: true, count: 0 }}
                 leads={[
                     makeLead({
                         id: 1,
@@ -332,6 +377,7 @@ describe('First contact countdown on the kanban', () => {
         localStorage.removeItem('leads.view');
         const { unmount } = render(
             <LeadsIndex
+                archived={{ loaded: true, count: 0 }}
                 leads={[
                     makeLead({
                         id: 1,
@@ -355,7 +401,7 @@ describe('First contact countdown on the kanban', () => {
         const table = within(screen.getByRole('table'));
         expect(table.getByRole('link', { name: 'Léa Durand' })).toHaveAttribute(
             'href',
-            expect.stringMatching(/^\/leads\//),
+            expect.stringMatching(/^\/locataires\//),
         );
         expect(table.getByText('Camille')).toBeInTheDocument();
         expect(localStorage.getItem('leads.view')).toBe('table');
@@ -364,12 +410,61 @@ describe('First contact countdown on the kanban', () => {
         render(
             <LeadsIndex
                 leads={[makeLead()]}
+                archived={{ loaded: true, count: 0 }}
                 statuses={leadStatuses}
                 offers={offers}
                 lossReasons={lossReasons}
             />,
         );
         expect(screen.getByRole('table')).toBeInTheDocument();
+        localStorage.removeItem('leads.view');
+    });
+
+    it('filters the table by status, a filter absent from the kanban', async () => {
+        const user = userEvent.setup();
+        localStorage.removeItem('leads.view');
+        render(
+            <LeadsIndex
+                leads={leads}
+                archived={{ loaded: true, count: 0 }}
+                statuses={leadStatuses}
+                offers={offers}
+                lossReasons={lossReasons}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: /Filtres/ }));
+        expect(screen.queryByRole('combobox', { name: 'Statut' })).toBeNull();
+        await user.keyboard('{Escape}');
+
+        await user.click(
+            within(screen.getByLabelText('Affichage')).getByRole('radio', {
+                name: 'Tableau',
+            }),
+        );
+        await user.click(screen.getByRole('button', { name: /Filtres/ }));
+        await user.click(
+            await screen.findByRole('combobox', { name: 'Statut' }),
+        );
+        await user.click(
+            await screen.findByRole('option', { name: 'Converti' }),
+        );
+
+        const table = within(screen.getByRole('table'));
+        expect(table.getByText('Marc Petit')).toBeInTheDocument();
+        expect(table.queryByText('Léa Durand')).toBeNull();
+        expect(
+            screen.getByRole('button', { name: /Filtres/ }),
+        ).toHaveTextContent('1');
+
+        // Retour au kanban : le filtre par statut est levé.
+        await user.keyboard('{Escape}');
+        await user.click(
+            within(screen.getByLabelText('Affichage')).getByRole('radio', {
+                name: 'Kanban',
+            }),
+        );
+        expect(screen.getByText('Léa Durand')).toBeInTheDocument();
         localStorage.removeItem('leads.view');
     });
 });

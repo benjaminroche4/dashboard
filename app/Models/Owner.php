@@ -10,10 +10,12 @@ use Carbon\CarbonInterface;
 use Database\Factories\OwnerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Propriétaire à prospecter pour la gestion locative.
@@ -38,6 +40,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonInterface|null $updated_at
  * @property-read User|null $creator
  * @property-read Lead|null $lead
+ * @property-read Collection<int, Property> $properties
  */
 #[Fillable(['first_name', 'last_name', 'company', 'email', 'phone', 'street', 'postal_code', 'city', 'property_count', 'status', 'last_contacted_at', 'notes', 'lead_id', 'created_by'])]
 class Owner extends Model
@@ -93,6 +96,16 @@ class Owner extends Model
     public function lead(): BelongsTo
     {
         return $this->belongsTo(Lead::class);
+    }
+
+    /**
+     * Biens de l'annuaire rattachés à ce propriétaire.
+     *
+     * @return HasMany<Property, $this>
+     */
+    public function properties(): HasMany
+    {
+        return $this->hasMany(Property::class);
     }
 
     /**

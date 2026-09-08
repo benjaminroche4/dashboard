@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 use App\Enums\AgentPosition;
 use App\Events\DashboardUpdated;
+use App\Mail\DirectoryWelcome;
 use App\Models\Agency;
 use App\Models\Agent;
 use App\Models\Lead;
 use App\Models\User;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia;
 
 beforeEach(function (): void {
@@ -111,4 +113,20 @@ test('an agent has a detail page with its agency, leads and the agencies for the
             ->has('agencies', 1));
 
     $this->actingAs(User::factory()->create())->get('/real-estate/agents/999')->assertNotFound();
+});
+
+test('a new agent is e-mailed only when asked, and only if it has an address', function (): void {
+    Mail::fake();
+    $member = User::factory()->create(['email' => 'charles@relocation-in-paris.fr']);
+
+    $this->actingAs($member)->post(route('agents.store'), ['first_name' => 'Léa', 'last_name' => 'Durand', 'email' => 'lea@example.com'])->assertSessionHasNoErrors();
+    $this->actingAs($member)->post(route('agents.store'), ['first_name' => 'Sans', 'last_name' => 'Adresse', 'phone' => '+33 6 00 00 00 00', 'notify' => true])->assertSessionHasNoErrors();
+    Mail::assertNothingSent();
+
+    $this->actingAs($member)->post(route('agents.store'), ['first_name' => 'zoé', 'last_name' => 'martin', 'email' => 'zoe@example.com', 'notify' => true])->assertSessionHasNoErrors();
+
+    Mail::assertSent(DirectoryWelcome::class, fn (DirectoryWelcome $mail): bool => $mail->hasTo('zoe@example.com')
+        && $mail->name === 'Zoé Martin'
+        && $mail->hasReplyTo('charles@relocation-in-paris.fr')
+        && str_contains($mail->render(), 'agent immobilier partenaire'));
 });

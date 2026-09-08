@@ -3,15 +3,18 @@ import {
     Check,
     Handshake,
     Home,
+    KeyRound,
     Lightbulb,
     MapPin,
     MessageCircleQuestion,
     RotateCcw,
+    ShieldCheck,
     UserRound,
     Wallet,
     type LucideIcon,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
+import { CountryFlag } from '@/components/country-flag';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,12 +25,16 @@ import {
     SheetTitle,
     SheetTrigger,
 } from '@/components/ui/sheet';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
     closingGuide,
-    closingQuestionCount,
+    guideLanguages,
+    questionCount,
+    questionText,
     sectionProgress,
     type ClosingQuestion,
     type ClosingSection,
+    type GuideLanguage,
 } from '@/lib/closing-guide';
 import { cn } from '@/lib/utils';
 
@@ -62,24 +69,43 @@ function writeAsked(key: string, asked: Set<string>): void {
 type GuideState = {
     asked: ReadonlySet<string>;
     toggle: (id: string, checked: boolean) => void;
+    language: GuideLanguage;
+    guide: ClosingSection[];
 };
 
 /**
  * Guide de closing : volet latéral non bloquant listant, par thème, les
- * questions à poser au prospect. Chaque question se coche une fois posée ;
- * la progression est mémorisée pour la session, par lead.
+ * questions à poser au prospect, en français ou en anglais selon la langue
+ * du client. Chaque question se coche une fois posée ; la progression est
+ * mémorisée pour la session, par lead.
  */
 export function LeadClosingGuide({
     storageKey = 'new',
+    language: leadLanguage = 'fr',
+    guide = closingGuide,
     className,
 }: {
     /** Clé de mémorisation (identifiant du lead, ou « new »). */
     storageKey?: string;
+    /** Langue de contact du lead : présélectionne la langue des questions. */
+    language?: GuideLanguage;
+    /** Questions à poser : celles des locataires par défaut, ou celles des propriétaires. */
+    guide?: ClosingSection[];
     className?: string;
 }) {
+    const total = questionCount(guide);
     const [asked, setAsked] = useState<Set<string>>(() =>
         readAsked(storageKey),
     );
+    const [language, setLanguage] = useState<GuideLanguage>(leadLanguage);
+    const [syncedLanguage, setSyncedLanguage] = useState(leadLanguage);
+
+    // La langue du lead change dans le formulaire : le guide suit, sans
+    // écraser un choix fait ensuite dans le volet.
+    if (syncedLanguage !== leadLanguage) {
+        setSyncedLanguage(leadLanguage);
+        setLanguage(leadLanguage);
+    }
 
     const update = (next: Set<string>) => {
         setAsked(next);
@@ -98,8 +124,8 @@ export function LeadClosingGuide({
     };
 
     const done = asked.size;
-    const percent = Math.round((done / closingQuestionCount) * 100);
-    const state: GuideState = { asked, toggle };
+    const percent = Math.round((done / total) * 100);
+    const state: GuideState = { asked, toggle, language, guide };
 
     return (
         <Sheet modal={false}>
@@ -112,7 +138,7 @@ export function LeadClosingGuide({
                             variant="secondary"
                             className="font-medium tabular-nums"
                         >
-                            {done}/{closingQuestionCount}
+                            {done}/{total}
                         </Badge>
                     )}
                 </Button>
@@ -128,12 +154,42 @@ export function LeadClosingGuide({
                         Les questions à poser pour cerner le projet. Cochez-les
                         au fil de l’appel, le formulaire reste modifiable.
                     </SheetDescription>
-                    <div className="grid gap-1.5 pt-2">
+                    <div className="flex items-center justify-between gap-3 pt-2">
+                        <span className="text-muted-foreground text-xs">
+                            Langue des questions
+                        </span>
+                        <ToggleGroup
+                            type="single"
+                            value={language}
+                            onValueChange={(value) =>
+                                value && setLanguage(value as GuideLanguage)
+                            }
+                            aria-label="Langue des questions"
+                            className="gap-1"
+                        >
+                            {guideLanguages.map((option) => (
+                                <ToggleGroupItem
+                                    key={option.value}
+                                    value={option.value}
+                                    aria-label={option.label}
+                                    className="h-8 rounded-md px-2.5 text-xs first:rounded-md last:rounded-md"
+                                >
+                                    <CountryFlag
+                                        code={
+                                            option.value === 'en' ? 'GB' : 'FR'
+                                        }
+                                    />
+                                    {option.value.toUpperCase()}
+                                </ToggleGroupItem>
+                            ))}
+                        </ToggleGroup>
+                    </div>
+                    <div className="grid gap-1.5 pt-1">
                         <div className="flex items-center justify-between text-xs">
                             <span className="text-muted-foreground">
-                                {done === closingQuestionCount
+                                {done === total
                                     ? 'Toutes les questions sont posées'
-                                    : `${done} sur ${closingQuestionCount} questions posées`}
+                                    : `${done} sur ${total} questions posées`}
                             </span>
                             <span className="font-medium tabular-nums">
                                 {percent} %
@@ -143,7 +199,7 @@ export function LeadClosingGuide({
                             role="progressbar"
                             aria-label="Questions posées"
                             aria-valuemin={0}
-                            aria-valuemax={closingQuestionCount}
+                            aria-valuemax={total}
                             aria-valuenow={done}
                             className="bg-muted h-1.5 overflow-hidden rounded-full"
                         >
@@ -218,6 +274,31 @@ const sectionMeta: Record<string, SectionMeta> = {
         tone: 'text-primary',
         soft: 'bg-primary/10',
     },
+    property: {
+        icon: Home,
+        tone: 'text-sky-800 dark:text-sky-200',
+        soft: 'bg-sky-50 dark:bg-sky-950',
+    },
+    situation: {
+        icon: KeyRound,
+        tone: 'text-violet-800 dark:text-violet-200',
+        soft: 'bg-violet-50 dark:bg-violet-950',
+    },
+    expectations: {
+        icon: Wallet,
+        tone: 'text-emerald-800 dark:text-emerald-200',
+        soft: 'bg-emerald-50 dark:bg-emerald-950',
+    },
+    conditions: {
+        icon: ShieldCheck,
+        tone: 'text-rose-800 dark:text-rose-200',
+        soft: 'bg-rose-50 dark:bg-rose-950',
+    },
+    mandate: {
+        icon: Handshake,
+        tone: 'text-primary',
+        soft: 'bg-primary/10',
+    },
 };
 
 const fallbackMeta: SectionMeta = {
@@ -232,6 +313,7 @@ const metaOf = (section: ClosingSection): SectionMeta =>
 type RowProps = {
     question: ClosingQuestion;
     checked: boolean;
+    language: GuideLanguage;
     onToggle: (id: string, checked: boolean) => void;
 };
 
@@ -241,12 +323,14 @@ type RowComponent = (props: RowProps) => ReactNode;
 function Cards({
     asked,
     toggle,
+    language,
+    guide,
     Row,
     rows = 'grid gap-1 p-2',
 }: GuideState & { Row: RowComponent; rows?: string }) {
     return (
         <div className="grid gap-3 px-4 py-4">
-            {closingGuide.map((section) => {
+            {guide.map((section) => {
                 const meta = metaOf(section);
                 const progress = sectionProgress(section, asked);
                 const complete = progress.asked === progress.total;
@@ -280,6 +364,7 @@ function Cards({
                                     key={question.id}
                                     question={question}
                                     checked={asked.has(question.id)}
+                                    language={language}
                                     onToggle={toggle}
                                 />
                             ))}
@@ -355,7 +440,7 @@ const struck = (checked: boolean) =>
     checked ? 'text-muted-foreground line-through' : 'text-foreground';
 
 /** Une question : case carrée, sujet en gras puis question, astuce dans un encart gris. */
-const Row: RowComponent = ({ question, checked, onToggle }) => (
+const Row: RowComponent = ({ question, checked, language, onToggle }) => (
     <li className="grid gap-1.5">
         <Toggle question={question} checked={checked} onToggle={onToggle}>
             <span
@@ -367,9 +452,14 @@ const Row: RowComponent = ({ question, checked, onToggle }) => (
             >
                 {checked && <Check className="size-3" aria-hidden />}
             </span>
-            <span className={cn('text-sm/6 text-pretty', struck(checked))}>
-                <span className="font-semibold">{question.topic} :</span>{' '}
-                {question.question}
+            <span
+                lang={language}
+                className={cn('text-sm/6 text-pretty', struck(checked))}
+            >
+                <span lang="fr" className="font-semibold">
+                    {question.topic} :
+                </span>{' '}
+                {questionText(question, language)}
             </span>
         </Toggle>
         {!checked && question.tip && (

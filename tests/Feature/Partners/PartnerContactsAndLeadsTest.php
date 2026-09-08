@@ -97,12 +97,16 @@ test('a partner is attached to a lead with a role, once per role, then detached'
 
 test('the dossier is forwarded to the partner by e-mail, with the reply-to on the sender', function (): void {
     $lead = Lead::factory()->create(['first_name' => 'Léa', 'last_name' => 'Durand']);
-    $partner = Partner::factory()->create(['name' => 'Zen Assurances']);
+    $partner = Partner::factory()->create(['name' => 'Zen Assurances', 'email' => 'garantie@zen.example']);
     $link = LeadPartner::query()->create(['lead_id' => $lead->id, 'partner_id' => $partner->id, 'role' => 'guarantee']);
     $member = User::factory()->create(['email' => 'charles@relocation-in-paris.fr', 'name' => 'Charles']);
 
     $this->actingAs($member)
         ->post(route('leads.partners.forward', [$lead, $link]), ['email' => 'nope'])
+        ->assertSessionHasErrors(['email']);
+    // Jamais vers une adresse libre : le dossier contient les coordonnées et le projet du client.
+    $this->actingAs($member)
+        ->post(route('leads.partners.forward', [$lead, $link]), ['email' => 'perso@gmail.example'])
         ->assertSessionHasErrors(['email']);
 
     $this->actingAs($member)

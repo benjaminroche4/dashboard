@@ -2,6 +2,7 @@ import { Head } from '@inertiajs/react';
 import { Plus, Upload } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { DataTable } from '@/components/data-table';
+import { FavoritesFilter } from '@/components/favorites-filter';
 import { AgentDialog } from '@/components/real-estate/agent-dialog';
 import { AgentImportDialog } from '@/components/real-estate/agent-import-dialog';
 import {
@@ -31,19 +32,33 @@ export default function Agents({ agents, agencies }: Props) {
         setDialogOpen(true);
     };
     const columns = useMemo(() => agentColumns(edit), []);
+    const [favoritesOnly, setFavoritesOnly] = useState(false);
+    const favoritesCount = agents.filter((agent) => agent.is_favorite).length;
+    const rows = useMemo(
+        () =>
+            favoritesOnly
+                ? agents.filter((agent) => agent.is_favorite)
+                : agents,
+        [agents, favoritesOnly],
+    );
 
     return (
         <>
             <Head title="Agents immobiliers" />
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-10">
-                <div className="flex items-end justify-between pt-8 pb-6">
+                <div className="flex flex-wrap items-end justify-between gap-4 pt-8 pb-6">
                     <div>
                         <h1 className="text-lg font-medium">Agents</h1>
                         <p className="text-muted-foreground text-sm">
                             {agents.length} agent(s) immobilier(s)
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <FavoritesFilter
+                            active={favoritesOnly}
+                            onChange={setFavoritesOnly}
+                            count={favoritesCount}
+                        />
                         <Button
                             variant="outline"
                             onClick={() => setImportOpen(true)}
@@ -59,7 +74,7 @@ export default function Agents({ agents, agencies }: Props) {
                 </div>
                 <DataTable
                     columns={columns}
-                    data={agents}
+                    data={rows}
                     filterColumn="name"
                     filterPlaceholder="Filtrer par agent…"
                     columnLabels={agentColumnLabels}

@@ -29,6 +29,9 @@ void createInertiaApp({
         switch (true) {
             case name === 'auth/login':
                 return null;
+            // Page publique de dépôt des pièces : sans sidebar ni en-tête du backoffice.
+            case name.startsWith('public/'):
+                return null;
             case name.startsWith('auth/'):
                 return AuthLayout;
             case name.startsWith('settings/'):

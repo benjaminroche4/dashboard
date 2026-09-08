@@ -91,7 +91,7 @@ describe('Quote detail page', () => {
         expect(preview.getByText('Adressé à')).toBeInTheDocument();
         expect(
             screen.getByRole('link', { name: 'Léa Durand' }),
-        ).toHaveAttribute('href', '/leads/abc');
+        ).toHaveAttribute('href', '/locataires/abc');
         expect(screen.getByRole('link', { name: 'RP-27009' })).toHaveAttribute(
             'href',
             '/invoices/0199a9a0-0000-7000-8000-000000000109',

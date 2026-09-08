@@ -8,6 +8,7 @@ use App\Enums\WebsiteHelpType;
 use App\Events\DashboardUpdated;
 use App\Models\Lead;
 use App\Models\Owner;
+use App\Models\Property;
 use App\Models\User;
 use Illuminate\Support\Facades\Event;
 use Inertia\Testing\AssertableInertia;
@@ -110,9 +111,26 @@ test('the owner leads page lists only rental-management leads, newest first', fu
             ->has('leads', 2)
             ->where('leads.0.name', fn (string $name): bool => str_starts_with($name, 'Récent'))
             ->where('leads.1.name', fn (string $name): bool => str_starts_with($name, 'Ancien'))
+            ->where('leads.0.status_label', 'À traiter')
+            ->where('archived.loaded', false)
+            ->where('archived.count', 0)
+            ->has('leads.0.author')
+            ->has('leads.0.districts')
             ->has('statuses', 5)
             ->where('statuses.2.label', 'En signature')
-            ->has('lossReasons'));
+            ->has('offers', 2)
+            ->has('lossReasons')
+            ->where('realtimeOnly', ['leads']));
+});
+
+test('owner leads carry the owner status labels', function (): void {
+    Lead::factory()->create(['help_type' => WebsiteHelpType::RentalManagement, 'status' => LeadStatus::QuoteSent]);
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('owners.leads'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('leads.0.status', 'quote_sent')
+            ->where('leads.0.status_label', 'En signature'));
 });
 
 test('duplicates are found by e-mail or phone ending, and only admins delete', function (): void {
@@ -125,4 +143,24 @@ test('duplicates are found by e-mail or phone ending, and only admins delete', f
     $this->actingAs($member)->delete(route('owners.destroy', $owner))->assertForbidden();
     $this->actingAs(User::factory()->admin()->create())->delete(route('owners.destroy', $owner))->assertRedirect();
     expect(Owner::count())->toBe(0);
+});
+
+test('an owner has a detail page with its lead and properties, addressed by uuid', function (): void {
+    $lead = Lead::factory()->create(['reference' => 'LD-0042']);
+    $owner = Owner::factory()->create(['first_name' => 'Zoé', 'last_name' => 'Martin', 'lead_id' => $lead->id]);
+    Property::factory()->create(['title' => 'Studio · 5e', 'owner_id' => $owner->id]);
+    Property::factory()->create(['title' => 'Ailleurs']);
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('owners.show', $owner))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('owners/show')
+            ->where('owner.name', 'Zoé Martin')
+            ->where('owner.lead.reference', 'LD-0042')
+            ->has('properties', 1)
+            ->where('properties.0.label', 'Studio · 5e')
+            ->has('statuses', count(OwnerStatus::cases())));
+
+    $this->actingAs(User::factory()->create())->get("/owners/{$owner->id}")->assertNotFound();
 });

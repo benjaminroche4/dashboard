@@ -41,11 +41,32 @@ final class AddLeadNote
             return [];
         }
 
-        return array_values(User::query()
-            ->orderBy('name')
+        // Le nom le plus long l'emporte à une même position : « @Admin 2 » ne
+        // mentionne pas « Admin », et « @Admin, » mentionne bien « Admin ».
+        $users = User::query()
             ->get(['id', 'name'])
-            ->filter(fn (User $user): bool => $user->id !== $by?->id && str_contains($body, '@'.$user->name))
-            ->map(fn (User $user): int => $user->id)
-            ->all());
+            ->filter(fn (User $user): bool => $user->id !== $by?->id)
+            ->sortByDesc(fn (User $user): int => mb_strlen($user->name));
+
+        $consumed = [];
+        $mentioned = [];
+
+        foreach ($users as $user) {
+            preg_match_all('/@'.preg_quote($user->name, '/').'(?![\p{L}\p{N}])/u', $body, $matches, PREG_OFFSET_CAPTURE);
+
+            foreach ($matches[0] as [$match, $offset]) {
+                $end = $offset + strlen($match);
+                $overlaps = array_filter($consumed, fn (array $span): bool => $offset < $span[1] && $end > $span[0]);
+
+                if ($overlaps === []) {
+                    $consumed[] = [$offset, $end];
+                    $mentioned[$user->id] = $user->name;
+                }
+            }
+        }
+
+        asort($mentioned);
+
+        return array_keys($mentioned);
     }
 }

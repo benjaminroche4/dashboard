@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { Archive, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Archive, ArrowRightLeft, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import {
     LeadArchiveDialog,
@@ -21,8 +21,10 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { notify } from '@/lib/toast';
 import {
     destroy as leadDestroy,
+    segment as leadSegmentRoute,
     status as leadStatusRoute,
 } from '@/routes/leads';
 import type { LabeledOption, LeadDetail, LeadLossReason } from '@/types';
@@ -30,8 +32,9 @@ import type { LabeledOption, LeadDetail, LeadLossReason } from '@/types';
 type Pending = 'archive' | 'delete' | null;
 
 /**
- * Menu « ⋯ » de l'en-tête : archiver le lead et, pour les admins, le
- * supprimer. Chaque action demande confirmation.
+ * Menu « ⋯ » de l'en-tête : déplacer le lead vers l'autre liste (locataires
+ * ou propriétaires, confirmé par un toast), l'archiver et, pour les admins, le
+ * supprimer. Archivage et suppression demandent confirmation.
  */
 export function LeadHeaderMenu({
     lead,
@@ -45,6 +48,23 @@ export function LeadHeaderMenu({
     const [pending, setPending] = useState<Pending>(null);
     const [busy, setBusy] = useState(false);
     const archived = lead.status === 'archived';
+    const target = lead.segment === 'owner' ? 'tenant' : 'owner';
+    const targetLabel =
+        target === 'owner' ? 'Leads propriétaires' : 'Tous les leads';
+
+    const move = () => {
+        setBusy(true);
+        router.patch(
+            leadSegmentRoute({ lead: lead.uuid }).url,
+            { segment: target },
+            {
+                preserveScroll: true,
+                onSuccess: () =>
+                    notify.success(`Lead déplacé dans « ${targetLabel} ».`),
+                onFinish: () => setBusy(false),
+            },
+        );
+    };
 
     const archive = ({ reason, note }: ArchiveChoice) => {
         setBusy(true);
@@ -80,6 +100,10 @@ export function LeadHeaderMenu({
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                    <DropdownMenuItem disabled={busy} onSelect={move}>
+                        <ArrowRightLeft aria-hidden />
+                        Déplacer vers « {targetLabel} »
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                         disabled={archived}
                         onSelect={() => setPending('archive')}

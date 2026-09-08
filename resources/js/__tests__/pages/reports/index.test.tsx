@@ -84,6 +84,47 @@ const report: Report = {
         ],
         accepted_amounts: { CHF: 0, EUR: 657_000 },
     },
+    visits: {
+        total: 4,
+        done: 1,
+        cancelled: 0,
+        weekly: [
+            {
+                week: '2026-W36',
+                label: '31 août – 6 sept.',
+                days: [
+                    { day: 'Lun', count: 0 },
+                    { day: 'Mar', count: 1 },
+                    { day: 'Mer', count: 0 },
+                    { day: 'Jeu', count: 0 },
+                    { day: 'Ven', count: 0 },
+                    { day: 'Sam', count: 0 },
+                    { day: 'Dim', count: 0 },
+                ],
+                total: 1,
+                daily_average: 0.1,
+            },
+            {
+                week: '2026-W37',
+                label: '7 sept. – 13 sept.',
+                days: [
+                    { day: 'Lun', count: 2 },
+                    { day: 'Mar', count: 1 },
+                    { day: 'Mer', count: 0 },
+                    { day: 'Jeu', count: 0 },
+                    { day: 'Ven', count: 0 },
+                    { day: 'Sam', count: 0 },
+                    { day: 'Dim', count: 0 },
+                ],
+                total: 3,
+                daily_average: 0.4,
+            },
+        ],
+        by_booker: [
+            { user: 1, label: 'Charles', count: 3, done: 1, cancelled: 0 },
+            { user: 2, label: 'Camille', count: 1, done: 0, cancelled: 0 },
+        ],
+    },
     invoices: {
         count: 4,
         paid_count: 2,
@@ -218,5 +259,27 @@ describe('Reports page', () => {
             screen.getByText('Aucun devis sur la période.'),
         ).toBeInTheDocument();
         expect(screen.getByText('Aucun lead contacté')).toBeInTheDocument();
+    });
+
+    it('shows the visits per week and the visits booked per member', () => {
+        render(<ReportsIndex {...props} />);
+
+        const weekly = within(
+            screen.getByRole('region', { name: 'Visites par semaine' }),
+        );
+        expect(weekly.getByTestId('weekly-visits-summary')).toHaveTextContent(
+            '3 cette semaine',
+        );
+        expect(
+            weekly.getByRole('cell', { name: '7 sept. – 13 sept.' }),
+        ).toBeInTheDocument();
+
+        const booked = within(
+            screen.getByRole('region', {
+                name: 'Visites réservées par membre',
+            }),
+        );
+        const charles = booked.getByRole('row', { name: /Charles/ });
+        expect(charles).toHaveTextContent('Charles31');
     });
 });

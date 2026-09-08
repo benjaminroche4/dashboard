@@ -5,6 +5,7 @@ import { PhoneInput } from '@/components/phone-input';
 import { AddressFields } from '@/components/real-estate/address-fields';
 import { ContactDuplicatesAlert } from '@/components/real-estate/contact-duplicates-alert';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogContent,
@@ -42,6 +43,7 @@ function initial(agency: Agency | null | undefined): AgencyForm {
         email: agency?.email ?? '',
         website: agency?.website ?? '',
         notes: agency?.notes ?? '',
+        notify: false,
     };
 }
 
@@ -80,7 +82,7 @@ export function AgencyDialog({ open, onOpenChange, agency = null }: Props) {
     };
 
     const field = (
-        key: keyof AgencyForm,
+        key: Exclude<keyof AgencyForm, 'notify'>,
         label: string,
         props: {
             type?: string;
@@ -136,7 +138,7 @@ export function AgencyDialog({ open, onOpenChange, agency = null }: Props) {
                             form.setData({ ...form.data, ...address })
                         }
                     />
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="grid gap-2">
                             <Label htmlFor="agency-phone">Téléphone</Label>
                             <PhoneInput
@@ -174,6 +176,35 @@ export function AgencyDialog({ open, onOpenChange, agency = null }: Props) {
                         />
                         <InputError message={form.errors.notes} />
                     </div>
+                    {!editing && (
+                        <label
+                            htmlFor="agency-notify"
+                            className="bg-sidebar flex items-start gap-3 rounded-lg border p-3 text-sm"
+                        >
+                            <Checkbox
+                                id="agency-notify"
+                                checked={
+                                    form.data.notify &&
+                                    form.data.email.trim() !== ''
+                                }
+                                disabled={form.data.email.trim() === ''}
+                                onCheckedChange={(state) =>
+                                    form.setData('notify', state === true)
+                                }
+                                className="mt-0.5"
+                            />
+                            <span className="grid gap-0.5">
+                                <span className="font-medium">
+                                    Prévenir l’agence par e-mail
+                                </span>
+                                <span className="text-muted-foreground text-xs">
+                                    {form.data.email.trim() === ''
+                                        ? 'Renseignez un e-mail pour envoyer le message de bienvenue.'
+                                        : 'Un message de bienvenue lui indique qu’elle rejoint notre annuaire, avec votre contact en réponse.'}
+                                </span>
+                            </span>
+                        </label>
+                    )}
                     <DialogFooter>
                         <Button
                             type="button"

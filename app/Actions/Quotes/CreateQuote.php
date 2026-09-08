@@ -50,9 +50,13 @@ final class CreateQuote
     {
         $prefix = (string) config('company.quote_prefix', 'DV-27');
 
+        // Tri par longueur puis valeur : « RP-271000 » passe bien après « RP-27999 »
+        // (un tri alphabétique seul renverrait « 999 » pour toujours). Verrou de ligne
+        // le temps de la transaction pour deux créations simultanées.
         $last = Quote::query()
             ->where('number', 'like', $prefix.'%')
-            ->orderByDesc('number')
+            ->orderByRaw('LENGTH(number) DESC, number DESC')
+            ->lockForUpdate()
             ->value('number');
 
         $sequence = $last === null ? 0 : (int) substr((string) $last, strlen($prefix));

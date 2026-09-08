@@ -2,6 +2,7 @@ import { Head } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { DataTable } from '@/components/data-table';
+import { FavoritesFilter } from '@/components/favorites-filter';
 import { AgencyDialog } from '@/components/real-estate/agency-dialog';
 import { AgentDialog } from '@/components/real-estate/agent-dialog';
 import {
@@ -46,26 +47,44 @@ export default function Agencies({ agencies }: Props) {
         setDialogOpen(true);
     };
     const columns = useMemo(() => agencyColumns(edit, addAgent), []);
+    const [favoritesOnly, setFavoritesOnly] = useState(false);
+    const favoritesCount = agencies.filter(
+        (agency) => agency.is_favorite,
+    ).length;
+    const rows = useMemo(
+        () =>
+            favoritesOnly
+                ? agencies.filter((agency) => agency.is_favorite)
+                : agencies,
+        [agencies, favoritesOnly],
+    );
 
     return (
         <>
             <Head title="Agences immobilières" />
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-10">
-                <div className="flex items-end justify-between pt-8 pb-6">
+                <div className="flex flex-wrap items-end justify-between gap-4 pt-8 pb-6">
                     <div>
                         <h1 className="text-lg font-medium">Agences</h1>
                         <p className="text-muted-foreground text-sm">
                             {agencies.length} agence(s) partenaire(s)
                         </p>
                     </div>
-                    <Button onClick={add}>
-                        <Plus />
-                        Nouvelle agence
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <FavoritesFilter
+                            active={favoritesOnly}
+                            onChange={setFavoritesOnly}
+                            count={favoritesCount}
+                        />
+                        <Button onClick={add}>
+                            <Plus />
+                            Nouvelle agence
+                        </Button>
+                    </div>
                 </div>
                 <DataTable
                     columns={columns}
-                    data={agencies}
+                    data={rows}
                     filterColumn="name"
                     filterPlaceholder="Filtrer par agence…"
                     columnLabels={agencyColumnLabels}

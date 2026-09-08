@@ -9,11 +9,15 @@ use Inertia\Testing\AssertableInertia;
 
 test('the menu receives the number of leads still to handle', function (): void {
     Lead::factory()->count(2)->status(LeadStatus::Todo)->create();
+    Lead::factory()->rentalManagement()->create();
+    Lead::factory()->rentalManagement()->status(LeadStatus::InProgress)->create();
     Lead::factory()->status(LeadStatus::InProgress)->create();
     Lead::factory()->converted()->create();
 
     $this->actingAs(User::factory()->create())
         ->get(route('dashboard'))
         ->assertOk()
-        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->where('counts.leadsTodo', 2));
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('counts.leadsTodo', 3)
+            ->where('counts.ownerLeadsTodo', 1));
 });

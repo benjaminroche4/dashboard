@@ -24,7 +24,7 @@ describe('LeadStatusMenu', () => {
         );
 
         expect(patch).toHaveBeenCalledWith(
-            '/leads/0199a9a0-0000-7000-8000-000000000001/status',
+            '/locataires/0199a9a0-0000-7000-8000-000000000001/status',
             { status: 'in_progress' },
             expect.objectContaining({ preserveScroll: true }),
         );
@@ -74,7 +74,7 @@ describe('LeadStatusMenu', () => {
         await user.click(screen.getByRole('button', { name: 'Archiver' }));
 
         expect(patch).toHaveBeenCalledWith(
-            '/leads/0199a9a0-0000-7000-8000-000000000001/status',
+            '/locataires/0199a9a0-0000-7000-8000-000000000001/status',
             { status: 'archived', loss_reason: 'no_answer', loss_note: '' },
             expect.objectContaining({ preserveScroll: true }),
         );

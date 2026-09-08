@@ -7,6 +7,7 @@ import { OwnerStatusBadge } from '@/components/owners/owner-status-badge';
 import { formatAddress } from '@/components/real-estate/columns';
 import { Button } from '@/components/ui/button';
 import { show as leadShow } from '@/routes/leads';
+import { show as ownerShow } from '@/routes/owners';
 import type { Owner } from '@/types';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', {
@@ -55,13 +56,12 @@ export function ownerColumns(
             ),
             cell: ({ row }) => (
                 <div className="grid">
-                    <button
-                        type="button"
-                        onClick={() => onEdit(row.original)}
-                        className="text-left font-medium hover:underline"
+                    <Link
+                        href={ownerShow({ owner: row.original.uuid })}
+                        className="font-medium underline-offset-4 hover:underline"
                     >
                         {row.original.name}
-                    </button>
+                    </Link>
                     {row.original.company && (
                         <span className="text-muted-foreground truncate text-xs">
                             {row.original.company}

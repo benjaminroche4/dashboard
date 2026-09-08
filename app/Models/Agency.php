@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Concerns\Favoritable;
 use App\Support\ContactMatch;
 use Carbon\CarbonInterface;
 use Database\Factories\AgencyFactory;
@@ -40,6 +41,8 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 #[Fillable(['name', 'street', 'postal_code', 'city', 'phone', 'email', 'website', 'notes', 'created_by'])]
 class Agency extends Model
 {
+    use Favoritable;
+
     /** @use HasFactory<AgencyFactory> */
     use HasFactory;
 

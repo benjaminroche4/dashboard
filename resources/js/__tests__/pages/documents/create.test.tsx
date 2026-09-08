@@ -196,8 +196,8 @@ describe('Documents create page', () => {
             screen.getByText('Cochez au moins une pièce pour cette personne.'),
         ).toBeInTheDocument();
         expect(
-            screen.getByText('Le lien de dépôt est obligatoire.'),
-        ).toBeInTheDocument();
+            screen.queryByText('Le lien de dépôt est obligatoire.'),
+        ).not.toBeInTheDocument();
     });
 
     it('posts the request once complete, trimming the empty message', async () => {

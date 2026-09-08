@@ -1,7 +1,10 @@
 import { router } from '@inertiajs/react';
 import {
     Contact,
+    FileSignature,
     FileText,
+    Home,
+    KeyRound,
     LayoutGrid,
     Palette,
     Search,
@@ -9,7 +12,9 @@ import {
     Sparkles,
     UserCircle,
     Building2,
+    CalendarClock,
     Handshake,
+    House,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { search as leadsSearch } from '@/routes/leads';
@@ -26,11 +31,22 @@ import { dashboard } from '@/routes';
 import { edit as editAppearance } from '@/routes/appearance';
 import { index as agenciesIndex } from '@/routes/agencies';
 import { index as agentsIndex } from '@/routes/agents';
-import { index as invoicesIndex } from '@/routes/invoices';
+import {
+    index as invoicesIndex,
+    search as invoicesSearch,
+} from '@/routes/invoices';
+import { search as quotesSearch } from '@/routes/tools/quotes';
+import { search as ownersSearch } from '@/routes/owners';
 import {
     index as partnersIndex,
     search as partnersSearch,
 } from '@/routes/partners';
+import {
+    index as propertiesIndex,
+    search as propertiesSearch,
+} from '@/routes/properties';
+import { visits as clientsVisits } from '@/routes/clients';
+import { formatMoney } from '@/lib/format';
 import { partnerTypeIcons } from '@/lib/partner-type-icons';
 import type { PartnerType } from '@/types';
 import { create as leadsCreate, index as leadsIndex } from '@/routes/leads';
@@ -54,6 +70,26 @@ type PartnerHit = {
     type: PartnerType;
     type_label: string;
     contact: string | null;
+    url: string;
+};
+
+type InvoiceHit = {
+    id: number;
+    uuid: string;
+    number: string;
+    client_name: string;
+    amount_cents: number;
+    currency: string;
+    status_label: string;
+    url: string;
+};
+
+/** Forme commune des résultats des devis, des biens et des propriétaires. */
+type SearchHit = {
+    id: number;
+    uuid: string;
+    title: string;
+    subtitle: string | null;
     url: string;
 };
 
@@ -111,6 +147,18 @@ const destinations: Destination[] = [
         icon: Handshake,
     },
     {
+        title: 'Biens',
+        keywords: 'bien logement appartement annonce visite',
+        url: propertiesIndex().url,
+        icon: House,
+    },
+    {
+        title: 'Visites',
+        keywords: 'visite client bien rendez-vous',
+        url: clientsVisits().url,
+        icon: CalendarClock,
+    },
+    {
         title: 'Mon compte',
         keywords: 'profil paramètres',
         url: editProfile().url,
@@ -130,6 +178,66 @@ const destinations: Destination[] = [
         icon: Palette,
     },
 ];
+
+/** Interroge une source de recherche ; toute erreur (HTTP, réseau, abandon) vaut une liste vide. */
+async function fetchHits(url: string, signal: AbortSignal): Promise<unknown[]> {
+    try {
+        const response = await fetch(url, {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+            signal,
+        });
+
+        if (!response.ok) {
+            return [];
+        }
+
+        const hits: unknown = await response.json();
+
+        return Array.isArray(hits) ? hits : [];
+    } catch {
+        return [];
+    }
+}
+
+/** Groupe de résultats au format commun (titre, sous-titre, fiche). */
+function HitGroup({
+    heading,
+    kind,
+    icon: Icon,
+    hits,
+    onSelect,
+}: {
+    heading: string;
+    kind: string;
+    icon: typeof LayoutGrid;
+    hits: SearchHit[];
+    onSelect: (url: string) => void;
+}) {
+    if (hits.length === 0) {
+        return null;
+    }
+
+    return (
+        <CommandGroup heading={heading}>
+            {hits.map((hit) => (
+                <CommandItem
+                    key={hit.uuid}
+                    value={`${kind} ${hit.title} ${hit.subtitle ?? ''}`}
+                    onSelect={() => onSelect(hit.url)}
+                >
+                    <Icon />
+                    <span className="truncate">{hit.title}</span>
+                    {hit.subtitle && (
+                        <span className="text-muted-foreground ml-auto truncate text-xs">
+                            {hit.subtitle}
+                        </span>
+                    )}
+                </CommandItem>
+            ))}
+        </CommandGroup>
+    );
+}
 
 /**
  * Champ de recherche de l'en-tête : un clic (ou ⌘K / Ctrl+K) ouvre une
@@ -157,36 +265,46 @@ export function SearchCommand() {
     const [query, setQuery] = useState('');
     const [leads, setLeads] = useState<LeadHit[]>([]);
     const [partners, setPartners] = useState<PartnerHit[]>([]);
+    const [invoices, setInvoices] = useState<InvoiceHit[]>([]);
+    const [quotes, setQuotes] = useState<SearchHit[]>([]);
+    const [properties, setProperties] = useState<SearchHit[]>([]);
+    const [owners, setOwners] = useState<SearchHit[]>([]);
 
-    // Recherche de leads côté serveur, avec un léger délai pour ne pas spammer.
+    // Recherche côté serveur, toutes les sources en parallèle, avec un léger
+    // délai pour ne pas spammer. Une source refusée (section fermée, 403) ou en
+    // erreur renvoie une liste vide sans gêner les autres.
     useEffect(() => {
         const needle = query.trim();
 
         if (needle.length < 2) {
             setLeads([]);
             setPartners([]);
+            setInvoices([]);
+            setQuotes([]);
+            setProperties([]);
+            setOwners([]);
 
             return;
         }
 
         const controller = new AbortController();
         const timer = setTimeout(() => {
-            fetch(leadsSearch({ query: { q: needle } }).url, {
-                credentials: 'same-origin',
-                headers: { Accept: 'application/json' },
-                signal: controller.signal,
-            })
-                .then((response) => (response.ok ? response.json() : []))
-                .then((hits: LeadHit[]) => setLeads(hits))
-                .catch(() => undefined);
-            fetch(partnersSearch({ query: { q: needle } }).url, {
-                credentials: 'same-origin',
-                headers: { Accept: 'application/json' },
-                signal: controller.signal,
-            })
-                .then((response) => (response.ok ? response.json() : []))
-                .then((hits: PartnerHit[]) => setPartners(hits))
-                .catch(() => undefined);
+            const q = { query: { q: needle } };
+            const load = <T,>(url: string, apply: (hits: T[]) => void) =>
+                fetchHits(url, controller.signal).then((hits) => {
+                    if (!controller.signal.aborted) {
+                        apply(hits as T[]);
+                    }
+                });
+
+            void Promise.allSettled([
+                load<LeadHit>(leadsSearch(q).url, setLeads),
+                load<PartnerHit>(partnersSearch(q).url, setPartners),
+                load<InvoiceHit>(invoicesSearch(q).url, setInvoices),
+                load<SearchHit>(quotesSearch(q).url, setQuotes),
+                load<SearchHit>(propertiesSearch(q).url, setProperties),
+                load<SearchHit>(ownersSearch(q).url, setOwners),
+            ]);
         }, 200);
 
         return () => {
@@ -289,6 +407,54 @@ export function SearchCommand() {
                             })}
                         </CommandGroup>
                     )}
+                    {invoices.length > 0 && (
+                        <CommandGroup heading="Factures">
+                            {invoices.map((invoice) => (
+                                <CommandItem
+                                    key={invoice.uuid}
+                                    value={`facture ${invoice.number} ${invoice.client_name}`}
+                                    onSelect={() => go(invoice.url)}
+                                >
+                                    <FileText />
+                                    <span className="truncate">
+                                        {invoice.number}
+                                        <span className="text-muted-foreground">
+                                            {' '}
+                                            · {invoice.client_name} ·{' '}
+                                            {formatMoney(
+                                                invoice.amount_cents,
+                                                invoice.currency,
+                                            )}
+                                        </span>
+                                    </span>
+                                    <span className="text-muted-foreground ml-auto truncate text-xs">
+                                        {invoice.status_label}
+                                    </span>
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    )}
+                    <HitGroup
+                        heading="Devis"
+                        kind="devis"
+                        icon={FileSignature}
+                        hits={quotes}
+                        onSelect={go}
+                    />
+                    <HitGroup
+                        heading="Biens"
+                        kind="bien"
+                        icon={Home}
+                        hits={properties}
+                        onSelect={go}
+                    />
+                    <HitGroup
+                        heading="Propriétaires"
+                        kind="propriétaire"
+                        icon={KeyRound}
+                        hits={owners}
+                        onSelect={go}
+                    />
                     <CommandGroup heading="Pages">
                         {destinations.map((destination) => (
                             <CommandItem

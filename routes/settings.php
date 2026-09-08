@@ -3,6 +3,7 @@
 use App\Http\Controllers\Settings\AvatarController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
+use App\Http\Controllers\Settings\TeamController;
 use Illuminate\Auth\Middleware\RequirePassword;
 use Illuminate\Support\Facades\Route;
 
@@ -27,6 +28,15 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         ->name('user-password.update');
 
     Route::inertia('settings/appearance', 'settings/appearance')->name('appearance.edit');
+
+    // Équipe : membres ayant accès au dashboard, administrateurs seulement.
+    Route::middleware('role:admin')->group(function (): void {
+        Route::get('settings/team', [TeamController::class, 'index'])->name('team.index');
+        Route::post('settings/team', [TeamController::class, 'store'])->name('team.store');
+        Route::get('settings/team/{member}', [TeamController::class, 'show'])->name('team.show');
+        Route::patch('settings/team/{member}/access', [TeamController::class, 'access'])->name('team.access');
+        Route::delete('settings/team/{member}', [TeamController::class, 'destroy'])->name('team.destroy');
+    });
 });
 
 Route::get('.well-known/passkey-endpoints', fn () => response()->json([

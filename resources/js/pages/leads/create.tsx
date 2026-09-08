@@ -4,7 +4,6 @@ import {
     ArrowLeft,
     ArrowRight,
     CalendarClock,
-    Check,
     ClipboardList,
     MapPin,
     Megaphone,
@@ -20,6 +19,11 @@ import { DatePicker } from '@/components/date-picker';
 import InputError from '@/components/input-error';
 import { FormActionBar } from '@/components/form-action-bar';
 import { ConditionChoices } from '@/components/leads/condition-choices';
+import {
+    FormField,
+    FormGroup,
+    FormStepper,
+} from '@/components/leads/lead-form-shell';
 import { LeadClosingGuide } from '@/components/leads/lead-closing-guide';
 import { DistrictMap } from '@/components/leads/district-map';
 import { PhoneInput } from '@/components/phone-input';
@@ -67,6 +71,7 @@ import type {
     LeadForm,
     LeadLanguage,
     LeadOfferOption,
+    LeadSegment,
     LeadSource,
     OfferValue,
     PropertyType,
@@ -85,6 +90,8 @@ type Props = {
     recontactChannels: LabeledOption<RecontactChannel>[];
     /** Présent en mode modification. */
     lead?: LeadEditable;
+    /** Liste de destination à la création (`?segment=owner` depuis le menu Propriétaires). */
+    segment?: LeadSegment;
 };
 
 type Duplicate = {
@@ -165,159 +172,15 @@ function stepOf(errorKey: string): StepNumber {
     );
 }
 
-/** Indicateur d'étapes, discret : numéro, libellé, filet entre les étapes. */
-function Stepper({
-    current,
-    visited,
-    onSelect,
-}: {
-    current: StepNumber;
-    visited: Set<number>;
-    onSelect: (step: StepNumber) => void;
-}) {
-    return (
-        <ol role="list" aria-label="Étapes" className="flex items-center gap-3">
-            {steps.map((step, index) => {
-                const done = step.number < current;
-                const active = step.number === current;
-                const reachable = visited.has(step.number) || done;
-
-                return (
-                    <li
-                        key={step.number}
-                        className={cn(
-                            'flex items-center gap-3',
-                            index < steps.length - 1 && 'flex-1',
-                        )}
-                    >
-                        <button
-                            type="button"
-                            disabled={!reachable}
-                            aria-current={active ? 'step' : undefined}
-                            onClick={() => onSelect(step.number)}
-                            className={cn(
-                                'flex items-center gap-2 rounded-md text-sm outline-none focus-visible:ring-2 disabled:cursor-default',
-                                active
-                                    ? 'text-foreground font-medium'
-                                    : done
-                                      ? 'text-muted-foreground'
-                                      : 'text-muted-foreground/50',
-                                reachable && !active && 'hover:text-foreground',
-                            )}
-                        >
-                            <span
-                                aria-hidden
-                                className={cn(
-                                    'flex size-6 shrink-0 items-center justify-center rounded-full border text-xs tabular-nums',
-                                    !active && !done && 'border-dashed',
-                                    active &&
-                                        'bg-primary text-primary-foreground border-primary',
-                                    done &&
-                                        'bg-primary/10 border-primary/40 text-primary',
-                                )}
-                            >
-                                {done ? (
-                                    <Check className="size-3.5" />
-                                ) : (
-                                    step.number
-                                )}
-                            </span>
-                            <span className="whitespace-nowrap">
-                                {step.title}
-                            </span>
-                        </button>
-                        {index < steps.length - 1 && (
-                            <span
-                                aria-hidden
-                                className={cn(
-                                    'h-px flex-1',
-                                    done ? 'bg-primary/40' : 'bg-border',
-                                )}
-                            />
-                        )}
-                    </li>
-                );
-            })}
-        </ol>
-    );
-}
-
-/** Groupe de champs en panneau, comme la fiche lead : icône, titre, aide, grille. */
-function Group({
-    title,
-    hint,
-    icon: Icon,
-    children,
-    className,
-}: {
-    title: string;
-    hint?: string;
-    icon?: typeof Star;
-    children: React.ReactNode;
-    className?: string;
-}) {
-    return (
-        <section
-            aria-label={title}
-            className={cn(
-                'bg-sidebar grid content-start gap-5 rounded-xl border p-5',
-                className,
-            )}
-        >
-            <div className="flex items-start gap-3">
-                {Icon && (
-                    <span
-                        aria-hidden
-                        className="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-lg"
-                    >
-                        <Icon className="size-4" />
-                    </span>
-                )}
-                <div className="min-w-0">
-                    <h2 className="text-sm font-semibold">{title}</h2>
-                    {hint && (
-                        <p className="text-muted-foreground text-xs">{hint}</p>
-                    )}
-                </div>
-            </div>
-            {children}
-        </section>
-    );
-}
-
-function Field({
-    label,
-    htmlFor,
-    error,
-    hint,
-    children,
-    className,
-}: {
-    label: string;
-    htmlFor?: string;
-    error?: string;
-    hint?: string;
-    children: React.ReactNode;
-    className?: string;
-}) {
-    return (
-        <div
-            className={cn(
-                'grid content-start gap-2',
-                // Champ en erreur : fond teinté en plus de la bordure, plus visible sur mobile.
-                '[&_input[aria-invalid=true]]:bg-destructive/5 [&_textarea[aria-invalid=true]]:bg-destructive/5',
-                className,
-            )}
-        >
-            <Label htmlFor={htmlFor}>{label}</Label>
-            {children}
-            {hint && !error && (
-                <p className="text-muted-foreground text-xs">{hint}</p>
-            )}
-            <InputError message={error} />
-        </div>
-    );
-}
+/** Étapes, groupes et champs partagés avec la Converting Machine propriétaire. */
+const Stepper = (
+    props: Omit<
+        React.ComponentProps<typeof FormStepper<(typeof steps)[number]>>,
+        'steps'
+    >,
+) => <FormStepper steps={steps} {...props} />;
+const Group = FormGroup;
+const Field = FormField;
 
 /** Ne garde que les champs du formulaire (sans id ni nom composé). */
 function toForm(lead: LeadEditable): LeadForm {
@@ -340,8 +203,10 @@ export default function LeadsCreate({
     furnishedOptions,
     recontactChannels,
     lead,
+    segment = 'tenant',
 }: Props) {
     const editing = lead !== undefined;
+    const owner = (lead?.segment ?? segment) === 'owner';
     const { auth, staff } = usePage().props;
     const form = useForm<LeadForm>(
         lead
@@ -371,6 +236,7 @@ export default function LeadsCreate({
                   recontact_at: '',
                   qualification_note: '',
                   assigned_to: auth.user?.id ?? null,
+                  segment,
               },
     );
     // Erreurs détectées localement avant l'envoi ; celles du serveur priment.
@@ -583,11 +449,14 @@ export default function LeadsCreate({
                             <p className="text-muted-foreground text-sm">
                                 {editing
                                     ? 'Le statut et la place dans le kanban ne changent pas.'
-                                    : 'Le contact suffit pour créer le lead. Le projet et la qualification peuvent attendre.'}
+                                    : owner
+                                      ? 'Lead propriétaire : il rejoindra la liste « Leads propriétaires ». Le contact suffit pour commencer.'
+                                      : 'Le contact suffit pour créer le lead. Le projet et la qualification peuvent attendre.'}
                             </p>
                         </div>
                         <LeadClosingGuide
                             storageKey={editing ? String(lead.id) : 'new'}
+                            language={form.data.language}
                         />
                     </div>
                     <Stepper current={step} visited={visited} onSelect={goTo} />
@@ -608,7 +477,7 @@ export default function LeadsCreate({
                                 hint="Un e-mail ou un téléphone suffit pour commencer."
                                 icon={UserRound}
                             >
-                                <div className="grid gap-5 sm:grid-cols-2">
+                                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                                     <Field
                                         label="Prénom"
                                         htmlFor="first_name"
@@ -680,7 +549,7 @@ export default function LeadsCreate({
                                         />
                                     </Field>
                                 </div>
-                                <div className="grid gap-5 sm:grid-cols-[1fr_auto]">
+                                <div className="grid grid-cols-1 gap-5 sm:grid-cols-[1fr_auto]">
                                     <Field
                                         label="Société"
                                         htmlFor="company"
@@ -798,7 +667,7 @@ export default function LeadsCreate({
                                     onValueChange={(value) =>
                                         set('offer')(value as OfferValue)
                                     }
-                                    className="grid gap-3 sm:grid-cols-2"
+                                    className="grid grid-cols-1 gap-3 sm:grid-cols-2"
                                 >
                                     {offers.map((offer) => (
                                         <Label
@@ -833,7 +702,7 @@ export default function LeadsCreate({
                             </Group>
 
                             <Group title="Source" icon={Megaphone}>
-                                <div className="grid gap-5 sm:grid-cols-2">
+                                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                                     <Field
                                         label="Source du lead"
                                         htmlFor="source"
@@ -892,7 +761,7 @@ export default function LeadsCreate({
 
                     {step === 2 && (
                         <>
-                            <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
+                            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_300px]">
                                 <Group
                                     title="Quartiers visés"
                                     hint="Cliquez les arrondissements, ou tout Paris."
@@ -1019,7 +888,7 @@ export default function LeadsCreate({
                                         furnished: errors.furnished,
                                     }}
                                 />
-                                <div className="grid gap-5 sm:grid-cols-2">
+                                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                                     <Field
                                         label="Ville d'origine"
                                         htmlFor="origin_city"
@@ -1176,7 +1045,7 @@ export default function LeadsCreate({
                                 hint="Qui suit ce lead, et quand le recontacter."
                                 icon={CalendarClock}
                             >
-                                <div className="grid gap-5 sm:grid-cols-3">
+                                <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
                                     <Field
                                         label="Suivi par"
                                         error={errors.assigned_to}

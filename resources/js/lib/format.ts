@@ -66,3 +66,16 @@ export function capitalizeName(value: string): string {
                 before + letter.toLocaleUpperCase('fr-FR'),
         );
 }
+
+/** Taille d'un fichier lisible : « 245 Ko », « 1,2 Mo ». */
+export function formatFileSize(bytes: number): string {
+    if (bytes < 1024) {
+        return `${bytes} o`;
+    }
+
+    if (bytes < 1024 * 1024) {
+        return `${Math.round(bytes / 1024)} Ko`;
+    }
+
+    return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(bytes / (1024 * 1024))} Mo`;
+}

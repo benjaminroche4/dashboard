@@ -2,15 +2,21 @@ import { Link } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown } from 'lucide-react';
 import { CreatedBy } from '@/components/created-by';
+import { FavoriteButton } from '@/components/favorite-button';
 import { AgencyAgentsPopover } from '@/components/real-estate/agency-agents-popover';
 import { AgentLeadsPopover } from '@/components/real-estate/agent-leads-popover';
 import { RealEstateRowActions } from '@/components/real-estate/real-estate-row-actions';
 import { Button } from '@/components/ui/button';
 import {
     destroy as destroyAgency,
+    favorite as favoriteAgency,
     show as agencyShow,
 } from '@/routes/agencies';
-import { destroy as destroyAgent, show as agentShow } from '@/routes/agents';
+import {
+    destroy as destroyAgent,
+    favorite as favoriteAgent,
+    show as agentShow,
+} from '@/routes/agents';
 import type { Agency, Agent } from '@/types';
 
 function SortableHeader({
@@ -56,6 +62,7 @@ function contactCell(email: string | null, phone: string | null) {
 }
 
 export const agencyColumnLabels: Record<string, string> = {
+    favorite: 'Favori',
     name: 'Agence',
     address: 'Adresse',
     contact: 'Contact',
@@ -88,6 +95,19 @@ export function agencyColumns(
     onAddAgent: (agency: Agency) => void,
 ): ColumnDef<Agency>[] {
     return [
+        {
+            id: 'favorite',
+            accessorFn: (agency) => (agency.is_favorite ? 1 : 0),
+            header: () => <span className="sr-only">Favori</span>,
+            enableHiding: false,
+            cell: ({ row }) => (
+                <FavoriteButton
+                    favorite={row.original.is_favorite}
+                    url={favoriteAgency({ agency: row.original.uuid }).url}
+                    name={row.original.name}
+                />
+            ),
+        },
         {
             accessorKey: 'name',
             header: ({ column }) => (
@@ -183,6 +203,7 @@ export function agencyColumns(
 }
 
 export const agentColumnLabels: Record<string, string> = {
+    favorite: 'Favori',
     name: 'Agent',
     agency: 'Agence',
     address: 'Adresse',
@@ -195,6 +216,19 @@ export function agentColumns(
     onEdit: (agent: Agent) => void,
 ): ColumnDef<Agent>[] {
     return [
+        {
+            id: 'favorite',
+            accessorFn: (agent) => (agent.is_favorite ? 1 : 0),
+            header: () => <span className="sr-only">Favori</span>,
+            enableHiding: false,
+            cell: ({ row }) => (
+                <FavoriteButton
+                    favorite={row.original.is_favorite}
+                    url={favoriteAgent({ agent: row.original.uuid }).url}
+                    name={row.original.name}
+                />
+            ),
+        },
         {
             accessorKey: 'name',
             header: ({ column }) => (

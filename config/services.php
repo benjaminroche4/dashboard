@@ -21,9 +21,20 @@ return [
         'webhook_secret' => env('RIP_WEBHOOK_SECRET'),
     ],
 
-    // Téléphonie Allo (withallo.com) : secret « whsec_… » de l'endpoint webhook.
+    // Assistant IA (Claude) : import d'annonces, qualification des leads, matching. Clé serveur, jamais exposée.
+    'anthropic' => [
+        'key' => env('ANTHROPIC_API_KEY'),
+        'model' => env('ANTHROPIC_MODEL', 'claude-opus-5'),
+    ],
+
+    // Téléphonie Allo (withallo.com) : secret « whsec_… » de l'endpoint webhook, et envoi de SMS
+    // (clé API avec la portée SMS_SEND, numéro Allo expéditeur en E.164 ou Sender ID vérifié pour la France).
     'allo' => [
         'webhook_secret' => env('ALLO_WEBHOOK_SECRET'),
+        'api_key' => env('ALLO_API_KEY'),
+        'from' => env('ALLO_SMS_FROM'),
+        'sender_id' => env('ALLO_SMS_SENDER_ID'),
+        'base_url' => env('ALLO_API_URL', 'https://api.withallo.com'),
     ],
 
     'postmark' => [
@@ -52,6 +63,10 @@ return [
         'maps_key' => env('GOOGLE_MAPS_API_KEY'),
         // Clé navigateur Google Maps (Maps JavaScript API), restreinte par référent HTTP : exposée au front.
         'maps_browser_key' => env('GOOGLE_MAPS_BROWSER_KEY'),
+        // Carte statique des e-mails : clé DÉDIÉE (restreinte à l'API Maps Static, elle part dans les e-mails
+        // envoyés aux leads, jamais la clé serveur) et secret de signature d'URL pour qu'elle soit inutilisable ailleurs.
+        'static_maps_key' => env('GOOGLE_STATIC_MAPS_KEY'),
+        'static_maps_secret' => env('GOOGLE_STATIC_MAPS_SECRET'),
         // Style de carte (Cloud Map ID) pour la carte statique des e-mails, le même que le site Relocation In Paris.
         'static_map_id' => env('GOOGLE_STATIC_MAP_ID', '17a6371e43c53ecdecba3794'),
         // Visios : compte de service Workspace (chemin du JSON ou JSON en base64) et adresse organisatrice centrale.

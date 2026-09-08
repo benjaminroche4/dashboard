@@ -132,7 +132,7 @@ describe('LeadPartnersCard', () => {
             within(dialog).getByRole('button', { name: 'Transmettre' }),
         );
         expect(post).toHaveBeenCalledWith(
-            `/leads/${lead.uuid}/partners/9/forward`,
+            `/locataires/${lead.uuid}/partners/9/forward`,
             expect.objectContaining({ preserveScroll: true }),
         );
         await user.click(
@@ -143,7 +143,7 @@ describe('LeadPartnersCard', () => {
             card.getByRole('button', { name: 'Retirer Zen Assurances' }),
         );
         expect(del).toHaveBeenCalledWith(
-            `/leads/${lead.uuid}/partners/9`,
+            `/locataires/${lead.uuid}/partners/9`,
             expect.objectContaining({ preserveScroll: true }),
         );
     });
@@ -183,7 +183,7 @@ describe('LeadPartnersCard', () => {
         expect(submit).toBeEnabled();
         await user.click(submit);
         expect(post).toHaveBeenCalledWith(
-            `/leads/${lead.uuid}/partners`,
+            `/locataires/${lead.uuid}/partners`,
             expect.objectContaining({ preserveScroll: true }),
         );
     });

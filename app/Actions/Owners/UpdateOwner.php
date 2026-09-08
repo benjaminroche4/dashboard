@@ -17,11 +17,12 @@ final class UpdateOwner
 {
     public function handle(Owner $owner, OwnerData $data): Owner
     {
-        $touched = $owner->status === OwnerStatus::ToContact && $data->status !== OwnerStatus::ToContact;
+        // Tout changement de statut vers un état « contacté » date le dernier contact.
+        $touched = $owner->status !== $data->status && $data->status !== OwnerStatus::ToContact;
 
         $owner->fill($data->toArray());
 
-        if ($touched && $owner->last_contacted_at === null) {
+        if ($touched) {
             $owner->last_contacted_at = now();
         }
 

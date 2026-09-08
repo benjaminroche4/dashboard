@@ -108,4 +108,6 @@ export type PartnerForm = {
     postal_code: string;
     city: string;
     notes: string;
+    /** Ajout seulement : prévenir le partenaire par e-mail qu'il rejoint l'annuaire. Décoché par défaut. */
+    notify: boolean;
 };

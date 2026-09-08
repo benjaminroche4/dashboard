@@ -28,7 +28,7 @@ vi.mock('@inertiajs/react', () => ({
             {children}
         </a>
     ),
-    router: { delete: del },
+    router: { delete: del, post },
     usePage: () => ({
         props: {
             auth: { user: { role: role.value } },
@@ -137,6 +137,19 @@ describe('Agencies page', () => {
             within(dialog).getByLabelText('Nom'),
             'Bureau Paris Ouest',
         );
+
+        // L'e-mail de bienvenue : décoché par défaut, et seulement avec un e-mail.
+        const notify = within(dialog).getByRole('checkbox', {
+            name: /Prévenir l’agence par e-mail/,
+        });
+        expect(notify).toBeDisabled();
+        await user.type(
+            within(dialog).getByLabelText('E-mail'),
+            'contact@ouest.example',
+        );
+        expect(notify).toBeEnabled();
+        expect(notify).not.toBeChecked();
+
         await user.click(
             within(dialog).getByRole('button', { name: 'Ajouter l’agence' }),
         );
@@ -215,5 +228,36 @@ describe('Agencies page', () => {
         expect(
             screen.getByRole('menuitem', { name: 'Modifier' }),
         ).toBeInTheDocument();
+    });
+
+    it('shows a star per agency and restricts the list to the favorites', async () => {
+        const user = userEvent.setup();
+        render(
+            <Agencies
+                agencies={[
+                    makeAgency({ is_favorite: true }),
+                    makeAgency({
+                        id: 2,
+                        uuid: '0199a9a0-0000-7000-8000-0000000000a2',
+                        name: 'Bureau Paris Ouest',
+                        website: null,
+                    }),
+                ]}
+            />,
+        );
+
+        expect(
+            screen.getByRole('button', {
+                name: 'Retirer Agence du Marais des favoris',
+            }),
+        ).toHaveAttribute('aria-pressed', 'true');
+
+        await user.click(screen.getByRole('button', { name: 'Favoris (1)' }));
+        expect(
+            screen.getByRole('link', { name: 'Agence du Marais' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('link', { name: 'Bureau Paris Ouest' }),
+        ).not.toBeInTheDocument();
     });
 });

@@ -10,6 +10,8 @@ export type Agency = {
     email: string | null;
     website: string | null;
     notes: string | null;
+    /** Étoile du membre connecté (favori personnel). */
+    is_favorite: boolean;
     agents_count: number;
     /** Agents rattachés, pour la liste dépliable de la page Agences. */
     agents: AgencyAgent[];
@@ -62,6 +64,8 @@ export type AgentOption = {
     name: string;
     agency: string | null;
     phone: string | null;
+    /** Étoile du membre connecté : proposé en tête du sélecteur. */
+    is_favorite: boolean;
 };
 
 /** Agent ou agence partageant l'e-mail ou le téléphone saisi. */
@@ -93,6 +97,8 @@ export type AgencyForm = {
     email: string;
     website: string;
     notes: string;
+    /** Ajout seulement : prévenir le contact par e-mail qu'il rejoint l'annuaire. Décoché par défaut. */
+    notify: boolean;
 };
 
 /** Agence proposée dans le formulaire d'un agent. */
@@ -115,6 +121,8 @@ export type Agent = {
     email: string | null;
     phone: string | null;
     notes: string | null;
+    /** Étoile du membre connecté (favori personnel). */
+    is_favorite: boolean;
     agency: AgencyOption | null;
     leads: AgentLead[];
     creator: string | null;
@@ -133,4 +141,6 @@ export type AgentForm = {
     email: string;
     phone: string;
     notes: string;
+    /** Ajout seulement : prévenir le contact par e-mail qu'il rejoint l'annuaire. Décoché par défaut. */
+    notify: boolean;
 };

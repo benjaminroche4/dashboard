@@ -23,7 +23,7 @@ vi.mock('@inertiajs/react', () => ({
     usePage: () => ({
         props: {
             auth: {
-                user: makeUser(),
+                user: makeUser({ phone: '+33 6 12 34 56 78' }),
                 can: { manageStaff: true, viewPulse: true },
             },
             errors: {},
@@ -52,5 +52,19 @@ describe('Profile settings page', () => {
         expect(screen.getByLabelText('Adresse e-mail')).toHaveValue(
             'admin@admin.fr',
         );
+    });
+
+    it('offers a phone field for SMS alerts, prefilled and sent as one international number', () => {
+        const { container } = render(<Profile />);
+
+        expect(
+            screen.getByLabelText('Téléphone (pour les alertes par SMS)'),
+        ).toHaveValue('6 12 34 56 78');
+        expect(
+            screen.getByRole('combobox', { name: 'Indicatif' }),
+        ).toHaveTextContent('+33');
+        expect(
+            container.querySelector('input[type="hidden"][name="phone"]'),
+        ).toHaveValue('+33 6 12 34 56 78');
     });
 });

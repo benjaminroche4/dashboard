@@ -19,7 +19,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { show as leadShow } from '@/routes/leads';
-import { convert, destroy } from '@/routes/owners';
+import { convert, destroy, show as ownerShow } from '@/routes/owners';
 import type { Owner } from '@/types';
 
 /**
@@ -63,6 +63,11 @@ export function OwnerRowActions({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                    <DropdownMenuItem asChild>
+                        <Link href={ownerShow({ owner: owner.uuid })}>
+                            Voir la fiche
+                        </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuItem onSelect={onEdit}>
                         Modifier
                     </DropdownMenuItem>

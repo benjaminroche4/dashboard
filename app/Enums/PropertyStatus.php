@@ -1,0 +1,35 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Enums;
+
+/**
+ * Disponibilité d'un bien proposé à la location.
+ */
+enum PropertyStatus: string
+{
+    case Available = 'available';
+    case Rented = 'rented';
+    case UnderRenovation = 'under_renovation';
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::Available => 'Disponible',
+            self::Rented => 'Loué',
+            self::UnderRenovation => 'En travaux',
+        };
+    }
+
+    /**
+     * @return list<array{value: string, label: string}>
+     */
+    public static function options(): array
+    {
+        return array_map(
+            fn (self $case): array => ['value' => $case->value, 'label' => $case->label()],
+            self::cases(),
+        );
+    }
+}

@@ -1,4 +1,6 @@
 import type {
+    DocumentUpload,
+    PublicDocumentPerson,
     CatalogGroup,
     DocumentRequestDetail,
     DocumentRequestEdit,
@@ -94,6 +96,12 @@ export function makeDocumentRequestDetail(
         ...makeDocumentRequest(),
         message: 'Merci de tout déposer avant le 15.',
         upload_url: 'https://drive.google.com/drive/folders/abc',
+        public_url: 'https://dashboard.test/depot/tok-abc',
+        access_code: '482913',
+        link_sent_to: null,
+        link_sent_at: null,
+        lead_email: 'lea@example.com',
+        uploads_count: 0,
         persons: [
             {
                 name: 'Léa Martin',
@@ -104,8 +112,10 @@ export function makeDocumentRequestDetail(
                         label: 'Identité',
                         documents: [
                             {
+                                key: 'id_document',
                                 label: "Passeport ou carte d'identité",
                                 hint: 'Recto et verso',
+                                uploads: [],
                             },
                         ],
                     },
@@ -114,8 +124,10 @@ export function makeDocumentRequestDetail(
                         label: 'Travail',
                         documents: [
                             {
+                                key: 'payslips',
                                 label: '3 derniers bulletins de salaire',
                                 hint: null,
+                                uploads: [],
                             },
                         ],
                     },
@@ -145,6 +157,61 @@ export function makeDocumentRequestEdit(
                 role: 'guarantor',
                 documents: ['identity_document'],
             }),
+        ],
+        ...overrides,
+    };
+}
+
+/** Fichier déposé par le client, tel que listé sur la page de la liste. */
+export function makeDocumentUpload(
+    overrides: Partial<DocumentUpload> = {},
+): DocumentUpload {
+    return {
+        id: 1,
+        uuid: '0199b0c0-0000-7000-8000-0000000000aa',
+        name: 'passeport.pdf',
+        size: 245_000,
+        uploaded_at: '2026-09-08T10:00:00+02:00',
+        download_url:
+            '/tools/documents/0199b0c0-0000-7000-8000-000000000001/uploads/0199b0c0-0000-7000-8000-0000000000aa',
+        ...overrides,
+    };
+}
+
+/** Personne de la page publique de dépôt, avec ses pièces. */
+export function makePublicPerson(
+    overrides: Partial<PublicDocumentPerson> = {},
+): PublicDocumentPerson {
+    return {
+        index: 0,
+        name: 'Léa Martin',
+        role: 'Locataire',
+        categories: [
+            {
+                value: 'identity',
+                label: 'Identité',
+                documents: [
+                    {
+                        key: 'id_document',
+                        label: "Passeport ou carte d'identité",
+                        hint: 'Recto et verso',
+                        uploads: [],
+                    },
+                    {
+                        key: 'payslips',
+                        label: '3 derniers bulletins de salaire',
+                        hint: null,
+                        uploads: [
+                            {
+                                uuid: 'up-1',
+                                name: 'bulletin-juin.pdf',
+                                size: 120_000,
+                                uploaded_at: '2026-09-08T10:00:00+02:00',
+                            },
+                        ],
+                    },
+                ],
+            },
         ],
         ...overrides,
     };

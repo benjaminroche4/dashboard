@@ -7,9 +7,8 @@ import {
     partnerColumns,
 } from '@/components/partners/columns';
 import { PartnerDialog } from '@/components/partners/partner-dialog';
+import { PartnerTypeFilter } from '@/components/partners/partner-type-filter';
 import { Button } from '@/components/ui/button';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { partnerTypeIcons } from '@/lib/partner-type-icons';
 import { index as partnersIndex } from '@/routes/partners';
 import type { Partner, PartnerType, PartnerTypeOption } from '@/types';
 
@@ -21,7 +20,7 @@ type Props = {
 export default function PartnersIndex({ partners, types }: Props) {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editing, setEditing] = useState<Partner | null>(null);
-    const [typeFilter, setTypeFilter] = useState<PartnerType | ''>('');
+    const [typeFilter, setTypeFilter] = useState<PartnerType[]>([]);
 
     const add = () => {
         setEditing(null);
@@ -43,15 +42,16 @@ export default function PartnersIndex({ partners, types }: Props) {
             ),
         [partners],
     );
-    const visible = typeFilter
-        ? partners.filter((partner) => partner.type === typeFilter)
-        : partners;
+    const visible =
+        typeFilter.length > 0
+            ? partners.filter((partner) => typeFilter.includes(partner.type))
+            : partners;
 
     return (
         <>
             <Head title="Partenaires" />
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-10">
-                <div className="flex items-end justify-between pt-8 pb-6">
+                <div className="flex flex-wrap items-end justify-between gap-4 pt-8 pb-6">
                     <div>
                         <h1 className="text-lg font-medium">Partenaires</h1>
                         <p className="text-muted-foreground text-sm">
@@ -63,45 +63,14 @@ export default function PartnersIndex({ partners, types }: Props) {
                         Nouveau partenaire
                     </Button>
                 </div>
-                <ToggleGroup
-                    type="single"
-                    value={typeFilter || 'all'}
-                    onValueChange={(value) =>
-                        value &&
-                        setTypeFilter(
-                            value === 'all' ? '' : (value as PartnerType),
-                        )
-                    }
-                    aria-label="Filtrer par type"
-                    className="mb-4 flex-wrap justify-start gap-1"
-                >
-                    <ToggleGroupItem
-                        value="all"
-                        className="h-8 rounded-md px-3 text-xs first:rounded-md last:rounded-md"
-                    >
-                        Tous
-                        <span className="text-muted-foreground tabular-nums">
-                            {partners.length}
-                        </span>
-                    </ToggleGroupItem>
-                    {types.map((type) => {
-                        const Icon = partnerTypeIcons[type.value];
-
-                        return (
-                            <ToggleGroupItem
-                                key={type.value}
-                                value={type.value}
-                                className="h-8 rounded-md px-3 text-xs first:rounded-md last:rounded-md"
-                            >
-                                <Icon className="size-3.5" aria-hidden />
-                                {type.label}
-                                <span className="text-muted-foreground tabular-nums">
-                                    {counts[type.value] ?? 0}
-                                </span>
-                            </ToggleGroupItem>
-                        );
-                    })}
-                </ToggleGroup>
+                <div className="mb-4 flex items-center gap-2">
+                    <PartnerTypeFilter
+                        types={types}
+                        counts={counts}
+                        value={typeFilter}
+                        onChange={setTypeFilter}
+                    />
+                </div>
                 <DataTable
                     columns={columns}
                     data={visible}
@@ -116,7 +85,8 @@ export default function PartnersIndex({ partners, types }: Props) {
                 onOpenChange={setDialogOpen}
                 types={types}
                 partner={editing}
-                defaultType={typeFilter}
+                // Un seul type filtré : il est présélectionné dans le formulaire d'ajout.
+                defaultType={typeFilter.length === 1 ? typeFilter[0] : ''}
             />
         </>
     );

@@ -31,15 +31,15 @@ test("les routes d'une note portent l'uuid et refusent l'identifiant numérique"
     $lead = Lead::factory()->create();
     $note = LeadNote::factory()->create(['lead_id' => $lead->id, 'user_id' => $author->id]);
 
-    expect(route('leads.notes.update', [$lead, $note]))->toEndWith("/leads/{$lead->uuid}/notes/{$note->uuid}");
+    expect(route('leads.notes.update', [$lead, $note]))->toEndWith("/locataires/{$lead->uuid}/notes/{$note->uuid}");
 
-    $this->actingAs($author)->patch("/leads/{$lead->uuid}/notes/{$note->id}", ['body' => 'Non'])->assertNotFound();
-    $this->actingAs($author)->delete("/leads/{$lead->uuid}/notes/{$note->id}")->assertNotFound();
-    $this->actingAs($author)->patch("/leads/{$lead->uuid}/notes/".Str::uuid(), ['body' => 'Non'])->assertNotFound();
+    $this->actingAs($author)->patch("/locataires/{$lead->uuid}/notes/{$note->id}", ['body' => 'Non'])->assertNotFound();
+    $this->actingAs($author)->delete("/locataires/{$lead->uuid}/notes/{$note->id}")->assertNotFound();
+    $this->actingAs($author)->patch("/locataires/{$lead->uuid}/notes/".Str::uuid(), ['body' => 'Non'])->assertNotFound();
 
-    $this->actingAs($author)->patch("/leads/{$lead->uuid}/notes/{$note->uuid}", ['body' => 'Corrigé'])->assertRedirect();
+    $this->actingAs($author)->patch("/locataires/{$lead->uuid}/notes/{$note->uuid}", ['body' => 'Corrigé'])->assertRedirect();
     expect($note->refresh()->body)->toBe('Corrigé');
 
-    $this->actingAs($author)->delete("/leads/{$lead->uuid}/notes/{$note->uuid}")->assertRedirect();
+    $this->actingAs($author)->delete("/locataires/{$lead->uuid}/notes/{$note->uuid}")->assertRedirect();
     expect(LeadNote::query()->find($note->id))->toBeNull();
 });

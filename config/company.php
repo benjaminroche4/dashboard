@@ -54,6 +54,10 @@ return [
         ['value' => 2.6, 'label' => '2,6 % · taux réduit'],
         ['value' => 0.0, 'label' => '0 % · exonéré / export'],
     ],
+    // Compte rendu de visite : délai après l'heure de la visite avant de relancer le responsable.
+    'visit_report' => [
+        'delay_minutes' => (int) env('VISIT_REPORT_REMINDER_DELAY_MINUTES', 60),
+    ],
     'default_currency' => env('COMPANY_DEFAULT_CURRENCY', 'EUR'),
     'default_payment_terms_days' => (int) env('COMPANY_PAYMENT_TERMS_DAYS', 30),
     // Durée de validité d'un devis, en jours, proposée par défaut.

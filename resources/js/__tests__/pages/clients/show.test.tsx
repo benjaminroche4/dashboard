@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -8,10 +9,12 @@ vi.mock('@inertiajs/react', () => ({
     Link: ({
         href,
         children,
+        prefetch: _prefetch,
         ...props
     }: {
         href: { url: string };
         children: ReactNode;
+        prefetch?: boolean;
     }) => (
         <a href={href.url} {...props}>
             {children}
@@ -20,12 +23,16 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 import ClientShow from '@/pages/clients/show';
-import { makeClientDetail } from '@/test/fixtures/client';
+import { clientPriorities, makeClientDetail } from '@/test/fixtures/client';
+import { makeActivity } from '@/test/fixtures/activity';
+import { makeVisit } from '@/test/fixtures/visit';
 
 describe('Client file page', () => {
-    it('shows the client, the money figures, the project, the dossier sections and the actions', () => {
+    it('shows the client, the money figures, the project, the dossier tabs and the actions', async () => {
+        const user = userEvent.setup();
         render(
             <ClientShow
+                priorities={clientPriorities}
                 client={makeClientDetail()}
                 totals={[
                     {
@@ -49,6 +56,7 @@ describe('Client file page', () => {
                     },
                 ]}
                 quotes={[]}
+                visits={[makeVisit()]}
                 documentRequests={[]}
                 partners={[
                     {
@@ -84,6 +92,11 @@ describe('Client file page', () => {
             'Léa Durand',
         );
         expect(
+            screen
+                .getByTestId('dossier-folder')
+                .querySelector('img[src="/images/folder/front.svg"]'),
+        ).not.toBeNull();
+        expect(
             screen.getByText(
                 /LD-4821 · Nestlé · client depuis le 01 sept\. 2026/,
             ),
@@ -98,6 +111,21 @@ describe('Client file page', () => {
                 screen.getByRole('region', { name: 'Projet de logement' }),
             ).getByText('3e, 4e, 11e'),
         ).toBeInTheDocument();
+        expect(
+            screen.getAllByRole('tab').map((tab) => tab.textContent),
+        ).toEqual([
+            'Aperçu',
+            'Visites1',
+            'Documents0',
+            'Biens0',
+            'Notes1',
+            'Autre2',
+        ]);
+        expect(
+            screen.queryByRole('link', { name: /RP-27001/ }),
+        ).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('tab', { name: /Autre/ }));
         expect(screen.getByRole('link', { name: /RP-27001/ })).toHaveAttribute(
             'href',
             '/invoices/inv-1',
@@ -109,12 +137,18 @@ describe('Client file page', () => {
         expect(
             screen.getByText('Garantie · Dossier envoyé'),
         ).toBeInTheDocument();
+        await user.click(screen.getByRole('tab', { name: /Notes/ }));
         expect(screen.getByText('Visite prévue lundi.')).toBeInTheDocument();
+        await user.click(screen.getByRole('tab', { name: /Visites/ }));
+        expect(screen.getByText('T2 lumineux · 11e')).toBeInTheDocument();
+        expect(
+            screen.getAllByRole('link', { name: /Planifier une visite/ }),
+        ).toHaveLength(2);
         expect(
             screen.getByRole('link', { name: /Fiche lead/ }),
         ).toHaveAttribute(
             'href',
-            '/leads/0199a9a0-0000-7000-8000-0000000000e1',
+            '/locataires/0199a9a0-0000-7000-8000-0000000000e1',
         );
         expect(
             screen.getByRole('link', { name: /Nouvelle facture/ }),
@@ -130,9 +164,11 @@ describe('Client file page', () => {
         );
     });
 
-    it('shows dashes without invoices and the empty states', () => {
+    it('shows dashes without invoices and the empty states', async () => {
+        const user = userEvent.setup();
         render(
             <ClientShow
+                priorities={clientPriorities}
                 client={makeClientDetail({
                     assignee: null,
                     message: null,
@@ -148,10 +184,57 @@ describe('Client file page', () => {
         );
 
         expect(screen.getByText(/non attribué/)).toBeInTheDocument();
+        expect(screen.getAllByText('Non renseigné').length).toBeGreaterThan(0);
+        await user.click(screen.getByRole('tab', { name: /Autre/ }));
         expect(
             screen.getByText('Aucun partenaire sur ce dossier.'),
         ).toBeInTheDocument();
+        await user.click(screen.getByRole('tab', { name: /Visites/ }));
+        expect(
+            screen.getByText('Aucune visite pour ce client.'),
+        ).toBeInTheDocument();
+        await user.click(screen.getByRole('tab', { name: /Notes/ }));
         expect(screen.getByText('Aucune note.')).toBeInTheDocument();
-        expect(screen.getAllByText('Non renseigné').length).toBeGreaterThan(0);
+    });
+
+    it('lists the journal of the dossier with a link to the full log', async () => {
+        const user = userEvent.setup();
+        render(
+            <ClientShow
+                priorities={clientPriorities}
+                client={makeClientDetail()}
+                totals={[]}
+                invoices={[]}
+                quotes={[]}
+                documentRequests={[]}
+                partners={[]}
+                notes={[]}
+                activities={[
+                    makeActivity({
+                        message: 'a rattaché le bien Rue Oberkampf au dossier',
+                        resource_label: 'Dossiers',
+                    }),
+                    makeActivity({
+                        id: 2,
+                        actor: null,
+                        message: 'a reçu un appel',
+                    }),
+                ]}
+            />,
+        );
+
+        await user.click(screen.getByRole('tab', { name: /Notes/ }));
+        const journal = screen.getByRole('region', { name: 'Journal' });
+        expect(journal).toHaveTextContent(
+            'Admin a rattaché le bien Rue Oberkampf au dossier',
+        );
+        expect(journal).toHaveTextContent('Le système a reçu un appel');
+        expect(journal).toHaveTextContent('Dossiers ·');
+        expect(
+            within(journal).getByRole('link', { name: 'Tout le journal' }),
+        ).toHaveAttribute(
+            'href',
+            '/tools/activity?lead=0199a9a0-0000-7000-8000-0000000000e1',
+        );
     });
 });

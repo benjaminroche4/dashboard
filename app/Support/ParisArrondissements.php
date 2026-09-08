@@ -33,4 +33,25 @@ final class ParisArrondissements
         19 => [[2.3894, 48.9012], [2.3955, 48.8983], [2.3978, 48.8946], [2.3992, 48.8882], [2.3992, 48.8854], [2.4001, 48.8838], [2.4046, 48.8812], [2.4093, 48.8803], [2.4108, 48.8784], [2.4026, 48.876], [2.3898, 48.8753], [2.377, 48.8721], [2.3703, 48.878], [2.3702, 48.8827], [2.3684, 48.8841], [2.3647, 48.8844], [2.3668, 48.8866], [2.37, 48.894], [2.3718, 48.8954], [2.3704, 48.8966], [2.3702, 48.9017], [2.3844, 48.9022], [2.3894, 48.9012]],
         20 => [[2.4128, 48.8755], [2.414, 48.8689], [2.4141, 48.8623], [2.4164, 48.8488], [2.416, 48.8466], [2.3991, 48.8481], [2.3984, 48.8513], [2.3944, 48.8566], [2.3896, 48.8585], [2.3873, 48.8631], [2.377, 48.8721], [2.3898, 48.8753], [2.4026, 48.876], [2.4108, 48.8784], [2.4128, 48.8755]],
     ];
+
+    /**
+     * Centre approximatif d'un arrondissement (moyenne des sommets du contour), en latitude / longitude.
+     *
+     * @return array{lat: float, lng: float}|null
+     */
+    public static function centroid(int $district): ?array
+    {
+        $outline = self::OUTLINES[$district] ?? null;
+
+        if ($outline === null) {
+            return null;
+        }
+
+        $count = count($outline);
+
+        return [
+            'lat' => round(array_sum(array_column($outline, 1)) / $count, 5),
+            'lng' => round(array_sum(array_column($outline, 0)) / $count, 5),
+        ];
+    }
 }

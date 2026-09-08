@@ -27,6 +27,6 @@ test('the staff directory exposes no sensitive fields', function (): void {
         ->get(route('dashboard'))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->has('staff.0', fn (AssertableInertia $entry): AssertableInertia => $entry
-                ->hasAll(['id', 'name', 'role', 'avatar'])
+                ->hasAll(['id', 'name', 'role', 'avatar', 'functions'])
                 ->missingAll(['email', 'password', 'two_factor_secret'])));
 });

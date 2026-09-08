@@ -1,12 +1,5 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import {
-    AlarmClock,
-    ArrowRight,
-    Pencil,
-    PlaneLanding,
-    Star,
-    TriangleAlert,
-} from 'lucide-react';
+import { AlarmClock, ArrowRight, Pencil, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { CountryFlag } from '@/components/country-flag';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -20,6 +13,7 @@ import { LeadAgentCard } from '@/components/leads/lead-agent-card';
 import { LeadPartnersCard } from '@/components/leads/lead-partners-card';
 import { LeadConvertDialog } from '@/components/leads/lead-convert-dialog';
 import { LeadHeaderMenu } from '@/components/leads/lead-header-menu';
+import { LeadQualificationCard } from '@/components/leads/lead-qualification-card';
 import { LeadInboundMessage as InboundMessage } from '@/components/leads/lead-inbound-message';
 import {
     LeadActivity,
@@ -28,15 +22,12 @@ import {
     type ActivityFilter,
 } from '@/components/leads/lead-activity';
 import { LeadProject } from '@/components/leads/lead-project';
+import { LeadPropertyCard } from '@/components/leads/lead-property-card';
 import { LeadActivitySheet } from '@/components/leads/lead-activity-sheet';
 import { LeadNoteComposer } from '@/components/leads/lead-note-composer';
 import { LeadRecontact } from '@/components/leads/lead-recontact';
 import { LeadReference } from '@/components/leads/lead-reference';
-import {
-    LeadShowBody,
-    type Fact,
-    type Kpi,
-} from '@/components/leads/lead-show-body';
+import { LeadShowBody, type Fact } from '@/components/leads/lead-show-body';
 import {
     LeadAssignMenu,
     initials,
@@ -62,15 +53,18 @@ import {
     status as leadStatusRoute,
 } from '@/routes/leads';
 import { store as storeNote } from '@/routes/leads/notes';
+import { edit as ownerLeadEdit } from '@/routes/owners/leads';
 import type {
     LabeledOption,
     LeadDetail,
+    LeadPropertyDetail,
     AgentOption,
     LeadPartnerLink,
     PartnerOption,
     PartnerRoleOption,
     LeadDuplicate,
     LeadInboundMessage,
+    LeadQualification,
     LeadInvoice,
     LeadLossReason,
     LeadDocumentRequest,
@@ -84,6 +78,8 @@ import type {
 
 type Props = {
     lead: LeadDetail;
+    /** Bien proposé, pour un lead propriétaire. */
+    property?: LeadPropertyDetail | null;
     invoices: LeadInvoice[];
     quotes: LeadQuote[];
     documentRequests: LeadDocumentRequest[];
@@ -95,6 +91,8 @@ type Props = {
     duplicates: LeadDuplicate[];
     /** Message d'arrivée du lead (site, appel, SMS), null s'il a été saisi par l'équipe. */
     inbound: LeadInboundMessage | null;
+    /** Qualification proposée par l'assistant IA, en attente de relecture. */
+    qualification?: LeadQualification | null;
     /** Annuaire des agents immobiliers pour la carte « Agent en contact ». */
     agents: AgentOption[];
     /** Partenaires du dossier, annuaire et rôles pour la carte « Partenaires du dossier ». */
@@ -120,6 +118,7 @@ const dateTime = new Intl.DateTimeFormat('fr-FR', {
 
 export default function LeadsShow({
     lead,
+    property = null,
     invoices,
     quotes,
     documentRequests,
@@ -130,6 +129,7 @@ export default function LeadsShow({
     recontactChannels,
     duplicates,
     inbound,
+    qualification: aiQualification = null,
     agents,
     partners,
     partnerOptions,
@@ -325,42 +325,19 @@ export default function LeadsShow({
             empty: lead.qualification_note === null,
         },
     ];
-    const kpis: Kpi[] = [
-        { label: 'Budget mensuel', value: budget ?? '—' },
-        {
-            label: "Date d'arrivée",
-            value: lead.arrival_at ? formatDate(lead.arrival_at) : '—',
-        },
-        { label: 'Offre visée', value: lead.offer_label ?? '—' },
-        {
-            label: 'Qualité',
-            value:
-                lead.score === null ? (
-                    '—'
-                ) : (
-                    <span className="inline-flex items-center gap-1.5">
-                        <Star
-                            className="size-4 fill-current text-amber-500"
-                            aria-hidden
-                        />
-                        {lead.score} / 5
-                    </span>
-                ),
-        },
-    ];
     // Lead arrivé du site ou du téléphone et pas encore traité : son message
     // prime, les champs vides disparaissent au profit d'un bouton « Compléter ».
     const condensed = inbound !== null && lead.status === 'todo';
+    // Lead propriétaire : la fiche montre le bien proposé et se modifie dans la Converting Machine propriétaire.
+    const isOwner = lead.segment === 'owner';
+    const editHref = isOwner
+        ? ownerLeadEdit({ lead: lead.uuid })
+        : leadEdit({ lead: lead.uuid });
     const onlyFilled = (list: Fact[]): Fact[] =>
         condensed ? list.filter((fact) => !fact.empty) : list;
     const visibleFacts = onlyFilled(
         condensed ? facts.filter((fact) => fact.label !== 'Source') : facts,
     );
-    const hasKpi =
-        budget !== null ||
-        lead.arrival_at !== null ||
-        lead.offer_label !== null ||
-        lead.score !== null;
     const map = (
         <div className="grid gap-2">
             <p className="text-muted-foreground text-sm">
@@ -522,8 +499,7 @@ export default function LeadsShow({
                             </p>
                             {(firstContact !== null ||
                                 urgency.contact === 'warn' ||
-                                urgency.contact === 'late' ||
-                                urgency.arrivalInDays !== null) && (
+                                urgency.contact === 'late') && (
                                 <div className="flex flex-wrap gap-1.5 pt-2">
                                     <FirstContactBadge timer={firstContact} />
                                     {(urgency.contact === 'warn' ||
@@ -546,29 +522,13 @@ export default function LeadsShow({
                                             {urgency.daysSinceContact} j
                                         </Badge>
                                     )}
-                                    {urgency.arrivalInDays !== null && (
-                                        <Badge
-                                            variant="secondary"
-                                            className="gap-1 bg-sky-50 py-0.5 pr-2 pl-1.5 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
-                                        >
-                                            <PlaneLanding
-                                                className="size-3"
-                                                aria-hidden
-                                            />
-                                            {urgency.arrivalInDays < 0
-                                                ? 'Arrivé'
-                                                : urgency.arrivalInDays === 0
-                                                  ? "Arrive aujourd'hui"
-                                                  : `Arrive dans ${urgency.arrivalInDays} j`}
-                                        </Badge>
-                                    )}
                                 </div>
                             )}
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
                         <Button variant="outline" asChild>
-                            <Link href={leadEdit({ lead: lead.uuid })}>
+                            <Link href={editHref}>
                                 <Pencil />
                                 Modifier
                             </Link>
@@ -630,12 +590,16 @@ export default function LeadsShow({
                     />
                 )}
 
+                {lead.status !== 'converted' && lead.status !== 'archived' && (
+                    <LeadQualificationCard
+                        lead={lead}
+                        qualification={aiQualification}
+                        className="mb-8"
+                    />
+                )}
+
                 <LeadShowBody
-                    completeUrl={
-                        condensed
-                            ? leadEdit({ lead: lead.uuid }).url
-                            : undefined
-                    }
+                    completeUrl={condensed ? editHref.url : undefined}
                     invoices={
                         <LeadInvoices
                             leadId={lead.id}
@@ -659,7 +623,17 @@ export default function LeadsShow({
                     }
                     contact={onlyFilled(contact)}
                     facts={visibleFacts}
-                    project={<LeadProject facts={visibleFacts} map={map} />}
+                    project={
+                        isOwner ? (
+                            property ? (
+                                <LeadPropertyCard property={property} />
+                            ) : undefined
+                        ) : (
+                            <LeadProject facts={visibleFacts} map={map} />
+                        )
+                    }
+                    projectTitle={isOwner ? 'Bien proposé' : 'Projet'}
+                    projectFilled={isOwner && property !== null}
                     message={
                         inbound?.kind === 'website' && condensed
                             ? null
@@ -718,7 +692,13 @@ export default function LeadsShow({
                         </LeadActivitySheet>
                     }
                     activityCount={activityCount}
-                    kpis={condensed && !hasKpi ? [] : kpis}
+                    counts={{
+                        commercial:
+                            quotes.length +
+                            invoices.length +
+                            documentRequests.length,
+                        partners: partners.length + (lead.agent ? 1 : 0),
+                    }}
                 />
             </div>
         </>

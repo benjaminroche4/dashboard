@@ -1,9 +1,9 @@
 import { Head } from '@inertiajs/react';
-import { DataTable } from '@/components/data-table';
 import {
     clientColumnLabels,
     clientColumns,
 } from '@/components/clients/columns';
+import { DataTable } from '@/components/data-table';
 import { index as clientsIndex } from '@/routes/clients';
 import type { Client } from '@/types';
 
@@ -30,6 +30,8 @@ export default function ClientsIndex({ clients }: Props) {
                     filterPlaceholder="Filtrer par client…"
                     columnLabels={clientColumnLabels}
                     frame="panel"
+                    // La chemise de la colonne Client s'ouvre au survol de toute la ligne.
+                    rowProps={() => ({ className: 'group' })}
                 />
             </div>
         </>

@@ -222,7 +222,7 @@ export default function DocumentsCreate({
                 <form
                     id="document-request-form"
                     onSubmit={submit}
-                    className="grid gap-6 pb-6 lg:grid-cols-[minmax(0,1fr)_280px]"
+                    className="grid grid-cols-1 gap-6 pb-6 lg:grid-cols-[minmax(0,1fr)_280px]"
                 >
                     <div className="grid gap-6">
                         {/* Personnes : une seule carte visible, navigation dans le récapitulatif à droite */}
@@ -329,11 +329,15 @@ export default function DocumentsCreate({
                                 <div className="grid gap-2">
                                     <Label htmlFor="upload_url">
                                         Lien sécurisé de dépôt{' '}
-                                        <span className="text-red-600">*</span>
+                                        <span className="text-muted-foreground font-normal">
+                                            (facultatif)
+                                        </span>
                                     </Label>
                                     <p className="text-muted-foreground text-xs">
-                                        Lien où le client déposera ses pièces.
-                                        Sera inclus dans le PDF.
+                                        Une page publique de dépôt est créée
+                                        automatiquement et incluse dans le PDF.
+                                        Ajoutez ici un dossier partagé (Drive…)
+                                        si vous en utilisez un en plus.
                                     </p>
                                     <Input
                                         id="upload_url"

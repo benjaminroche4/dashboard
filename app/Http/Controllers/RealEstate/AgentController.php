@@ -7,6 +7,7 @@ namespace App\Http\Controllers\RealEstate;
 use App\Actions\RealEstate\CreateAgent;
 use App\Actions\RealEstate\DeleteAgent;
 use App\Actions\RealEstate\ImportAgents;
+use App\Actions\RealEstate\ToggleFavorite;
 use App\Actions\RealEstate\UpdateAgent;
 use App\Data\AgentData;
 use App\Data\AgentImportRowData;
@@ -28,12 +29,15 @@ class AgentController extends Controller
 {
     use AuthorizesRequests;
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $this->authorize('viewAny', Agent::class);
 
+        // Les favoris du membre connecté d'abord, puis l'ordre alphabétique.
         $agents = Agent::query()
             ->with(['agency', 'creator', 'leads'])
+            ->withFavoriteOf($request->user())
+            ->orderByDesc('is_favorite')
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->get()
@@ -43,11 +47,11 @@ class AgentController extends Controller
         return Inertia::render('real-estate/agents', ['agents' => $agents, 'agencies' => $this->agencyOptions()]);
     }
 
-    public function show(Agent $agent): Response
+    public function show(Request $request, Agent $agent): Response
     {
         $this->authorize('view', $agent);
 
-        $agent->load(['agency.agents', 'creator', 'leads']);
+        $agent->load(['agency.agents', 'creator', 'leads'])->loadFavoriteOf($request->user());
 
         return Inertia::render('real-estate/agent', [
             'agent' => self::summary($agent),
@@ -99,6 +103,7 @@ class AgentController extends Controller
             'email' => $agent->email,
             'phone' => $agent->phone,
             'notes' => $agent->notes,
+            'is_favorite' => (bool) $agent->is_favorite,
             'agency' => $agent->agency === null ? null : ['id' => $agent->agency->id, 'uuid' => $agent->agency->uuid, 'name' => $agent->agency->name],
             // Leads dont il est le contact, du plus récent au plus ancien.
             'leads' => $agent->leads->map(fn (Lead $lead): array => [
@@ -143,6 +148,12 @@ class AgentController extends Controller
 
         /** @var list<array<string, mixed>> $rows */
         $rows = $request->validated('rows');
+
+        if (array_filter(array_column($rows, 'agency')) !== []) {
+            // L'import peut créer des agences : il faut aussi ce droit-là.
+            $this->authorize('create', Agency::class);
+        }
+
         $result = $import->handle(array_map(AgentImportRowData::from(...), $rows), $request->user());
 
         $message = __(':created agent(s) importé(s), :skipped ignoré(s) car déjà présent(s), :agencies agence(s) créée(s).', [
@@ -155,13 +166,27 @@ class AgentController extends Controller
         return back();
     }
 
+    /** Pose ou retire l'étoile du membre connecté sur cet agent (favori personnel). */
+    public function favorite(Request $request, Agent $agent, ToggleFavorite $toggle): RedirectResponse
+    {
+        $this->authorize('view', $agent);
+
+        $toggle->handle($request->user(), $agent);
+
+        return back();
+    }
+
     public function store(StoreAgentRequest $request, CreateAgent $create): RedirectResponse
     {
         $this->authorize('create', Agent::class);
 
-        $agent = $create->handle(AgentData::from($request->validated()), $request->user());
+        $notify = $request->boolean('notify');
+        $agent = $create->handle(AgentData::from($request->validated()), $request->user(), $notify);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Agent :name ajouté.', ['name' => $agent->fullName()])]);
+        $message = $notify && $agent->email !== null
+            ? __('Agent :name ajouté, e-mail de bienvenue envoyé.', ['name' => $agent->fullName()])
+            : __('Agent :name ajouté.', ['name' => $agent->fullName()]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
 
         return back();
     }
