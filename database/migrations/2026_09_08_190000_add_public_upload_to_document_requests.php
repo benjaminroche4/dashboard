@@ -10,11 +10,20 @@ use Illuminate\Support\Str;
 
 return new class extends Migration
 {
+    /**
+     * Chaque étape est vérifiée avant d'être jouée : un déploiement interrompu au milieu
+     * (colonne ajoutée mais migration non enregistrée) peut être relancé sans échouer.
+     */
     public function up(): void
     {
+        if (! Schema::hasColumn('document_requests', 'public_token')) {
+            Schema::table('document_requests', function (Blueprint $table): void {
+                // Jeton du lien public de dépôt (/depot/{jeton}), non devinable.
+                $table->string('public_token', 64)->nullable()->after('upload_url');
+            });
+        }
+
         Schema::table('document_requests', function (Blueprint $table): void {
-            // Jeton du lien public de dépôt (/depot/{jeton}), non devinable.
-            $table->string('public_token', 64)->nullable()->after('upload_url');
             // Le lien externe (Drive…) devient facultatif : le dépôt se fait sur la page publique.
             $table->string('upload_url', 2048)->nullable()->change();
         });
@@ -23,25 +32,29 @@ return new class extends Migration
             $request->forceFill(['public_token' => Str::random(48)])->saveQuietly();
         });
 
-        Schema::table('document_requests', function (Blueprint $table): void {
-            $table->string('public_token', 64)->nullable(false)->unique()->change();
-        });
+        if (! Schema::hasIndex('document_requests', 'document_requests_public_token_unique')) {
+            Schema::table('document_requests', function (Blueprint $table): void {
+                $table->string('public_token', 64)->nullable(false)->unique()->change();
+            });
+        }
 
-        Schema::create('document_uploads', function (Blueprint $table): void {
-            $table->id();
-            $table->uuid('uuid')->unique();
-            $table->foreignId('document_request_id')->constrained('document_requests')->cascadeOnDelete();
-            // Index de la personne du foyer (0 à 3) et clé de la pièce du catalogue.
-            $table->unsignedTinyInteger('person_index');
-            $table->string('document_key');
-            $table->string('original_name');
-            $table->string('path', 1024);
-            $table->string('mime_type', 100);
-            $table->unsignedBigInteger('size');
-            $table->timestamps();
+        if (! Schema::hasTable('document_uploads')) {
+            Schema::create('document_uploads', function (Blueprint $table): void {
+                $table->id();
+                $table->uuid('uuid')->unique();
+                $table->foreignId('document_request_id')->constrained('document_requests')->cascadeOnDelete();
+                // Index de la personne du foyer (0 à 3) et clé de la pièce du catalogue.
+                $table->unsignedTinyInteger('person_index');
+                $table->string('document_key');
+                $table->string('original_name');
+                $table->string('path', 1024);
+                $table->string('mime_type', 100);
+                $table->unsignedBigInteger('size');
+                $table->timestamps();
 
-            $table->index(['document_request_id', 'person_index', 'document_key']);
-        });
+                $table->index(['document_request_id', 'person_index', 'document_key']);
+            });
+        }
     }
 
     public function down(): void

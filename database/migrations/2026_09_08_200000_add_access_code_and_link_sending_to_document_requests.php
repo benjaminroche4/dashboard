@@ -9,14 +9,26 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Chaque colonne est vérifiée avant d'être ajoutée : un déploiement interrompu au milieu
+     * peut être relancé sans échouer sur une colonne déjà créée.
+     */
     public function up(): void
     {
         Schema::table('document_requests', function (Blueprint $table): void {
-            // Code d'appairage à 6 chiffres demandé sur la page publique de dépôt.
-            $table->string('access_code', 6)->nullable()->after('public_token');
-            // Dernier envoi du lien de dépôt par e-mail.
-            $table->string('link_sent_to')->nullable()->after('access_code');
-            $table->timestamp('link_sent_at')->nullable()->after('link_sent_to');
+            if (! Schema::hasColumn('document_requests', 'access_code')) {
+                // Code d'appairage à 6 chiffres demandé sur la page publique de dépôt.
+                $table->string('access_code', 6)->nullable()->after('public_token');
+            }
+
+            if (! Schema::hasColumn('document_requests', 'link_sent_to')) {
+                // Dernier envoi du lien de dépôt par e-mail.
+                $table->string('link_sent_to')->nullable()->after('access_code');
+            }
+
+            if (! Schema::hasColumn('document_requests', 'link_sent_at')) {
+                $table->timestamp('link_sent_at')->nullable()->after('link_sent_to');
+            }
         });
 
         DocumentRequest::query()->whereNull('access_code')->each(function (DocumentRequest $request): void {
