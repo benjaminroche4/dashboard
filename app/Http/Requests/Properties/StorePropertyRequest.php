@@ -7,6 +7,7 @@ namespace App\Http\Requests\Properties;
 use App\Enums\Currency;
 use App\Enums\Furnished;
 use App\Enums\LeaseType;
+use App\Enums\PropertyStatus;
 use App\Enums\PropertyType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -37,6 +38,7 @@ class StorePropertyRequest extends FormRequest
             $prefix.'city' => ['nullable', 'string', 'max:255'],
             $prefix.'district' => ['nullable', 'integer', 'min:1', 'max:20'],
             $prefix.'property_type' => ['nullable', Rule::enum(PropertyType::class)],
+            $prefix.'status' => ['nullable', Rule::enum(PropertyStatus::class)],
             $prefix.'furnished' => ['nullable', Rule::enum(Furnished::class)],
             $prefix.'rooms' => ['nullable', 'integer', 'min:1', 'max:30'],
             $prefix.'surface_m2' => ['nullable', 'integer', 'min:1', 'max:5000'],
@@ -74,6 +76,7 @@ class StorePropertyRequest extends FormRequest
             $prefix.'city' => 'ville',
             $prefix.'district' => 'arrondissement',
             $prefix.'property_type' => 'type de bien',
+            $prefix.'status' => 'statut',
             $prefix.'furnished' => 'meublé',
             $prefix.'rooms' => 'pièces',
             $prefix.'surface_m2' => 'surface',

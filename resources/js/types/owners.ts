@@ -61,7 +61,13 @@ export type OwnerPropertyType =
     | 'loft'
     | 'house';
 
-export type PropertyStatus = 'available' | 'rented' | 'under_renovation';
+/** Disponibilité d'un bien (annuaire « Biens » et bien proposé par un lead propriétaire). */
+export type PropertyStatus =
+    | 'available'
+    | 'under_offer'
+    | 'rented'
+    | 'under_renovation'
+    | 'unavailable';
 
 export type LeaseType =
     | 'alur'

@@ -6,6 +6,7 @@ use App\Enums\LeadStatus;
 use App\Enums\LeaseType;
 use App\Enums\OwnerPropertyType;
 use App\Enums\PropertyAmenity;
+use App\Enums\PropertyStatus;
 use App\Enums\WebsiteHelpType;
 use App\Events\DashboardUpdated;
 use App\Models\Lead;
@@ -58,7 +59,7 @@ test('the owner converting machine page exposes the property options', function 
             ->has('languages')
             ->has('sources')
             ->has('propertyTypes', 9)
-            ->has('propertyStatuses', 3)
+            ->has('propertyStatuses', count(PropertyStatus::cases()))
             ->has('leaseTypes', 5)
             ->has('orientations', 4)
             ->has('amenities', 24)

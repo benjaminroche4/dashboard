@@ -1,25 +1,25 @@
 import { Head } from '@inertiajs/react';
-import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
+import { MyWorkCard } from '@/components/dashboard/my-work-card';
 import { dashboard } from '@/routes';
+import type { MyWork } from '@/types';
 
-export default function Dashboard() {
+type Props = {
+    mine: MyWork;
+};
+
+export default function Dashboard({ mine }: Props) {
     return (
         <>
             <Head title="Tableau de bord" />
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6">
-                <div className="grid auto-rows-min grid-cols-1 gap-4 md:grid-cols-3">
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border relative aspect-video overflow-hidden rounded-xl border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                    </div>
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border relative aspect-video overflow-hidden rounded-xl border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                    </div>
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border relative aspect-video overflow-hidden rounded-xl border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                    </div>
+            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-10">
+                <div className="pt-8 pb-6">
+                    <h1 className="text-lg font-medium">Tableau de bord</h1>
+                    <p className="text-muted-foreground text-sm">
+                        Ce qui vous est attribué, en un coup d’œil.
+                    </p>
                 </div>
-                <div className="border-sidebar-border/70 dark:border-sidebar-border relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border md:min-h-min">
-                    <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
+                <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                    <MyWorkCard mine={mine} />
                 </div>
             </div>
         </>

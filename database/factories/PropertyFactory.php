@@ -6,6 +6,7 @@ namespace Database\Factories;
 
 use App\Enums\Currency;
 use App\Enums\Furnished;
+use App\Enums\PropertyStatus;
 use App\Enums\PropertyType;
 use App\Models\Property;
 use App\Support\ParisArrondissements;
@@ -30,6 +31,7 @@ class PropertyFactory extends Factory
             'postal_code' => '750'.str_pad((string) $district, 2, '0', STR_PAD_LEFT),
             'city' => 'Paris',
             'district' => $district,
+            'status' => PropertyStatus::Available,
             'property_type' => $type,
             'furnished' => fake()->randomElement([Furnished::Furnished, Furnished::Furnished, Furnished::Unfurnished]),
             'rooms' => fake()->numberBetween(1, 5),
@@ -58,5 +60,10 @@ class PropertyFactory extends Factory
                 'longitude' => round($center['lng'] + fake()->randomFloat(4, -0.009, 0.009), 7),
             ];
         });
+    }
+
+    public function status(PropertyStatus $status): static
+    {
+        return $this->state(fn (): array => ['status' => $status]);
     }
 }

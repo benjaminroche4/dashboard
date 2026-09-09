@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\PropertyStatus;
 use App\Enums\PropertyType;
 use App\Events\DashboardUpdated;
 use App\Models\Agent;
@@ -145,4 +146,24 @@ test('a property has a detail page with its owner, visits and the form options, 
             ->has('propertyTypes'));
 
     $this->actingAs(User::factory()->create())->get("/properties/{$property->id}")->assertNotFound();
+});
+
+test('a property has an availability status, available by default, changed on update and listed in the form options', function (): void {
+    $member = User::factory()->create();
+
+    $this->actingAs($member)->post(route('properties.store'), ['street' => '9 rue Oberkampf'])->assertSessionHasNoErrors();
+    $property = Property::query()->firstOrFail();
+    expect($property->status)->toBe(PropertyStatus::Available)->and($property->status->isOpen())->toBeTrue();
+
+    $this->actingAs($member)->patch(route('properties.update', $property), ['street' => '9 rue Oberkampf', 'status' => 'unavailable'])->assertSessionHasNoErrors();
+    expect($property->refresh()->status)->toBe(PropertyStatus::Unavailable)->and($property->status->isOpen())->toBeFalse();
+
+    $this->actingAs($member)->patch(route('properties.update', $property), ['street' => '9 rue Oberkampf', 'status' => 'nope'])->assertSessionHasErrors('status');
+
+    $this->actingAs($member)
+        ->get(route('properties.index'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('properties.0.status', 'unavailable')
+            ->where('properties.0.status_label', 'Non disponible')
+            ->has('propertyStatuses', count(PropertyStatus::cases())));
 });

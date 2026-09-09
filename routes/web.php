@@ -3,6 +3,7 @@
 use App\Http\Controllers\Clients\ClientController;
 use App\Http\Controllers\Clients\ClientPropertyController;
 use App\Http\Controllers\Clients\VisitController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Documents\CatalogDocumentController;
 use App\Http\Controllers\Documents\DocumentRequestController;
 use App\Http\Controllers\Documents\DocumentUploadController;
@@ -54,7 +55,7 @@ Route::post('depot/{documentRequest:public_token}/code', [PublicDocumentUploadCo
     ->name('documents.public.verify');
 
 Route::middleware(['auth'])->group(function (): void {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::inertia('tools', 'tools/index')->name('tools.index');
     Route::get('tools/documents', [DocumentRequestController::class, 'index'])->name('tools.documents.index');
     Route::get('tools/documents/create', [DocumentRequestController::class, 'create'])->name('tools.documents.create');

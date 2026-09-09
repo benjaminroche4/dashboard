@@ -2,6 +2,7 @@ import type {
     Currency,
     Furnished,
     LeaseType,
+    PropertyStatus,
     PropertyType,
     VisitStatus,
 } from '@/types';
@@ -18,6 +19,9 @@ export type Property = {
     city: string | null;
     /** Arrondissement (1 à 20), déduit du code postal 750XX si absent. */
     district: number | null;
+    /** Disponibilité du bien. */
+    status: PropertyStatus;
+    status_label: string;
     property_type: PropertyType | null;
     property_type_label: string | null;
     furnished: Furnished | null;
@@ -55,6 +59,7 @@ export type PropertyForm = {
     postal_code: string;
     city: string;
     district: string;
+    status: PropertyStatus;
     property_type: PropertyType | '';
     furnished: Furnished | '';
     rooms: string;
@@ -82,6 +87,7 @@ export type PropertyOwnerOption = { id: number; name: string };
 /** Listes du formulaire d'un bien, partagées avec les visites. */
 export type PropertyFormOptions = {
     propertyTypes: { value: PropertyType; label: string }[];
+    propertyStatuses: { value: PropertyStatus; label: string }[];
     furnishedOptions: { value: Furnished; label: string }[];
     leaseTypes: { value: LeaseType; label: string }[];
     currencies: Currency[];

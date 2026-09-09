@@ -12,6 +12,7 @@ use App\Data\PropertyData;
 use App\Enums\Currency;
 use App\Enums\Furnished;
 use App\Enums\LeaseType;
+use App\Enums\PropertyStatus;
 use App\Enums\PropertyType;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Owners\OwnerController;
@@ -202,6 +203,7 @@ class PropertyController extends Controller
     {
         return [
             'propertyTypes' => PropertyType::options(),
+            'propertyStatuses' => PropertyStatus::options(),
             'furnishedOptions' => Furnished::options(),
             'leaseTypes' => LeaseType::options(),
             'currencies' => array_map(fn (Currency $currency): string => $currency->value, Currency::cases()),
@@ -228,6 +230,8 @@ class PropertyController extends Controller
             'postal_code' => $property->postal_code,
             'city' => $property->city,
             'district' => $property->district,
+            'status' => $property->status->value,
+            'status_label' => $property->status->label(),
             'property_type' => $property->property_type?->value,
             'property_type_label' => $property->property_type?->label(),
             'furnished' => $property->furnished?->value,

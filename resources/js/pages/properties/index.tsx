@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { Home, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { FilterMenu } from '@/components/filter-menu';
 import { PropertyCard } from '@/components/properties/property-card';
 import { formatAddress } from '@/components/real-estate/columns';
 import { Button } from '@/components/ui/button';
@@ -9,24 +10,40 @@ import {
     create as propertyCreate,
     index as propertiesIndex,
 } from '@/routes/properties';
-import type { Property, PropertyFormOptions } from '@/types';
+import type { Property, PropertyFormOptions, PropertyStatus } from '@/types';
 
 type Props = PropertyFormOptions & {
     properties: Property[];
 };
 
-export default function PropertiesIndex({ properties }: Props) {
+export default function PropertiesIndex({
+    properties,
+    propertyStatuses,
+}: Props) {
     const [filter, setFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState<PropertyStatus[]>([]);
     const needle = filter.trim().toLocaleLowerCase('fr');
-    const visible =
-        needle === ''
-            ? properties
-            : properties.filter((property) =>
-                  [property.label, formatAddress(property) ?? '']
-                      .join(' ')
-                      .toLocaleLowerCase('fr')
-                      .includes(needle),
-              );
+    const statusCounts = useMemo(
+        () =>
+            properties.reduce<Partial<Record<PropertyStatus, number>>>(
+                (acc, property) => ({
+                    ...acc,
+                    [property.status]: (acc[property.status] ?? 0) + 1,
+                }),
+                {},
+            ),
+        [properties],
+    );
+    const visible = properties.filter(
+        (property) =>
+            (statusFilter.length === 0 ||
+                statusFilter.includes(property.status)) &&
+            (needle === '' ||
+                [property.label, formatAddress(property) ?? '']
+                    .join(' ')
+                    .toLocaleLowerCase('fr')
+                    .includes(needle)),
+    );
     const visited = properties.filter(
         (property) => property.visits_count > 0,
     ).length;
@@ -66,13 +83,24 @@ export default function PropertiesIndex({ properties }: Props) {
                     </section>
                 ) : (
                     <div className="grid gap-4">
-                        <Input
-                            value={filter}
-                            onChange={(event) => setFilter(event.target.value)}
-                            placeholder="Filtrer par bien ou adresse…"
-                            aria-label="Filtrer par bien ou adresse"
-                            className="max-w-sm"
-                        />
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Input
+                                value={filter}
+                                onChange={(event) =>
+                                    setFilter(event.target.value)
+                                }
+                                placeholder="Filtrer par bien ou adresse…"
+                                aria-label="Filtrer par bien ou adresse"
+                                className="max-w-sm"
+                            />
+                            <FilterMenu
+                                title="Disponibilité"
+                                options={propertyStatuses}
+                                counts={statusCounts}
+                                value={statusFilter}
+                                onChange={setStatusFilter}
+                            />
+                        </div>
                         {visible.length === 0 ? (
                             <p className="text-muted-foreground text-sm">
                                 Aucun bien ne correspond à ce filtre.

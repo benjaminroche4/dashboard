@@ -7,6 +7,7 @@ namespace App\Data;
 use App\Enums\Currency;
 use App\Enums\Furnished;
 use App\Enums\LeaseType;
+use App\Enums\PropertyStatus;
 use App\Enums\PropertyType;
 use Illuminate\Http\UploadedFile;
 
@@ -38,6 +39,7 @@ final readonly class PropertyData
         public ?int $agentId,
         public ?int $ownerId,
         public ?string $notes,
+        public PropertyStatus $status = PropertyStatus::Available,
         public array $photos = [],
     ) {}
 
@@ -67,6 +69,7 @@ final readonly class PropertyData
             agentId: self::int($data['agent_id'] ?? null),
             ownerId: self::int($data['owner_id'] ?? null),
             notes: self::blankToNull($data['notes'] ?? null),
+            status: self::enum(PropertyStatus::class, $data['status'] ?? null) ?? PropertyStatus::Available,
             photos: array_values(array_filter(is_array($data['photos'] ?? null) ? $data['photos'] : [], fn (mixed $file): bool => $file instanceof UploadedFile)),
         );
     }
@@ -95,6 +98,7 @@ final readonly class PropertyData
             'agent_id' => $this->agentId,
             'owner_id' => $this->ownerId,
             'notes' => $this->notes,
+            'status' => $this->status,
         ];
     }
 

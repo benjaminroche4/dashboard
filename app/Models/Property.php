@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\Currency;
 use App\Enums\Furnished;
 use App\Enums\LeaseType;
+use App\Enums\PropertyStatus;
 use App\Enums\PropertyType;
 use Carbon\CarbonInterface;
 use Database\Factories\PropertyFactory;
@@ -30,6 +31,7 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $postal_code
  * @property string|null $city
  * @property int|null $district
+ * @property PropertyStatus $status
  * @property float|null $latitude
  * @property float|null $longitude
  * @property PropertyType|null $property_type
@@ -54,7 +56,7 @@ use Illuminate\Support\Facades\Storage;
  * @property-read User|null $creator
  * @property-read Collection<int, Visit> $visits
  */
-#[Fillable(['title', 'street', 'postal_code', 'city', 'district', 'property_type', 'furnished', 'rooms', 'surface_m2', 'floor', 'lease_type', 'rent_cents', 'charges_cents', 'currency', 'listing_url', 'agent_id', 'owner_id', 'photos', 'notes', 'created_by'])]
+#[Fillable(['title', 'street', 'postal_code', 'city', 'district', 'status', 'property_type', 'furnished', 'rooms', 'surface_m2', 'floor', 'lease_type', 'rent_cents', 'charges_cents', 'currency', 'listing_url', 'agent_id', 'owner_id', 'photos', 'notes', 'created_by'])]
 class Property extends Model
 {
     /** @use HasFactory<PropertyFactory> */
@@ -82,6 +84,7 @@ class Property extends Model
     {
         return [
             'district' => 'integer',
+            'status' => PropertyStatus::class,
             'latitude' => 'float',
             'longitude' => 'float',
             'property_type' => PropertyType::class,

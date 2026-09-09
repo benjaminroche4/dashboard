@@ -7,6 +7,7 @@ import {
     Images,
 } from 'lucide-react';
 import { PropertyRowActions } from '@/components/properties/property-row-actions';
+import { PropertyStatusBadge } from '@/components/properties/property-status-badge';
 import { formatAddress } from '@/components/real-estate/columns';
 import { Badge } from '@/components/ui/badge';
 import { formatMoney } from '@/lib/format';
@@ -98,6 +99,12 @@ export function PropertyCard({ property }: { property: Property }) {
                     <p className="text-muted-foreground truncate text-xs">
                         {address ?? 'Adresse non renseignée'}
                     </p>
+                    <div className="pt-1">
+                        <PropertyStatusBadge
+                            status={property.status}
+                            label={property.status_label}
+                        />
+                    </div>
                 </div>
                 <div className="-mt-1 -mr-2 shrink-0">
                     <PropertyRowActions property={property} />

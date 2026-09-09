@@ -171,6 +171,46 @@ describe('Properties page', () => {
         ).toBeInTheDocument();
     });
 
+    it('shows the availability badge on each card and filters by status', async () => {
+        const user = userEvent.setup();
+        render(
+            <PropertiesIndex
+                properties={[
+                    makeProperty(),
+                    makeProperty({
+                        id: 2,
+                        uuid: 'property-2',
+                        title: 'Studio · 5e',
+                        label: 'Studio · 5e',
+                        status: 'unavailable',
+                        status_label: 'Non disponible',
+                    }),
+                ]}
+                {...propertyFormOptions}
+            />,
+        );
+
+        const cards = screen.getAllByTestId('property-card');
+        expect(
+            within(cards[0] as HTMLElement).getByText('Disponible'),
+        ).toHaveAttribute('data-status', 'available');
+        expect(
+            within(cards[1] as HTMLElement).getByText('Non disponible'),
+        ).toHaveAttribute('data-status', 'unavailable');
+
+        await user.click(screen.getByRole('button', { name: 'Filtres' }));
+        await user.click(
+            await screen.findByRole('menuitemcheckbox', {
+                name: /Non disponible/,
+            }),
+        );
+        await user.keyboard('{Escape}');
+
+        const filtered = screen.getAllByTestId('property-card');
+        expect(filtered).toHaveLength(1);
+        expect(filtered[0]).toHaveTextContent('Studio · 5e');
+    });
+
     it('links the add button to the dedicated page', () => {
         render(<PropertiesIndex properties={[]} {...propertyFormOptions} />);
 

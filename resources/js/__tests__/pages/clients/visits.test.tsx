@@ -120,6 +120,8 @@ describe('Clients visits page', () => {
 
     afterEach(() => {
         vi.useRealTimers();
+        // L'URL est partagée entre les tests : `?report=` ouvrirait un dialogue ailleurs.
+        window.history.replaceState({}, '', '/');
     });
 
     it('shows an empty state until visits exist', () => {
@@ -316,7 +318,6 @@ describe('Clients visits page', () => {
                 name: 'Compte rendu de la visite de Léa Durand',
             }),
         ).toBeInTheDocument();
-        window.history.replaceState({}, '', '/clients/visits');
     });
 
     it('links the schedule button to the dedicated page', () => {

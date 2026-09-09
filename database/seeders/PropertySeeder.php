@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Enums\LeadStatus;
+use App\Enums\PropertyStatus;
 use App\Enums\VisitStatus;
 use App\Models\Agent;
 use App\Models\Lead;
@@ -26,8 +27,11 @@ final class PropertySeeder extends Seeder
         $creator = fn (): array => ['created_by' => User::query()->inRandomOrder()->value('id')];
         $agent = fn (): array => ['agent_id' => Agent::query()->inRandomOrder()->value('id')];
 
-        Property::factory()->count(6)->located()->state($creator)->create();
-        Property::factory()->count(6)->located()->state($creator)->state($agent)->create();
+        Property::factory()->count(4)->located()->state($creator)->create();
+        Property::factory()->located()->status(PropertyStatus::UnderOffer)->state($creator)->create();
+        Property::factory()->located()->status(PropertyStatus::Unavailable)->state($creator)->create();
+        Property::factory()->count(5)->located()->state($creator)->state($agent)->create();
+        Property::factory()->located()->status(PropertyStatus::Rented)->state($creator)->state($agent)->create();
 
         $clients = Lead::query()->where('status', LeadStatus::Converted)->inRandomOrder()->limit(5)->get();
 

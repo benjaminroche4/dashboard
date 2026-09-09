@@ -7,6 +7,13 @@ export const propertyFormOptions: PropertyFormOptions = {
         { value: 't2', label: 'T2' },
         { value: 't3', label: 'T3' },
     ],
+    propertyStatuses: [
+        { value: 'available', label: 'Disponible' },
+        { value: 'under_offer', label: 'Sous option' },
+        { value: 'rented', label: 'Loué' },
+        { value: 'under_renovation', label: 'En travaux' },
+        { value: 'unavailable', label: 'Non disponible' },
+    ],
     furnishedOptions: [
         { value: 'furnished', label: 'Meublé' },
         { value: 'unfurnished', label: 'Non meublé' },
@@ -31,6 +38,8 @@ export function makeProperty(overrides: Partial<Property> = {}): Property {
         postal_code: '75011',
         city: 'Paris',
         district: 11,
+        status: 'available',
+        status_label: 'Disponible',
         property_type: 't2',
         property_type_label: 'T2',
         furnished: 'furnished',

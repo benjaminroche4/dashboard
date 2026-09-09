@@ -3,6 +3,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown, ExternalLink } from 'lucide-react';
 import { CreatedBy } from '@/components/created-by';
 import { PropertyRowActions } from '@/components/properties/property-row-actions';
+import { PropertyStatusBadge } from '@/components/properties/property-status-badge';
 import { formatAddress } from '@/components/real-estate/columns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,7 @@ function SortableHeader({
 }
 
 export const propertyColumnLabels: Record<string, string> = {
+    status_label: 'Statut',
     label: 'Bien',
     features: 'Caractéristiques',
     rent_cents: 'Loyer',
@@ -73,6 +75,16 @@ export function propertyColumns(): ColumnDef<Property>[] {
                             ` · ${row.original.district}e`}
                     </span>
                 </div>
+            ),
+        },
+        {
+            accessorKey: 'status_label',
+            header: 'Statut',
+            cell: ({ row }) => (
+                <PropertyStatusBadge
+                    status={row.original.status}
+                    label={row.original.status_label}
+                />
             ),
         },
         {

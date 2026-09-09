@@ -99,6 +99,7 @@ export function PropertyFields({
 
     const select = <
         K extends
+            | 'status'
             | 'property_type'
             | 'furnished'
             | 'lease_type'
@@ -180,6 +181,12 @@ export function PropertyFields({
 
             <Group title="Caractéristiques">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {select(
+                        'status',
+                        'Statut',
+                        options.propertyStatuses,
+                        'Disponible',
+                    )}
                     {select(
                         'property_type',
                         'Type',

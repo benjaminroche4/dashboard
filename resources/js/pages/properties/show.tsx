@@ -8,6 +8,7 @@ import {
     Mail,
     Phone,
 } from 'lucide-react';
+import { PropertyStatusBadge } from '@/components/properties/property-status-badge';
 import { formatAddress } from '@/components/real-estate/columns';
 import {
     DetailHeader,
@@ -76,6 +77,10 @@ export default function PropertyShow({ property, owner, visits }: Props) {
                     name={property.label}
                     subtitle={
                         <>
+                            <PropertyStatusBadge
+                                status={property.status}
+                                label={property.status_label}
+                            />
                             {address && <span>{address}</span>}
                             {property.district && (
                                 <Badge variant="secondary">
@@ -110,6 +115,9 @@ export default function PropertyShow({ property, owner, visits }: Props) {
                     <div className="divide-y">
                         <DetailSection title="Caractéristiques">
                             <dl className="grid gap-3">
+                                <DetailRow label="Statut">
+                                    {property.status_label}
+                                </DetailRow>
                                 <DetailRow label="Type">
                                     {property.property_type_label ??
                                         missingValue}
