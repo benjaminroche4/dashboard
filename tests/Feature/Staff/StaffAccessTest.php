@@ -37,10 +37,11 @@ test('each role has default levels per section: admins manage, managers write, m
 });
 
 test('an admin opens the rights page of a member and saves role, levels and functions, only the differences being stored', function (): void {
-    $admin = User::factory()->admin()->create();
+    // Noms fixés : l'annuaire `staff` est trié par nom et le test lit `staff.2`.
+    $admin = User::factory()->admin()->create(['name' => 'Alice Bernard']);
     $member = User::factory()->create(['name' => 'Zoé Petit']);
 
-    $this->actingAs(User::factory()->manager()->create())->get(route('team.show', $member))->assertForbidden();
+    $this->actingAs(User::factory()->manager()->create(['name' => 'Bruno Marchal']))->get(route('team.show', $member))->assertForbidden();
 
     $this->actingAs($admin)
         ->get(route('team.show', $member))
@@ -154,6 +155,48 @@ test('the team page tells which members have custom rights and closed sections',
             ->where('members.1.function_labels', ['Agent de visite']));
 });
 
+test('the activity log is a section of its own, closable without closing the reports', function (): void {
+    $member = User::factory()->create(['role' => StaffRole::Member, 'permissions' => ['activity' => 'none']]);
+
+    $this->actingAs($member)->get(route('tools.reports.index'))->assertOk();
+    $this->actingAs($member)->get(route('tools.activity.index'))->assertForbidden();
+
+    // Et l'inverse : le journal sans les chiffres du cabinet.
+    $other = User::factory()->create(['role' => StaffRole::Member, 'permissions' => ['reports' => 'none']]);
+    $this->actingAs($other)->get(route('tools.activity.index'))->assertOk();
+    $this->actingAs($other)->get(route('tools.reports.index'))->assertForbidden();
+});
+
+test('« Gérer » is not offered where it adds nothing, and is stored as « Modifier »', function (): void {
+    $admin = User::factory()->admin()->create();
+    $member = User::factory()->create(['role' => StaffRole::Member]);
+
+    foreach ([SiteSection::LeadsCreate, SiteSection::OwnerLeadsCreate, SiteSection::Clients, SiteSection::Reports, SiteSection::Activity] as $section) {
+        expect($section->hasManage())->toBeFalse()
+            ->and($section->clamp(AccessLevel::Manage))->toBe(AccessLevel::Write);
+    }
+    expect(SiteSection::Leads->hasManage())->toBeTrue();
+
+    // Le formulaire envoie la matrice entière : on part des droits du rôle.
+    $permissions = [...SiteSection::roleDefaults()[StaffRole::Member->value], 'clients' => 'manage', 'leads' => 'manage'];
+
+    $this->actingAs($admin)
+        ->patch(route('team.access', $member), ['permissions' => $permissions, 'functions' => []])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    // Seule la section où « Gérer » veut dire quelque chose est mémorisée.
+    expect($member->fresh()->permissions)->toBe(['leads' => 'manage'])
+        ->and($member->fresh()->accessLevel(SiteSection::Clients))->toBe(AccessLevel::Write);
+});
+
+test('an agency is governed by the agents section, the two being inseparable', function (): void {
+    $member = User::factory()->create(['role' => StaffRole::Member, 'permissions' => ['agents' => 'none']]);
+
+    $this->actingAs($member)->get(route('agents.index'))->assertForbidden();
+    $this->actingAs($member)->get(route('agencies.index'))->assertForbidden();
+});
+
 test('every section maps its routes and no other route is guarded by mistake', function (): void {
     expect(SiteSection::forRoute('leads.create'))->toBe([SiteSection::LeadsCreate, SiteSection::OwnerLeadsCreate])
         ->and(SiteSection::forRoute('leads.index'))->toBe([SiteSection::Leads])
@@ -165,7 +208,8 @@ test('every section maps its routes and no other route is guarded by mistake', f
         ->and(SiteSection::forRoute('tools.documents.pdf'))->toBe([SiteSection::Documents])
         ->and(SiteSection::forRoute('invoices.pdf'))->toBe([SiteSection::Invoices])
         ->and(SiteSection::forRoute('tools.reports.index'))->toBe([SiteSection::Reports])
-        ->and(SiteSection::forRoute('tools.activity.index'))->toBe([SiteSection::Reports])
+        ->and(SiteSection::forRoute('tools.activity.index'))->toBe([SiteSection::Activity])
+        ->and(SiteSection::forRoute('agencies.index'))->toBe([SiteSection::Agents])
         ->and(SiteSection::forRoute('dashboard'))->toBe([])
         ->and(SiteSection::forRoute('team.access'))->toBe([])
         ->and(SiteSection::forRoute(null))->toBe([]);

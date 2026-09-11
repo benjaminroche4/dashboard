@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseAgentRows } from '@/lib/real-estate-import';
+import { parseAgentRows, parseAgencyRows } from '@/lib/real-estate-import';
 
 describe('parseAgentRows', () => {
     it('reads tab-separated rows in the default column order', () => {
@@ -57,5 +57,39 @@ describe('parseAgentRows', () => {
             invalid: [],
             hasHeader: false,
         });
+    });
+});
+
+describe('parseAgencyRows', () => {
+    it('reads a header, or falls back to name, e-mail, phone, city', () => {
+        const withHeader = parseAgencyRows(
+            'Agence;E-mail;Téléphone;Ville\nAgence du Marais;contact@marais.fr;+33 1 42 00 00 00;Paris',
+        );
+
+        expect(withHeader.hasHeader).toBe(true);
+        expect(withHeader.rows).toEqual([
+            {
+                name: 'Agence du Marais',
+                email: 'contact@marais.fr',
+                phone: '+33 1 42 00 00 00',
+                city: 'Paris',
+            },
+        ]);
+
+        const plain = parseAgencyRows(
+            'Century 21 Bastille\tbastille@c21.fr\t+33 1 43 00 00 00\tParis',
+        );
+        expect(plain.hasHeader).toBe(false);
+        expect(plain.rows[0]?.name).toBe('Century 21 Bastille');
+    });
+
+    it('ignores the lines without a name and numbers them', () => {
+        // Deuxième ligne sans nom : la colonne est vide avant le séparateur.
+        const parsed = parseAgencyRows(
+            'Agence du Marais\n;contact@x.fr\nCentury 21\n',
+        );
+
+        expect(parsed.rows).toHaveLength(2);
+        expect(parsed.invalid).toEqual([2]);
     });
 });

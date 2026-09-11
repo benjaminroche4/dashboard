@@ -72,6 +72,13 @@ return [
         // Visios : compte de service Workspace (chemin du JSON ou JSON en base64) et adresse organisatrice centrale.
         'calendar_key_file' => env('GOOGLE_CALENDAR_KEY_FILE'),
         'calendar_organizer' => env('GOOGLE_CALENDAR_ORGANIZER', 'contact@relocation-in-paris.fr'),
+        // Connexion « Se connecter avec Google » (Socialite). Aucune inscription :
+        // seul un membre déjà créé dans l'équipe peut entrer, reconnu par son e-mail.
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
+        // Domaines autorisés (« relocation-in-paris.fr,exemple.fr »), vide = tous.
+        'allowed_domains' => env('GOOGLE_ALLOWED_DOMAINS'),
     ],
 
     'yousign' => [

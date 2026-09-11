@@ -15,6 +15,7 @@ import {
     CalendarClock,
     Handshake,
     House,
+    UserRound,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { search as leadsSearch } from '@/routes/leads';
@@ -36,6 +37,8 @@ import {
     search as invoicesSearch,
 } from '@/routes/invoices';
 import { search as quotesSearch } from '@/routes/tools/quotes';
+import { search as agenciesSearch } from '@/routes/agencies';
+import { search as agentsSearch } from '@/routes/agents';
 import { search as ownersSearch } from '@/routes/owners';
 import {
     index as partnersIndex,
@@ -269,6 +272,8 @@ export function SearchCommand() {
     const [quotes, setQuotes] = useState<SearchHit[]>([]);
     const [properties, setProperties] = useState<SearchHit[]>([]);
     const [owners, setOwners] = useState<SearchHit[]>([]);
+    const [agents, setAgents] = useState<SearchHit[]>([]);
+    const [agencies, setAgencies] = useState<SearchHit[]>([]);
 
     // Recherche côté serveur, toutes les sources en parallèle, avec un léger
     // délai pour ne pas spammer. Une source refusée (section fermée, 403) ou en
@@ -283,6 +288,8 @@ export function SearchCommand() {
             setQuotes([]);
             setProperties([]);
             setOwners([]);
+            setAgents([]);
+            setAgencies([]);
 
             return;
         }
@@ -304,6 +311,8 @@ export function SearchCommand() {
                 load<SearchHit>(quotesSearch(q).url, setQuotes),
                 load<SearchHit>(propertiesSearch(q).url, setProperties),
                 load<SearchHit>(ownersSearch(q).url, setOwners),
+                load<SearchHit>(agentsSearch(q).url, setAgents),
+                load<SearchHit>(agenciesSearch(q).url, setAgencies),
             ]);
         }, 200);
 
@@ -453,6 +462,20 @@ export function SearchCommand() {
                         kind="propriétaire"
                         icon={KeyRound}
                         hits={owners}
+                        onSelect={go}
+                    />
+                    <HitGroup
+                        heading="Agents"
+                        kind="agent"
+                        icon={UserRound}
+                        hits={agents}
+                        onSelect={go}
+                    />
+                    <HitGroup
+                        heading="Agences"
+                        kind="agence"
+                        icon={Building2}
+                        hits={agencies}
                         onSelect={go}
                     />
                     <CommandGroup heading="Pages">

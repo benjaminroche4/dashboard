@@ -25,5 +25,35 @@ final class InvoiceSeeder extends Seeder
         Invoice::factory()->count(3)->overdue()->state($creator)->create();
         Invoice::factory()->count(2)->status(InvoiceStatus::Draft)->state($creator)->create();
         Invoice::factory()->status(InvoiceStatus::Cancelled)->state($creator)->create();
+
+        // Historique : la création, puis la transition vers le statut atteint.
+        // Sans lui, la fiche d'une facture de démonstration n'aurait pas de date de création.
+        foreach (Invoice::query()->with('statusChanges')->get() as $invoice) {
+            if ($invoice->statusChanges->isNotEmpty()) {
+                continue;
+            }
+
+            $invoice->statusChanges()->create([
+                'from_status' => null,
+                'to_status' => InvoiceStatus::Draft,
+                'changed_by' => $invoice->created_by,
+                'note' => 'Création',
+                'created_at' => $invoice->created_at,
+            ]);
+
+            if ($invoice->status !== InvoiceStatus::Draft) {
+                // La transition ne peut pas précéder la création : les dates des
+                // fixtures sont tirées au hasard, on garde la plus tardive.
+                $changedAt = $invoice->sent_at ?? $invoice->paid_at ?? $invoice->created_at;
+
+                $invoice->statusChanges()->create([
+                    'from_status' => InvoiceStatus::Draft,
+                    'to_status' => $invoice->status,
+                    'changed_by' => $invoice->created_by,
+                    'note' => null,
+                    'created_at' => $changedAt->lt($invoice->created_at) ? $invoice->created_at : $changedAt,
+                ]);
+            }
+        }
     }
 }

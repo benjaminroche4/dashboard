@@ -206,7 +206,8 @@ export function InvoicePreview({
                 )}
                 <p>
                     {kind === 'quote' ? 'Règlement' : 'Paiement'} par virement
-                    sur {company.bank}, IBAN {company.iban}, en {form.currency}.
+                    sur {form.bank_name.trim() || company.bank}, IBAN{' '}
+                    {form.bank_iban.trim() || company.iban}, en {form.currency}.
                 </p>
             </footer>
         </article>

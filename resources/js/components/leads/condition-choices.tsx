@@ -1,4 +1,5 @@
 import * as ToggleGroupPrimitive from '@radix-ui/react-toggle-group';
+import { type LucideIcon } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,8 @@ type ChoiceProps = {
     id: string;
     label: string;
     options: LabeledOption[];
+    /** Icône par valeur, posée devant le libellé (équipements d'un bien…). */
+    icons?: Record<string, LucideIcon>;
 } & (Single | Multiple);
 
 const itemClass =
@@ -33,16 +36,24 @@ const itemClass =
  * plusieurs pour le garant. Le nom accessible est le libellé complet.
  */
 export function ChoicePills(props: ChoiceProps) {
-    const items = props.options.map((option) => (
-        <ToggleGroupPrimitive.Item
-            key={option.value}
-            value={option.value}
-            aria-label={option.label}
-            className={itemClass}
-        >
-            {option.label}
-        </ToggleGroupPrimitive.Item>
-    ));
+    const items = props.options.map((option) => {
+        const Icon = props.icons?.[option.value];
+
+        return (
+            <ToggleGroupPrimitive.Item
+                key={option.value}
+                value={option.value}
+                aria-label={option.label}
+                className={cn(
+                    itemClass,
+                    Icon && 'inline-flex items-center gap-1.5',
+                )}
+            >
+                {Icon && <Icon className="size-3.5 shrink-0" aria-hidden />}
+                {option.label}
+            </ToggleGroupPrimitive.Item>
+        );
+    });
     const shared = {
         id: props.id,
         'aria-label': props.label,

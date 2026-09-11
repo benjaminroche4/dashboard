@@ -10,6 +10,7 @@ use App\Models\Lead;
 use App\Services\DistrictStaticMap;
 use Carbon\CarbonInterface;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -19,7 +20,7 @@ use Illuminate\Queue\SerializesModels;
  * E-mail au lead, dans la charte du site Relocation In Paris : récapitulatif
  * de son projet et/ou liens de paiement et de contrat.
  */
-final class LeadDossierSent extends Mailable
+final class LeadDossierSent extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

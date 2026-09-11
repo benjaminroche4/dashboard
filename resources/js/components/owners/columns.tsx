@@ -3,18 +3,12 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown } from 'lucide-react';
 import { CreatedBy } from '@/components/created-by';
 import { OwnerRowActions } from '@/components/owners/owner-row-actions';
-import { OwnerStatusBadge } from '@/components/owners/owner-status-badge';
 import { formatAddress } from '@/components/real-estate/columns';
+import { OwnerKindBadge } from '@/components/owners/owner-kind-badge';
 import { Button } from '@/components/ui/button';
-import { show as leadShow } from '@/routes/leads';
+import { Checkbox } from '@/components/ui/checkbox';
 import { show as ownerShow } from '@/routes/owners';
 import type { Owner } from '@/types';
-
-const dateFormat = new Intl.DateTimeFormat('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-});
 
 function SortableHeader({
     label,
@@ -33,17 +27,48 @@ function SortableHeader({
 
 export const ownerColumnLabels: Record<string, string> = {
     name: 'Propriétaire',
-    status_label: 'Statut',
+    kind_label: 'Type',
     contact: 'Contact',
-    address: 'Bien',
-    last_contacted_at: 'Dernier contact',
+    address: 'Adresse',
+    properties_count: 'Biens',
+    last_contacted_at: 'Dernier échange',
     creator: 'Ajouté par',
 };
+
+const exchangeDate = new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+});
 
 export function ownerColumns(
     onEdit: (owner: Owner) => void,
 ): ColumnDef<Owner>[] {
     return [
+        {
+            id: 'select',
+            header: ({ table }) => (
+                <Checkbox
+                    checked={
+                        table.getIsAllPageRowsSelected() ||
+                        (table.getIsSomePageRowsSelected() && 'indeterminate')
+                    }
+                    onCheckedChange={(value) =>
+                        table.toggleAllPageRowsSelected(!!value)
+                    }
+                    aria-label="Tout sélectionner"
+                />
+            ),
+            cell: ({ row }) => (
+                <Checkbox
+                    checked={row.getIsSelected()}
+                    onCheckedChange={(value) => row.toggleSelected(!!value)}
+                    aria-label={`Sélectionner ${row.original.name}`}
+                />
+            ),
+            enableSorting: false,
+            enableHiding: false,
+        },
         {
             accessorKey: 'name',
             header: ({ column }) => (
@@ -62,40 +87,22 @@ export function ownerColumns(
                     >
                         {row.original.name}
                     </Link>
-                    {row.original.company && (
+                    {row.original.contact_name && (
                         <span className="text-muted-foreground truncate text-xs">
-                            {row.original.company}
+                            {row.original.contact_name}
                         </span>
                     )}
                 </div>
             ),
         },
         {
-            accessorKey: 'status_label',
-            header: ({ column }) => (
-                <SortableHeader
-                    label="Statut"
-                    onClick={() =>
-                        column.toggleSorting(column.getIsSorted() === 'asc')
-                    }
-                />
-            ),
+            accessorKey: 'kind_label',
+            header: 'Type',
             cell: ({ row }) => (
-                <div className="grid justify-items-start gap-1">
-                    <OwnerStatusBadge
-                        status={row.original.status}
-                        label={row.original.status_label}
-                    />
-                    {row.original.lead && (
-                        <Link
-                            href={leadShow({ lead: row.original.lead.uuid })}
-                            className="text-muted-foreground text-xs underline-offset-4 hover:underline"
-                        >
-                            Lead {row.original.lead.reference} ·{' '}
-                            {row.original.lead.status_label}
-                        </Link>
-                    )}
-                </div>
+                <OwnerKindBadge
+                    kind={row.original.kind}
+                    label={row.original.kind_label}
+                />
             ),
         },
         {
@@ -132,15 +139,33 @@ export function ownerColumns(
         },
         {
             id: 'address',
-            header: 'Bien',
+            header: 'Adresse',
             cell: ({ row }) => (
-                <div className="grid text-sm">
-                    <span className="text-muted-foreground">
-                        {formatAddress(row.original) ?? '—'}
-                    </span>
-                    <span className="text-muted-foreground text-xs tabular-nums">
-                        {row.original.property_count} bien(s)
-                    </span>
+                <span className="text-muted-foreground text-sm">
+                    {formatAddress(row.original) ?? '—'}
+                </span>
+            ),
+        },
+        {
+            accessorKey: 'properties_count',
+            header: ({ column }) => (
+                <div className="text-right">
+                    <SortableHeader
+                        label="Biens"
+                        onClick={() =>
+                            column.toggleSorting(column.getIsSorted() === 'asc')
+                        }
+                    />
+                </div>
+            ),
+            cell: ({ row }) => (
+                <div className="text-right tabular-nums">
+                    <Link
+                        href={ownerShow({ owner: row.original.uuid })}
+                        className="underline-offset-4 hover:underline"
+                    >
+                        {row.original.properties_count}
+                    </Link>
                 </div>
             ),
         },
@@ -148,16 +173,16 @@ export function ownerColumns(
             accessorKey: 'last_contacted_at',
             header: ({ column }) => (
                 <SortableHeader
-                    label="Dernier contact"
+                    label="Dernier échange"
                     onClick={() =>
                         column.toggleSorting(column.getIsSorted() === 'asc')
                     }
                 />
             ),
             cell: ({ row }) => (
-                <span className="text-muted-foreground text-sm">
+                <span className="text-muted-foreground text-sm tabular-nums">
                     {row.original.last_contacted_at
-                        ? dateFormat.format(
+                        ? exchangeDate.format(
                               new Date(row.original.last_contacted_at),
                           )
                         : 'Jamais'}

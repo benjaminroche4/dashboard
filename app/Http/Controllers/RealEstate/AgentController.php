@@ -4,20 +4,29 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\RealEstate;
 
+use App\Actions\Directory\ToggleFavorite;
+use App\Actions\Directory\TouchDirectoryContact;
 use App\Actions\RealEstate\CreateAgent;
 use App\Actions\RealEstate\DeleteAgent;
+use App\Actions\RealEstate\DeleteAgents;
 use App\Actions\RealEstate\ImportAgents;
-use App\Actions\RealEstate\ToggleFavorite;
 use App\Actions\RealEstate\UpdateAgent;
 use App\Data\AgentData;
 use App\Data\AgentImportRowData;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Tools\ActivityController;
+use App\Http\Requests\RealEstate\BulkAgentsRequest;
 use App\Http\Requests\RealEstate\ImportAgentsRequest;
+use App\Http\Requests\RealEstate\IndexAgentsRequest;
 use App\Http\Requests\RealEstate\StoreAgentRequest;
+use App\Http\Requests\RealEstate\TouchDirectoryRequest;
 use App\Http\Requests\RealEstate\UpdateAgentRequest;
+use App\Models\Activity;
 use App\Models\Agency;
 use App\Models\Agent;
 use App\Models\Lead;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -29,29 +38,71 @@ class AgentController extends Controller
 {
     use AuthorizesRequests;
 
-    public function index(Request $request): Response
+    public function index(IndexAgentsRequest $request): Response
     {
         $this->authorize('viewAny', Agent::class);
 
-        // Les favoris du membre connecté d'abord, puis l'ordre alphabétique.
-        $agents = Agent::query()
-            ->with(['agency', 'creator', 'leads'])
-            ->withFavoriteOf($request->user())
-            ->orderByDesc('is_favorite')
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->get()
-            ->map(fn (Agent $agent): array => self::summary($agent))
-            ->all();
+        $user = $request->user();
+        $search = $request->search();
 
-        return Inertia::render('real-estate/agents', ['agents' => $agents, 'agencies' => $this->agencyOptions()]);
+        // L'annuaire peut compter des milliers d'agents : une page à la fois,
+        // filtrée et triée par la base. L'ordre ne dépend pas des favoris,
+        // sinon une étoile ferait sauter la ligne sous le curseur.
+        $paginator = Agent::query()
+            ->with(['agency', 'creator', 'leads'])
+            ->withCount('visits')
+            ->withMax('visits', 'scheduled_at')
+            ->withFavoriteOf($user)
+            ->when($search !== '', fn (Builder $query): Builder => $query->where(fn (Builder $where): Builder => $where
+                ->whereRaw("first_name || ' ' || last_name like ?", ["%{$search}%"])
+                ->orWhere('email', 'like', "%{$search}%")
+                ->orWhere('phone', 'like', "%{$search}%")
+                ->orWhere('city', 'like', "%{$search}%")
+                ->orWhereHas('agency', fn (Builder $agency): Builder => $agency->where('name', 'like', "%{$search}%"))))
+            ->when($request->favoritesOnly(), fn (Builder $query): Builder => $query->whereHas('favorites', fn (Builder $favorites): Builder => $favorites->where('user_id', $user?->id)))
+            ->tap(fn (Builder $query) => $this->sortAgents($query, $request->sort(), $request->direction()))
+            ->paginate(IndexAgentsRequest::PER_PAGE)
+            ->withQueryString();
+
+        return Inertia::render('real-estate/agents', [
+            'agents' => $paginator->getCollection()->map(fn (Agent $agent): array => self::summary($agent))->all(),
+            'agencies' => $this->agencyOptions(),
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
+            'filters' => $request->filters(),
+            // Compteur du bouton « Favoris », indépendant de la page affichée.
+            'favoritesCount' => $user === null ? 0 : Agent::query()->whereHas('favorites', fn (Builder $favorites): Builder => $favorites->where('user_id', $user->id))->count(),
+        ]);
+    }
+
+    /**
+     * @param  Builder<Agent>  $query
+     * @param  'asc'|'desc'  $direction
+     */
+    private function sortAgents(Builder $query, string $sort, string $direction): void
+    {
+        match ($sort) {
+            'city' => $query->orderBy('city', $direction)->orderBy('last_name'),
+            'created_at' => $query->orderBy('created_at', $direction),
+            'favorite' => $query->orderBy('is_favorite', $direction)->orderBy('last_name'),
+            default => $query->orderBy('last_name', $direction)->orderBy('first_name', $direction),
+        };
+
+        $query->orderBy('id');
     }
 
     public function show(Request $request, Agent $agent): Response
     {
         $this->authorize('view', $agent);
 
-        $agent->load(['agency.agents', 'creator', 'leads'])->loadFavoriteOf($request->user());
+        $agent->load(['agency.agents', 'creator', 'leads'])
+            ->loadCount('visits')
+            ->loadMax('visits', 'scheduled_at')
+            ->loadFavoriteOf($request->user());
 
         return Inertia::render('real-estate/agent', [
             'agent' => self::summary($agent),
@@ -69,6 +120,16 @@ class AgentController extends Controller
                 'agents_count' => $agent->agency->agents->count(),
             ],
             'agencies' => $this->agencyOptions(),
+            // Journal : les dernières actions du backoffice sur cette fiche.
+            'activities' => Activity::query()
+                ->with(['actor', 'lead', 'partner'])
+                ->where('agent_id', $agent->id)
+                ->latest('created_at')
+                ->latest('id')
+                ->limit(10)
+                ->get()
+                ->map(fn (Activity $activity): array => ActivityController::summary($activity))
+                ->all(),
         ]);
     }
 
@@ -95,11 +156,22 @@ class AgentController extends Controller
             'first_name' => $agent->first_name,
             'last_name' => $agent->last_name,
             'name' => $agent->fullName(),
+            'is_primary' => $agent->is_primary,
+            // Visites faites avec cet agent : combien, et la plus récente.
+            'visits_count' => (int) ($agent->visits_count ?? 0),
+            'last_visit_at' => $agent->visits_max_scheduled_at === null
+                ? null
+                : CarbonImmutable::parse((string) $agent->visits_max_scheduled_at)->toIso8601String(),
             'position' => $agent->position?->label(),
+            'relationship_quality' => $agent->relationship_quality?->value,
+            'relationship_quality_label' => $agent->relationship_quality?->label(),
             'position_value' => $agent->position?->value,
             'street' => $agent->street,
             'postal_code' => $agent->postal_code,
             'city' => $agent->city,
+            'last_contacted_at' => $agent->last_contacted_at?->toIso8601String(),
+            'latitude' => $agent->latitude,
+            'longitude' => $agent->longitude,
             'email' => $agent->email,
             'phone' => $agent->phone,
             'notes' => $agent->notes,
@@ -161,9 +233,63 @@ class AgentController extends Controller
             'skipped' => $result['skipped'],
             'agencies' => $result['agencies_created'],
         ]);
-        Inertia::flash('toast', ['type' => $result['created'] > 0 ? 'success' : 'warning', 'message' => $message]);
+
+        // Une fonction non reconnue atterrit en « Autre » : on le dit, plutôt que de la perdre.
+        $unknown = $result['unknown_positions'];
+
+        if ($unknown !== []) {
+            $message .= ' '.__('Fonction(s) à relire, rangée(s) en « Autre » : :list.', ['list' => implode(', ', $unknown)]);
+        }
+
+        Inertia::flash('toast', ['type' => $unknown === [] ? 'success' : 'warning', 'message' => $message]);
 
         return back();
+    }
+
+    /** Note un échange avec cet agent. */
+    public function touch(TouchDirectoryRequest $request, Agent $agent, TouchDirectoryContact $touch): RedirectResponse
+    {
+        $this->authorize('update', $agent);
+
+        $at = $request->validated('at');
+        $touch->handle($agent, is_string($at) ? CarbonImmutable::parse($at) : null, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Échange noté.')]);
+
+        return back();
+    }
+
+    /** Recherche ⌘K : nom de l'agent, agence, e-mail ou téléphone. */
+    public function search(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Agent::class);
+
+        $query = trim((string) $request->query('q', ''));
+
+        if (mb_strlen($query) < 2) {
+            return response()->json([]);
+        }
+
+        return response()->json(Agent::query()
+            ->with('agency')
+            ->where(function (Builder $builder) use ($query): void {
+                $builder->whereRaw("first_name || ' ' || last_name like ?", ["%{$query}%"])
+                    ->orWhere('email', 'like', "%{$query}%")
+                    ->orWhere('phone', 'like', "%{$query}%")
+                    ->orWhereHas('agency', fn (Builder $agency) => $agency->where('name', 'like', "%{$query}%"));
+            })
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->limit(8)
+            ->get()
+            ->map(fn (Agent $agent): array => [
+                'id' => $agent->id,
+                'uuid' => $agent->uuid,
+                'title' => $agent->fullName(),
+                'subtitle' => implode(' · ', array_filter([$agent->agency?->name, $agent->position?->label()])) ?: null,
+                'url' => route('agents.show', $agent),
+            ])
+            ->all());
     }
 
     /** Pose ou retire l'étoile du membre connecté sur cet agent (favori personnel). */
@@ -198,6 +324,18 @@ class AgentController extends Controller
         $agent = $update->handle($agent, AgentData::from($request->validated()));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Agent :name mis à jour.', ['name' => $agent->fullName()])]);
+
+        return back();
+    }
+
+    /** Suppression groupée depuis la liste (admins). */
+    public function bulkDestroy(BulkAgentsRequest $request, DeleteAgents $deleteAgents): RedirectResponse
+    {
+        $this->authorize('delete', Agent::class);
+
+        $count = $deleteAgents->handle(Agent::query()->whereIn('id', $request->ids())->get());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __(':count agent(s) supprimé(s).', ['count' => $count])]);
 
         return back();
     }

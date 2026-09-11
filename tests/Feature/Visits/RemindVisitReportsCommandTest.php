@@ -19,7 +19,7 @@ test('the command reminds visit assignees and runs every fifteen minutes', funct
     $this->artisan('visits:remind-reports')
         ->expectsOutput('1 rappel(s) envoyé(s).')
         ->assertSuccessful();
-    Mail::assertSent(VisitReportDue::class);
+    Mail::assertQueued(VisitReportDue::class);
 
     $this->artisan('visits:remind-reports')->expectsOutput('Aucun compte rendu à rappeler.');
 

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Actions\RealEstate\ToggleFavorite;
+use App\Actions\Directory\ToggleFavorite;
 use App\Models\Agency;
 use App\Models\Agent;
 use App\Models\User;

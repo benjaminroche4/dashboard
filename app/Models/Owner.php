@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\OwnerStatus;
+use App\Enums\OwnerKind;
 use App\Support\ContactMatch;
 use Carbon\CarbonInterface;
 use Database\Factories\OwnerFactory;
@@ -18,10 +18,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Propriétaire à prospecter pour la gestion locative.
+ * Propriétaire d'un ou plusieurs biens : un particulier, ou une société.
  *
  * @property int $id
  * @property string $uuid
+ * @property OwnerKind $kind
  * @property string $first_name
  * @property string $last_name
  * @property string|null $company
@@ -30,19 +31,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $street
  * @property string|null $postal_code
  * @property string|null $city
- * @property int $property_count
- * @property OwnerStatus $status
- * @property CarbonInterface|null $last_contacted_at
  * @property string|null $notes
  * @property int|null $lead_id
+ * @property CarbonInterface|null $last_contacted_at
  * @property int|null $created_by
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
- * @property-read User|null $creator
  * @property-read Lead|null $lead
+ * @property-read User|null $creator
  * @property-read Collection<int, Property> $properties
  */
-#[Fillable(['first_name', 'last_name', 'company', 'email', 'phone', 'street', 'postal_code', 'city', 'property_count', 'status', 'last_contacted_at', 'notes', 'lead_id', 'created_by'])]
+#[Fillable(['kind', 'first_name', 'last_name', 'company', 'email', 'phone', 'street', 'postal_code', 'city', 'notes', 'lead_id', 'last_contacted_at', 'created_by'])]
 class Owner extends Model
 {
     /** @use HasFactory<OwnerFactory> */
@@ -68,16 +67,37 @@ class Owner extends Model
      */
     protected function casts(): array
     {
-        return [
-            'status' => OwnerStatus::class,
-            'property_count' => 'integer',
-            'last_contacted_at' => 'datetime',
-        ];
+        return ['kind' => OwnerKind::class, 'last_contacted_at' => 'datetime'];
     }
 
+    /** Nom de la personne ; pour une société, sa raison sociale. */
     public function fullName(): string
     {
-        return trim("{$this->first_name} {$this->last_name}");
+        $name = trim("{$this->first_name} {$this->last_name}");
+
+        if ($this->kind === OwnerKind::Company) {
+            return $this->company ?? ($name === '' ? 'Société' : $name);
+        }
+
+        return $name;
+    }
+
+    /** Interlocuteur d'une société, quand il est renseigné. */
+    public function contactName(): ?string
+    {
+        $name = trim("{$this->first_name} {$this->last_name}");
+
+        return $this->kind === OwnerKind::Company && $name !== '' ? $name : null;
+    }
+
+    /**
+     * Lead propriétaire d'où vient la fiche, quand elle en vient.
+     *
+     * @return BelongsTo<Lead, $this>
+     */
+    public function lead(): BelongsTo
+    {
+        return $this->belongsTo(Lead::class);
     }
 
     /**
@@ -86,16 +106,6 @@ class Owner extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
-    }
-
-    /**
-     * Lead « gestion locative » créé depuis ce propriétaire.
-     *
-     * @return BelongsTo<Lead, $this>
-     */
-    public function lead(): BelongsTo
-    {
-        return $this->belongsTo(Lead::class);
     }
 
     /**

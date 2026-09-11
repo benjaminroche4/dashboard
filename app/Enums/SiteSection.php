@@ -18,7 +18,6 @@ enum SiteSection: string
     case Clients = 'clients';
     case Visits = 'visits';
     case Agents = 'agents';
-    case Agencies = 'agencies';
     case Partners = 'partners';
     case Owners = 'owners';
     case Properties = 'properties';
@@ -26,6 +25,7 @@ enum SiteSection: string
     case Invoices = 'invoices';
     case Documents = 'documents';
     case Reports = 'reports';
+    case Activity = 'activity';
 
     public function label(): string
     {
@@ -36,8 +36,7 @@ enum SiteSection: string
             self::OwnerLeadsCreate => 'Converting Machine (propriétaires)',
             self::Clients => 'Dossiers clients',
             self::Visits => 'Visites',
-            self::Agents => 'Agents immobiliers',
-            self::Agencies => 'Agences',
+            self::Agents => 'Agents et agences',
             self::Partners => 'Partenaires',
             self::Owners => 'Propriétaires',
             self::Properties => 'Biens',
@@ -45,6 +44,7 @@ enum SiteSection: string
             self::Invoices => 'Factures',
             self::Documents => 'Listes de documents',
             self::Reports => 'Rapports',
+            self::Activity => "Journal d'activité",
         };
     }
 
@@ -70,15 +70,31 @@ enum SiteSection: string
             self::LeadsCreate, self::OwnerLeadsCreate => 'aucune action supplémentaire',
             self::Clients => 'aucune action supplémentaire',
             self::Visits => 'supprimer une visite',
-            self::Agents, self::Agencies => 'supprimer un agent ou une agence',
+            self::Agents => 'supprimer un agent ou une agence',
             self::Partners => 'supprimer un partenaire',
             self::Owners => 'supprimer un propriétaire',
             self::Properties => 'supprimer un bien',
             self::Quotes => 'supprimer un devis',
             self::Invoices => 'supprimer une facture',
             self::Documents => 'supprimer une liste et modifier le catalogue des pièces',
-            self::Reports => 'aucune action supplémentaire',
+            self::Reports, self::Activity => 'aucune action supplémentaire',
         };
+    }
+
+    /**
+     * Vrai quand « Gérer » ajoute une action à « Modifier ». Ailleurs, le
+     * niveau n'existe pas : la page des droits ne le propose pas et il est
+     * ramené à « Modifier » à l'enregistrement.
+     */
+    public function hasManage(): bool
+    {
+        return ! in_array($this, [self::LeadsCreate, self::OwnerLeadsCreate, self::Clients, self::Reports, self::Activity], true);
+    }
+
+    /** Niveau demandé, ramené au plus haut niveau que la section propose. */
+    public function clamp(AccessLevel $level): AccessLevel
+    {
+        return $level === AccessLevel::Manage && ! $this->hasManage() ? AccessLevel::Write : $level;
     }
 
     /** Groupe du menu, tel qu'il apparaît dans la sidebar. */
@@ -87,8 +103,8 @@ enum SiteSection: string
         return match ($this) {
             self::Leads, self::LeadsCreate, self::OwnerLeads, self::OwnerLeadsCreate => 'Leads',
             self::Clients, self::Visits => 'Clients',
-            self::Agents, self::Agencies, self::Partners, self::Owners, self::Properties => 'Réseau',
-            self::Quotes, self::Invoices, self::Documents, self::Reports => 'Outils',
+            self::Agents, self::Partners, self::Owners, self::Properties => 'Réseau',
+            self::Quotes, self::Invoices, self::Documents, self::Reports, self::Activity => 'Outils',
         };
     }
 
@@ -113,27 +129,26 @@ enum SiteSection: string
             str_starts_with($route, 'owners.') => [self::Owners],
             str_starts_with($route, 'clients.visits') => [self::Visits],
             str_starts_with($route, 'clients.') => [self::Clients],
-            str_starts_with($route, 'agents.') => [self::Agents],
-            str_starts_with($route, 'agencies.') => [self::Agencies],
+            str_starts_with($route, 'agents.'), str_starts_with($route, 'agencies.') => [self::Agents],
             str_starts_with($route, 'partners.') => [self::Partners],
             str_starts_with($route, 'properties.') => [self::Properties],
             str_starts_with($route, 'tools.quotes.') => [self::Quotes],
             str_starts_with($route, 'invoices.') => [self::Invoices],
             str_starts_with($route, 'tools.documents.') => [self::Documents],
             str_starts_with($route, 'tools.reports.') => [self::Reports],
-            str_starts_with($route, 'tools.activity.') => [self::Reports],
-            $route === 'tools.index' => [self::Quotes, self::Invoices, self::Documents, self::Reports],
+            str_starts_with($route, 'tools.activity.') => [self::Activity],
+            $route === 'tools.index' => [self::Quotes, self::Invoices, self::Documents, self::Reports, self::Activity],
             default => [],
         };
     }
 
     /**
-     * @return list<array{value: string, label: string, group: string, manage_hint: string}>
+     * @return list<array{value: string, label: string, group: string, manage_hint: string, has_manage: bool}>
      */
     public static function options(): array
     {
         return array_map(
-            fn (self $case): array => ['value' => $case->value, 'label' => $case->label(), 'group' => $case->group(), 'manage_hint' => $case->manageHint()],
+            fn (self $case): array => ['value' => $case->value, 'label' => $case->label(), 'group' => $case->group(), 'manage_hint' => $case->manageHint(), 'has_manage' => $case->hasManage()],
             self::cases(),
         );
     }
@@ -148,7 +163,7 @@ enum SiteSection: string
         $defaults = [];
         foreach (StaffRole::cases() as $role) {
             foreach (self::cases() as $section) {
-                $defaults[$role->value][$section->value] = $section->defaultLevel($role)->value;
+                $defaults[$role->value][$section->value] = $section->clamp($section->defaultLevel($role))->value;
             }
         }
 

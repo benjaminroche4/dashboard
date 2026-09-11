@@ -4,25 +4,19 @@ declare(strict_types=1);
 
 namespace App\Actions\Reports;
 
-use App\Enums\Currency;
-use App\Enums\InvoiceStatus;
-use App\Enums\LeadSource;
-use App\Enums\LeadStatus;
-use App\Enums\Offer;
-use App\Enums\QuoteStatus;
 use App\Enums\VisitStatus;
-use App\Models\Invoice;
 use App\Models\Lead;
-use App\Models\Quote;
 use App\Models\User;
 use App\Models\Visit;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
 /**
- * Chiffres clés de l'activité sur une période : leads et conversion par
- * source, délai de premier contact, devis acceptés ou refusés par formule,
- * factures émises et encaissées par mois.
+ * Chiffres du rapport : leads reçus et visites réservées, sur la période choisie.
+ *
+ * Tout suit la période : le découpage des courbes (heure, jour, semaine ou mois
+ * selon sa longueur), la comparaison avec la période précédente de même durée,
+ * et le décompte des visites par membre.
  */
 final class BuildReport
 {
@@ -31,87 +25,178 @@ final class BuildReport
      */
     public function handle(CarbonInterface $from, CarbonInterface $to): array
     {
+        $start = $from->copy()->startOfDay();
+        $end = $to->copy()->endOfDay();
+        $buckets = self::buckets($start, $end);
+
         return [
-            'period' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
-            'leads' => $this->leads($from, $to),
-            'quotes' => $this->quotes($from, $to),
-            'invoices' => $this->invoices($from, $to),
-            'visits' => $this->visits($from, $to),
+            'period' => ['from' => $start->toDateString(), 'to' => $to->copy()->toDateString()],
+            'granularity' => self::granularity($start, $end),
+            'leads' => $this->leads($start, $end, $buckets),
+            'visits' => $this->visits($start, $end, $buckets),
         ];
     }
 
     /**
-     * Visites : jour par jour sur les huit dernières semaines (indépendant de la
-     * période), et visites réservées par membre sur la période.
+     * Pas de la courbe selon la longueur de la période : deux jours se lisent
+     * heure par heure, deux mois jour par jour, un semestre semaine par semaine,
+     * au-delà mois par mois.
+     */
+    public static function granularity(CarbonInterface $from, CarbonInterface $to): string
+    {
+        $days = (int) $from->diffInDays($to) + 1;
+
+        return match (true) {
+            $days <= 2 => 'hour',
+            $days <= 62 => 'day',
+            $days <= 186 => 'week',
+            default => 'month',
+        };
+    }
+
+    /**
+     * Tranches successives couvrant la période, avec leur libellé lisible.
      *
+     * @return list<array{start: CarbonInterface, end: CarbonInterface, label: string}>
+     */
+    public static function buckets(CarbonInterface $from, CarbonInterface $to): array
+    {
+        $granularity = self::granularity($from, $to);
+        $cursor = match ($granularity) {
+            'hour' => $from->copy()->startOfHour(),
+            'day' => $from->copy()->startOfDay(),
+            'week' => $from->copy()->startOfWeek(),
+            default => $from->copy()->startOfMonth(),
+        };
+
+        $buckets = [];
+
+        while ($cursor->lessThanOrEqualTo($to)) {
+            $next = match ($granularity) {
+                'hour' => $cursor->copy()->addHour(),
+                'day' => $cursor->copy()->addDay(),
+                'week' => $cursor->copy()->addWeek(),
+                default => $cursor->copy()->addMonth(),
+            };
+
+            $buckets[] = [
+                'start' => $cursor->copy(),
+                'end' => $next->copy()->subSecond(),
+                'label' => match ($granularity) {
+                    'hour' => $cursor->format('H\hi'),
+                    'day' => $cursor->translatedFormat('j M'),
+                    'week' => $cursor->translatedFormat('j M'),
+                    default => ucfirst($cursor->translatedFormat('M Y')),
+                },
+            ];
+
+            $cursor = $next;
+        }
+
+        return $buckets;
+    }
+
+    /**
+     * Leads reçus sur la période, avec la courbe comparée à la période
+     * précédente de même durée (tranche par tranche, dans le même ordre).
+     *
+     * @param  list<array{start: CarbonInterface, end: CarbonInterface, label: string}>  $buckets
      * @return array<string, mixed>
      */
-    private function visits(CarbonInterface $from, CarbonInterface $to): array
+    private function leads(CarbonInterface $from, CarbonInterface $to, array $buckets): array
     {
-        $visits = Visit::query()
-            ->with('creator')
-            ->whereBetween('scheduled_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
-            ->get();
+        // Carbon renvoie un flottant : la longueur de la période est ramenée à des secondes entières.
+        $length = (int) $from->diffInSeconds($to);
+        $previousEnd = $from->copy()->subSecond();
+        $previousStart = $previousEnd->copy()->subSeconds($length);
 
-        $byBooker = $visits
-            ->groupBy(fn (Visit $visit): string => (string) ($visit->created_by ?? 0))
-            ->map(fn (Collection $group, string $id): array => [
-                'user' => $id === '0' ? null : (int) $id,
-                'label' => $group->first()?->creator->name ?? 'Sans auteur',
-                'count' => $group->count(),
-                'done' => $group->where('status', VisitStatus::Done)->count(),
-                'cancelled' => $group->where('status', VisitStatus::Cancelled)->count(),
-            ])
-            ->sortByDesc('count')
-            ->values()
-            ->all();
+        $current = $this->countByBucket(Lead::query()->whereBetween('created_at', [$from, $to])->pluck('created_at'), $buckets);
+        $previous = $this->countByBucket(
+            Lead::query()->whereBetween('created_at', [$previousStart, $previousEnd])->pluck('created_at'),
+            $this->shift($buckets, -$length - 1),
+        );
+
+        $series = [];
+        foreach ($buckets as $index => $bucket) {
+            $series[] = [
+                'label' => $bucket['label'],
+                'current' => $current[$index],
+                'previous' => $previous[$index] ?? 0,
+            ];
+        }
 
         return [
-            'total' => $visits->count(),
-            'done' => $visits->where('status', VisitStatus::Done)->count(),
-            'cancelled' => $visits->where('status', VisitStatus::Cancelled)->count(),
-            'weekly' => $this->weeklyVisits(),
-            'by_booker' => $byBooker,
+            'total' => array_sum($current),
+            'previous_total' => array_sum($previous),
+            'previous_label' => 'Du '.$previousStart->translatedFormat('j M Y').' au '.$previousEnd->translatedFormat('j M Y'),
+            'series' => $series,
         ];
     }
 
     /**
-     * Visites (hors annulées) jour par jour, du lundi au dimanche, sur les huit
-     * dernières semaines, semaine en cours comprise.
+     * Visites réservées (hors annulées) sur la période : total, courbe et
+     * décompte par membre qui les a créées.
      *
-     * @return list<array{week: string, label: string, days: list<array{day: string, count: int}>, total: int, daily_average: float}>
+     * @param  list<array{start: CarbonInterface, end: CarbonInterface, label: string}>  $buckets
+     * @return array<string, mixed>
      */
-    private function weeklyVisits(): array
+    private function visits(CarbonInterface $from, CarbonInterface $to, array $buckets): array
     {
-        $weeks = 8;
-        $start = today()->startOfWeek()->subWeeks($weeks - 1);
-        $end = today()->endOfWeek();
-
-        $counts = Visit::query()
+        $dates = Visit::query()
             ->where('status', '!=', VisitStatus::Cancelled)
-            ->whereBetween('scheduled_at', [$start, $end])
-            ->get(['scheduled_at'])
-            ->countBy(fn (Visit $visit): string => $visit->scheduled_at->format('Y-m-d'));
+            ->whereBetween('scheduled_at', [$from, $to])
+            ->pluck('scheduled_at');
+
+        $counts = $this->countByBucket($dates, $buckets);
+
+        $series = [];
+        foreach ($buckets as $index => $bucket) {
+            $series[] = ['label' => $bucket['label'], 'count' => $counts[$index]];
+        }
+
+        return [
+            'total' => $dates->count(),
+            'series' => $series,
+            'by_booker' => $this->visitsByBooker($from, $to),
+        ];
+    }
+
+    /**
+     * Qui a réservé les visites de la période : une ligne par membre (auteur de la
+     * visite), du plus actif au moins actif, annulées comprises pour ne rien cacher.
+     *
+     * @return list<array{name: string, avatar: string|null, total: int, done: int, cancelled: int}>
+     */
+    private function visitsByBooker(CarbonInterface $from, CarbonInterface $to): array
+    {
+        $visits = Visit::query()
+            ->whereBetween('scheduled_at', [$from, $to])
+            ->get(['created_by', 'status']);
+
+        /** @var array<int, array{name: string, avatar: string|null}> $members */
+        $members = User::query()
+            ->whereIn('id', $visits->pluck('created_by')->filter()->unique())
+            ->get()
+            ->mapWithKeys(fn (User $user): array => [$user->id => ['name' => $user->name, 'avatar' => $user->avatar]])
+            ->all();
+
+        $groups = $visits
+            ->groupBy(fn (Visit $visit): string => $members[$visit->created_by]['name'] ?? 'Sans auteur')
+            ->sortByDesc(fn (Collection $group): int => $group->count());
+
+        $avatars = [];
+        foreach ($members as $member) {
+            $avatars[$member['name']] = $member['avatar'];
+        }
 
         $rows = [];
-        for ($index = 0; $index < $weeks; $index++) {
-            $monday = $start->copy()->addWeeks($index);
-            $days = [];
-            for ($offset = 0; $offset < 7; $offset++) {
-                $date = $monday->copy()->addDays($offset);
-                $days[] = [
-                    'day' => ucfirst(rtrim($date->translatedFormat('D'), '.')),
-                    'count' => (int) ($counts[$date->format('Y-m-d')] ?? 0),
-                ];
-            }
-            $total = array_sum(array_column($days, 'count'));
-
+        foreach ($groups as $name => $group) {
             $rows[] = [
-                'week' => $monday->format('o-\WW'),
-                'label' => $monday->translatedFormat('j M').' – '.$monday->copy()->endOfWeek()->translatedFormat('j M'),
-                'days' => $days,
-                'total' => $total,
-                'daily_average' => round($total / 7, 1),
+                'name' => (string) $name,
+                'avatar' => $avatars[$name] ?? null,
+                'total' => $group->count(),
+                'done' => $group->where('status', VisitStatus::Done)->count(),
+                'cancelled' => $group->where('status', VisitStatus::Cancelled)->count(),
             ];
         }
 
@@ -119,198 +204,36 @@ final class BuildReport
     }
 
     /**
-     * @return array<string, mixed>
-     */
-    private function leads(CarbonInterface $from, CarbonInterface $to): array
-    {
-        $leads = Lead::query()->whereBetween('created_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])->get();
-        $converted = $leads->where('status', LeadStatus::Converted);
-
-        $bySource = collect(LeadSource::cases())->map(function (LeadSource $source) use ($leads): array {
-            $ofSource = $leads->where('source', $source);
-            $won = $ofSource->where('status', LeadStatus::Converted)->count();
-
-            return [
-                'source' => $source->value,
-                'label' => $source->label(),
-                'count' => $ofSource->count(),
-                'converted' => $won,
-                'rate' => $this->rate($won, $ofSource->count()),
-            ];
-        })->filter(fn (array $row): bool => $row['count'] > 0)->values()->all();
-
-        // Délai jusqu'au tout premier contact, pas jusqu'au dernier échange.
-        $contacted = $leads->filter(fn (Lead $lead): bool => $lead->first_contacted_at !== null && $lead->created_at !== null);
-        $delays = $contacted->map(fn (Lead $lead): float => max(0, $lead->created_at->diffInMinutes($lead->first_contacted_at)));
-
-        $assignees = User::query()->whereIn('id', $leads->pluck('assigned_to')->filter()->unique())->pluck('name', 'id');
-        $byAssignee = $leads->groupBy(fn (Lead $lead): string => (string) ($lead->assigned_to ?? ''))
-            ->map(fn (Collection $group, string $id): array => [
-                'assignee' => $id === '' ? null : (int) $id,
-                'label' => $id === '' ? 'Non attribué' : (string) ($assignees[(int) $id] ?? 'Membre supprimé'),
-                'count' => $group->count(),
-                'converted' => $group->where('status', LeadStatus::Converted)->count(),
-            ])
-            ->sortByDesc('count')
-            ->values()
-            ->all();
-
-        return [
-            'total' => $leads->count(),
-            'converted' => $converted->count(),
-            'daily' => $this->dailyLeads(),
-            'by_offer' => [
-                ...collect(Offer::cases())->map(fn (Offer $offer): array => [
-                    'offer' => $offer->value,
-                    'label' => $offer->label(),
-                    'count' => $leads->where('offer', $offer)->count(),
-                ])->all(),
-                ['offer' => null, 'label' => 'Sans formule', 'count' => $leads->whereNull('offer')->count()],
-            ],
-            'by_assignee' => $byAssignee,
-            'archived' => $leads->where('status', LeadStatus::Archived)->count(),
-            'conversion_rate' => $this->rate($converted->count(), $leads->count()),
-            'by_status' => collect(LeadStatus::cases())->map(fn (LeadStatus $status): array => [
-                'status' => $status->value,
-                'label' => $status->label(),
-                'count' => $leads->where('status', $status)->count(),
-            ])->all(),
-            'by_source' => $bySource,
-            'first_contact' => [
-                'measured' => $contacted->count(),
-                'average_minutes' => $delays->isEmpty() ? null : (int) round($delays->avg()),
-                'within_30_rate' => $delays->isEmpty() ? null : $this->rate($delays->filter(fn (float $minutes): bool => $minutes <= 30)->count(), $delays->count()),
-            ],
-        ];
-    }
-
-    /**
-     * Leads reçus jour par jour, mois en cours contre mois précédent (indépendant
-     * de la période choisie). Les jours à venir du mois en cours valent null.
+     * Nombre de dates tombant dans chaque tranche, indexé comme les tranches.
      *
-     * @return array{current: string, previous: string, days: list<array{day: int, current: int|null, previous: int|null}>}
+     * @param  Collection<int, CarbonInterface>  $dates
+     * @param  list<array{start: CarbonInterface, end: CarbonInterface, label: string}>  $buckets
+     * @return list<int>
      */
-    private function dailyLeads(): array
+    private function countByBucket(Collection $dates, array $buckets): array
     {
-        $today = today();
-        $currentStart = $today->copy()->startOfMonth();
-        $previousStart = $currentStart->copy()->subMonth();
+        $counts = [];
 
-        $counts = Lead::query()
-            ->whereBetween('created_at', [$previousStart, $today->copy()->endOfDay()])
-            ->get(['created_at'])
-            ->countBy(fn (Lead $lead): string => (string) $lead->created_at?->format('Y-m-d'));
-
-        $days = [];
-        $lastDay = max($currentStart->daysInMonth, $previousStart->daysInMonth);
-        for ($day = 1; $day <= $lastDay; $day++) {
-            $days[] = [
-                'day' => $day,
-                'current' => $day > $today->day || $day > $currentStart->daysInMonth ? null : (int) ($counts[$currentStart->copy()->setDay($day)->format('Y-m-d')] ?? 0),
-                'previous' => $day > $previousStart->daysInMonth ? null : (int) ($counts[$previousStart->copy()->setDay($day)->format('Y-m-d')] ?? 0),
-            ];
+        foreach ($buckets as $bucket) {
+            $counts[] = $dates->filter(fn (CarbonInterface $date): bool => $date->betweenIncluded($bucket['start'], $bucket['end']))->count();
         }
 
-        return [
-            'current' => ucfirst($currentStart->translatedFormat('F Y')),
-            'previous' => ucfirst($previousStart->translatedFormat('F Y')),
-            'days' => $days,
-        ];
+        return $counts;
     }
 
     /**
-     * @return array<string, mixed>
-     */
-    private function quotes(CarbonInterface $from, CarbonInterface $to): array
-    {
-        $quotes = Quote::query()->whereBetween('issued_at', [$from->toDateString(), $to->toDateString()])->get();
-        $decided = $quotes->filter(fn (Quote $quote): bool => in_array($quote->status, [QuoteStatus::Accepted, QuoteStatus::Invoiced, QuoteStatus::Declined], true));
-        $won = $decided->filter(fn (Quote $quote): bool => $quote->status !== QuoteStatus::Declined);
-
-        $offerOf = fn (Quote $quote): ?string => $quote->items[0]['offer'] ?? null;
-
-        $byOffer = collect(Offer::cases())->map(function (Offer $offer) use ($quotes, $offerOf): array {
-            $ofOffer = $quotes->filter(fn (Quote $quote): bool => $offerOf($quote) === $offer->value);
-            $accepted = $ofOffer->filter(fn (Quote $quote): bool => in_array($quote->status, [QuoteStatus::Accepted, QuoteStatus::Invoiced], true))->count();
-            $declined = $ofOffer->where('status', QuoteStatus::Declined)->count();
-
-            return [
-                'offer' => $offer->value,
-                'label' => $offer->label(),
-                'count' => $ofOffer->count(),
-                'accepted' => $accepted,
-                'declined' => $declined,
-                'rate' => $this->rate($accepted, $accepted + $declined),
-            ];
-        })->all();
-
-        return [
-            'total' => $quotes->count(),
-            'by_status' => collect(QuoteStatus::cases())->map(fn (QuoteStatus $status): array => [
-                'status' => $status->value,
-                'label' => $status->label(),
-                'count' => $quotes->where('status', $status)->count(),
-            ])->all(),
-            'acceptance_rate' => $this->rate($won->count(), $decided->count()),
-            'by_offer' => $byOffer,
-            'accepted_amounts' => $this->sumByCurrency($won),
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function invoices(CarbonInterface $from, CarbonInterface $to): array
-    {
-        $issued = Invoice::query()
-            ->whereBetween('issued_at', [$from->toDateString(), $to->toDateString()])
-            ->where('status', '!=', InvoiceStatus::Cancelled)
-            ->get();
-        $paid = Invoice::query()
-            ->where('status', InvoiceStatus::Paid)
-            ->whereBetween('paid_at', [$from->toDateString(), $to->toDateString()])
-            ->get();
-        $overdue = Invoice::query()->where('status', InvoiceStatus::Overdue)->get();
-
-        $months = [];
-        for ($month = $from->copy()->startOfMonth(); $month->lessThanOrEqualTo($to); $month = $month->addMonth()) {
-            $key = $month->format('Y-m');
-            $months[] = [
-                'month' => $key,
-                'label' => ucfirst($month->translatedFormat('M Y')),
-                'issued' => $this->sumByCurrency($issued->filter(fn (Invoice $invoice): bool => $invoice->issued_at->format('Y-m') === $key)),
-                'paid' => $this->sumByCurrency($paid->filter(fn (Invoice $invoice): bool => $invoice->paid_at?->format('Y-m') === $key)),
-            ];
-        }
-
-        return [
-            'count' => $issued->count(),
-            'paid_count' => $paid->count(),
-            'issued' => $this->sumByCurrency($issued),
-            'paid' => $this->sumByCurrency($paid),
-            'overdue' => ['count' => $overdue->count(), 'amounts' => $this->sumByCurrency($overdue)],
-            'by_month' => $months,
-        ];
-    }
-
-    /**
-     * Totaux en centimes par devise, toutes les devises présentes même à zéro.
+     * Les mêmes tranches décalées dans le temps, pour comparer la période
+     * précédente tranche à tranche.
      *
-     * @param  iterable<int, Invoice|Quote>  $documents
-     * @return array<string, int>
+     * @param  list<array{start: CarbonInterface, end: CarbonInterface, label: string}>  $buckets
+     * @return list<array{start: CarbonInterface, end: CarbonInterface, label: string}>
      */
-    private function sumByCurrency(iterable $documents): array
+    private function shift(array $buckets, int $seconds): array
     {
-        $amounts = collect($documents);
-
-        return collect(Currency::cases())->mapWithKeys(fn (Currency $currency): array => [
-            $currency->value => (int) $amounts->where('currency', $currency)->sum('amount_cents'),
-        ])->all();
-    }
-
-    /** Pourcentage arrondi à une décimale, null sans dénominateur. */
-    private function rate(int $part, int $whole): ?float
-    {
-        return $whole === 0 ? null : round($part * 100 / $whole, 1);
+        return array_map(fn (array $bucket): array => [
+            'start' => $bucket['start']->copy()->addSeconds($seconds),
+            'end' => $bucket['end']->copy()->addSeconds($seconds),
+            'label' => $bucket['label'],
+        ], $buckets);
     }
 }

@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use Anthropic\Messages\OutputConfig\Effort;
 use App\Enums\Currency;
+use App\Enums\PropertyFloor;
 use App\Models\Lead;
 use App\Models\Property;
 use App\Models\User;
@@ -28,7 +30,7 @@ function explanationAssistant(array $reply, bool $configured = true): Assistant
             return $this->configured;
         }
 
-        public function extract(string $system, string $prompt, array $schema, int $maxTokens = 4000): array
+        public function extract(string $system, string $prompt, array $schema, int $maxTokens = 8000, Effort $effort = Effort::LOW): array
         {
             throw_unless($this->configured, RuntimeException::class, 'Assistant IA non configuré (ANTHROPIC_API_KEY).');
             $this->calls++;
@@ -43,7 +45,7 @@ test('the assistant ranks the suggestions and explains each one, the result bein
     Cache::flush();
     $client = Lead::factory()->converted()->create(['budget_cents' => 200_000, 'currency' => Currency::EUR, 'districts' => [11], 'message' => 'Cherche du calme, dernier étage si possible, avec mon chat.']);
     $dark = Property::factory()->create(['title' => 'T2 sur cour', 'district' => 11, 'rent_cents' => 150_000, 'notes' => 'Rez-de-chaussée sur cour.', 'created_at' => now()]);
-    $bright = Property::factory()->create(['title' => 'T2 dernier étage', 'district' => 11, 'rent_cents' => 160_000, 'floor' => 6, 'notes' => 'Animaux acceptés.', 'created_at' => now()->subDay()]);
+    $bright = Property::factory()->create(['title' => 'T2 dernier étage', 'district' => 11, 'rent_cents' => 160_000, 'floor' => PropertyFloor::Sixth, 'notes' => 'Animaux acceptés.', 'created_at' => now()->subDay()]);
     $assistant = explanationAssistant([
         'properties' => [
             ['id' => $dark->id, 'fit' => 'weak', 'reason' => 'Rez-de-chaussée sur cour alors que le client veut de la lumière.'],

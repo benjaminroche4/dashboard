@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Partners;
 
 use App\Enums\PartnerType;
+use App\Enums\RelationshipQuality;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -19,6 +20,7 @@ class StorePartnerRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::enum(PartnerType::class)],
+            'relationship_quality' => ['nullable', Rule::enum(RelationshipQuality::class)],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:40'],
             'website' => ['nullable', 'url:http,https', 'max:2048'],
@@ -39,6 +41,7 @@ class StorePartnerRequest extends FormRequest
         return [
             'name' => 'nom',
             'type' => 'type',
+            'relationship_quality' => 'qualité de la relation',
             'email' => 'e-mail',
             'phone' => 'téléphone',
             'website' => 'site web',

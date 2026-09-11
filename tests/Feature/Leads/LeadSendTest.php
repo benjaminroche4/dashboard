@@ -49,7 +49,7 @@ test('the deposit plan is sent with the payment link', function (): void {
         ->assertRedirect(route('leads.show', $lead))
         ->assertSessionHasNoErrors();
 
-    Mail::assertSent(LeadDossierSent::class, fn (LeadDossierSent $mail): bool => $mail->paymentUrl === 'https://payment.relocation-in-paris.fr/b/aFa14p9h15dVfOD9HG7EQ0x');
+    Mail::assertQueued(LeadDossierSent::class, fn (LeadDossierSent $mail): bool => $mail->paymentUrl === 'https://payment.relocation-in-paris.fr/b/aFa14p9h15dVfOD9HG7EQ0x');
 
     $this->actingAs($user)->from(route('leads.show', $lead))
         ->post(route('leads.send', $lead), ['items' => ['payment_link'], 'payment_plan' => 'monthly'])
@@ -66,7 +66,7 @@ test('staff can send the recap to the lead from the page', function (): void {
         ->assertRedirect(route('leads.show', $lead))
         ->assertSessionHasNoErrors();
 
-    Mail::assertSent(LeadDossierSent::class, fn (LeadDossierSent $mail): bool => $mail->hasTo('lea@example.com'));
+    Mail::assertQueued(LeadDossierSent::class, fn (LeadDossierSent $mail): bool => $mail->hasTo('lea@example.com'));
     expect($lead->notes()->count())->toBe(1);
 });
 
@@ -86,7 +86,7 @@ test('the selection is validated and a missing e-mail is reported', function ():
         ->post(route('leads.send', $noEmail), ['items' => ['recap']])
         ->assertSessionHasErrors('email');
 
-    Mail::assertNothingSent();
+    Mail::assertNothingQueued();
 });
 
 test('guests cannot send anything', function (): void {

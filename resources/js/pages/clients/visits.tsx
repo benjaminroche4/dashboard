@@ -1,36 +1,29 @@
 import { Head, Link } from '@inertiajs/react';
-import { CalendarClock, Plus } from 'lucide-react';
+import { CalendarClock, History, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { VisitDaySection } from '@/components/visits/visit-day-section';
+import { VisitReportsDue } from '@/components/visits/visit-reports-due';
 import { VisitsDayMap } from '@/components/visits/visits-day-map';
-import { defaultVisitDay, groupVisitsByDay } from '@/lib/visits';
+import { defaultVisitDay, groupVisitsByDay, openVisits } from '@/lib/visits';
 import {
     index as clientsIndex,
     visits as clientsVisits,
 } from '@/routes/clients';
 import { create as visitCreate } from '@/routes/clients/visits';
-import type {
-    PropertyFormOptions,
-    Visit,
-    VisitClientOption,
-    VisitPropertyOption,
-    VisitStatus,
-    VisitStatusOption,
-} from '@/types';
+import type { Visit, VisitStatus, VisitStatusOption } from '@/types';
 
-type Props = PropertyFormOptions & {
+type Props = {
     visits: Visit[];
     statuses: VisitStatusOption[];
-    clients: VisitClientOption[];
-    properties: VisitPropertyOption[];
 };
 
 export default function ClientsVisits({ visits, statuses }: Props) {
     const [statusFilter, setStatusFilter] = useState<VisitStatus | ''>('');
     const [clientFilter, setClientFilter] = useState('');
+    const [showPast, setShowPast] = useState(false);
     const counts = visits.reduce<Partial<Record<VisitStatus, number>>>(
         (acc, visit) => ({
             ...acc,
@@ -39,7 +32,13 @@ export default function ClientsVisits({ visits, statuses }: Props) {
         {},
     );
     const needle = clientFilter.trim().toLocaleLowerCase('fr');
-    const visible = visits.filter(
+    // Par défaut, la liste ne montre que ce qui reste à faire : les visites à
+    // venir et les visites passées sans compte rendu. Un filtre de statut ou le
+    // bouton « Voir les visites passées » rouvre les autres.
+    const open = useMemo(() => openVisits(visits), [visits]);
+    const closedCount = visits.length - open.length;
+    const showsPast = showPast || statusFilter !== '';
+    const visible = (showsPast ? visits : open).filter(
         (visit) =>
             (!statusFilter || visit.status === statusFilter) &&
             (needle === '' ||
@@ -49,7 +48,10 @@ export default function ClientsVisits({ visits, statuses }: Props) {
     // Carte : tous les jours ayant des visites, indépendamment des filtres de la liste.
     const allDays = useMemo(() => groupVisitsByDay(visits), [visits]);
     const mapDay = useMemo(() => defaultVisitDay(allDays), [allDays]);
-    const days = groupVisitsByDay(visible);
+    // Ce qui reste à faire passe devant l'agenda : les visites passées dont le
+    // compte rendu manque sortent des journées pour ouvrir la liste.
+    const reportsDue = visible.filter((visit) => visit.report_due);
+    const days = groupVisitsByDay(visible.filter((visit) => !visit.report_due));
 
     return (
         <>
@@ -61,6 +63,8 @@ export default function ClientsVisits({ visits, statuses }: Props) {
                         <p className="text-muted-foreground text-sm">
                             {visits.length} visite(s)
                             {planned > 0 && ` · ${planned} planifiée(s)`}
+                            {closedCount > 0 &&
+                                ` · ${closedCount} passée(s) masquée(s)`}
                         </p>
                     </div>
                     <Button asChild>
@@ -130,6 +134,21 @@ export default function ClientsVisits({ visits, statuses }: Props) {
                                     </ToggleGroupItem>
                                 ))}
                             </ToggleGroup>
+                            {closedCount > 0 && statusFilter === '' && (
+                                <Button
+                                    type="button"
+                                    variant={showPast ? 'secondary' : 'outline'}
+                                    size="sm"
+                                    aria-pressed={showPast}
+                                    onClick={() => setShowPast(!showPast)}
+                                >
+                                    <History aria-hidden />
+                                    Visites passées
+                                    <span className="text-muted-foreground tabular-nums">
+                                        {closedCount}
+                                    </span>
+                                </Button>
+                            )}
                             <Input
                                 value={clientFilter}
                                 onChange={(event) =>
@@ -140,12 +159,13 @@ export default function ClientsVisits({ visits, statuses }: Props) {
                                 className="ml-auto max-w-xs"
                             />
                         </div>
-                        {days.length === 0 ? (
+                        {days.length === 0 && reportsDue.length === 0 ? (
                             <p className="text-muted-foreground text-sm">
                                 Aucune visite ne correspond aux filtres.
                             </p>
                         ) : (
                             <div className="grid grid-cols-1 gap-8">
+                                <VisitReportsDue visits={reportsDue} />
                                 {days.map((day) => (
                                     <VisitDaySection key={day.key} day={day} />
                                 ))}

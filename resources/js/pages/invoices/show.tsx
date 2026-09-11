@@ -1,5 +1,5 @@
-import { Head, usePage } from '@inertiajs/react';
-import { Check, Download, Send } from 'lucide-react';
+import { Head, Link, usePage } from '@inertiajs/react';
+import { Check, Download, Pencil, Send } from 'lucide-react';
 import { useState } from 'react';
 import { CreatedBy } from '@/components/created-by';
 import { InvoicePreview } from '@/components/invoices/invoice-preview';
@@ -12,7 +12,7 @@ import { formatMoney } from '@/lib/format';
 import { downloadInvoicePdf } from '@/lib/download-invoice-pdf';
 import { invoiceToForm } from '@/lib/invoice-to-form';
 import { cn } from '@/lib/utils';
-import { index as invoicesIndex } from '@/routes/invoices';
+import { edit as invoiceEdit, index as invoicesIndex } from '@/routes/invoices';
 import { index as toolsIndex } from '@/routes/tools';
 import type {
     Company,
@@ -55,6 +55,7 @@ export default function InvoicesShow({
     const [paying, setPaying] = useState(false);
     const [sending, setSending] = useState(false);
     const { auth } = usePage().props;
+    const canManage = auth.user.role !== 'member';
 
     return (
         <>
@@ -89,16 +90,22 @@ export default function InvoicesShow({
                                         invoice.currency,
                                     )}
                                 </>
-                            )}{' '}
-                            ·{' '}
-                            <CreatedBy
-                                name={invoice.created_by}
-                                avatar={invoice.created_by_avatar}
-                                date={invoice.issued_at}
-                            />
+                            )}
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
+                        {invoice.can_edit && canManage && (
+                            <Button variant="outline" asChild>
+                                <Link
+                                    href={invoiceEdit({
+                                        invoice: invoice.uuid,
+                                    })}
+                                >
+                                    <Pencil />
+                                    Modifier
+                                </Link>
+                            </Button>
+                        )}
                         <Button
                             variant="outline"
                             onClick={() =>
@@ -147,7 +154,7 @@ export default function InvoicesShow({
                         <InvoiceLeadLink
                             invoiceUuid={invoice.uuid}
                             lead={invoice.lead}
-                            canEdit={auth.user.role !== 'member'}
+                            canEdit={canManage}
                         />
                         <section className="grid gap-3">
                             <h2 className="text-base font-medium">
@@ -193,14 +200,25 @@ export default function InvoicesShow({
                                                     {change.note}
                                                 </p>
                                             )}
-                                            <p className="text-muted-foreground text-xs">
-                                                {dateTime.format(
-                                                    new Date(change.at),
+                                            <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-xs">
+                                                <span>
+                                                    {dateTime.format(
+                                                        new Date(change.at),
+                                                    )}
+                                                </span>
+                                                <span aria-hidden>·</span>
+                                                {change.by ? (
+                                                    <CreatedBy
+                                                        name={change.by}
+                                                        avatar={
+                                                            change.by_avatar
+                                                        }
+                                                        verb="par"
+                                                    />
+                                                ) : (
+                                                    <span>automatique</span>
                                                 )}
-                                                {change.by
-                                                    ? ` · ${change.by}`
-                                                    : ' · automatique'}
-                                            </p>
+                                            </div>
                                         </div>
                                     </li>
                                 ))}

@@ -5,7 +5,25 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
-    usePage: () => ({ props: { auth: { user: { role: 'admin' } } } }),
+    usePage: () => ({
+        props: {
+            auth: { user: { role: 'admin' } },
+            staff: [{ id: 2, name: 'Charles Petit', functions: ['Closing'] }],
+        },
+    }),
+    useForm: () => ({
+        data: {
+            co_first_name: '',
+            co_last_name: '',
+            co_email: '',
+            co_phone: '',
+            co_assigned_to: '',
+        },
+        errors: {},
+        processing: false,
+        setData: vi.fn(),
+        patch: vi.fn(),
+    }),
     Link: ({
         href,
         children,
@@ -115,6 +133,7 @@ describe('Client file page', () => {
             screen.getAllByRole('tab').map((tab) => tab.textContent),
         ).toEqual([
             'Aperçu',
+            'Personnes2',
             'Visites1',
             'Documents0',
             'Biens0',
@@ -142,25 +161,39 @@ describe('Client file page', () => {
         await user.click(screen.getByRole('tab', { name: /Visites/ }));
         expect(screen.getByText('T2 lumineux · 11e')).toBeInTheDocument();
         expect(
-            screen.getAllByRole('link', { name: /Planifier une visite/ }),
-        ).toHaveLength(2);
+            screen.getByRole('link', { name: /Planifier une visite/ }),
+        ).toBeInTheDocument();
+
+        // La barre d'avancement remplace la date d'arrivée en chiffre.
+        expect(screen.getByRole('progressbar')).toBeInTheDocument();
+
+        // Les actions secondaires vivent dans le menu « ⋯ » de l'en-tête.
+        await user.click(
+            screen.getByRole('button', { name: 'Plus d’actions' }),
+        );
         expect(
-            screen.getByRole('link', { name: /Fiche lead/ }),
+            await screen.findByRole('menuitem', { name: /Fiche lead/ }),
         ).toHaveAttribute(
             'href',
             '/locataires/0199a9a0-0000-7000-8000-0000000000e1',
         );
         expect(
-            screen.getByRole('link', { name: /Nouvelle facture/ }),
+            screen.getByRole('menuitem', { name: /Planifier une visite/ }),
         ).toHaveAttribute(
             'href',
-            '/invoices/create?lead=0199a9a0-0000-7000-8000-0000000000e1',
+            '/clients/visits/create?client=0199a9a0-0000-7000-8000-0000000000e1',
         );
         expect(
-            screen.getByRole('link', { name: /Nouveau devis/ }),
+            screen.getByRole('menuitem', { name: /Nouveau devis/ }),
         ).toHaveAttribute(
             'href',
             '/tools/quotes/create?lead=0199a9a0-0000-7000-8000-0000000000e1',
+        );
+        expect(
+            screen.getByRole('menuitem', { name: /Nouvelle facture/ }),
+        ).toHaveAttribute(
+            'href',
+            '/invoices/create?lead=0199a9a0-0000-7000-8000-0000000000e1',
         );
     });
 
@@ -236,5 +269,65 @@ describe('Client file page', () => {
             'href',
             '/tools/activity?lead=0199a9a0-0000-7000-8000-0000000000e1',
         );
+    });
+
+    it('groups the people of the dossier in their own tab', async () => {
+        const user = userEvent.setup();
+        render(
+            <ClientShow
+                priorities={clientPriorities}
+                client={makeClientDetail({
+                    name: 'Bruno & Charles',
+                    co_tenant: {
+                        first_name: 'Charles',
+                        last_name: 'Mata',
+                        name: 'Charles Mata',
+                        email: 'charles@example.com',
+                        phone: '+33 6 12 34 56 78',
+                        income_cents: 250_000,
+                    },
+                    co_assignee: { id: 2, name: 'Charles Petit', avatar: null },
+                })}
+                guarantors={[
+                    {
+                        uuid: 'guarantor-1',
+                        first_name: 'Marie',
+                        last_name: 'Mata',
+                        name: 'Marie Mata',
+                        email: null,
+                        phone: null,
+                        income_cents: 450_000,
+                        note: null,
+                    },
+                ]}
+                totals={[]}
+                invoices={[]}
+                quotes={[]}
+                documentRequests={[]}
+                partners={[]}
+                notes={[]}
+            />,
+        );
+
+        await user.click(screen.getByRole('tab', { name: /Personnes/ }));
+
+        const tenants = within(
+            screen.getByRole('region', { name: 'Locataires' }),
+        );
+        expect(tenants.getByText('Bruno & Charles')).toBeInTheDocument();
+        expect(tenants.getByText('Charles Mata')).toBeInTheDocument();
+        expect(tenants.getByText('charles@example.com')).toBeInTheDocument();
+
+        expect(
+            within(screen.getByRole('region', { name: 'Garants' })).getByText(
+                'Marie Mata',
+            ),
+        ).toBeInTheDocument();
+
+        const followers = within(
+            screen.getByRole('region', { name: 'Personnes de suivi' }),
+        );
+        expect(followers.getByText('Admin')).toBeInTheDocument();
+        expect(followers.getByText('Charles Petit')).toBeInTheDocument();
     });
 });

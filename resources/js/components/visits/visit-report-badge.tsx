@@ -31,7 +31,7 @@ export function VisitReportBadge({ visit }: { visit: Visit }) {
             <Badge
                 variant="secondary"
                 data-report="due"
-                className="bg-red-50 font-medium text-red-700 dark:bg-red-950 dark:text-red-300"
+                className="bg-orange-50 font-medium text-orange-700 dark:bg-orange-950 dark:text-orange-300"
             >
                 <ClipboardPen className="size-3" aria-hidden />
                 Compte rendu à rédiger

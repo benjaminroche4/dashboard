@@ -391,8 +391,8 @@ describe('Lead detail page', () => {
                 lead={makeLeadDetail({
                     status: 'archived',
                     status_label: 'Archivé',
-                    loss_reason: 'too_expensive',
-                    loss_reason_label: 'Trop cher',
+                    loss_reason: 'small_budget',
+                    loss_reason_label: 'Trop petit budget',
                     loss_note: 'Budget à 900 €.',
                 })}
                 notes={[]}
@@ -401,7 +401,7 @@ describe('Lead detail page', () => {
         );
 
         expect(screen.getByTestId('loss-reason')).toHaveTextContent(
-            'Motif : Trop cher · Budget à 900 €.',
+            'Motif : Trop petit budget · Budget à 900 €.',
         );
     });
 });

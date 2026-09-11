@@ -42,6 +42,8 @@ final class CreateInvoice
                 'issued_at' => $data->issuedAt,
                 'due_at' => $data->dueAt,
                 'notes' => $data->notes,
+                'bank_name' => $data->bankName,
+                'bank_iban' => $data->bankIban,
                 'created_by' => $creator?->id,
                 'lead_id' => $data->leadId,
             ]);

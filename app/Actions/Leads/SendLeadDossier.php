@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Services\DocRaptor;
 use App\Services\PaymentLinks;
 use App\Services\Yousign;
+use App\Support\HouseholdMail;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
@@ -106,13 +107,13 @@ final readonly class SendLeadDossier
             $mailable->replyTo($assignee->email, $assignee->name);
         }
 
-        Mail::to($lead->email, $lead->fullName())->locale($lead->language->value)->send($mailable);
+        $sentTo = HouseholdMail::send($lead, $mailable);
 
         $labels = implode(', ', array_map(
             fn (LeadMailItem $item): string => mb_strtolower($item->label()).($item === LeadMailItem::PaymentLink && $plan === PaymentPlan::Deposit ? ' (acompte de 50 %)' : ''),
             $items,
         ));
-        $lead->notes()->create(['body' => "Envoi au lead ({$lead->email}) : {$labels}.", 'user_id' => $by?->id]);
+        $lead->notes()->create(['body' => 'Envoi au lead ('.implode(', ', $sentTo).") : {$labels}.", 'user_id' => $by?->id]);
         $lead->forceFill(['last_contacted_at' => now()])->save();
 
         event(new DashboardUpdated('leads', ['id' => $lead->id], "a écrit au lead {$lead->fullName()} ({$labels})"));

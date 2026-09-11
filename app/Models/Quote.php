@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\Currency;
 use App\Enums\QuoteStatus;
+use App\Support\BankAccounts;
 use Carbon\CarbonInterface;
 use Database\Factories\QuoteFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -44,6 +45,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property CarbonInterface|null $accepted_at
  * @property CarbonInterface|null $declined_at
  * @property string|null $notes
+ * @property string|null $bank_name
+ * @property string|null $bank_iban
  * @property int|null $created_by
  * @property int|null $lead_id
  * @property int|null $invoice_id
@@ -54,7 +57,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'number', 'client_name', 'client_email', 'client_street', 'client_postal_code', 'client_city', 'client_country',
     'client_address', 'items', 'vat_rate', 'discount_percent', 'discount_cents',
     'subtotal_cents', 'vat_cents', 'amount_cents', 'currency', 'status',
-    'issued_at', 'valid_until', 'sent_at', 'accepted_at', 'declined_at', 'notes', 'created_by', 'lead_id', 'invoice_id',
+    'issued_at', 'valid_until', 'sent_at', 'accepted_at', 'declined_at', 'notes', 'created_by', 'lead_id', 'invoice_id', 'bank_name', 'bank_iban',
 ])]
 class Quote extends Model
 {
@@ -121,6 +124,17 @@ class Quote extends Model
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    /**
+     * Coordonnées bancaires à imprimer : celles figées sur le document, sinon
+     * le compte par défaut de sa devise.
+     *
+     * @return array{bank: string, iban: string}
+     */
+    public function bankAccount(): array
+    {
+        return BankAccounts::resolve($this->bank_name, $this->bank_iban, $this->currency);
     }
 
     /**

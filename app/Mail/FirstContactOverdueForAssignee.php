@@ -7,6 +7,7 @@ namespace App\Mail;
 use App\Models\Lead;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -16,7 +17,7 @@ use Illuminate\Support\Str;
 /**
  * Alerte au conseiller responsable : le lead qui lui est attribué attend depuis 30 minutes sans premier contact.
  */
-final class FirstContactOverdueForAssignee extends Mailable
+final class FirstContactOverdueForAssignee extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

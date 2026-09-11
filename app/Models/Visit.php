@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\VisitMode;
 use App\Enums\VisitStatus;
 use Carbon\CarbonInterface;
 use Database\Factories\VisitFactory;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Visite d'un bien par un client, à une date donnée.
@@ -25,8 +27,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $assigned_to
  * @property CarbonInterface $scheduled_at
  * @property VisitStatus $status
+ * @property VisitMode $mode
  * @property string|null $notes
  * @property string|null $report
+ * @property list<string>|null $report_photos
  * @property CarbonInterface|null $report_submitted_at
  * @property int|null $report_submitted_by
  * @property CarbonInterface|null $report_reminded_at
@@ -40,7 +44,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read User|null $creator
  * @property-read User|null $reportAuthor
  */
-#[Fillable(['lead_id', 'property_id', 'agent_id', 'assigned_to', 'scheduled_at', 'status', 'notes', 'report', 'report_submitted_at', 'report_submitted_by', 'report_reminded_at', 'created_by'])]
+#[Fillable(['lead_id', 'property_id', 'agent_id', 'assigned_to', 'scheduled_at', 'status', 'mode', 'notes', 'report', 'report_photos', 'report_submitted_at', 'report_submitted_by', 'report_reminded_at', 'created_by'])]
 class Visit extends Model
 {
     /** @use HasFactory<VisitFactory> */
@@ -69,6 +73,8 @@ class Visit extends Model
         return [
             'scheduled_at' => 'datetime',
             'status' => VisitStatus::class,
+            'mode' => VisitMode::class,
+            'report_photos' => 'array',
             'report_submitted_at' => 'datetime',
             'report_reminded_at' => 'datetime',
         ];
@@ -112,6 +118,16 @@ class Visit extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * URL publiques des photos du compte rendu.
+     *
+     * @return list<string>
+     */
+    public function reportPhotoUrls(): array
+    {
+        return array_map(fn (string $path): string => Storage::disk('public')->url($path), $this->report_photos ?? []);
     }
 
     /**

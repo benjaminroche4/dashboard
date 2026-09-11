@@ -11,7 +11,7 @@ use App\Models\User;
 use Illuminate\Support\Str;
 
 /**
- * Enregistre une demande de pièces prête à être téléchargée en PDF ou
+ * Enregistre une liste de pièces prête à être téléchargée en PDF ou
  * envoyée au client.
  */
 final class CreateDocumentRequest
@@ -25,7 +25,7 @@ final class CreateDocumentRequest
             'created_by' => $by?->id,
         ]);
 
-        event(new DashboardUpdated('documents', ['id' => $request->id], 'a préparé une demande de pièces pour '.$request->fullName()));
+        event(new DashboardUpdated('documents', ['id' => $request->id], 'a préparé la liste de pièces de '.$request->fullName()));
 
         return $request;
     }

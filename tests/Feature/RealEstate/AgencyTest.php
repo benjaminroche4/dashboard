@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Actions\Activity\RecordActivity;
 use App\Events\DashboardUpdated;
 use App\Mail\DirectoryWelcome;
+use App\Models\Activity;
 use App\Models\Agency;
 use App\Models\Agent;
 use App\Models\Lead;
@@ -94,7 +96,7 @@ test('only admins delete an agency and its agents are kept, detached', function 
         ->and($agent->refresh()->agency_id)->toBeNull();
 });
 
-test('an agency has a detail page with its agents and the leads they are in contact with', function (): void {
+test('an agency has a detail page with its agents and the properties visited with them', function (): void {
     $agency = Agency::factory()->create(['name' => 'Agence du Marais']);
     $agent = Agent::factory()->forAgency($agency)->create(['first_name' => 'Zoé', 'last_name' => 'Martin']);
     Lead::factory()->create(['agent_id' => $agent->id, 'first_name' => 'Léa', 'last_name' => 'Durand']);
@@ -109,9 +111,8 @@ test('an agency has a detail page with its agents and the leads they are in cont
             ->where('agency.agents_count', 1)
             ->where('agency.agents.0.name', 'Zoé Martin')
             ->where('agency.agents.0.leads_count', 1)
-            ->has('agency.leads', 1)
-            ->where('agency.leads.0.name', 'Léa Durand')
-            ->where('agency.leads.0.agent', 'Zoé Martin'));
+            // Les biens visités avec l'agence ont leur propre test.
+            ->has('agency.properties'));
 });
 
 test('a new agency is e-mailed only when asked, and only if it has an address', function (): void {
@@ -120,12 +121,47 @@ test('a new agency is e-mailed only when asked, and only if it has an address', 
 
     $this->actingAs($member)->post(route('agencies.store'), ['name' => 'Silencieuse', 'email' => 'a@example.com'])->assertSessionHasNoErrors();
     $this->actingAs($member)->post(route('agencies.store'), ['name' => 'Sans adresse', 'phone' => '+33 1 00 00 00 00', 'notify' => true])->assertSessionHasNoErrors();
-    Mail::assertNothingSent();
+    Mail::assertNothingQueued();
 
     $this->actingAs($member)->post(route('agencies.store'), ['name' => 'Agence du Marais', 'email' => 'marais@example.com', 'notify' => true])->assertSessionHasNoErrors();
 
-    Mail::assertSent(DirectoryWelcome::class, fn (DirectoryWelcome $mail): bool => $mail->hasTo('marais@example.com')
+    Mail::assertQueued(DirectoryWelcome::class, fn (DirectoryWelcome $mail): bool => $mail->hasTo('marais@example.com')
         && $mail->name === 'Agence du Marais'
         && $mail->hasReplyTo('charles@relocation-in-paris.fr')
         && str_contains($mail->render(), 'agence immobilière partenaire'));
+});
+
+test('the fiche of an agency and of an agent carries its own activity journal', function (): void {
+    $member = User::factory()->create(['name' => 'Camille']);
+    $agency = Agency::factory()->create(['name' => 'Century 21 Marais']);
+    $agent = Agent::factory()->forAgency($agency)->create(['first_name' => 'Julie', 'last_name' => 'Roux']);
+
+    Activity::factory()->create(['agency_id' => $agency->id, 'user_id' => $member->id, 'resource' => 'agencies', 'message' => 'a noté un échange avec Century 21 Marais']);
+    Activity::factory()->create(['agent_id' => $agent->id, 'resource' => 'agents', 'message' => 'a noté un échange avec Julie Roux']);
+    Activity::factory()->create(['resource' => 'leads', 'message' => 'ailleurs']);
+
+    $this->actingAs($member)->get(route('agencies.show', $agency))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->has('activities', 1)
+            ->where('activities.0.message', 'a noté un échange avec Century 21 Marais')
+            ->where('activities.0.actor.name', 'Camille'));
+
+    $this->actingAs($member)->get(route('agents.show', $agent))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->has('activities', 1)
+            ->where('activities.0.message', 'a noté un échange avec Julie Roux'));
+});
+
+test('an action on an agency or an agent is filed on its own fiche', function (): void {
+    $member = User::factory()->create();
+    $agency = Agency::factory()->create(['name' => 'Century 21 Marais']);
+    $agent = Agent::factory()->create(['first_name' => 'Julie', 'last_name' => 'Roux']);
+
+    (new RecordActivity)->handle(new DashboardUpdated('agencies', ['id' => $agency->id], 'a modifié l’agence Century 21 Marais', $member));
+    (new RecordActivity)->handle(new DashboardUpdated('agents', ['id' => $agent->id], 'a modifié l’agent Julie Roux', $member));
+    // Une action sur un agent porte aussi son agence quand le payload la donne.
+    (new RecordActivity)->handle(new DashboardUpdated('agents', ['id' => $agent->id, 'agency_id' => $agency->id], 'a rattaché Julie Roux', $member));
+
+    expect(Activity::query()->where('agency_id', $agency->id)->count())->toBe(2)
+        ->and(Activity::query()->where('agent_id', $agent->id)->count())->toBe(2);
 });

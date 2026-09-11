@@ -1,8 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Contact, History } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { CalendarRange, History } from 'lucide-react';
+import { ActivityFeed } from '@/components/activity/activity-feed';
+import { PaginationBar } from '@/components/pagination-bar';
 import {
     Select,
     SelectContent,
@@ -10,7 +9,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { useInitials } from '@/hooks/use-initials';
 import { show as leadShow } from '@/routes/leads';
 import { index as toolsIndex } from '@/routes/tools';
 import { index as activityIndex } from '@/routes/tools/activity';
@@ -20,6 +18,7 @@ import type {
     ActivityLead,
     ActivityMember,
     ActivityPage,
+    ActivityPeriodOption,
     ActivityResourceOption,
 } from '@/types';
 
@@ -27,6 +26,7 @@ type Props = {
     activities: ActivityPage;
     members: ActivityMember[];
     resources: ActivityResourceOption[];
+    periods: ActivityPeriodOption[];
     filters: ActivityFilters;
     /** Lead filtré (`?lead=UUID`), pour l'en-tête. */
     lead: ActivityLead | null;
@@ -40,11 +40,6 @@ const dayFormat = new Intl.DateTimeFormat('fr-FR', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
-});
-
-const timeFormat = new Intl.DateTimeFormat('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
 });
 
 function dayKey(date: Date): string {
@@ -94,20 +89,27 @@ export default function ActivityIndex({
     activities,
     members,
     resources,
+    periods,
     filters,
     lead,
 }: Props) {
-    const initials = useInitials();
     const groups = groupByDay(activities.data);
 
     const visit = (
-        changes: Partial<{ member: string; resource: string; page: number }>,
+        changes: Partial<{
+            period: string;
+            member: string;
+            resource: string;
+            page: number;
+        }>,
     ) => {
         const query: Record<string, string | number> = {};
+        const period = changes.period ?? filters.period;
         const member =
             changes.member ?? (filters.member ? String(filters.member) : ALL);
         const resource = changes.resource ?? filters.resource ?? ALL;
 
+        query.period = period;
         if (member !== ALL) {
             query.member = member;
         }
@@ -132,7 +134,7 @@ export default function ActivityIndex({
         <>
             <Head title="Journal d'activité" />
             <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 pb-10">
-                <div className="flex flex-wrap items-end justify-between gap-4 pt-8">
+                <div className="grid gap-4 pt-8">
                     <div>
                         <h1 className="text-lg font-medium">
                             Journal d'activité
@@ -160,7 +162,32 @@ export default function ActivityIndex({
                             )}
                         </p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="bg-sidebar flex flex-wrap items-center gap-2 rounded-xl border p-2">
+                        <Select
+                            value={filters.period}
+                            onValueChange={(period) => visit({ period })}
+                        >
+                            <SelectTrigger
+                                aria-label="Période"
+                                className="bg-background w-44"
+                            >
+                                <CalendarRange
+                                    aria-hidden="true"
+                                    className="size-4 opacity-60"
+                                />
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {periods.map((period) => (
+                                    <SelectItem
+                                        key={period.value}
+                                        value={period.value}
+                                    >
+                                        {period.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                         <Select
                             value={
                                 filters.member ? String(filters.member) : ALL
@@ -211,142 +238,27 @@ export default function ActivityIndex({
                                 ))}
                             </SelectContent>
                         </Select>
+                        <p className="text-muted-foreground ml-auto px-2 text-xs tabular-nums">
+                            {activities.total}{' '}
+                            {activities.total > 1 ? 'entrées' : 'entrée'}
+                        </p>
                     </div>
                 </div>
 
                 {activities.data.length === 0 ? (
                     <div className="bg-sidebar text-muted-foreground flex flex-col items-center gap-2 rounded-xl border px-4 py-12 text-center text-sm">
                         <History aria-hidden="true" className="size-6" />
-                        Aucune activité pour ces filtres.
+                        Aucune activité sur cette période.
                     </div>
                 ) : (
-                    groups.map((group) => (
-                        <section
-                            key={group.label}
-                            aria-label={group.label}
-                            className="grid gap-3"
-                        >
-                            <h2 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                                {group.label}
-                            </h2>
-                            <ol
-                                role="list"
-                                className="bg-sidebar divide-y rounded-xl border"
-                            >
-                                {group.items.map((activity) => {
-                                    const actorName =
-                                        activity.actor?.name ?? 'Le système';
-
-                                    return (
-                                        <li
-                                            key={activity.id}
-                                            className="flex items-start gap-3 px-4 py-3 text-sm"
-                                        >
-                                            <Avatar className="mt-0.5 size-7">
-                                                {activity.actor?.avatar && (
-                                                    <AvatarImage
-                                                        src={
-                                                            activity.actor
-                                                                .avatar
-                                                        }
-                                                        alt=""
-                                                    />
-                                                )}
-                                                <AvatarFallback className="text-[10px]">
-                                                    {activity.actor ? (
-                                                        initials(actorName)
-                                                    ) : (
-                                                        <History
-                                                            aria-hidden="true"
-                                                            className="size-3"
-                                                        />
-                                                    )}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                            <div className="grid min-w-0 flex-1 gap-1">
-                                                <p>
-                                                    <span className="font-medium">
-                                                        {actorName}
-                                                    </span>{' '}
-                                                    {activity.message}
-                                                </p>
-                                                <p className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
-                                                    <time
-                                                        dateTime={
-                                                            activity.created_at
-                                                        }
-                                                    >
-                                                        {timeFormat.format(
-                                                            new Date(
-                                                                activity.created_at,
-                                                            ),
-                                                        )}
-                                                    </time>
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="font-normal"
-                                                    >
-                                                        {
-                                                            activity.resource_label
-                                                        }
-                                                    </Badge>
-                                                    {activity.lead && (
-                                                        <Link
-                                                            href={leadShow({
-                                                                lead: activity
-                                                                    .lead.uuid,
-                                                            })}
-                                                            className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
-                                                        >
-                                                            <Contact
-                                                                aria-hidden="true"
-                                                                className="size-3"
-                                                            />
-                                                            {activity.lead.name}
-                                                        </Link>
-                                                    )}
-                                                </p>
-                                            </div>
-                                        </li>
-                                    );
-                                })}
-                            </ol>
-                        </section>
-                    ))
+                    <ActivityFeed groups={groups} />
                 )}
 
-                {activities.last_page > 1 && (
-                    <nav
-                        aria-label="Pagination"
-                        className="flex items-center justify-between gap-4 text-sm"
-                    >
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={activities.prev_page_url === null}
-                            onClick={() =>
-                                visit({ page: activities.current_page - 1 })
-                            }
-                        >
-                            Précédent
-                        </Button>
-                        <span className="text-muted-foreground tabular-nums">
-                            Page {activities.current_page} sur{' '}
-                            {activities.last_page} · {activities.total}{' '}
-                            {activities.total > 1 ? 'entrées' : 'entrée'}
-                        </span>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={activities.next_page_url === null}
-                            onClick={() =>
-                                visit({ page: activities.current_page + 1 })
-                            }
-                        >
-                            Suivant
-                        </Button>
-                    </nav>
-                )}
+                <PaginationBar
+                    page={activities.current_page}
+                    lastPage={activities.last_page}
+                    onPage={(page) => visit({ page })}
+                />
             </div>
         </>
     );

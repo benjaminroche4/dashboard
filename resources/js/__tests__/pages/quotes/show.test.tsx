@@ -52,7 +52,12 @@ describe('Quote detail page', () => {
         render(
             <QuotesShow
                 quote={makeQuoteDetail({
-                    lead: { id: 4, uuid: 'abc', name: 'Léa Durand' },
+                    lead: {
+                        id: 4,
+                        uuid: 'abc',
+                        name: 'Léa Durand',
+                        is_client: false,
+                    },
                     invoice: {
                         id: 9,
                         uuid: '0199a9a0-0000-7000-8000-000000000109',
@@ -90,7 +95,7 @@ describe('Quote detail page', () => {
         expect(preview.getByText('Jean Dupont')).toBeInTheDocument();
         expect(preview.getByText('Adressé à')).toBeInTheDocument();
         expect(
-            screen.getByRole('link', { name: 'Léa Durand' }),
+            screen.getByRole('link', { name: /Léa Durand/ }),
         ).toHaveAttribute('href', '/locataires/abc');
         expect(screen.getByRole('link', { name: 'RP-27009' })).toHaveAttribute(
             'href',

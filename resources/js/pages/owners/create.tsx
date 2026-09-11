@@ -18,6 +18,7 @@ import { AddressAutocomplete } from '@/components/address-autocomplete';
 import { CountryFlag } from '@/components/country-flag';
 import { FormActionBar } from '@/components/form-action-bar';
 import { ChoicePills } from '@/components/leads/condition-choices';
+import { propertyAmenityIcons } from '@/lib/property-amenity-icons';
 import {
     FormField as Field,
     FormGroup as Group,
@@ -1156,6 +1157,7 @@ export default function OwnerLeadCreate({
                                         multiple
                                         id="amenities"
                                         label="Équipements"
+                                        icons={propertyAmenityIcons}
                                         options={shownAmenities}
                                         value={property.amenities}
                                         onChange={(value) =>

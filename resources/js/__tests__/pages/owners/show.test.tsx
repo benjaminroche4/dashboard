@@ -54,51 +54,51 @@ function useFormStub(initial: Record<string, unknown>) {
 }
 
 import OwnerShow from '@/pages/owners/show';
-import { makeOwner, ownerStatuses } from '@/test/fixtures/owner';
+import { makeOwner, ownerKinds } from '@/test/fixtures/owner';
 import { makeProperty } from '@/test/fixtures/property';
 
+const stats = {
+    properties: 1,
+    open: 1,
+    rented: 0,
+    rent_cents: 150000,
+    last_visit_at: null,
+};
+
 describe('Owner detail page', () => {
-    it('shows contact, lead, properties and opens the edit dialog', async () => {
+    it('shows contact, the properties held and opens the edit dialog', async () => {
         const user = userEvent.setup();
         render(
             <OwnerShow
                 owner={makeOwner({
-                    company: 'SCI Rivoli',
                     notes: 'Préfère être appelée le matin.',
-                    lead: {
-                        uuid: 'lead-1',
-                        reference: 'LD-0042',
-                        status_label: 'En cours',
-                    },
                 })}
                 properties={[makeProperty()]}
-                statuses={ownerStatuses}
+                stats={stats}
+                kinds={ownerKinds}
             />,
         );
 
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
             'Zoé Martin',
         );
-        expect(screen.getByText('SCI Rivoli')).toBeInTheDocument();
-        const contact = within(screen.getByRole('region', { name: 'Contact' }));
+        expect(screen.getByText('Particulier')).toBeInTheDocument();
+        // Les coordonnées sont dans l'en-tête : la carte « Joindre » faisait doublon.
         expect(
-            contact.getByRole('link', { name: 'zoe@example.com' }),
+            screen.getByRole('link', { name: 'zoe@example.com' }),
         ).toHaveAttribute('href', 'mailto:zoe@example.com');
         expect(
-            contact.getByText('8 rue de Rivoli, 75004 Paris'),
+            screen.getByText('8 rue de Rivoli, 75004 Paris'),
         ).toBeInTheDocument();
-        expect(contact.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute(
-            'href',
-            'https://wa.me/33612345678',
-        );
+        expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();
         expect(
             screen.getByText('Préfère être appelée le matin.'),
         ).toBeInTheDocument();
 
-        const lead = within(screen.getByRole('region', { name: 'Lead' }));
+        // Sans lead d'origine, aucune carte : l'annuaire n'est pas un pipeline.
         expect(
-            lead.getByRole('link', { name: 'Lead LD-0042' }),
-        ).toHaveAttribute('href', '/locataires/lead-1');
+            screen.queryByRole('region', { name: 'Lead propriétaire' }),
+        ).not.toBeInTheDocument();
 
         const properties = within(
             screen.getByRole('region', { name: 'Biens' }),
@@ -118,24 +118,101 @@ describe('Owner detail page', () => {
         expect(dialog.getByLabelText('E-mail')).toHaveValue('zoe@example.com');
     });
 
-    it('offers to create the lead when the owner has none', async () => {
-        const user = userEvent.setup();
+    it('names a company by its trade name and adds a property from the page', () => {
         render(
             <OwnerShow
-                owner={makeOwner({ lead: null })}
+                owner={makeOwner({
+                    kind: 'company',
+                    kind_label: 'Société ou agence',
+                    name: 'SCI du Marais',
+                    company: 'SCI du Marais',
+                    contact_name: 'Zoé Martin',
+                })}
                 properties={[]}
-                statuses={ownerStatuses}
+                stats={{ ...stats, properties: 0, open: 0, rent_cents: 0 }}
+                kinds={ownerKinds}
             />,
         );
 
-        expect(
-            screen.getByText(/Aucun bien de l’annuaire/),
-        ).toBeInTheDocument();
-        await user.click(screen.getByRole('button', { name: 'Créer le lead' }));
-        expect(post).toHaveBeenCalledWith(
-            '/owners/0199a9a0-0000-7000-8000-0000000000d1/convert',
-            {},
-            expect.anything(),
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+            'SCI du Marais',
         );
+        expect(screen.getByText('Société ou agence')).toBeInTheDocument();
+        expect(screen.getByText('Zoé Martin')).toBeInTheDocument();
+
+        // Un propriétaire peut détenir plusieurs biens : on en ajoute d'ici.
+        expect(
+            screen.getByRole('link', { name: /Ajouter un bien/ }),
+        ).toHaveAttribute(
+            'href',
+            '/properties/create?owner=0199a9a0-0000-7000-8000-0000000000d1',
+        );
+        expect(
+            screen.getByText(/Aucun bien rattaché pour l’instant/),
+        ).toBeInTheDocument();
+    });
+
+    it('notes an exchange, recalls the lead it came from and sums up the parc', async () => {
+        const user = userEvent.setup();
+        render(
+            <OwnerShow
+                owner={makeOwner({
+                    last_contacted_at: '2026-09-01T09:00:00+00:00',
+                    lead: {
+                        id: 7,
+                        uuid: 'lead-7',
+                        name: 'Zoé Martin',
+                        reference: 'LD-4242',
+                        status_label: 'En signature',
+                        assignee: 'Admin',
+                    },
+                })}
+                properties={[makeProperty()]}
+                stats={{
+                    properties: 3,
+                    open: 2,
+                    rented: 1,
+                    rent_cents: 450000,
+                    last_visit_at: '2026-09-08T10:00:00+00:00',
+                }}
+                kinds={ownerKinds}
+            />,
+        );
+
+        // Fraîcheur de la relation, comme sur un agent ou un partenaire.
+        const relation = within(
+            screen.getByRole('region', { name: 'Suivi de la relation' }),
+        );
+        expect(
+            relation.getByText('Dernier échange le 1 septembre 2026'),
+        ).toBeInTheDocument();
+        await user.click(
+            relation.getByRole('button', { name: 'Échange noté' }),
+        );
+        expect(post).toHaveBeenCalledWith(
+            '/owners/0199a9a0-0000-7000-8000-0000000000d1/contact',
+            {},
+            expect.objectContaining({ preserveScroll: true }),
+        );
+
+        // D'où vient la fiche : la prospection reste le lead.
+        const lead = within(
+            screen.getByRole('region', { name: 'Lead propriétaire' }),
+        );
+        expect(lead.getByRole('link', { name: 'Zoé Martin' })).toHaveAttribute(
+            'href',
+            '/locataires/lead-7',
+        );
+        expect(
+            lead.getByText('LD-4242 · En signature · Admin'),
+        ).toBeInTheDocument();
+
+        // L'état du parc, que la liste des biens ne dit pas.
+        const parc = within(screen.getByRole('region', { name: 'Biens' }));
+        expect(parc.getByText('Disponibles')).toBeInTheDocument();
+        expect(parc.getByText('4 500,00 €')).toBeInTheDocument();
+        expect(
+            parc.getByText('Dernière visite le 8 septembre 2026.'),
+        ).toBeInTheDocument();
     });
 });

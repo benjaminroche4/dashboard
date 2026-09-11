@@ -30,14 +30,14 @@ export type SiteSection =
     | 'clients'
     | 'visits'
     | 'agents'
-    | 'agencies'
     | 'partners'
     | 'owners'
     | 'properties'
     | 'quotes'
     | 'invoices'
     | 'documents'
-    | 'reports';
+    | 'reports'
+    | 'activity';
 
 export type SiteSectionOption = {
     value: SiteSection;
@@ -46,6 +46,8 @@ export type SiteSectionOption = {
     group: string;
     /** Ce que « Gérer » ajoute dans cette section. */
     manage_hint: string;
+    /** Faux quand « Gérer » n'ajoute rien : le niveau n'est pas proposé. */
+    has_manage: boolean;
 };
 
 /** Niveau d'accès à une section (miroir de AccessLevel). */

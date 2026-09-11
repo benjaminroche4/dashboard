@@ -8,6 +8,7 @@ use App\Actions\Leads\ScheduleLeadVisio;
 use App\Models\Lead;
 use Carbon\CarbonImmutable;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Attachment;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -18,7 +19,7 @@ use Illuminate\Queue\SerializesModels;
  * Confirmation d'appel vidéo au lead, dans sa langue, avec l'invitation
  * ICS jointe et les liens « ajouter à l'agenda ». Charte du site RIP.
  */
-final class LeadVisioScheduled extends Mailable
+final class LeadVisioScheduled extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

@@ -1,11 +1,26 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ChevronDown, PencilLine, Plus, Tag, Trash2 } from 'lucide-react';
+import {
+    ChevronDown,
+    FileText,
+    ListPlus,
+    Landmark,
+    MessageSquareText,
+    PencilLine,
+    Percent,
+    Plus,
+    Tag,
+    Trash2,
+    UserRound,
+} from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { AddressAutocomplete } from '@/components/address-autocomplete';
 import { CountryFlag } from '@/components/country-flag';
 import { DatePicker } from '@/components/date-picker';
 import { FormActionBar } from '@/components/form-action-bar';
+import { FormSection } from '@/components/form-section';
 import InputError from '@/components/input-error';
+import { CreateFromMenu } from '@/components/invoices/create-from-menu';
+import { BankAccountField } from '@/components/invoices/bank-account-field';
 import { InvoicePreview } from '@/components/invoices/invoice-preview';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,10 +39,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { formatMoney } from '@/lib/format';
+import { invoiceToForm } from '@/lib/invoice-to-form';
 import { notify } from '@/lib/toast';
 import {
     toCents,
@@ -35,13 +50,20 @@ import {
     validateInvoiceForm,
     type InvoiceFormErrors,
 } from '@/lib/invoice-totals';
-import { index as invoicesIndex, store } from '@/routes/invoices';
+import {
+    create as invoicesCreate,
+    index as invoicesIndex,
+    store,
+    update,
+} from '@/routes/invoices';
 import { show as leadShow } from '@/routes/leads';
 import { index as toolsIndex } from '@/routes/tools';
 import type {
+    BankAccountOption,
     Company,
     CountryOption,
     Currency,
+    InvoiceDetail,
     InvoiceForm,
     InvoiceLineForm,
     InvoicePrefill,
@@ -51,6 +73,7 @@ import type {
 
 type Props = {
     company: Company;
+    bankAccounts: BankAccountOption[];
     offers: Offer[];
     currencies: { value: Currency; label: string }[];
     vatRates: { value: number; label: string }[];
@@ -65,6 +88,8 @@ type Props = {
     };
     /** Création depuis une fiche lead (?lead=ID) : client prérempli, facture rattachée. */
     prefill?: InvoicePrefill | null;
+    /** Brouillon à modifier : la page devient « Modifier la facture ». */
+    invoice?: InvoiceDetail | null;
 };
 
 /** Nom du pays de la liste à partir du code ISO renvoyé par Google, sinon « Autre ». */
@@ -99,6 +124,7 @@ function defaultPrice(
 
 export default function InvoicesCreate({
     company,
+    bankAccounts,
     offers,
     currencies,
     vatRates,
@@ -106,6 +132,7 @@ export default function InvoicesCreate({
     nextNumber,
     defaults,
     prefill = null,
+    invoice = null,
 }: Props) {
     const { features } = usePage().props;
     const firstOffer = offers[0]?.value ?? 'accompagne';
@@ -125,29 +152,40 @@ export default function InvoicesCreate({
 
     const initialCurrency = prefill?.currency ?? defaults.currency;
     const initialOffer = prefill?.offer ?? firstOffer;
-    const form = useForm<InvoiceForm>({
-        client_name: prefill?.client_name ?? '',
-        client_email: prefill?.client_email ?? '',
-        client_street: '',
-        client_postal_code: '',
-        client_city: '',
-        client_country: countries[0]?.name ?? '',
-        currency: initialCurrency,
-        vat_rate: String(defaults.vat_rate),
-        discount_percent: '',
-        deposit: '',
-        issued_at: defaults.issued_at,
-        due_at: defaults.due_at,
-        notes: '',
-        items: [
-            {
-                offer: initialOffer,
-                description: '',
-                quantity: '1',
-                unit_price: defaultPrice(offers, initialOffer, initialCurrency),
-            },
-        ],
-    });
+    const editing = invoice ?? null;
+    const form = useForm<InvoiceForm>(
+        editing
+            ? invoiceToForm(editing)
+            : {
+                  client_name: prefill?.client_name ?? '',
+                  client_email: prefill?.client_email ?? '',
+                  client_street: '',
+                  client_postal_code: '',
+                  client_city: '',
+                  client_country: countries[0]?.name ?? '',
+                  currency: initialCurrency,
+                  vat_rate: String(defaults.vat_rate),
+                  discount_percent: '',
+                  deposit: '',
+                  issued_at: defaults.issued_at,
+                  due_at: defaults.due_at,
+                  notes: '',
+                  bank_name: '',
+                  bank_iban: '',
+                  items: [
+                      {
+                          offer: initialOffer,
+                          description: '',
+                          quantity: '1',
+                          unit_price: defaultPrice(
+                              offers,
+                              initialOffer,
+                              initialCurrency,
+                          ),
+                      },
+                  ],
+              },
+    );
 
     // Erreurs détectées localement avant l'envoi ; celles du serveur priment.
     const [localErrors, setLocalErrors] = useState<InvoiceFormErrors>({});
@@ -222,7 +260,7 @@ export default function InvoicesCreate({
         // Le backend attend des centimes et des nombres.
         form.transform((data) => ({
             ...data,
-            lead_id: prefill?.lead_id ?? null,
+            lead_id: editing?.lead?.id ?? prefill?.lead_id ?? null,
             vat_rate: toNumber(data.vat_rate),
             discount_percent: toNumber(data.discount_percent || 0),
             deposit_cents: toCents(data.deposit || 0),
@@ -234,6 +272,12 @@ export default function InvoicesCreate({
                 unit_price_cents: toCents(line.unit_price),
             })),
         }));
+        if (editing) {
+            form.put(update({ invoice: editing.uuid }).url);
+
+            return;
+        }
+
         form.post(store().url);
     };
 
@@ -273,6 +317,10 @@ export default function InvoicesCreate({
                             )}
                         </p>
                     </div>
+                    <CreateFromMenu
+                        kind="invoice"
+                        createUrl={invoicesCreate().url}
+                    />
                 </div>
 
                 <div className="grid grid-cols-1 gap-8 pb-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
@@ -282,9 +330,12 @@ export default function InvoicesCreate({
                         className="grid gap-8"
                         data-test="invoice-form"
                     >
-                        <section className="grid gap-5">
-                            <h2 className="text-base font-medium">Client</h2>
-                            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                        <FormSection
+                            title="Client"
+                            hint="Le destinataire de la facture."
+                            icon={UserRound}
+                        >
+                            <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
                                 <div className="grid gap-2">
                                     <Label htmlFor="client_name">
                                         Nom / Prénom
@@ -423,15 +474,14 @@ export default function InvoicesCreate({
                                     />
                                 </div>
                             </div>
-                        </section>
+                        </FormSection>
 
-                        <Separator />
-
-                        <section className="grid gap-5">
-                            <h2 className="text-base font-medium">
-                                Conditions
-                            </h2>
-                            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                        <FormSection
+                            title="Conditions"
+                            hint="Devise, dates et TVA appliquée."
+                            icon={FileText}
+                        >
+                            <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
                                 <div className="grid gap-2">
                                     <Label htmlFor="currency">Devise</Label>
                                     <Select
@@ -513,21 +563,13 @@ export default function InvoicesCreate({
                                     <InputError message={errors.due_at} />
                                 </div>
                             </div>
-                        </section>
+                        </FormSection>
 
-                        <Separator />
-
-                        <section className="grid gap-5">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h2 className="text-base font-medium">
-                                        Lignes
-                                    </h2>
-                                    <p className="text-muted-foreground text-sm">
-                                        Une ligne par offre ou prestation
-                                        facturée.
-                                    </p>
-                                </div>
+                        <FormSection
+                            title="Lignes"
+                            hint="Une ligne par offre ou prestation facturée."
+                            icon={ListPlus}
+                            action={
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button
@@ -555,7 +597,8 @@ export default function InvoicesCreate({
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
-                            </div>
+                            }
+                        >
                             <InputError message={errors.items} />
                             <ol role="list" className="grid gap-4">
                                 {form.data.items.map((line, index) => {
@@ -567,7 +610,7 @@ export default function InvoicesCreate({
                                     return (
                                         <li
                                             key={index}
-                                            className="bg-background grid gap-5 rounded-lg border p-5"
+                                            className="bg-sidebar grid gap-4 rounded-lg border p-4"
                                             data-test="invoice-line"
                                         >
                                             <div className="flex items-center justify-between">
@@ -754,21 +797,14 @@ export default function InvoicesCreate({
                                     );
                                 })}
                             </ol>
-                        </section>
+                        </FormSection>
 
-                        <Separator />
-
-                        <section className="grid gap-5">
-                            <div>
-                                <h2 className="text-base font-medium">
-                                    Remise et acompte
-                                </h2>
-                                <p className="text-muted-foreground text-sm">
-                                    Facultatif. La remise s'applique avant la
-                                    TVA, l'acompte est déduit du total.
-                                </p>
-                            </div>
-                            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                        <FormSection
+                            title="Remise et acompte"
+                            hint="Facultatif. La remise s'applique avant la TVA, l'acompte est déduit du total."
+                            icon={Percent}
+                        >
+                            <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
                                 <div className="grid gap-2">
                                     <Label htmlFor="discount_percent">
                                         Remise (%)
@@ -815,12 +851,32 @@ export default function InvoicesCreate({
                                     />
                                 </div>
                             </div>
-                        </section>
+                        </FormSection>
 
-                        <Separator />
+                        <FormSection
+                            title="Règlement"
+                            hint="Le compte sur lequel le client vire le montant."
+                            icon={Landmark}
+                        >
+                            <BankAccountField
+                                accounts={bankAccounts}
+                                currency={form.data.currency}
+                                bankName={form.data.bank_name}
+                                bankIban={form.data.bank_iban}
+                                errors={{
+                                    bank_name: errors.bank_name,
+                                    bank_iban: errors.bank_iban,
+                                }}
+                                onChange={(values) => form.setData(values)}
+                            />
+                        </FormSection>
 
-                        <section className="grid gap-2">
-                            <Label htmlFor="notes">
+                        <FormSection
+                            title="Notes"
+                            hint="Affichées en bas de la facture."
+                            icon={MessageSquareText}
+                        >
+                            <Label htmlFor="notes" className="sr-only">
                                 Notes (affichées sur la facture)
                             </Label>
                             <Textarea
@@ -834,7 +890,7 @@ export default function InvoicesCreate({
                                 }
                             />
                             <InputError message={errors.notes} />
-                        </section>
+                        </FormSection>
                     </form>
 
                     <aside className="bg-sidebar rounded-xl border p-2 lg:sticky lg:top-4 lg:self-start">

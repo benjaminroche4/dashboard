@@ -93,7 +93,14 @@ describe('Partner detail page', () => {
             screen.getByRole('region', { name: 'Interlocuteurs' }),
         );
         expect(contacts.getByText('Marie Durand')).toBeInTheDocument();
-        expect(contacts.getByText('Commerciale')).toBeInTheDocument();
+        expect(contacts.getByText('Commercial')).toBeInTheDocument();
+        // Téléphone et e-mail sont cliquables, sur leur propre ligne.
+        expect(
+            contacts.getByRole('link', { name: '+33 6 12 34 56 78' }),
+        ).toHaveAttribute('href', 'tel:+33612345678');
+        expect(
+            contacts.getByRole('link', { name: 'marie@zen.example' }),
+        ).toHaveAttribute('href', 'mailto:marie@zen.example');
         const dossiers = within(
             screen.getByRole('region', { name: 'Dossiers' }),
         );
@@ -101,19 +108,17 @@ describe('Partner detail page', () => {
             dossiers.getByRole('link', { name: 'Léa Durand' }),
         ).toHaveAttribute('href', '/locataires/abc');
         expect(dossiers.getByText('Assurance habitation')).toBeInTheDocument();
-        const reach = within(
-            screen.getByRole('region', { name: 'Joindre le partenaire' }),
-        );
+        // Joindre le partenaire passe par ses interlocuteurs, plus par une
+        // carte à part : seul le suivi de la relation reste dans la colonne.
         expect(
-            reach.getByRole('heading', { name: 'Joindre Marie Durand' }),
+            screen.getByRole('region', { name: 'Suivi de la relation' }),
         ).toBeInTheDocument();
-        expect(reach.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute(
-            'href',
-            'https://wa.me/33142001122',
-        );
+        expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();
+        // Le retour se fait par le fil d'Ariane : plus de lien dans l'en-tête.
         expect(
-            screen.getByRole('link', { name: 'Tous les partenaires' }),
-        ).toHaveAttribute('href', '/partners');
+            screen.queryByRole('link', { name: 'Tous les partenaires' }),
+        ).toBeNull();
+        expect(screen.getByText(/Ajouté\(e\) par/)).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Modifier' }));
         expect(
@@ -135,6 +140,8 @@ describe('Partner detail page', () => {
             <PartnerShow
                 partner={makePartnerDetail({
                     contacts: [],
+                    contacts_count: 0,
+                    primary_contact: null,
                     email: null,
                     phone: null,
                     website: null,
@@ -145,10 +152,7 @@ describe('Partner detail page', () => {
         );
 
         expect(
-            screen.getByRole('heading', { name: 'Joindre Zen Assurances' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByText('Aucune coordonnée enregistrée.'),
+            screen.getByRole('heading', { name: 'Suivi de la relation' }),
         ).toBeInTheDocument();
         expect(screen.getByText('Aucune note.')).toBeInTheDocument();
         expect(
@@ -183,14 +187,18 @@ describe('Partner detail page', () => {
             within(dialog).getByRole('button', { name: 'Annuler' }),
         );
 
+        // Modifier et retirer passent par le menu « ⋯ » de l'interlocuteur.
         await user.click(
-            screen.getByRole('button', { name: 'Modifier Marie Durand' }),
+            screen.getByRole('button', { name: 'Actions pour Marie Durand' }),
+        );
+        await user.click(
+            await screen.findByRole('menuitem', { name: 'Modifier' }),
         );
         const edit = screen.getByRole('dialog', {
             name: 'Modifier Marie Durand',
         });
-        expect(within(edit).getByLabelText('Fonction')).toHaveValue(
-            'Commerciale',
+        expect(within(edit).getByLabelText('Fonction')).toHaveTextContent(
+            'Commercial',
         );
         await user.click(
             within(edit).getByRole('button', { name: 'Enregistrer' }),
@@ -202,7 +210,10 @@ describe('Partner detail page', () => {
         await user.click(within(edit).getByRole('button', { name: 'Annuler' }));
 
         await user.click(
-            screen.getByRole('button', { name: 'Retirer Marie Durand' }),
+            screen.getByRole('button', { name: 'Actions pour Marie Durand' }),
+        );
+        await user.click(
+            await screen.findByRole('menuitem', { name: 'Retirer' }),
         );
         await user.click(
             within(

@@ -18,6 +18,7 @@ import { CountryFlag } from '@/components/country-flag';
 import { DatePicker } from '@/components/date-picker';
 import InputError from '@/components/input-error';
 import { FormActionBar } from '@/components/form-action-bar';
+import { Panel } from '@/components/panel';
 import { ConditionChoices } from '@/components/leads/condition-choices';
 import {
     FormField,
@@ -462,732 +463,782 @@ export default function LeadsCreate({
                     <Stepper current={step} visited={visited} onSelect={goTo} />
                 </div>
 
-                <form
-                    ref={formRef}
-                    id="lead-form"
-                    onSubmit={submit}
-                    noValidate
-                    className="grid gap-5 pb-8"
-                    data-test="lead-form"
+                {/* Même enveloppe que « Planifier une visite » et « Nouveau bien » :
+                    un panneau nommé qui porte les cartes du formulaire. */}
+                <Panel
+                    title={owner ? 'Lead propriétaire' : 'Lead locataire'}
+                    className="mb-8"
                 >
-                    {step === 1 && (
-                        <>
-                            <Group
-                                title="Contact"
-                                hint="Un e-mail ou un téléphone suffit pour commencer."
-                                icon={UserRound}
-                            >
-                                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                                    <Field
-                                        label="Prénom"
-                                        htmlFor="first_name"
-                                        error={errors.first_name}
-                                    >
-                                        <Input
-                                            id="first_name"
-                                            name="first_name"
-                                            aria-invalid={Boolean(
-                                                errors.first_name,
-                                            )}
-                                            autoFocus
-                                            autoComplete="off"
-                                            className="bg-background"
-                                            value={form.data.first_name}
-                                            onChange={(e) =>
-                                                set('first_name')(
-                                                    e.target.value,
-                                                )
-                                            }
-                                        />
-                                    </Field>
-                                    <Field
-                                        label="Nom"
-                                        htmlFor="last_name"
-                                        error={errors.last_name}
-                                    >
-                                        <Input
-                                            id="last_name"
-                                            name="last_name"
-                                            aria-invalid={Boolean(
-                                                errors.last_name,
-                                            )}
-                                            autoComplete="off"
-                                            className="bg-background"
-                                            value={form.data.last_name}
-                                            onChange={(e) =>
-                                                set('last_name')(e.target.value)
-                                            }
-                                        />
-                                    </Field>
-                                    <Field
-                                        label="E-mail"
-                                        htmlFor="email"
-                                        error={errors.email}
-                                    >
-                                        <Input
-                                            id="email"
-                                            name="email"
-                                            aria-invalid={Boolean(errors.email)}
-                                            type="email"
-                                            autoComplete="off"
-                                            className="bg-background"
-                                            value={form.data.email}
-                                            onChange={(e) =>
-                                                set('email')(e.target.value)
-                                            }
-                                        />
-                                    </Field>
-                                    <Field
-                                        label="Téléphone"
-                                        htmlFor="phone"
-                                        error={errors.phone}
-                                    >
-                                        <PhoneInput
-                                            id="phone"
-                                            value={form.data.phone}
-                                            onChange={set('phone')}
-                                        />
-                                    </Field>
-                                </div>
-                                <div className="grid grid-cols-1 gap-5 sm:grid-cols-[1fr_auto]">
-                                    <Field
-                                        label="Société"
-                                        htmlFor="company"
-                                        error={errors.company}
-                                    >
-                                        <Input
-                                            id="company"
-                                            name="company"
-                                            autoComplete="off"
-                                            placeholder="Facultatif"
-                                            className="bg-background"
-                                            value={form.data.company}
-                                            onChange={(e) =>
-                                                set('company')(e.target.value)
-                                            }
-                                        />
-                                    </Field>
-                                    <Field
-                                        label="Langue"
-                                        error={errors.language}
-                                    >
-                                        <ToggleGroup
-                                            type="single"
-                                            variant="outline"
-                                            value={form.data.language}
-                                            onValueChange={(value) => {
-                                                if (value) {
-                                                    set('language')(
-                                                        value as LeadLanguage,
-                                                    );
-                                                }
-                                            }}
-                                            aria-label="Langue"
-                                            className="justify-start"
-                                        >
-                                            {languages.map((language) => (
-                                                <ToggleGroupItem
-                                                    key={language.value}
-                                                    value={language.value}
-                                                    className="bg-background px-3"
-                                                >
-                                                    <CountryFlag
-                                                        code={
-                                                            language.value ===
-                                                            'en'
-                                                                ? 'GB'
-                                                                : 'FR'
-                                                        }
-                                                        className="size-3.5"
-                                                    />
-                                                    {language.label}
-                                                </ToggleGroupItem>
-                                            ))}
-                                        </ToggleGroup>
-                                    </Field>
-                                </div>
-                                {duplicates.length > 0 && (
-                                    <Alert
-                                        variant="warning"
-                                        data-test="duplicates"
-                                    >
-                                        <TriangleAlert aria-hidden />
-                                        <AlertTitle>
-                                            {duplicates.length > 1
-                                                ? 'Des leads existent déjà avec ce contact'
-                                                : 'Un lead existe déjà avec ce contact'}
-                                        </AlertTitle>
-                                        <AlertDescription>
-                                            <ul
-                                                role="list"
-                                                className="grid gap-1"
-                                            >
-                                                {duplicates.map((duplicate) => (
-                                                    <li
-                                                        key={duplicate.id}
-                                                        className="flex flex-wrap items-center gap-x-2"
-                                                    >
-                                                        <Link
-                                                            href={duplicate.url}
-                                                            className="font-medium underline-offset-4 hover:underline"
-                                                        >
-                                                            {duplicate.name}
-                                                        </Link>
-                                                        <span className="text-xs opacity-80">
-                                                            {[
-                                                                duplicate.email,
-                                                                duplicate.phone,
-                                                            ]
-                                                                .filter(Boolean)
-                                                                .join(' · ')}
-                                                            {' · '}
-                                                            {
-                                                                duplicate.status_label
-                                                            }
-                                                        </span>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                            <p className="mt-1">
-                                                Ouvrez la fiche existante plutôt
-                                                que d'en créer une seconde.
-                                            </p>
-                                        </AlertDescription>
-                                    </Alert>
-                                )}
-                            </Group>
-
-                            <Group
-                                title="Formule"
-                                hint="Celle que le prospect envisage. Modifiable plus tard."
-                                icon={Package}
-                            >
-                                <RadioGroup
-                                    value={form.data.offer}
-                                    onValueChange={(value) =>
-                                        set('offer')(value as OfferValue)
-                                    }
-                                    className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+                    <form
+                        ref={formRef}
+                        id="lead-form"
+                        onSubmit={submit}
+                        noValidate
+                        className="grid gap-5"
+                        data-test="lead-form"
+                    >
+                        {step === 1 && (
+                            <>
+                                <Group
+                                    title="Contact"
+                                    hint="Un e-mail ou un téléphone suffit pour commencer."
+                                    icon={UserRound}
                                 >
-                                    {offers.map((offer) => (
-                                        <Label
-                                            key={offer.value}
-                                            htmlFor={`offer-${offer.value}`}
-                                            className="bg-background has-data-[state=checked]:border-primary flex cursor-pointer items-start gap-3 rounded-lg border p-4 font-normal"
+                                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                                        <Field
+                                            label="Prénom"
+                                            htmlFor="first_name"
+                                            error={errors.first_name}
                                         >
-                                            <RadioGroupItem
-                                                id={`offer-${offer.value}`}
-                                                value={offer.value}
-                                                aria-label={offer.label}
-                                                className="mt-0.5"
+                                            <Input
+                                                id="first_name"
+                                                name="first_name"
+                                                aria-invalid={Boolean(
+                                                    errors.first_name,
+                                                )}
+                                                autoFocus
+                                                autoComplete="off"
+                                                className="bg-background"
+                                                value={form.data.first_name}
+                                                onChange={(e) =>
+                                                    set('first_name')(
+                                                        e.target.value,
+                                                    )
+                                                }
                                             />
-                                            <span className="grid min-w-0 flex-1 gap-1">
-                                                <span className="flex items-center justify-between gap-2 font-medium">
-                                                    {offer.label}
-                                                    <span className="text-foreground text-sm font-semibold tabular-nums">
-                                                        {formatMoney(
-                                                            offer.price_cents,
-                                                            'EUR',
-                                                        )}
+                                        </Field>
+                                        <Field
+                                            label="Nom"
+                                            htmlFor="last_name"
+                                            error={errors.last_name}
+                                        >
+                                            <Input
+                                                id="last_name"
+                                                name="last_name"
+                                                aria-invalid={Boolean(
+                                                    errors.last_name,
+                                                )}
+                                                autoComplete="off"
+                                                className="bg-background"
+                                                value={form.data.last_name}
+                                                onChange={(e) =>
+                                                    set('last_name')(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            />
+                                        </Field>
+                                        <Field
+                                            label="E-mail"
+                                            htmlFor="email"
+                                            error={errors.email}
+                                        >
+                                            <Input
+                                                id="email"
+                                                name="email"
+                                                aria-invalid={Boolean(
+                                                    errors.email,
+                                                )}
+                                                type="email"
+                                                autoComplete="off"
+                                                className="bg-background"
+                                                value={form.data.email}
+                                                onChange={(e) =>
+                                                    set('email')(e.target.value)
+                                                }
+                                            />
+                                        </Field>
+                                        <Field
+                                            label="Téléphone"
+                                            htmlFor="phone"
+                                            error={errors.phone}
+                                        >
+                                            <PhoneInput
+                                                id="phone"
+                                                value={form.data.phone}
+                                                onChange={set('phone')}
+                                            />
+                                        </Field>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-[1fr_auto]">
+                                        <Field
+                                            label="Société"
+                                            htmlFor="company"
+                                            error={errors.company}
+                                        >
+                                            <Input
+                                                id="company"
+                                                name="company"
+                                                autoComplete="off"
+                                                placeholder="Facultatif"
+                                                className="bg-background"
+                                                value={form.data.company}
+                                                onChange={(e) =>
+                                                    set('company')(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            />
+                                        </Field>
+                                        <Field
+                                            label="Langue"
+                                            error={errors.language}
+                                        >
+                                            <ToggleGroup
+                                                type="single"
+                                                variant="outline"
+                                                value={form.data.language}
+                                                onValueChange={(value) => {
+                                                    if (value) {
+                                                        set('language')(
+                                                            value as LeadLanguage,
+                                                        );
+                                                    }
+                                                }}
+                                                aria-label="Langue"
+                                                className="justify-start"
+                                            >
+                                                {languages.map((language) => (
+                                                    <ToggleGroupItem
+                                                        key={language.value}
+                                                        value={language.value}
+                                                        className="bg-background px-3"
+                                                    >
+                                                        <CountryFlag
+                                                            code={
+                                                                language.value ===
+                                                                'en'
+                                                                    ? 'GB'
+                                                                    : 'FR'
+                                                            }
+                                                            className="size-3.5"
+                                                        />
+                                                        {language.label}
+                                                    </ToggleGroupItem>
+                                                ))}
+                                            </ToggleGroup>
+                                        </Field>
+                                    </div>
+                                    {duplicates.length > 0 && (
+                                        <Alert
+                                            variant="warning"
+                                            data-test="duplicates"
+                                        >
+                                            <TriangleAlert aria-hidden />
+                                            <AlertTitle>
+                                                {duplicates.length > 1
+                                                    ? 'Des leads existent déjà avec ce contact'
+                                                    : 'Un lead existe déjà avec ce contact'}
+                                            </AlertTitle>
+                                            <AlertDescription>
+                                                <ul
+                                                    role="list"
+                                                    className="grid gap-1"
+                                                >
+                                                    {duplicates.map(
+                                                        (duplicate) => (
+                                                            <li
+                                                                key={
+                                                                    duplicate.id
+                                                                }
+                                                                className="flex flex-wrap items-center gap-x-2"
+                                                            >
+                                                                <Link
+                                                                    href={
+                                                                        duplicate.url
+                                                                    }
+                                                                    className="font-medium underline-offset-4 hover:underline"
+                                                                >
+                                                                    {
+                                                                        duplicate.name
+                                                                    }
+                                                                </Link>
+                                                                <span className="text-xs opacity-80">
+                                                                    {[
+                                                                        duplicate.email,
+                                                                        duplicate.phone,
+                                                                    ]
+                                                                        .filter(
+                                                                            Boolean,
+                                                                        )
+                                                                        .join(
+                                                                            ' · ',
+                                                                        )}
+                                                                    {' · '}
+                                                                    {
+                                                                        duplicate.status_label
+                                                                    }
+                                                                </span>
+                                                            </li>
+                                                        ),
+                                                    )}
+                                                </ul>
+                                                <p className="mt-1">
+                                                    Ouvrez la fiche existante
+                                                    plutôt que d'en créer une
+                                                    seconde.
+                                                </p>
+                                            </AlertDescription>
+                                        </Alert>
+                                    )}
+                                </Group>
+
+                                <Group
+                                    title="Formule"
+                                    hint="Celle que le prospect envisage. Modifiable plus tard."
+                                    icon={Package}
+                                >
+                                    <RadioGroup
+                                        value={form.data.offer}
+                                        onValueChange={(value) =>
+                                            set('offer')(value as OfferValue)
+                                        }
+                                        className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+                                    >
+                                        {offers.map((offer) => (
+                                            <Label
+                                                key={offer.value}
+                                                htmlFor={`offer-${offer.value}`}
+                                                className="bg-background has-data-[state=checked]:border-primary flex cursor-pointer items-start gap-3 rounded-lg border p-4 font-normal"
+                                            >
+                                                <RadioGroupItem
+                                                    id={`offer-${offer.value}`}
+                                                    value={offer.value}
+                                                    aria-label={offer.label}
+                                                    className="mt-0.5"
+                                                />
+                                                <span className="grid min-w-0 flex-1 gap-1">
+                                                    <span className="flex items-center justify-between gap-2 font-medium">
+                                                        {offer.label}
+                                                        <span className="text-foreground text-sm font-semibold tabular-nums">
+                                                            {formatMoney(
+                                                                offer.price_cents,
+                                                                'EUR',
+                                                            )}
+                                                        </span>
+                                                    </span>
+                                                    <span className="text-muted-foreground text-sm">
+                                                        {offer.summary}
                                                     </span>
                                                 </span>
-                                                <span className="text-muted-foreground text-sm">
-                                                    {offer.summary}
-                                                </span>
-                                            </span>
-                                        </Label>
-                                    ))}
-                                </RadioGroup>
-                                <InputError message={errors.offer} />
-                            </Group>
+                                            </Label>
+                                        ))}
+                                    </RadioGroup>
+                                    <InputError message={errors.offer} />
+                                </Group>
 
-                            <Group title="Source" icon={Megaphone}>
-                                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                                    <Field
-                                        label="Source du lead"
-                                        htmlFor="source"
-                                        error={errors.source}
-                                    >
-                                        <Select
-                                            value={form.data.source}
-                                            onValueChange={(value) =>
-                                                set('source')(
-                                                    value as LeadSource,
-                                                )
-                                            }
+                                <Group title="Source" icon={Megaphone}>
+                                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                                        <Field
+                                            label="Source du lead"
+                                            htmlFor="source"
+                                            error={errors.source}
                                         >
-                                            <SelectTrigger
-                                                id="source"
-                                                aria-label="Source"
-                                                className="bg-background w-full"
+                                            <Select
+                                                value={form.data.source}
+                                                onValueChange={(value) =>
+                                                    set('source')(
+                                                        value as LeadSource,
+                                                    )
+                                                }
                                             >
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {sources.map((source) => (
-                                                    <SelectItem
-                                                        key={source.value}
-                                                        value={source.value}
-                                                    >
-                                                        {source.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </Field>
-                                    <Field
-                                        label="Précision"
-                                        htmlFor="source_note"
-                                        error={errors.source_note}
-                                    >
-                                        <Input
-                                            id="source_note"
-                                            name="source_note"
-                                            autoComplete="off"
-                                            placeholder="Recommandé par…, campagne…"
-                                            className="bg-background"
-                                            value={form.data.source_note}
-                                            onChange={(e) =>
-                                                set('source_note')(
-                                                    e.target.value,
-                                                )
-                                            }
-                                        />
-                                    </Field>
-                                </div>
-                            </Group>
-                        </>
-                    )}
-
-                    {step === 2 && (
-                        <>
-                            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_300px]">
-                                <Group
-                                    title="Quartiers visés"
-                                    hint="Cliquez les arrondissements, ou tout Paris."
-                                    icon={MapPin}
-                                >
-                                    <DistrictMap
-                                        value={form.data.districts}
-                                        onChange={set('districts')}
-                                    />
-                                    <InputError message={errors.districts} />
-                                </Group>
-
-                                <Group
-                                    title="Budget et calendrier"
-                                    hint="Chaque mois, et quand emménager."
-                                    icon={Wallet}
-                                >
-                                    <Field
-                                        label="Budget mensuel (€ / mois)"
-                                        htmlFor="budget"
-                                        error={errors.budget_cents}
-                                    >
-                                        <Input
-                                            id="budget"
-                                            name="budget"
-                                            inputMode="decimal"
-                                            placeholder="2500"
-                                            autoFocus
-                                            aria-invalid={Boolean(
-                                                errors.budget_cents,
-                                            )}
-                                            className="bg-background tabular-nums"
-                                            value={form.data.budget}
-                                            onChange={(e) =>
-                                                set('budget')(e.target.value)
-                                            }
-                                        />
-                                        {tightBudget && (
-                                            <p
-                                                data-test="budget-hint"
-                                                className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400"
-                                            >
-                                                <TriangleAlert
-                                                    className="mt-0.5 size-3.5 shrink-0"
-                                                    aria-hidden
-                                                />
-                                                <span>
-                                                    <span className="font-medium">
-                                                        Budget serré
-                                                    </span>{' '}
-                                                    : en dessous de{' '}
-                                                    <span className="tabular-nums">
-                                                        {formatMoney(
-                                                            TIGHT_BUDGET_CENTS,
-                                                            'EUR',
-                                                        )}
-                                                    </span>{' '}
-                                                    / mois, les options à Paris
-                                                    sont très limitées.
-                                                </span>
-                                            </p>
-                                        )}
-                                    </Field>
-                                    <Field
-                                        label="Emménagement souhaité"
-                                        htmlFor="arrival_at"
-                                        error={errors.arrival_at}
-                                    >
-                                        <DatePicker
-                                            id="arrival_at"
-                                            aria-label="Emménagement souhaité"
-                                            value={form.data.arrival_at}
-                                            onChange={set('arrival_at')}
-                                        />
-                                        {urgentArrival && (
-                                            <p
-                                                data-test="arrival-hint"
-                                                className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400"
-                                            >
-                                                <TriangleAlert
-                                                    className="mt-0.5 size-3.5 shrink-0"
-                                                    aria-hidden
-                                                />
-                                                <span>
-                                                    <span className="font-medium">
-                                                        Emménagement imminent
-                                                    </span>{' '}
-                                                    :{' '}
-                                                    {arrivalInDays <= 0
-                                                        ? 'la date est déjà passée.'
-                                                        : arrivalInDays === 1
-                                                          ? 'dans 1 jour, très court pour trouver un logement.'
-                                                          : `dans ${arrivalInDays} jours, très court pour trouver un logement.`}
-                                                </span>
-                                            </p>
-                                        )}
-                                    </Field>
-                                </Group>
-                            </div>
-
-                            <Group
-                                title="Conditions"
-                                hint="Un clic par réponse, rien n'est obligatoire."
-                                icon={ClipboardList}
-                            >
-                                <ConditionChoices
-                                    durations={durations}
-                                    guarantors={guarantors}
-                                    furnishedOptions={furnishedOptions}
-                                    values={{
-                                        duration: form.data.duration,
-                                        guarantors: form.data.guarantors,
-                                        furnished: form.data.furnished,
-                                    }}
-                                    onChange={(key, value) =>
-                                        form.setData((data) => ({
-                                            ...data,
-                                            [key]: value,
-                                        }))
-                                    }
-                                    errors={{
-                                        duration: errors.duration,
-                                        guarantors: errors.guarantors,
-                                        furnished: errors.furnished,
-                                    }}
-                                />
-                                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                                    <Field
-                                        label="Ville d'origine"
-                                        htmlFor="origin_city"
-                                        error={errors.origin_city}
-                                    >
-                                        <Input
-                                            id="origin_city"
-                                            name="origin_city"
-                                            autoComplete="off"
-                                            className="bg-background"
-                                            value={form.data.origin_city}
-                                            onChange={(e) =>
-                                                set('origin_city')(
-                                                    e.target.value,
-                                                )
-                                            }
-                                        />
-                                    </Field>
-                                </div>
-                                <Field
-                                    label="Note sur le projet"
-                                    htmlFor="message"
-                                    error={errors.message}
-                                >
-                                    <Textarea
-                                        id="message"
-                                        name="message"
-                                        rows={4}
-                                        className="bg-background"
-                                        placeholder="Besoins, contraintes, contexte…"
-                                        value={form.data.message}
-                                        onChange={(e) =>
-                                            set('message')(e.target.value)
-                                        }
-                                    />
-                                </Field>
-                            </Group>
-                        </>
-                    )}
-
-                    {step === 3 && (
-                        <>
-                            <Group
-                                title="Qualité du lead"
-                                hint="Votre évaluation, pour prioriser le kanban."
-                                icon={Star}
-                            >
-                                <div className="grid gap-2">
-                                    <Label id="score-label">Note</Label>
-                                    <div
-                                        role="radiogroup"
-                                        aria-labelledby="score-label"
-                                        className="flex items-center gap-1"
-                                    >
-                                        {[1, 2, 3, 4, 5].map((value) => {
-                                            const active =
-                                                form.data.score !== null &&
-                                                value <= form.data.score;
-
-                                            return (
-                                                <button
-                                                    key={value}
-                                                    type="button"
-                                                    role="radio"
-                                                    aria-checked={
-                                                        form.data.score ===
-                                                        value
-                                                    }
-                                                    aria-label={`${value} sur 5`}
-                                                    onClick={() =>
-                                                        set('score')(
-                                                            form.data.score ===
-                                                                value
-                                                                ? null
-                                                                : value,
-                                                        )
-                                                    }
-                                                    onMouseEnter={() =>
-                                                        setHoveredScore(value)
-                                                    }
-                                                    onMouseLeave={() =>
-                                                        setHoveredScore(null)
-                                                    }
-                                                    onFocus={() =>
-                                                        setHoveredScore(value)
-                                                    }
-                                                    onBlur={() =>
-                                                        setHoveredScore(null)
-                                                    }
-                                                    className={cn(
-                                                        'rounded-md p-1 transition-colors',
-                                                        active
-                                                            ? 'text-amber-500'
-                                                            : 'text-muted-foreground/40 hover:text-amber-400',
-                                                    )}
+                                                <SelectTrigger
+                                                    id="source"
+                                                    aria-label="Source"
+                                                    className="bg-background w-full"
                                                 >
-                                                    <Star
-                                                        className={cn(
-                                                            'size-6',
-                                                            active &&
-                                                                'fill-current',
-                                                        )}
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {sources.map((source) => (
+                                                        <SelectItem
+                                                            key={source.value}
+                                                            value={source.value}
+                                                        >
+                                                            {source.label}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </Field>
+                                        <Field
+                                            label="Précision"
+                                            htmlFor="source_note"
+                                            error={errors.source_note}
+                                        >
+                                            <Input
+                                                id="source_note"
+                                                name="source_note"
+                                                autoComplete="off"
+                                                placeholder="Recommandé par…, campagne…"
+                                                className="bg-background"
+                                                value={form.data.source_note}
+                                                onChange={(e) =>
+                                                    set('source_note')(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            />
+                                        </Field>
+                                    </div>
+                                </Group>
+                            </>
+                        )}
+
+                        {step === 2 && (
+                            <>
+                                <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_300px]">
+                                    <Group
+                                        title="Quartiers visés"
+                                        hint="Cliquez les arrondissements, ou tout Paris."
+                                        icon={MapPin}
+                                    >
+                                        <DistrictMap
+                                            value={form.data.districts}
+                                            onChange={set('districts')}
+                                        />
+                                        <InputError
+                                            message={errors.districts}
+                                        />
+                                    </Group>
+
+                                    <Group
+                                        title="Budget et calendrier"
+                                        hint="Chaque mois, et quand emménager."
+                                        icon={Wallet}
+                                    >
+                                        <Field
+                                            label="Budget mensuel (€ / mois)"
+                                            htmlFor="budget"
+                                            error={errors.budget_cents}
+                                        >
+                                            <Input
+                                                id="budget"
+                                                name="budget"
+                                                inputMode="decimal"
+                                                placeholder="2500"
+                                                autoFocus
+                                                aria-invalid={Boolean(
+                                                    errors.budget_cents,
+                                                )}
+                                                className="bg-background tabular-nums"
+                                                value={form.data.budget}
+                                                onChange={(e) =>
+                                                    set('budget')(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            />
+                                            {tightBudget && (
+                                                <p
+                                                    data-test="budget-hint"
+                                                    className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400"
+                                                >
+                                                    <TriangleAlert
+                                                        className="mt-0.5 size-3.5 shrink-0"
                                                         aria-hidden
                                                     />
-                                                </button>
-                                            );
-                                        })}
-                                        <span className="ml-2 flex items-baseline gap-2 text-sm">
-                                            {shownScore === null ? (
-                                                <span className="text-muted-foreground">
-                                                    Non évaluée
-                                                </span>
-                                            ) : (
-                                                <>
-                                                    <span className="font-medium">
-                                                        {
-                                                            scoreLabels[
-                                                                shownScore
-                                                            ]
-                                                        }
+                                                    <span>
+                                                        <span className="font-medium">
+                                                            Budget serré
+                                                        </span>{' '}
+                                                        : en dessous de{' '}
+                                                        <span className="tabular-nums">
+                                                            {formatMoney(
+                                                                TIGHT_BUDGET_CENTS,
+                                                                'EUR',
+                                                            )}
+                                                        </span>{' '}
+                                                        / mois, les options à
+                                                        Paris sont très
+                                                        limitées.
                                                     </span>
-                                                    <span className="text-muted-foreground tabular-nums">
-                                                        {shownScore} / 5
-                                                    </span>
-                                                </>
+                                                </p>
                                             )}
-                                        </span>
-                                    </div>
-                                    <InputError message={errors.score} />
-                                </div>
-                                <Field
-                                    label="Note de qualification"
-                                    htmlFor="qualification_note"
-                                    error={errors.qualification_note}
-                                >
-                                    <Textarea
-                                        id="qualification_note"
-                                        name="qualification_note"
-                                        rows={3}
-                                        className="bg-background"
-                                        placeholder="Motivation, solvabilité, points d'attention…"
-                                        value={form.data.qualification_note}
-                                        onChange={(e) =>
-                                            set('qualification_note')(
-                                                e.target.value,
-                                            )
-                                        }
-                                    />
-                                </Field>
-                            </Group>
-
-                            <Group
-                                title="Suite à donner"
-                                hint="Qui suit ce lead, et quand le recontacter."
-                                icon={CalendarClock}
-                            >
-                                <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-                                    <Field
-                                        label="Suivi par"
-                                        error={errors.assigned_to}
-                                        className="sm:col-span-3"
-                                    >
-                                        <div
-                                            id="assigned_to"
-                                            tabIndex={-1}
-                                            role="radiogroup"
-                                            aria-label="Suivi par"
-                                            className="flex flex-wrap gap-2"
+                                        </Field>
+                                        <Field
+                                            label="Emménagement souhaité"
+                                            htmlFor="arrival_at"
+                                            error={errors.arrival_at}
                                         >
-                                            {[
-                                                {
-                                                    id: null,
-                                                    name: "Personne pour l'instant",
-                                                    avatar: null,
-                                                },
-                                                ...staff,
-                                            ].map((member) => {
-                                                const checked =
-                                                    form.data.assigned_to ===
-                                                    member.id;
-                                                const label =
-                                                    member.id !== null &&
-                                                    member.id === auth.user?.id
-                                                        ? `${member.name} (moi)`
-                                                        : member.name;
+                                            <DatePicker
+                                                id="arrival_at"
+                                                aria-label="Emménagement souhaité"
+                                                value={form.data.arrival_at}
+                                                onChange={set('arrival_at')}
+                                            />
+                                            {urgentArrival && (
+                                                <p
+                                                    data-test="arrival-hint"
+                                                    className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400"
+                                                >
+                                                    <TriangleAlert
+                                                        className="mt-0.5 size-3.5 shrink-0"
+                                                        aria-hidden
+                                                    />
+                                                    <span>
+                                                        <span className="font-medium">
+                                                            Emménagement
+                                                            imminent
+                                                        </span>{' '}
+                                                        :{' '}
+                                                        {arrivalInDays <= 0
+                                                            ? 'la date est déjà passée.'
+                                                            : arrivalInDays ===
+                                                                1
+                                                              ? 'dans 1 jour, très court pour trouver un logement.'
+                                                              : `dans ${arrivalInDays} jours, très court pour trouver un logement.`}
+                                                    </span>
+                                                </p>
+                                            )}
+                                        </Field>
+                                    </Group>
+                                </div>
+
+                                <Group
+                                    title="Conditions"
+                                    hint="Un clic par réponse, rien n'est obligatoire."
+                                    icon={ClipboardList}
+                                >
+                                    <ConditionChoices
+                                        durations={durations}
+                                        guarantors={guarantors}
+                                        furnishedOptions={furnishedOptions}
+                                        values={{
+                                            duration: form.data.duration,
+                                            guarantors: form.data.guarantors,
+                                            furnished: form.data.furnished,
+                                        }}
+                                        onChange={(key, value) =>
+                                            form.setData((data) => ({
+                                                ...data,
+                                                [key]: value,
+                                            }))
+                                        }
+                                        errors={{
+                                            duration: errors.duration,
+                                            guarantors: errors.guarantors,
+                                            furnished: errors.furnished,
+                                        }}
+                                    />
+                                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                                        <Field
+                                            label="Ville d'origine"
+                                            htmlFor="origin_city"
+                                            error={errors.origin_city}
+                                        >
+                                            <Input
+                                                id="origin_city"
+                                                name="origin_city"
+                                                autoComplete="off"
+                                                className="bg-background"
+                                                value={form.data.origin_city}
+                                                onChange={(e) =>
+                                                    set('origin_city')(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            />
+                                        </Field>
+                                    </div>
+                                    <Field
+                                        label="Note sur le projet"
+                                        htmlFor="message"
+                                        error={errors.message}
+                                    >
+                                        <Textarea
+                                            id="message"
+                                            name="message"
+                                            rows={4}
+                                            className="bg-background"
+                                            placeholder="Besoins, contraintes, contexte…"
+                                            value={form.data.message}
+                                            onChange={(e) =>
+                                                set('message')(e.target.value)
+                                            }
+                                        />
+                                    </Field>
+                                </Group>
+                            </>
+                        )}
+
+                        {step === 3 && (
+                            <>
+                                <Group
+                                    title="Qualité du lead"
+                                    hint="Votre évaluation, pour prioriser le kanban."
+                                    icon={Star}
+                                >
+                                    <div className="grid gap-2">
+                                        <Label id="score-label">Note</Label>
+                                        <div
+                                            role="radiogroup"
+                                            aria-labelledby="score-label"
+                                            className="flex items-center gap-1"
+                                        >
+                                            {[1, 2, 3, 4, 5].map((value) => {
+                                                const active =
+                                                    form.data.score !== null &&
+                                                    value <= form.data.score;
 
                                                 return (
                                                     <button
-                                                        key={
-                                                            member.id ?? 'none'
-                                                        }
+                                                        key={value}
                                                         type="button"
                                                         role="radio"
-                                                        aria-checked={checked}
-                                                        aria-label={label}
+                                                        aria-checked={
+                                                            form.data.score ===
+                                                            value
+                                                        }
+                                                        aria-label={`${value} sur 5`}
                                                         onClick={() =>
-                                                            set('assigned_to')(
-                                                                member.id,
+                                                            set('score')(
+                                                                form.data
+                                                                    .score ===
+                                                                    value
+                                                                    ? null
+                                                                    : value,
+                                                            )
+                                                        }
+                                                        onMouseEnter={() =>
+                                                            setHoveredScore(
+                                                                value,
+                                                            )
+                                                        }
+                                                        onMouseLeave={() =>
+                                                            setHoveredScore(
+                                                                null,
+                                                            )
+                                                        }
+                                                        onFocus={() =>
+                                                            setHoveredScore(
+                                                                value,
+                                                            )
+                                                        }
+                                                        onBlur={() =>
+                                                            setHoveredScore(
+                                                                null,
                                                             )
                                                         }
                                                         className={cn(
-                                                            'bg-background flex h-9 items-center gap-2 rounded-full border py-1 pr-3 pl-1 text-sm transition-colors',
-                                                            checked
-                                                                ? 'border-primary bg-primary/5'
-                                                                : 'hover:bg-sidebar-accent',
+                                                            'rounded-md p-1 transition-colors',
+                                                            active
+                                                                ? 'text-amber-500'
+                                                                : 'text-muted-foreground/40 hover:text-amber-400',
                                                         )}
                                                     >
-                                                        <Avatar className="size-7">
-                                                            {member.id !==
-                                                                null && (
-                                                                <AvatarImage
-                                                                    src={
-                                                                        member.avatar ??
-                                                                        undefined
-                                                                    }
-                                                                    alt=""
-                                                                />
+                                                        <Star
+                                                            className={cn(
+                                                                'size-6',
+                                                                active &&
+                                                                    'fill-current',
                                                             )}
-                                                            <AvatarFallback className="text-[10px]">
-                                                                {member.id ===
-                                                                null ? (
-                                                                    <UserRound className="size-3.5" />
-                                                                ) : (
-                                                                    getInitials(
-                                                                        member.name,
-                                                                    )
-                                                                )}
-                                                            </AvatarFallback>
-                                                        </Avatar>
-                                                        {label}
+                                                            aria-hidden
+                                                        />
                                                     </button>
                                                 );
                                             })}
+                                            <span className="ml-2 flex items-baseline gap-2 text-sm">
+                                                {shownScore === null ? (
+                                                    <span className="text-muted-foreground">
+                                                        Non évaluée
+                                                    </span>
+                                                ) : (
+                                                    <>
+                                                        <span className="font-medium">
+                                                            {
+                                                                scoreLabels[
+                                                                    shownScore
+                                                                ]
+                                                            }
+                                                        </span>
+                                                        <span className="text-muted-foreground tabular-nums">
+                                                            {shownScore} / 5
+                                                        </span>
+                                                    </>
+                                                )}
+                                            </span>
                                         </div>
-                                    </Field>
+                                        <InputError message={errors.score} />
+                                    </div>
                                     <Field
-                                        label="Recontacter par"
-                                        htmlFor="recontact_channel"
-                                        error={errors.recontact_channel}
+                                        label="Note de qualification"
+                                        htmlFor="qualification_note"
+                                        error={errors.qualification_note}
                                     >
-                                        <Select
-                                            value={
-                                                form.data.recontact_channel ===
-                                                ''
-                                                    ? 'none'
-                                                    : form.data
-                                                          .recontact_channel
-                                            }
-                                            onValueChange={(value) =>
-                                                set('recontact_channel')(
-                                                    value === 'none'
-                                                        ? ''
-                                                        : (value as RecontactChannel),
+                                        <Textarea
+                                            id="qualification_note"
+                                            name="qualification_note"
+                                            rows={3}
+                                            className="bg-background"
+                                            placeholder="Motivation, solvabilité, points d'attention…"
+                                            value={form.data.qualification_note}
+                                            onChange={(e) =>
+                                                set('qualification_note')(
+                                                    e.target.value,
                                                 )
                                             }
-                                        >
-                                            <SelectTrigger
-                                                id="recontact_channel"
-                                                aria-label="Recontacter par"
-                                                className="bg-background w-full"
-                                            >
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="none">
-                                                    Pas de recontact prévu
-                                                </SelectItem>
-                                                {recontactChannels.map(
-                                                    (channel) => (
-                                                        <SelectItem
-                                                            key={channel.value}
-                                                            value={
-                                                                channel.value
-                                                            }
-                                                        >
-                                                            {channel.label}
-                                                        </SelectItem>
-                                                    ),
-                                                )}
-                                            </SelectContent>
-                                        </Select>
-                                    </Field>
-                                    <Field
-                                        label="Recontacter le"
-                                        htmlFor="recontact_at"
-                                        error={errors.recontact_at}
-                                    >
-                                        <DatePicker
-                                            id="recontact_at"
-                                            aria-label="Recontacter le"
-                                            value={form.data.recontact_at}
-                                            onChange={set('recontact_at')}
                                         />
                                     </Field>
-                                </div>
-                            </Group>
-                        </>
-                    )}
-                </form>
+                                </Group>
+
+                                <Group
+                                    title="Suite à donner"
+                                    hint="Qui suit ce lead, et quand le recontacter."
+                                    icon={CalendarClock}
+                                >
+                                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+                                        <Field
+                                            label="Suivi par"
+                                            error={errors.assigned_to}
+                                            className="sm:col-span-3"
+                                        >
+                                            <div
+                                                id="assigned_to"
+                                                tabIndex={-1}
+                                                role="radiogroup"
+                                                aria-label="Suivi par"
+                                                className="flex flex-wrap gap-2"
+                                            >
+                                                {[
+                                                    {
+                                                        id: null,
+                                                        name: "Personne pour l'instant",
+                                                        avatar: null,
+                                                    },
+                                                    ...staff,
+                                                ].map((member) => {
+                                                    const checked =
+                                                        form.data
+                                                            .assigned_to ===
+                                                        member.id;
+                                                    const label =
+                                                        member.id !== null &&
+                                                        member.id ===
+                                                            auth.user?.id
+                                                            ? `${member.name} (moi)`
+                                                            : member.name;
+
+                                                    return (
+                                                        <button
+                                                            key={
+                                                                member.id ??
+                                                                'none'
+                                                            }
+                                                            type="button"
+                                                            role="radio"
+                                                            aria-checked={
+                                                                checked
+                                                            }
+                                                            aria-label={label}
+                                                            onClick={() =>
+                                                                set(
+                                                                    'assigned_to',
+                                                                )(member.id)
+                                                            }
+                                                            className={cn(
+                                                                'bg-background flex h-9 items-center gap-2 rounded-full border py-1 pr-3 pl-1 text-sm transition-colors',
+                                                                checked
+                                                                    ? 'border-primary bg-primary/5'
+                                                                    : 'hover:bg-sidebar-accent',
+                                                            )}
+                                                        >
+                                                            <Avatar className="size-7">
+                                                                {member.id !==
+                                                                    null && (
+                                                                    <AvatarImage
+                                                                        src={
+                                                                            member.avatar ??
+                                                                            undefined
+                                                                        }
+                                                                        alt=""
+                                                                    />
+                                                                )}
+                                                                <AvatarFallback className="text-[10px]">
+                                                                    {member.id ===
+                                                                    null ? (
+                                                                        <UserRound className="size-3.5" />
+                                                                    ) : (
+                                                                        getInitials(
+                                                                            member.name,
+                                                                        )
+                                                                    )}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            {label}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </Field>
+                                        <Field
+                                            label="Recontacter par"
+                                            htmlFor="recontact_channel"
+                                            error={errors.recontact_channel}
+                                        >
+                                            <Select
+                                                value={
+                                                    form.data
+                                                        .recontact_channel ===
+                                                    ''
+                                                        ? 'none'
+                                                        : form.data
+                                                              .recontact_channel
+                                                }
+                                                onValueChange={(value) =>
+                                                    set('recontact_channel')(
+                                                        value === 'none'
+                                                            ? ''
+                                                            : (value as RecontactChannel),
+                                                    )
+                                                }
+                                            >
+                                                <SelectTrigger
+                                                    id="recontact_channel"
+                                                    aria-label="Recontacter par"
+                                                    className="bg-background w-full"
+                                                >
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">
+                                                        Pas de recontact prévu
+                                                    </SelectItem>
+                                                    {recontactChannels.map(
+                                                        (channel) => (
+                                                            <SelectItem
+                                                                key={
+                                                                    channel.value
+                                                                }
+                                                                value={
+                                                                    channel.value
+                                                                }
+                                                            >
+                                                                {channel.label}
+                                                            </SelectItem>
+                                                        ),
+                                                    )}
+                                                </SelectContent>
+                                            </Select>
+                                        </Field>
+                                        <Field
+                                            label="Recontacter le"
+                                            htmlFor="recontact_at"
+                                            error={errors.recontact_at}
+                                        >
+                                            <DatePicker
+                                                id="recontact_at"
+                                                aria-label="Recontacter le"
+                                                value={form.data.recontact_at}
+                                                onChange={set('recontact_at')}
+                                            />
+                                        </Field>
+                                    </div>
+                                </Group>
+                            </>
+                        )}
+                    </form>
+                </Panel>
             </div>
             <FormActionBar innerClassName="max-w-4xl">
                 {step > 1 && (

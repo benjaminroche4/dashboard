@@ -16,7 +16,8 @@ use Illuminate\Support\Facades\Mail;
 /**
  * Chaque minute : tout lead « À traiter » créé depuis plus de 30 minutes et jamais
  * contacté déclenche, une seule fois, une alerte e-mail à l'adresse de contact de l'équipe
- * et, s'il est attribué, un e-mail et un SMS (Allo) directement au conseiller responsable.
+ * et, s'il est attribué, un e-mail et un SMS (Allo) directement à chaque personne de suivi
+ * du dossier (conseiller et co-conseiller).
  */
 final readonly class AlertFirstContactOverdue
 {
@@ -35,7 +36,7 @@ final readonly class AlertFirstContactOverdue
         }
 
         $leads = Lead::query()
-            ->with('assignee')
+            ->with(['assignee', 'coAssignee'])
             ->where('status', LeadStatus::Todo)
             ->whereNull('last_contacted_at')
             ->whereNull('first_contact_alerted_at')
@@ -54,18 +55,19 @@ final readonly class AlertFirstContactOverdue
 
             Mail::to($recipient)->send(new FirstContactOverdue($lead, $minutes));
 
-            $assignee = $lead->assignee;
+            // Un dossier peut avoir deux personnes de suivi : toutes les deux sont alertées.
+            $followers = $lead->followers();
 
-            if ($assignee instanceof User) {
-                $this->alertAssignee($lead, $assignee, $minutes);
+            foreach ($followers as $follower) {
+                $this->alertAssignee($lead, $follower, $minutes);
             }
 
-            $mentions = $lead->assigned_to === null ? [] : [$lead->assigned_to];
+            $names = array_map(fn (User $follower): string => $follower->name, $followers);
             event(new DashboardUpdated(
                 'leads',
-                ['id' => $lead->id, 'mentions' => $mentions],
+                ['id' => $lead->id, 'mentions' => array_map(fn (User $follower): int => $follower->id, $followers)],
                 "Lead {$lead->fullName()} sans contact depuis {$minutes} min : alerte envoyée à {$recipient}"
-                    .($assignee instanceof User ? " et à {$assignee->name}" : ''),
+                    .($names === [] ? '' : ' et à '.implode(', ', $names)),
             ));
         }
 
@@ -73,7 +75,8 @@ final readonly class AlertFirstContactOverdue
     }
 
     /**
-     * E-mail au conseiller, puis SMS court s'il a renseigné un téléphone et qu'Allo est configuré.
+     * E-mail à une personne de suivi, puis SMS court si elle a renseigné un téléphone
+     * et qu'Allo est configuré.
      */
     private function alertAssignee(Lead $lead, User $assignee, int $minutes): void
     {

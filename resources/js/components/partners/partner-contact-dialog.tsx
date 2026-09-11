@@ -12,7 +12,16 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { contactFunctions } from '@/lib/contact-functions';
 import { Spinner } from '@/components/ui/spinner';
 import { capitalizeName } from '@/lib/format';
 import { store, update } from '@/routes/partners/contacts';
@@ -32,11 +41,15 @@ function initial(
     return {
         first_name: contact?.first_name ?? '',
         last_name: contact?.last_name ?? '',
-        position: contact?.position ?? '',
+        position: contact?.position_value ?? '',
+        is_primary: contact?.is_primary ?? false,
         email: contact?.email ?? '',
         phone: contact?.phone ?? '',
     };
 }
+
+/** Valeur du choix « Sans fonction » (Radix refuse une valeur vide). */
+const NONE = '__none__';
 
 /** Ajout ou modification d'un interlocuteur chez un partenaire. */
 export function PartnerContactDialog({
@@ -74,7 +87,7 @@ export function PartnerContactDialog({
     };
 
     const field = (
-        key: 'first_name' | 'last_name' | 'position' | 'email',
+        key: 'first_name' | 'last_name' | 'email',
         label: string,
         props: { type?: string; placeholder?: string; required?: boolean } = {},
     ) => (
@@ -125,10 +138,65 @@ export function PartnerContactDialog({
                         {field('first_name', 'Prénom', { required: true })}
                         {field('last_name', 'Nom', { required: true })}
                     </div>
-                    {field('position', 'Fonction', {
-                        placeholder: 'Commercial, gestionnaire…',
-                    })}
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="grid gap-2">
+                        <Label htmlFor="contact-position">Fonction</Label>
+                        <Select
+                            value={form.data.position || NONE}
+                            onValueChange={(value) =>
+                                form.setData(
+                                    'position',
+                                    value === NONE ? '' : value,
+                                )
+                            }
+                        >
+                            <SelectTrigger
+                                id="contact-position"
+                                className="w-full"
+                            >
+                                <SelectValue placeholder="Choisir une fonction" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={NONE}>
+                                    Sans fonction
+                                </SelectItem>
+                                {contactFunctions.map((option) => (
+                                    <SelectItem
+                                        key={option.value}
+                                        value={option.value}
+                                    >
+                                        {option.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <InputError message={form.errors.position} />
+                    </div>
+                    {/* Un seul interlocuteur principal : c'est lui que l'on joint d'abord. */}
+                    <label
+                        htmlFor="contact-primary"
+                        className="hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors"
+                    >
+                        <Checkbox
+                            id="contact-primary"
+                            checked={form.data.is_primary}
+                            onCheckedChange={(state) =>
+                                form.setData('is_primary', state === true)
+                            }
+                            className="mt-0.5"
+                        />
+                        <span className="grid gap-0.5">
+                            <span className="text-sm font-medium">
+                                Interlocuteur principal
+                            </span>
+                            <span className="text-muted-foreground text-xs">
+                                Celui que l’équipe joint d’abord chez ce
+                                partenaire.
+                            </span>
+                        </span>
+                    </label>
+                    {/* Téléphone et e-mail chacun sur sa ligne : l'indicatif et
+                        l'adresse ont besoin de toute la largeur. */}
+                    <div className="grid gap-4">
                         <div className="grid gap-2">
                             <Label htmlFor="contact-phone">Téléphone</Label>
                             <PhoneInput

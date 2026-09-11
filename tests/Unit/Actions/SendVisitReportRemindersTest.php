@@ -32,8 +32,8 @@ test('the assignee of a past visit without report is e-mailed once, with a targe
 
     expect((new SendVisitReportReminders)->handle())->toBe(1);
 
-    Mail::assertSent(VisitReportDue::class, fn (VisitReportDue $mail): bool => $mail->hasTo('camille@example.com') && $mail->visit->is($due));
-    Mail::assertSentCount(1);
+    Mail::assertQueued(VisitReportDue::class, fn (VisitReportDue $mail): bool => $mail->hasTo('camille@example.com') && $mail->visit->is($due));
+    Mail::assertQueuedCount(1);
     Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->payload['mentions'] === [$camille->id]
         && str_contains((string) $event->message, 'vous rappelle le compte rendu'));
     expect($due->refresh()->report_reminded_at)->not->toBeNull();
@@ -57,4 +57,21 @@ test('the reminder e-mail names the client, the property, the date and links to 
         ->toContain('12 rue Oberkampf, 75011 Paris')
         ->toContain('Rédiger le compte rendu')
         ->toContain(route('clients.visits', ['report' => $visit->uuid]));
+});
+
+test('the dossier followers are copied on the reminder and mentioned in the toast', function (): void {
+    Mail::fake();
+    Event::fake([DashboardUpdated::class]);
+    $camille = User::factory()->create(['name' => 'Camille', 'email' => 'camille@example.com']);
+    $charles = User::factory()->create(['name' => 'Charles', 'email' => 'charles@example.com']);
+    $lead = Lead::factory()->converted()->create(['assigned_to' => $camille->id, 'co_assigned_to' => $charles->id]);
+    $due = Visit::factory()->create(['lead_id' => $lead->id, 'assigned_to' => $camille->id, 'scheduled_at' => now()->subHours(2)]);
+
+    expect((new SendVisitReportReminders)->handle())->toBe(1);
+
+    // Camille a fait la visite : elle est destinataire, Charles suit le dossier en copie.
+    Mail::assertQueued(VisitReportDue::class, fn (VisitReportDue $mail): bool => $mail->hasTo('camille@example.com')
+        && $mail->hasCc('charles@example.com')
+        && $mail->visit->is($due));
+    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->payload['mentions'] === [$camille->id, $charles->id]);
 });

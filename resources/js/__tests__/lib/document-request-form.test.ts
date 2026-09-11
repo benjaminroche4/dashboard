@@ -8,11 +8,16 @@ import {
     personIndexFromErrorKey,
     personName,
     personStatus,
+    prefillFromLead,
     toggleCategory,
     toggleDocument,
     validateDocumentRequestForm,
 } from '@/lib/document-request-form';
-import { catalog, makePersonForm } from '@/test/fixtures/document-request';
+import {
+    catalog,
+    documentRequestLeads,
+    makePersonForm,
+} from '@/test/fixtures/document-request';
 
 const identity = catalog[0]!;
 
@@ -93,7 +98,8 @@ describe('document request form helpers', () => {
                 ],
             }),
         ).toEqual({
-            upload_url: 'Le lien de dépôt doit être une adresse https valide.',
+            upload_url:
+                'Le dossier Google Drive doit être une adresse https valide.',
             'persons.1.first_name': 'Le prénom est obligatoire.',
         });
 
@@ -116,5 +122,59 @@ describe('document request form helpers', () => {
                 ],
             }),
         ).toEqual({});
+    });
+    it('prefills the household from a lead, one person per physical guarantor', () => {
+        const lead = documentRequestLeads[0]!; // Léa Martin, garant physique + Garantme
+        const filled = prefillFromLead(emptyDocumentRequestForm(), lead);
+
+        expect(filled.language).toBe('fr');
+        expect(filled.persons).toHaveLength(2);
+        expect(filled.persons[0]).toMatchObject({
+            first_name: 'Léa',
+            last_name: 'Martin',
+            role: 'tenant',
+        });
+        // Garantme et la garantie bancaire ne sont pas des personnes du foyer.
+        expect(filled.persons[1]).toMatchObject({ role: 'guarantor' });
+    });
+
+    it('keeps what is already typed and never exceeds four persons', () => {
+        const lead = documentRequestLeads[0]!;
+        const typed = {
+            ...emptyDocumentRequestForm(),
+            persons: [
+                makePersonForm({ first_name: 'Marc', last_name: 'Dubois' }),
+                makePersonForm({ role: 'guarantor' }),
+            ],
+        };
+
+        const filled = prefillFromLead(typed, lead);
+
+        // La personne déjà nommée est conservée, le lead devient une personne de plus.
+        expect(filled.persons[0]).toMatchObject({ first_name: 'Marc' });
+        expect(filled.persons.map((person) => person.role)).toEqual([
+            'tenant',
+            'guarantor',
+            'tenant',
+        ]);
+
+        const full = prefillFromLead(
+            {
+                ...emptyDocumentRequestForm(),
+                persons: Array.from({ length: MAX_PERSONS }, () =>
+                    makePersonForm({ first_name: 'Marc' }),
+                ),
+            },
+            lead,
+        );
+        expect(full.persons).toHaveLength(MAX_PERSONS);
+    });
+
+    it('adds no guarantor when the lead declares none', () => {
+        const lead = documentRequestLeads[1]!; // John Smith, anglais, sans garant
+        const filled = prefillFromLead(emptyDocumentRequestForm(), lead);
+
+        expect(filled.language).toBe('en');
+        expect(filled.persons).toHaveLength(1);
     });
 });

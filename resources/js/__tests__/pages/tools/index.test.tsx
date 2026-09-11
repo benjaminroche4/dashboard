@@ -23,11 +23,11 @@ describe('Tools page', () => {
             screen.getByRole('heading', { name: 'Outils' }),
         ).toBeInTheDocument();
         const card = screen.getByRole('region', {
-            name: 'Liste de documents',
+            name: 'Listes de pièces',
         });
         expect(card).toHaveTextContent(/par personne du foyer/);
         expect(
-            screen.getByRole('link', { name: 'Voir les demandes' }),
+            screen.getByRole('link', { name: 'Voir les listes' }),
         ).toHaveAttribute('href', '/tools/documents');
         expect(screen.getAllByRole('link')).toHaveLength(4);
     });

@@ -28,7 +28,7 @@ export function LeadDocumentRequests({
         <div className="grid gap-3" data-test="lead-document-requests">
             {requests.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
-                    Aucune liste de documents pour ce lead.
+                    Aucune liste de pièces pour ce lead.
                 </p>
             ) : (
                 <ul role="list" className="grid gap-2">
@@ -69,7 +69,7 @@ export function LeadDocumentRequests({
                 <Button variant="outline" size="sm" asChild>
                     <Link href={documentsCreate({ query: { lead: leadUuid } })}>
                         <FilePlus2 aria-hidden />
-                        Créer une liste de documents
+                        Créer une liste de pièces
                     </Link>
                 </Button>
             </div>

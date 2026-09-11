@@ -6,6 +6,7 @@ namespace App\Mail;
 
 use App\Models\Quote;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Attachment;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -15,7 +16,7 @@ use Illuminate\Queue\SerializesModels;
 /**
  * E-mail au client avec le devis en pièce jointe (PDF si disponible).
  */
-final class QuoteSent extends Mailable
+final class QuoteSent extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

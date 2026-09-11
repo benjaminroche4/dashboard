@@ -25,7 +25,7 @@ final class SendRecontactReminders
     {
         /** @var Collection<int, Collection<int, Lead>> $byAssignee */
         $byAssignee = Lead::query()
-            ->with('assignee')
+            ->with(['assignee', 'coAssignee'])
             ->whereNotNull('assigned_to')
             ->whereNotNull('recontact_at')
             ->whereDate('recontact_at', '<=', today())
@@ -44,13 +44,29 @@ final class SendRecontactReminders
             }
 
             $overdue = $leads->filter(fn (Lead $lead): bool => $lead->recontact_at?->isBefore(today()) ?? false);
-            Mail::to($assignee->email, $assignee->name)->send(new RecontactsDue($assignee, $leads->values()));
+
+            // Les seconds responsables des dossiers concernés reçoivent une copie.
+            $copies = $leads
+                ->flatMap(fn (Lead $lead): array => $lead->followers())
+                ->reject(fn (User $member): bool => $member->id === $assignee->id)
+                ->unique('id')
+                ->map(fn (User $member): array => ['email' => $member->email, 'name' => $member->name])
+                ->values()
+                ->all();
+
+            $mail = Mail::to($assignee->email, $assignee->name);
+
+            if ($copies !== []) {
+                $mail->cc($copies);
+            }
+
+            $mail->send(new RecontactsDue($assignee, $leads->values()));
 
             $count = $leads->count();
             $message = $overdue->isEmpty()
                 ? "vous rappelle {$count} recontact(s) prévu(s) aujourd'hui"
                 : "vous rappelle {$count} recontact(s), dont {$overdue->count()} en retard";
-            event(new DashboardUpdated('leads', ['mentions' => [$assignee->id], 'ids' => $leads->pluck('id')->all()], $message));
+            event(new DashboardUpdated('leads', ['mentions' => $leads->flatMap(fn (Lead $lead): array => $lead->followers())->pluck('id')->unique()->values()->all(), 'ids' => $leads->pluck('id')->all()], $message));
             $notified++;
         }
 

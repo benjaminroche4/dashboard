@@ -6,6 +6,7 @@ namespace App\Mail;
 
 use App\Models\DocumentRequest;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -15,7 +16,7 @@ use Illuminate\Queue\SerializesModels;
  * E-mail au client avec le lien public de dépôt de ses pièces et son code
  * d'appairage, dans la langue de la liste (`Mail::to()->locale()`).
  */
-final class DocumentUploadLinkSent extends Mailable
+final class DocumentUploadLinkSent extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

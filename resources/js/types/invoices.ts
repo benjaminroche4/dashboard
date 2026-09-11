@@ -1,3 +1,4 @@
+import type { LinkedLead } from '@/components/leads/lead-link-card';
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
 
 export type Currency = 'CHF' | 'EUR';
@@ -38,8 +39,10 @@ export type Invoice = {
     paid_at: string | null;
     can_send: boolean;
     can_pay: boolean;
+    /** Brouillon : la facture est encore modifiable. */
+    can_edit?: boolean;
     /** Lead rattaché à la facture, ou null. */
-    lead: { id: number; uuid: string; name: string } | null;
+    lead: LinkedLead | null;
 };
 
 /** Facture vue depuis une fiche lead. */
@@ -64,7 +67,7 @@ export type InvoiceSearchHit = {
     amount_cents: number;
     currency: Currency;
     status_label: string;
-    lead: { id: number; uuid: string; name: string } | null;
+    lead: LinkedLead | null;
 };
 
 /** Préremplissage de la création depuis une fiche lead (?lead=UUID). */
@@ -80,6 +83,9 @@ export type InvoicePrefill = {
 
 /** Facture complète (page de détail). */
 export type InvoiceDetail = Invoice & {
+    /** Compte d'encaissement figé sur la facture ; null = compte par défaut. */
+    bank_name: string | null;
+    bank_iban: string | null;
     client_street: string | null;
     client_postal_code: string | null;
     client_city: string | null;
@@ -97,11 +103,13 @@ export type InvoiceDetail = Invoice & {
 };
 
 export type InvoiceStatusChange = {
+    /** 0 pour l'entrée de création reconstituée depuis `invoices.created_at`. */
     id: number;
     from: string | null;
     to: string;
     to_status: InvoiceStatus;
     by: string | null;
+    by_avatar: string | null;
     note: string | null;
     at: string;
 };
@@ -144,7 +152,19 @@ export type InvoiceForm = {
     issued_at: string;
     due_at: string;
     notes: string;
+    /** Compte d'encaissement : vide = compte par défaut de la devise. */
+    bank_name: string;
+    bank_iban: string;
     items: InvoiceLineForm[];
+};
+
+/** Compte bancaire proposé sur une facture ou un devis (miroir de `BankAccounts`). */
+export type BankAccountOption = {
+    label: string;
+    bank: string;
+    iban: string;
+    /** Devise du compte, null s'il sert pour toutes. */
+    currency: Currency | null;
 };
 
 export type CountryOption = {

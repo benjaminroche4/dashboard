@@ -52,7 +52,7 @@ const invoices: Invoice[] = [
 function renderTable(data = invoices) {
     return render(
         <DataTable
-            columns={invoiceColumns}
+            columns={invoiceColumns()}
             data={data}
             filterColumn="client_name"
             filterPlaceholder="Filtrer par client…"
@@ -63,7 +63,7 @@ function renderTable(data = invoices) {
 
 describe('Invoices DataTable', () => {
     it('links the invoice number to its page', () => {
-        render(<DataTable columns={invoiceColumns} data={invoices} />);
+        render(<DataTable columns={invoiceColumns()} data={invoices} />);
 
         expect(
             screen.getByRole('link', { name: 'F-2026-0001' }),

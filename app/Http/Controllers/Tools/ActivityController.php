@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tools;
 
+use App\Enums\ActivityPeriod;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Activity\ShowActivityLogRequest;
 use App\Models\Activity;
@@ -15,7 +16,7 @@ use Inertia\Response;
 
 /**
  * Journal d'activité : toutes les actions du backoffice, 50 par page,
- * filtrables par membre, ressource et lead.
+ * filtrables par période, membre, ressource et lead.
  */
 class ActivityController extends Controller
 {
@@ -24,9 +25,12 @@ class ActivityController extends Controller
     public function index(ShowActivityLogRequest $request): Response
     {
         $lead = $request->lead();
+        $period = $request->period();
+        $since = $period->since();
 
         $activities = Activity::query()
             ->with(['actor', 'lead'])
+            ->when($since, fn ($query, $date) => $query->where('created_at', '>=', $date))
             ->when($request->memberId(), fn ($query, int $memberId) => $query->where('user_id', $memberId))
             ->when($request->resource(), fn ($query, string $resource) => $query->where('resource', $resource))
             ->when($lead, fn ($query) => $query->where('lead_id', $lead->id))
@@ -54,7 +58,9 @@ class ActivityController extends Controller
                 ->map(fn (User $user): array => ['id' => $user->id, 'name' => $user->name, 'avatar' => $user->avatar])
                 ->all(),
             'resources' => $resources,
+            'periods' => ActivityPeriod::options(),
             'filters' => [
+                'period' => $period->value,
                 'member' => $request->memberId(),
                 'resource' => $request->resource(),
                 'lead' => $lead?->uuid,

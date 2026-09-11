@@ -1,4 +1,5 @@
 import type {
+    DocumentRequestLeadOption,
     DocumentUpload,
     PublicDocumentPerson,
     CatalogGroup,
@@ -55,6 +56,34 @@ export const languages = [
 ];
 
 /** Personne du formulaire, nommée et locataire par défaut. */
+/** Leads proposés dans le sélecteur du formulaire. */
+export const documentRequestLeads: DocumentRequestLeadOption[] = [
+    {
+        id: 7,
+        uuid: 'lead-uuid-7',
+        name: 'Léa Martin',
+        first_name: 'Léa',
+        last_name: 'Martin',
+        reference: 'LD-1042',
+        company: null,
+        language: 'fr',
+        is_client: false,
+        guarantors: ['physique', 'garantme'],
+    },
+    {
+        id: 9,
+        uuid: 'lead-uuid-9',
+        name: 'John Smith',
+        first_name: 'John',
+        last_name: 'Smith',
+        reference: 'LD-1043',
+        company: 'Acme',
+        language: 'en',
+        is_client: true,
+        guarantors: [],
+    },
+];
+
 export function makePersonForm(
     overrides: Partial<HouseholdPersonForm> = {},
 ): HouseholdPersonForm {
@@ -100,8 +129,9 @@ export function makeDocumentRequestDetail(
         access_code: '482913',
         link_sent_to: null,
         link_sent_at: null,
-        lead_email: 'lea@example.com',
+        lead_emails: ['lea@example.com'],
         uploads_count: 0,
+        can_update: true,
         persons: [
             {
                 name: 'Léa Martin',

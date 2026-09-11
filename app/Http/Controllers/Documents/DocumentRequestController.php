@@ -7,14 +7,18 @@ namespace App\Http\Controllers\Documents;
 use App\Actions\Documents\CreateDocumentRequest;
 use App\Actions\Documents\DeleteDocumentRequest;
 use App\Actions\Documents\DeleteDocumentRequests;
+use App\Actions\Documents\LinkDocumentRequestToLead;
 use App\Actions\Documents\RenderDocumentRequestPdf;
 use App\Actions\Documents\SendDocumentUploadLink;
 use App\Actions\Documents\UpdateDocumentRequest;
 use App\Data\DocumentRequestData;
+use App\Enums\GuarantorType;
 use App\Enums\HouseholdRole;
 use App\Enums\LeadLanguage;
+use App\Enums\LeadStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Documents\BulkDocumentRequestsRequest;
+use App\Http\Requests\Documents\LinkDocumentRequestLeadRequest;
 use App\Http\Requests\Documents\SendDocumentUploadLinkRequest;
 use App\Http\Requests\Documents\StoreDocumentRequestRequest;
 use App\Http\Requests\Documents\UpdateDocumentRequestRequest;
@@ -56,7 +60,7 @@ class DocumentRequestController extends Controller
         $lead = $request->filled('lead') ? Lead::query()->where('uuid', (string) $request->query('lead'))->first() : null;
 
         return Inertia::render('documents/create', [
-            ...$this->formProps(),
+            ...$this->formProps($lead),
             'prefill' => $lead === null ? null : [
                 'lead_id' => $lead->id,
                 'lead_uuid' => $lead->uuid,
@@ -73,7 +77,7 @@ class DocumentRequestController extends Controller
         $this->authorize('update', $documentRequest);
 
         return Inertia::render('documents/create', [
-            ...$this->formProps(),
+            ...$this->formProps($documentRequest->lead),
             'request' => [
                 'id' => $documentRequest->id,
                 'uuid' => $documentRequest->uuid,
@@ -119,12 +123,12 @@ class DocumentRequestController extends Controller
 
         $documentRequest = $create->handle(DocumentRequestData::from($request->validated()), $request->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Demande de pièces enregistrée. Téléchargez le PDF.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Liste de pièces enregistrée. Téléchargez le PDF.')]);
 
         return to_route('tools.documents.show', $documentRequest);
     }
 
-    public function show(DocumentRequest $documentRequest, RenderDocumentRequestPdf $pdf): Response
+    public function show(Request $request, DocumentRequest $documentRequest, RenderDocumentRequestPdf $pdf): Response
     {
         $this->authorize('view', $documentRequest);
 
@@ -139,8 +143,14 @@ class DocumentRequestController extends Controller
                 'access_code' => $documentRequest->access_code,
                 'link_sent_to' => $documentRequest->link_sent_to,
                 'link_sent_at' => $documentRequest->link_sent_at?->toIso8601String(),
-                'lead_email' => $documentRequest->lead?->email,
+                // Adresses connues du dossier : le client et, s'il existe, le second locataire.
+                'lead_emails' => array_map(
+                    fn (array $recipient): string => $recipient['email'],
+                    $documentRequest->lead?->mailRecipients() ?? [],
+                ),
                 'uploads_count' => $documentRequest->uploads->count(),
+                // Rattacher la liste à un lead depuis sa fiche demande le droit de la modifier.
+                'can_update' => $request->user()?->can('update', $documentRequest) ?? false,
                 'persons' => $this->personsWithUploads($documentRequest),
             ],
             'pdfAvailable' => $pdf->isConfigured(),
@@ -152,10 +162,26 @@ class DocumentRequestController extends Controller
     {
         $this->authorize('update', $documentRequest);
 
-        $email = (string) $request->validated('email');
-        $send->handle($documentRequest, $email, $request->user());
+        $emails = $request->emails();
+        $send->handle($documentRequest, $emails, $request->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Lien de dépôt envoyé à :email.', ['email' => $email])]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Lien de dépôt envoyé à :email.', ['email' => implode(', ', $emails)])]);
+
+        return back();
+    }
+
+    /** Rattache la liste à un lead, ou l'en détache avec `lead_id` null. */
+    public function link(LinkDocumentRequestLeadRequest $request, DocumentRequest $documentRequest, LinkDocumentRequestToLead $link): RedirectResponse
+    {
+        $this->authorize('update', $documentRequest);
+
+        $leadId = $request->validated('lead_id');
+        $lead = is_numeric($leadId) ? Lead::query()->where('id', (int) $leadId)->firstOrFail() : null;
+        $link->handle($documentRequest, $lead, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => $lead === null
+            ? __('Liste détachée du lead.')
+            : __('Liste rattachée à :name.', ['name' => $lead->fullName()])]);
 
         return back();
     }
@@ -175,13 +201,47 @@ class DocumentRequestController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function formProps(): array
+    private function formProps(?Lead $attached = null): array
     {
         return [
             'catalog' => DocumentCatalog::grouped(),
             'roles' => HouseholdRole::options(),
             'languages' => LeadLanguage::options(),
+            'leads' => $this->leadOptions($attached),
         ];
+    }
+
+    /**
+     * Leads et dossiers clients proposés dans le sélecteur du formulaire, avec
+     * de quoi préremplir le foyer (personne principale, garants déclarés).
+     *
+     * Le lead déjà rattaché est toujours proposé, même archivé.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function leadOptions(?Lead $attached = null): array
+    {
+        $leads = Lead::query()
+            ->where(fn ($query) => $query
+                ->where('status', '!=', LeadStatus::Archived)
+                ->when($attached instanceof Lead, fn ($query) => $query->orWhere('id', $attached?->id)))
+            ->latest('updated_at')
+            ->get(['id', 'uuid', 'first_name', 'last_name', 'reference', 'company', 'language', 'status', 'guarantors'])
+            ->map(fn (Lead $lead): array => [
+                'id' => $lead->id,
+                'uuid' => $lead->uuid,
+                'name' => $lead->fullName(),
+                'first_name' => $lead->first_name,
+                'last_name' => $lead->last_name,
+                'reference' => $lead->reference,
+                'company' => $lead->company,
+                'language' => $lead->language->value,
+                'is_client' => $lead->status === LeadStatus::Converted,
+                'guarantors' => $lead->guarantors?->map(fn (GuarantorType $guarantor): string => $guarantor->value)->values()->all() ?? [],
+            ])
+            ->all();
+
+        return array_values($leads);
     }
 
     public function bulkDestroy(BulkDocumentRequestsRequest $request, DeleteDocumentRequests $delete): RedirectResponse
@@ -190,7 +250,7 @@ class DocumentRequestController extends Controller
 
         $count = $delete->handle(DocumentRequest::query()->whereIn('id', $request->ids())->get());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __(':count demande(s) supprimée(s).', ['count' => $count])]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __(':count liste(s) supprimée(s).', ['count' => $count])]);
 
         return back();
     }

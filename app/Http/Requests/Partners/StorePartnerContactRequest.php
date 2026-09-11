@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Partners;
 
+use App\Enums\ContactFunction;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StorePartnerContactRequest extends FormRequest
 {
@@ -17,7 +19,8 @@ class StorePartnerContactRequest extends FormRequest
         return [
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
-            'position' => ['nullable', 'string', 'max:255'],
+            'position' => ['nullable', Rule::enum(ContactFunction::class)],
+            'is_primary' => ['nullable', 'boolean'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:40'],
         ];

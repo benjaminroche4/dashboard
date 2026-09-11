@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\RealEstate;
 
+use App\Actions\Directory\GeocodeDirectoryEntry;
 use App\Data\AgencyData;
 use App\Events\DashboardUpdated;
 use App\Models\Agency;
@@ -16,6 +17,13 @@ final class UpdateAgency
     public function handle(Agency $agency, AgencyData $data): Agency
     {
         $agency->fill($data->toArray())->save();
+
+        // Nouvelle adresse (ou position encore absente) : on repositionne sur la carte.
+        $geocode = resolve(GeocodeDirectoryEntry::class);
+
+        if ($geocode->shouldGeocode($agency)) {
+            $geocode->handle($agency);
+        }
 
         event(new DashboardUpdated('agencies', ['id' => $agency->id], "a modifié l'agence {$agency->name}"));
 

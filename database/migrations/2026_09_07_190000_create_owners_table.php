@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\OwnerStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -25,7 +24,7 @@ return new class extends Migration
             $table->string('postal_code', 20)->nullable();
             $table->string('city')->nullable();
             $table->unsignedSmallInteger('property_count')->default(1);
-            $table->string('status', 32)->default(OwnerStatus::ToContact->value)->index();
+            $table->string('status', 32)->default('to_contact')->index();
             $table->timestamp('last_contacted_at')->nullable();
             $table->text('notes')->nullable();
             // Lead créé à partir du propriétaire (gestion locative), s'il a été converti.

@@ -2,11 +2,12 @@ import { Link } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown } from 'lucide-react';
 import { CreatedBy } from '@/components/created-by';
-import { FavoriteButton } from '@/components/favorite-button';
+import { FavoriteStar } from '@/components/favorite-star';
 import { AgencyAgentsPopover } from '@/components/real-estate/agency-agents-popover';
 import { AgentLeadsPopover } from '@/components/real-estate/agent-leads-popover';
 import { RealEstateRowActions } from '@/components/real-estate/real-estate-row-actions';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     destroy as destroyAgency,
     favorite as favoriteAgency,
@@ -62,13 +63,28 @@ function contactCell(email: string | null, phone: string | null) {
 }
 
 export const agencyColumnLabels: Record<string, string> = {
-    favorite: 'Favori',
     name: 'Agence',
     address: 'Adresse',
     contact: 'Contact',
     agents_count: 'Agents',
+    last_contacted_at: 'Dernier échange',
     creator: 'Ajouté par',
 };
+
+const exchangeDate = new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+});
+
+/** Dernier échange noté, ou un tiret : trié du plus ancien au plus récent. */
+function lastContactCell(iso: string | null) {
+    return (
+        <span className="text-muted-foreground text-sm tabular-nums">
+            {iso ? exchangeDate.format(new Date(iso)) : '—'}
+        </span>
+    );
+}
 
 function creatorCell(creator: string | null, avatar: string | null) {
     return (
@@ -96,17 +112,28 @@ export function agencyColumns(
 ): ColumnDef<Agency>[] {
     return [
         {
-            id: 'favorite',
-            accessorFn: (agency) => (agency.is_favorite ? 1 : 0),
-            header: () => <span className="sr-only">Favori</span>,
-            enableHiding: false,
-            cell: ({ row }) => (
-                <FavoriteButton
-                    favorite={row.original.is_favorite}
-                    url={favoriteAgency({ agency: row.original.uuid }).url}
-                    name={row.original.name}
+            id: 'select',
+            header: ({ table }) => (
+                <Checkbox
+                    checked={
+                        table.getIsAllPageRowsSelected() ||
+                        (table.getIsSomePageRowsSelected() && 'indeterminate')
+                    }
+                    onCheckedChange={(value) =>
+                        table.toggleAllPageRowsSelected(!!value)
+                    }
+                    aria-label="Tout sélectionner"
                 />
             ),
+            cell: ({ row }) => (
+                <Checkbox
+                    checked={row.getIsSelected()}
+                    onCheckedChange={(value) => row.toggleSelected(!!value)}
+                    aria-label={`Sélectionner ${row.original.name}`}
+                />
+            ),
+            enableSorting: false,
+            enableHiding: false,
         },
         {
             accessorKey: 'name',
@@ -120,12 +147,15 @@ export function agencyColumns(
             ),
             cell: ({ row }) => (
                 <div className="grid">
-                    <Link
-                        href={agencyShow({ agency: row.original.uuid })}
-                        className="font-medium hover:underline"
-                    >
-                        {row.original.name}
-                    </Link>
+                    <span className="flex items-center gap-1.5">
+                        <Link
+                            href={agencyShow({ agency: row.original.uuid })}
+                            className="font-medium hover:underline"
+                        >
+                            {row.original.name}
+                        </Link>
+                        <FavoriteStar favorite={row.original.is_favorite} />
+                    </span>
                     {row.original.website && (
                         <a
                             href={row.original.website}
@@ -176,6 +206,18 @@ export function agencyColumns(
             ),
         },
         {
+            accessorKey: 'last_contacted_at',
+            header: ({ column }) => (
+                <SortableHeader
+                    label="Dernier échange"
+                    onClick={() =>
+                        column.toggleSorting(column.getIsSorted() === 'asc')
+                    }
+                />
+            ),
+            cell: ({ row }) => lastContactCell(row.original.last_contacted_at),
+        },
+        {
             id: 'creator',
             accessorFn: (agency) => agency.creator ?? '',
             header: 'Ajouté par',
@@ -195,6 +237,11 @@ export function agencyColumns(
                         deleteTitle={`Supprimer l’agence ${row.original.name} ?`}
                         deleteDescription="Ses agents sont conservés, sans agence. Cette action est irréversible."
                         onEdit={() => onEdit(row.original)}
+                        favorite={{
+                            active: row.original.is_favorite,
+                            url: favoriteAgency({ agency: row.original.uuid })
+                                .url,
+                        }}
                     />
                 </div>
             ),
@@ -203,12 +250,13 @@ export function agencyColumns(
 }
 
 export const agentColumnLabels: Record<string, string> = {
-    favorite: 'Favori',
     name: 'Agent',
     agency: 'Agence',
     address: 'Adresse',
     contact: 'Contact',
     leads: 'Leads',
+    visits_count: 'Visites',
+    last_contacted_at: 'Dernier échange',
     creator: 'Ajouté par',
 };
 
@@ -217,17 +265,28 @@ export function agentColumns(
 ): ColumnDef<Agent>[] {
     return [
         {
-            id: 'favorite',
-            accessorFn: (agent) => (agent.is_favorite ? 1 : 0),
-            header: () => <span className="sr-only">Favori</span>,
-            enableHiding: false,
-            cell: ({ row }) => (
-                <FavoriteButton
-                    favorite={row.original.is_favorite}
-                    url={favoriteAgent({ agent: row.original.uuid }).url}
-                    name={row.original.name}
+            id: 'select',
+            header: ({ table }) => (
+                <Checkbox
+                    checked={
+                        table.getIsAllPageRowsSelected() ||
+                        (table.getIsSomePageRowsSelected() && 'indeterminate')
+                    }
+                    onCheckedChange={(value) =>
+                        table.toggleAllPageRowsSelected(!!value)
+                    }
+                    aria-label="Tout sélectionner"
                 />
             ),
+            cell: ({ row }) => (
+                <Checkbox
+                    checked={row.getIsSelected()}
+                    onCheckedChange={(value) => row.toggleSelected(!!value)}
+                    aria-label={`Sélectionner ${row.original.name}`}
+                />
+            ),
+            enableSorting: false,
+            enableHiding: false,
         },
         {
             accessorKey: 'name',
@@ -241,12 +300,15 @@ export function agentColumns(
             ),
             cell: ({ row }) => (
                 <div className="grid">
-                    <Link
-                        href={agentShow({ agent: row.original.uuid })}
-                        className="font-medium hover:underline"
-                    >
-                        {row.original.name}
-                    </Link>
+                    <span className="flex items-center gap-1.5">
+                        <Link
+                            href={agentShow({ agent: row.original.uuid })}
+                            className="font-medium hover:underline"
+                        >
+                            {row.original.name}
+                        </Link>
+                        <FavoriteStar favorite={row.original.is_favorite} />
+                    </span>
                     {row.original.position && (
                         <span className="text-muted-foreground text-xs">
                             {row.original.position}
@@ -308,6 +370,29 @@ export function agentColumns(
             ),
         },
         {
+            accessorKey: 'visits_count',
+            header: () => <div className="text-right">Visites</div>,
+            cell: ({ row }) => (
+                <div className="text-right text-sm tabular-nums">
+                    {row.original.visits_count > 0
+                        ? row.original.visits_count
+                        : '—'}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'last_contacted_at',
+            header: ({ column }) => (
+                <SortableHeader
+                    label="Dernier échange"
+                    onClick={() =>
+                        column.toggleSorting(column.getIsSorted() === 'asc')
+                    }
+                />
+            ),
+            cell: ({ row }) => lastContactCell(row.original.last_contacted_at),
+        },
+        {
             id: 'creator',
             accessorFn: (agent) => agent.creator ?? '',
             header: 'Ajouté par',
@@ -327,6 +412,11 @@ export function agentColumns(
                         deleteTitle={`Supprimer l’agent ${row.original.name} ?`}
                         deleteDescription="Sa fiche sera effacée. Cette action est irréversible."
                         onEdit={() => onEdit(row.original)}
+                        favorite={{
+                            active: row.original.is_favorite,
+                            url: favoriteAgent({ agent: row.original.uuid })
+                                .url,
+                        }}
                     />
                 </div>
             ),

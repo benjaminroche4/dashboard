@@ -1,6 +1,7 @@
 import type {
     AccessLevelOption,
     AccessMap,
+    SiteSection,
     SiteSectionOption,
     StaffFunctionOption,
     StaffRole,
@@ -66,6 +67,15 @@ export function makeTeamMember(
     };
 }
 
+/** Sections où « Gérer » n'ajoute rien (miroir de SiteSection::hasManage()). */
+export const noManageSections: SiteSection[] = [
+    'leads_create',
+    'owner_leads_create',
+    'clients',
+    'reports',
+    'activity',
+];
+
 /** Niveaux d'un membre sans personnalisation (miroir de SiteSection::defaultLevel pour `member`). */
 export const memberAccess: AccessMap = {
     leads: 'write',
@@ -75,7 +85,6 @@ export const memberAccess: AccessMap = {
     clients: 'write',
     visits: 'write',
     agents: 'write',
-    agencies: 'write',
     partners: 'write',
     owners: 'write',
     properties: 'write',
@@ -83,11 +92,15 @@ export const memberAccess: AccessMap = {
     invoices: 'read',
     documents: 'write',
     reports: 'write',
+    activity: 'write',
 };
 
 export const roleDefaults: Record<StaffRole, AccessMap> = {
     admin: Object.fromEntries(
-        Object.keys(memberAccess).map((key) => [key, 'manage']),
+        Object.keys(memberAccess).map((key) => [
+            key,
+            noManageSections.includes(key as SiteSection) ? 'write' : 'manage',
+        ]),
     ) as AccessMap,
     manager: Object.fromEntries(
         Object.keys(memberAccess).map((key) => [key, 'write']),
@@ -149,48 +162,63 @@ export const siteSections: SiteSectionOption[] = [
         label: 'Leads locataires',
         group: 'Leads',
         manage_hint: 'supprimer un lead',
+        has_manage: true,
     },
     {
         value: 'leads_create',
         label: 'Converting Machine (locataires)',
         group: 'Leads',
         manage_hint: 'aucune action supplémentaire',
+        has_manage: false,
     },
     {
         value: 'owner_leads',
         label: 'Leads propriétaires',
         group: 'Leads',
         manage_hint: 'supprimer un lead',
+        has_manage: true,
     },
     {
         value: 'clients',
         label: 'Dossiers clients',
         group: 'Clients',
         manage_hint: 'aucune action supplémentaire',
+        has_manage: false,
     },
     {
         value: 'visits',
         label: 'Visites',
         group: 'Clients',
         manage_hint: 'supprimer une visite',
+        has_manage: true,
     },
     {
         value: 'partners',
         label: 'Partenaires',
         group: 'Réseau',
         manage_hint: 'supprimer un partenaire',
+        has_manage: true,
     },
     {
         value: 'invoices',
         label: 'Factures',
         group: 'Outils',
         manage_hint: 'supprimer une facture',
+        has_manage: true,
     },
     {
         value: 'reports',
         label: 'Rapports',
         group: 'Outils',
         manage_hint: 'aucune action supplémentaire',
+        has_manage: false,
+    },
+    {
+        value: 'activity',
+        label: "Journal d'activité",
+        group: 'Outils',
+        manage_hint: 'aucune action supplémentaire',
+        has_manage: false,
     },
 ];
 

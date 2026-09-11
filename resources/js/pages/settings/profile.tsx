@@ -1,9 +1,10 @@
+import { Camera, UserRound } from 'lucide-react';
 import { Form, Head, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/delete-user';
 import InputError from '@/components/input-error';
-import { Panel } from '@/components/panel';
+import { FormSection } from '@/components/form-section';
 import { AvatarUpload } from '@/components/settings/avatar-upload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,16 +28,18 @@ export default function Profile() {
         <>
             <Head title="Profil" />
 
-            <Panel
+            <FormSection
                 title="Photo de profil"
-                description="Elle apparaît dans le menu et auprès des autres membres"
+                hint="Elle apparaît dans le menu et auprès des autres membres"
+                icon={Camera}
             >
                 <AvatarUpload user={auth.user} error={errors.avatar} />
-            </Panel>
+            </FormSection>
 
-            <Panel
+            <FormSection
                 title="Profil"
-                description="Modifiez votre nom, votre adresse e-mail et votre téléphone"
+                hint="Modifiez votre nom, votre adresse e-mail et votre téléphone"
+                icon={UserRound}
             >
                 <Form
                     {...ProfileController.update.form()}
@@ -117,7 +120,7 @@ export default function Profile() {
                         </>
                     )}
                 </Form>
-            </Panel>
+            </FormSection>
 
             <DeleteUser />
         </>

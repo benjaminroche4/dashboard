@@ -14,6 +14,15 @@ export const propertyStatusTones: Record<PropertyStatus, string> = {
     unavailable: 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300',
 };
 
+/** Pastille pleine de la même couleur, pour les listes et les menus. */
+export const propertyStatusDots: Record<PropertyStatus, string> = {
+    available: 'bg-green-500',
+    under_offer: 'bg-amber-500',
+    rented: 'bg-neutral-400',
+    under_renovation: 'bg-orange-500',
+    unavailable: 'bg-red-500',
+};
+
 export function PropertyStatusBadge({
     status,
     label,

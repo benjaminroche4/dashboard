@@ -68,14 +68,12 @@ describe('LeadStatusMenu', () => {
         );
 
         expect(patch).not.toHaveBeenCalled();
-        await user.click(
-            await screen.findByRole('radio', { name: 'Sans réponse' }),
-        );
+        await user.click(await screen.findByRole('radio', { name: 'Autre' }));
         await user.click(screen.getByRole('button', { name: 'Archiver' }));
 
         expect(patch).toHaveBeenCalledWith(
             '/locataires/0199a9a0-0000-7000-8000-000000000001/status',
-            { status: 'archived', loss_reason: 'no_answer', loss_note: '' },
+            { status: 'archived', loss_reason: 'other', loss_note: '' },
             expect.objectContaining({ preserveScroll: true }),
         );
     });

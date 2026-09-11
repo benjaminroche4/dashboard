@@ -1,40 +1,53 @@
 import { Head, Link } from '@inertiajs/react';
-import {
-    ArrowRight,
-    Building2,
-    Globe,
-    Mail,
-    MessageCircle,
-    Phone,
-} from 'lucide-react';
+import { ArrowRight, Building2, Globe, Mail, Phone } from 'lucide-react';
 import { useState } from 'react';
+import { AddressMapButton } from '@/components/address-map-dialog';
 import { AgentDialog } from '@/components/real-estate/agent-dialog';
+import { ActivityFeed } from '@/components/activity/activity-feed';
 import { formatAddress } from '@/components/real-estate/columns';
+import { DirectoryRelationCard } from '@/components/real-estate/directory-relation-card';
 import {
     DetailHeader,
-    DetailRow,
-    DetailSection,
     missingValue,
 } from '@/components/real-estate/detail-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    relationshipQualityTones,
+    type RelationshipQualityValue,
+} from '@/lib/relationship-quality';
+import { cn } from '@/lib/utils';
 import { show as agencyShow } from '@/routes/agencies';
 import {
     destroy as agentDestroy,
     favorite as agentFavorite,
     index as agentsIndex,
+    touch as agentTouch,
 } from '@/routes/agents';
 import { show as leadShow } from '@/routes/leads';
-import type { AgencyOption, Agent, AgentAgencyCard } from '@/types';
+import type { Activity, AgencyOption, Agent, AgentAgencyCard } from '@/types';
 
 type Props = {
     agent: Agent;
     /** Fiche de son agence, null pour un indépendant. */
     agency: AgentAgencyCard | null;
     agencies: AgencyOption[];
+    /** Dix dernières actions du backoffice sur cette fiche. */
+    activities?: Activity[];
 };
 
-export default function AgentShow({ agent, agency, agencies }: Props) {
+const visitDate = new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+});
+
+export default function AgentShow({
+    agent,
+    agency,
+    agencies,
+    activities = [],
+}: Props) {
     const [editing, setEditing] = useState(false);
     const address = formatAddress(agent);
     const agencyAddress = agency ? formatAddress(agency) : null;
@@ -74,106 +87,133 @@ export default function AgentShow({ agent, agency, agencies }: Props) {
                     deleteUrl={agentDestroy({ agent: agent.uuid }).url}
                     deleteTitle={`Supprimer l’agent ${agent.name} ?`}
                     deleteDescription="Sa fiche sera effacée et les leads qu'il suivait n'auront plus d'agent. Cette action est irréversible."
-                    backHref={agentsIndex().url}
-                    backLabel="Tous les agents"
                     favorite={{
                         active: agent.is_favorite,
                         url: agentFavorite({ agent: agent.uuid }).url,
                     }}
-                />
-
-                <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-                    <div className="divide-y">
-                        <DetailSection title="Contact">
-                            <dl className="grid gap-3">
-                                <DetailRow label="E-mail">
-                                    {agent.email ? (
-                                        <a
-                                            href={`mailto:${agent.email}`}
-                                            className="underline-offset-4 hover:underline"
-                                        >
-                                            {agent.email}
-                                        </a>
-                                    ) : (
-                                        missingValue
-                                    )}
-                                </DetailRow>
-                                <DetailRow label="Téléphone">
-                                    {agent.phone ? (
-                                        <a
-                                            href={`tel:${agent.phone.replace(/\s+/g, '')}`}
-                                            className="underline-offset-4 hover:underline"
-                                        >
-                                            {agent.phone}
-                                        </a>
-                                    ) : (
-                                        missingValue
-                                    )}
-                                </DetailRow>
-                                <DetailRow label="Adresse">
-                                    {address ?? missingValue}
-                                </DetailRow>
-                            </dl>
-                            {(agent.phone || agent.email) && (
-                                <div className="flex flex-wrap gap-2 pt-1">
-                                    {agent.phone && (
-                                        <>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                asChild
-                                            >
+                >
+                    <div className="grid gap-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <h2 className="text-muted-foreground text-xs tracking-wide uppercase">
+                                Coordonnées
+                            </h2>
+                            <AddressMapButton
+                                place={{
+                                    name: agent.name,
+                                    address,
+                                    street: agent.street,
+                                    latitude: agent.latitude,
+                                    longitude: agent.longitude,
+                                }}
+                            />
+                        </div>
+                        <dl className="grid gap-4 sm:grid-cols-2">
+                            {[
+                                {
+                                    label: 'Téléphone',
+                                    value: agent.phone,
+                                    href: agent.phone
+                                        ? `tel:${agent.phone.replace(/\s+/g, '')}`
+                                        : null,
+                                },
+                                {
+                                    label: 'E-mail',
+                                    value: agent.email,
+                                    href: agent.email
+                                        ? `mailto:${agent.email}`
+                                        : null,
+                                },
+                                { label: 'Adresse', value: address },
+                            ].map((row) => (
+                                <div
+                                    key={row.label}
+                                    className="grid min-w-0 gap-1"
+                                >
+                                    <dt className="text-muted-foreground text-sm">
+                                        {row.label}
+                                    </dt>
+                                    <dd className="min-w-0 font-medium break-words">
+                                        {row.value ? (
+                                            row.href ? (
                                                 <a
-                                                    href={`tel:${agent.phone.replace(/\s+/g, '')}`}
+                                                    href={row.href}
+                                                    className="underline-offset-4 hover:underline"
                                                 >
-                                                    <Phone aria-hidden />
-                                                    Appeler
+                                                    {row.value}
                                                 </a>
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                asChild
-                                            >
-                                                <a
-                                                    href={`https://wa.me/${agent.phone.replace(/\D+/g, '')}`}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                >
-                                                    <MessageCircle
-                                                        aria-hidden
-                                                    />
-                                                    WhatsApp
-                                                </a>
-                                            </Button>
-                                        </>
-                                    )}
-                                    {agent.email && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            asChild
-                                        >
-                                            <a href={`mailto:${agent.email}`}>
-                                                <Mail aria-hidden />
-                                                Écrire
-                                            </a>
-                                        </Button>
-                                    )}
+                                            ) : (
+                                                row.value
+                                            )
+                                        ) : (
+                                            missingValue
+                                        )}
+                                    </dd>
                                 </div>
-                            )}
-                        </DetailSection>
-                        <DetailSection title="Notes">
-                            {agent.notes ? (
-                                <p className="text-sm/6 whitespace-pre-line">
-                                    {agent.notes}
-                                </p>
-                            ) : (
-                                <p className="text-muted-foreground text-sm">
-                                    Aucune note.
-                                </p>
-                            )}
-                        </DetailSection>
+                            ))}
+                            <div className="grid min-w-0 gap-1">
+                                <dt className="text-muted-foreground text-sm">
+                                    Qualité de la relation
+                                </dt>
+                                <dd>
+                                    {agent.relationship_quality_label ? (
+                                        <Badge
+                                            variant="secondary"
+                                            className={cn(
+                                                'font-medium',
+                                                relationshipQualityTones[
+                                                    agent.relationship_quality as RelationshipQualityValue
+                                                ],
+                                            )}
+                                        >
+                                            {agent.relationship_quality_label}
+                                        </Badge>
+                                    ) : (
+                                        missingValue
+                                    )}
+                                </dd>
+                            </div>
+                            <div className="grid min-w-0 gap-1">
+                                <dt className="text-muted-foreground text-sm">
+                                    Visites avec cet agent
+                                </dt>
+                                <dd className="tabular-nums">
+                                    {agent.visits_count > 0
+                                        ? `${agent.visits_count} visite(s)${
+                                              agent.last_visit_at
+                                                  ? ` · dernière le ${visitDate.format(new Date(agent.last_visit_at))}`
+                                                  : ''
+                                          }`
+                                        : missingValue}
+                                </dd>
+                            </div>
+                        </dl>
+                    </div>
+                </DetailHeader>
+
+                <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                    <div className="flex flex-col gap-4">
+                        <DirectoryRelationCard
+                            lastContactedAt={agent.last_contacted_at}
+                            touchUrl={agentTouch({ agent: agent.uuid }).url}
+                        />
+                        <section
+                            aria-label="Notes"
+                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
+                        >
+                            <h2 className="text-base font-medium">Notes</h2>
+                            {/* Contenu sur fond blanc, comme les autres sections. */}
+                            <div className="bg-background rounded-lg border p-4">
+                                {agent.notes ? (
+                                    <p className="text-sm/6 whitespace-pre-line">
+                                        {agent.notes}
+                                    </p>
+                                ) : (
+                                    <p className="text-muted-foreground text-sm">
+                                        Aucune note.
+                                    </p>
+                                )}
+                            </div>
+                        </section>
                     </div>
                     <aside className="grid h-fit content-start gap-6 lg:sticky lg:top-6">
                         {agency && (
@@ -307,6 +347,17 @@ export default function AgentShow({ agent, agency, agencies }: Props) {
                                 </ul>
                             )}
                         </section>
+                        {activities.length > 0 && (
+                            <ActivityFeed
+                                groups={[
+                                    {
+                                        label: 'Dernières actions',
+                                        items: activities,
+                                    },
+                                ]}
+                                collapseAfter={5}
+                            />
+                        )}
                     </aside>
                 </div>
             </div>

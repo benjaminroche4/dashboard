@@ -1,15 +1,17 @@
 import { Head, Link } from '@inertiajs/react';
-import { Download, ExternalLink, Pencil, UserRound } from 'lucide-react';
+import { Download, ExternalLink, Pencil } from 'lucide-react';
 import { useState } from 'react';
+import { CountryFlag } from '@/components/country-flag';
 import { CreatedBy } from '@/components/created-by';
 import { DocumentRequestRowActions } from '@/components/documents/document-request-row-actions';
 import { HouseholdPersonPanel } from '@/components/documents/household-person-panel';
+import { DocumentRequestLeadLink } from '@/components/documents/document-request-lead-link';
 import { PublicUploadLink } from '@/components/documents/public-upload-link';
 import { Panel } from '@/components/panel';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { downloadDocumentRequestPdf } from '@/lib/download-document-request-pdf';
-import { show as leadShow } from '@/routes/leads';
+import { languageFlag } from '@/lib/language-flag';
 import { index as toolsIndex } from '@/routes/tools';
 import {
     index as documentsIndex,
@@ -39,7 +41,7 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                 <div className="flex flex-wrap items-end justify-between gap-4 pt-8 pb-6">
                     <div>
                         <h1 className="text-lg font-medium">
-                            Liste de documents · {request.name}
+                            Liste de pièces · {request.name}
                         </h1>
                         <p className="text-muted-foreground text-sm">
                             {request.language_label} · {request.person_count}{' '}
@@ -104,33 +106,31 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                                     <dt className="text-muted-foreground text-xs">
                                         Langue du PDF
                                     </dt>
-                                    <dd>{request.language_label}</dd>
+                                    <dd className="flex items-center gap-2">
+                                        <CountryFlag
+                                            code={languageFlag(
+                                                request.language,
+                                            )}
+                                        />
+                                        {request.language_label}
+                                    </dd>
                                 </div>
                             </dl>
                         </Panel>
 
-                        {request.lead && (
-                            <Panel title="Lead">
-                                <Link
-                                    href={leadShow({ lead: request.lead.uuid })}
-                                    className="bg-background flex items-center gap-2 rounded-lg border p-3 text-sm font-medium underline-offset-4 hover:underline"
-                                >
-                                    <UserRound
-                                        className="text-muted-foreground size-4 shrink-0"
-                                        aria-hidden
-                                    />
-                                    {request.lead.name}
-                                    {request.lead.reference && (
-                                        <span className="text-muted-foreground font-normal">
-                                            · {request.lead.reference}
-                                        </span>
-                                    )}
-                                </Link>
-                            </Panel>
-                        )}
+                        <Panel
+                            title="Lead"
+                            description="Le dossier auquel cette liste se rattache."
+                        >
+                            <DocumentRequestLeadLink
+                                requestUuid={request.uuid}
+                                lead={request.lead}
+                                canEdit={request.can_update}
+                            />
+                        </Panel>
 
                         <Panel
-                            title="Lien public de dépôt"
+                            title="Lien de dépôt"
                             description="À transmettre au client avec le code d’appairage : il y dépose ses pièces sans compte."
                         >
                             <PublicUploadLink
@@ -138,14 +138,14 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                                 url={request.public_url}
                                 accessCode={request.access_code}
                                 uploadsCount={request.uploads_count}
-                                defaultEmail={request.lead_email}
+                                leadEmails={request.lead_emails}
                                 linkSentTo={request.link_sent_to}
                                 linkSentAt={request.link_sent_at}
                             />
                         </Panel>
 
                         {request.upload_url && (
-                            <Panel title="Dossier partagé">
+                            <Panel title="Dossier Google Drive">
                                 <a
                                     href={request.upload_url}
                                     target="_blank"

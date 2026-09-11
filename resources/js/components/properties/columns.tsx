@@ -1,12 +1,14 @@
 import { Link } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
-import { ArrowUpDown, ExternalLink } from 'lucide-react';
+import { ArrowUpDown, Building2, ExternalLink, UserRound } from 'lucide-react';
 import { CreatedBy } from '@/components/created-by';
 import { PropertyRowActions } from '@/components/properties/property-row-actions';
+import { PropertyAssignmentBadge } from '@/components/properties/property-assignment';
 import { PropertyStatusBadge } from '@/components/properties/property-status-badge';
+import { PropertyThumb } from '@/components/visits/property-picker';
 import { formatAddress } from '@/components/real-estate/columns';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { formatMoney } from '@/lib/format';
 import { show as agentShow } from '@/routes/agents';
 import { show as propertyShow } from '@/routes/properties';
@@ -28,12 +30,12 @@ function SortableHeader({
 }
 
 export const propertyColumnLabels: Record<string, string> = {
+    select: 'Sélection',
     status_label: 'Statut',
     label: 'Bien',
     features: 'Caractéristiques',
     rent_cents: 'Loyer',
-    agent: 'Agent',
-    visits_count: 'Visites',
+    origin: 'Provenance',
     creator: 'Ajouté par',
 };
 
@@ -49,8 +51,42 @@ export function propertyFeatures(property: Property): string {
         .join(' · ');
 }
 
-export function propertyColumns(): ColumnDef<Property>[] {
+export function propertyColumns(
+    /** Admins seulement : la case à cocher ouvre la suppression groupée. */
+    canSelect = false,
+): ColumnDef<Property>[] {
     return [
+        ...(canSelect
+            ? ([
+                  {
+                      id: 'select',
+                      header: ({ table }) => (
+                          <Checkbox
+                              checked={
+                                  table.getIsAllPageRowsSelected() ||
+                                  (table.getIsSomePageRowsSelected() &&
+                                      'indeterminate')
+                              }
+                              onCheckedChange={(value) =>
+                                  table.toggleAllPageRowsSelected(!!value)
+                              }
+                              aria-label="Tout sélectionner"
+                          />
+                      ),
+                      cell: ({ row }) => (
+                          <Checkbox
+                              checked={row.getIsSelected()}
+                              onCheckedChange={(value) =>
+                                  row.toggleSelected(!!value)
+                              }
+                              aria-label={`Sélectionner ${row.original.label}`}
+                          />
+                      ),
+                      enableSorting: false,
+                      enableHiding: false,
+                  },
+              ] as ColumnDef<Property>[])
+            : []),
         {
             accessorKey: 'label',
             header: ({ column }) => (
@@ -62,18 +98,49 @@ export function propertyColumns(): ColumnDef<Property>[] {
                 />
             ),
             cell: ({ row }) => (
-                <div className="grid">
-                    <Link
-                        href={propertyShow({ property: row.original.uuid })}
-                        className="font-medium underline-offset-4 hover:underline"
-                    >
-                        {row.original.label}
-                    </Link>
-                    <span className="text-muted-foreground truncate text-xs">
-                        {formatAddress(row.original) ?? '—'}
-                        {row.original.district &&
-                            ` · ${row.original.district}e`}
-                    </span>
+                // La photo précède le nom, silhouette de bâtiment à défaut.
+                <div className="flex items-center gap-3">
+                    <PropertyThumb
+                        photo={row.original.photos[0]}
+                        label={row.original.label}
+                        className="size-10 shrink-0"
+                    />
+                    <div className="grid min-w-0">
+                        <span className="flex min-w-0 items-center gap-1.5">
+                            <Link
+                                href={propertyShow({
+                                    property: row.original.uuid,
+                                })}
+                                className="truncate font-medium underline-offset-4 hover:underline"
+                            >
+                                {row.original.label}
+                            </Link>
+                            {row.original.listing_url && (
+                                <a
+                                    href={row.original.listing_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    aria-label={`Annonce de ${row.original.label}`}
+                                    className="text-muted-foreground hover:text-foreground shrink-0"
+                                >
+                                    <ExternalLink
+                                        className="size-3.5"
+                                        aria-hidden
+                                    />
+                                </a>
+                            )}
+                        </span>
+                        <span className="text-muted-foreground truncate text-xs">
+                            {formatAddress(row.original) ?? '—'}
+                            {row.original.district &&
+                                ` · ${row.original.district}e`}
+                        </span>
+                        {/* Bien pris : la pastille verte se voit avant tout le reste. */}
+                        <PropertyAssignmentBadge
+                            property={row.original}
+                            className="mt-1 w-fit"
+                        />
+                    </div>
                 </div>
             ),
         },
@@ -120,56 +187,58 @@ export function propertyColumns(): ColumnDef<Property>[] {
                 ),
         },
         {
-            id: 'agent',
-            accessorFn: (property) => property.agent?.name ?? '',
-            header: 'Agent',
-            cell: ({ row }) =>
-                row.original.agent ? (
-                    <div className="grid text-sm">
-                        <Link
-                            href={agentShow({ agent: row.original.agent.uuid })}
-                            className="font-medium underline-offset-4 hover:underline"
-                        >
-                            {row.original.agent.name}
-                        </Link>
-                        {row.original.agent.agency && (
+            id: 'origin',
+            // Ce qui compte à la lecture : d'où vient le bien — d'une agence,
+            // d'un agent indépendant, ou du propriétaire en direct.
+            accessorFn: (property) =>
+                property.agent?.agency ?? property.agent?.name ?? '',
+            header: 'Provenance',
+            cell: ({ row }) => {
+                const agent = row.original.agent;
+
+                if (!agent) {
+                    return (
+                        <div className="grid text-sm">
+                            <span className="font-medium">En direct</span>
                             <span className="text-muted-foreground text-xs">
-                                {row.original.agent.agency}
+                                Sans agent
                             </span>
-                        )}
-                    </div>
-                ) : (
-                    <span className="text-muted-foreground">—</span>
-                ),
-        },
-        {
-            accessorKey: 'visits_count',
-            header: ({ column }) => (
-                <SortableHeader
-                    label="Visites"
-                    onClick={() =>
-                        column.toggleSorting(column.getIsSorted() === 'asc')
-                    }
-                />
-            ),
-            cell: ({ row }) => (
-                <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="tabular-nums">
-                        {row.original.visits_count}
-                    </Badge>
-                    {row.original.listing_url && (
-                        <a
-                            href={row.original.listing_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label={`Annonce de ${row.original.label}`}
-                            className="text-muted-foreground hover:text-foreground"
+                        </div>
+                    );
+                }
+
+                return (
+                    <div className="grid text-sm">
+                        <span className="flex items-center gap-1.5 font-medium">
+                            {agent.agency ? (
+                                <>
+                                    <Building2
+                                        className="text-muted-foreground size-3.5 shrink-0"
+                                        aria-hidden
+                                    />
+                                    <span className="truncate">
+                                        {agent.agency}
+                                    </span>
+                                </>
+                            ) : (
+                                <>
+                                    <UserRound
+                                        className="text-muted-foreground size-3.5 shrink-0"
+                                        aria-hidden
+                                    />
+                                    Indépendant
+                                </>
+                            )}
+                        </span>
+                        <Link
+                            href={agentShow({ agent: agent.uuid })}
+                            className="text-muted-foreground truncate text-xs underline-offset-4 hover:underline"
                         >
-                            <ExternalLink className="size-3.5" aria-hidden />
-                        </a>
-                    )}
-                </div>
-            ),
+                            {agent.name}
+                        </Link>
+                    </div>
+                );
+            },
         },
         {
             id: 'creator',

@@ -1,3 +1,4 @@
+import type { LinkedLead } from '@/components/leads/lead-link-card';
 import type {
     Currency,
     InvoiceLine,
@@ -27,17 +28,22 @@ export type Quote = {
     issued_at: string;
     valid_until: string;
     can_send: boolean;
+    /** Devis en jeu (brouillon ou envoyé) : encore modifiable. */
+    can_edit?: boolean;
     can_accept: boolean;
     can_decline: boolean;
     can_invoice: boolean;
     /** Lead rattaché au devis, ou null. */
-    lead: { id: number; uuid: string; name: string } | null;
+    lead: LinkedLead | null;
     /** Facture créée depuis le devis, ou null tant qu'il n'est pas facturé. */
     invoice: { id: number; uuid: string; number: string } | null;
 };
 
 /** Devis complet (page de détail). */
 export type QuoteDetail = Quote & {
+    /** Compte d'encaissement figé sur le devis ; null = compte par défaut. */
+    bank_name: string | null;
+    bank_iban: string | null;
     client_street: string | null;
     client_postal_code: string | null;
     client_city: string | null;
@@ -93,6 +99,9 @@ export type QuotePrefill = {
 
 /** Formulaire de devis : mêmes champs qu'une facture, validité à la place de l'échéance, pas d'acompte. */
 export type QuoteForm = {
+    /** Compte d'encaissement : vide = compte par défaut de la devise. */
+    bank_name: string;
+    bank_iban: string;
     client_name: string;
     client_email: string;
     client_street: string;

@@ -25,6 +25,24 @@
         }
     }
 
+    /* Photo qui devient la principale : halo ambre et léger sursaut, pour que
+       la permutation des vignettes se remarque. */
+    --animate-photo-cover: photo-cover 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+    @keyframes photo-cover {
+        0% {
+            box-shadow: 0 0 0 0 oklch(0.77 0.16 70 / 0.85);
+            transform: scale(1.03);
+        }
+        60% {
+            transform: scale(1);
+        }
+        100% {
+            box-shadow: 0 0 0 12px transparent;
+            transform: scale(1);
+        }
+    }
+
     @keyframes lead-land {
         0% {
             box-shadow: 0 0 0 0 var(--lead-glow, oklch(0.7 0.15 250 / 0.6));

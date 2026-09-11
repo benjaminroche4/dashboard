@@ -1,9 +1,12 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
+    // La page lit le membre connecté pour le filtre « Mes dossiers ».
+    usePage: () => ({ props: { auth: { user: { id: 1, role: 'admin' } } } }),
     Link: ({
         href,
         children,
@@ -21,12 +24,13 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 import ClientsIndex from '@/pages/clients/index';
-import { makeClient } from '@/test/fixtures/client';
+import { makeClient, clientPriorities } from '@/test/fixtures/client';
 
 describe('Clients index page', () => {
     it('lists the converted leads with contact, offer, dates, assignee and dossier counts', () => {
         render(
             <ClientsIndex
+                priorities={clientPriorities}
                 clients={[
                     makeClient(),
                     makeClient({
@@ -70,8 +74,41 @@ describe('Clients index page', () => {
         expect(screen.queryByText(/facture/)).toBeNull();
     });
 
+    it('shows the priority of each dossier in its own column', () => {
+        render(
+            <ClientsIndex
+                clients={[
+                    makeClient({
+                        priority: 'urgent',
+                        priority_label: 'Urgente',
+                    }),
+                    makeClient({
+                        id: 2,
+                        uuid: 'client-2',
+                        name: 'Paul Roux',
+                        priority: 'normal',
+                        priority_label: 'Normale',
+                    }),
+                ]}
+                priorities={clientPriorities}
+            />,
+        );
+
+        expect(
+            screen.getByRole('columnheader', { name: /Priorité/ }),
+        ).toBeInTheDocument();
+        // La colonne montre aussi « Normale », que la pastille cache ailleurs.
+        expect(screen.getByLabelText('Priorité : Urgente')).toBeInTheDocument();
+        expect(screen.getByLabelText('Priorité : Normale')).toBeInTheDocument();
+    });
+
     it('puts a miniature folder next to each client name that opens when the row is hovered', () => {
-        render(<ClientsIndex clients={[makeClient()]} />);
+        render(
+            <ClientsIndex
+                priorities={clientPriorities}
+                clients={[makeClient()]}
+            />,
+        );
 
         const row = screen
             .getByRole('link', { name: 'Léa Durand' })
@@ -90,5 +127,134 @@ describe('Clients index page', () => {
             ClientsIndex.layout.breadcrumbs.map((item) => item.title),
         ).toEqual(['Clients', 'Dossiers']);
         expect(ClientsIndex.layout.breadcrumbs[0]?.href.url).toBe('/clients');
+    });
+
+    it('filters the dossiers on the columns: priority, offer, follower and arrival', async () => {
+        const user = userEvent.setup();
+        render(
+            <ClientsIndex
+                priorities={clientPriorities}
+                offers={[
+                    { value: 'accompagne', label: 'Accompagné' },
+                    { value: 'confie', label: 'Confié' },
+                ]}
+                clients={[
+                    makeClient({
+                        id: 1,
+                        name: 'Léa Durand',
+                        offer: 'accompagne',
+                        offer_label: 'Accompagné',
+                    }),
+                    makeClient({
+                        id: 2,
+                        uuid: 'lead-2',
+                        name: 'Paul Levy',
+                        offer: 'confie',
+                        offer_label: 'Confié',
+                        assignee: null,
+                    }),
+                ]}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: /Filtres/ }));
+        const menu = screen.getByRole('menu');
+        // Un critère par colonne filtrable.
+        for (const title of ['Priorité', 'Formule', 'Suivi par', 'Arrivée']) {
+            expect(within(menu).getByText(title)).toBeInTheDocument();
+        }
+
+        await user.click(
+            within(menu).getByRole('menuitemcheckbox', { name: /Confié/ }),
+        );
+        await user.keyboard('{Escape}');
+
+        expect(
+            screen.queryByRole('link', { name: 'Léa Durand' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'Paul Levy' }),
+        ).toBeInTheDocument();
+        // Le bouton compte les filtres actifs, tous critères confondus.
+        expect(
+            screen.getByRole('button', { name: /Filtres/ }),
+        ).toHaveTextContent('1');
+    });
+
+    it('filters the dossiers by priority', async () => {
+        const user = userEvent.setup();
+        render(
+            <ClientsIndex
+                priorities={clientPriorities}
+                clients={[
+                    makeClient({ id: 1, name: 'Léa Durand' }),
+                    makeClient({
+                        id: 2,
+                        uuid: 'lead-2',
+                        name: 'Paul Levy',
+                        priority: 'urgent',
+                        priority_label: 'Urgente',
+                        priority_rank: 3,
+                    }),
+                ]}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: /Filtres/ }));
+        await user.click(
+            await screen.findByRole('menuitemcheckbox', { name: /Urgente/ }),
+        );
+        await user.keyboard('{Escape}');
+
+        expect(
+            screen.getByText(
+                '1 client : les leads convertis, suivis jusqu’à l’installation.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('link', { name: 'Léa Durand' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'Paul Levy' }),
+        ).toBeInTheDocument();
+    });
+
+    it('restricts the list to the dossiers the member follows', async () => {
+        const user = userEvent.setup();
+        render(
+            <ClientsIndex
+                priorities={clientPriorities}
+                clients={[
+                    makeClient({ id: 1, name: 'Léa Durand' }),
+                    makeClient({
+                        id: 2,
+                        uuid: 'lead-2',
+                        name: 'Paul Levy',
+                        assignee: { id: 9, name: 'Admin 2', avatar: null },
+                    }),
+                    makeClient({
+                        id: 3,
+                        uuid: 'lead-3',
+                        name: 'Alain Devaux',
+                        assignee: null,
+                        // Suivi en second : le dossier compte quand même.
+                        co_assignee: { id: 1, name: 'Admin', avatar: null },
+                    }),
+                ]}
+            />,
+        );
+
+        const toggle = screen.getByRole('button', { name: 'Mes dossiers (2)' });
+        expect(screen.getByText('Paul Levy')).toBeInTheDocument();
+
+        await user.click(toggle);
+
+        expect(toggle).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.getByText('Léa Durand')).toBeInTheDocument();
+        expect(screen.getByText('Alain Devaux')).toBeInTheDocument();
+        expect(screen.queryByText('Paul Levy')).not.toBeInTheDocument();
+
+        await user.click(toggle);
+        expect(screen.getByText('Paul Levy')).toBeInTheDocument();
     });
 });

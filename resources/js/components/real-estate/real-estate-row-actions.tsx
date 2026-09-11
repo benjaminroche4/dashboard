@@ -1,5 +1,5 @@
 import { router, usePage } from '@inertiajs/react';
-import { MoreHorizontal } from 'lucide-react';
+import { Check, MoreHorizontal } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,8 +20,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 /**
- * Menu « … » d'une ligne agent ou agence : modifier, supprimer (admins,
- * avec confirmation).
+ * Menu « … » d'une ligne agent, agence ou partenaire : mettre en favoris,
+ * modifier, supprimer (admins, avec confirmation).
  */
 export function RealEstateRowActions({
     name,
@@ -29,15 +29,24 @@ export function RealEstateRowActions({
     deleteTitle,
     deleteDescription,
     onEdit,
+    favorite,
+    canDelete: canDeleteOverride,
+    deleteLabel = 'Supprimer',
 }: {
     name: string;
     deleteUrl: string;
     deleteTitle: string;
     deleteDescription: string;
     onEdit: () => void;
+    /** Favori personnel : état courant et route de bascule (POST). */
+    favorite?: { active: boolean; url: string };
+    /** Par défaut, seuls les admins suppriment ; un élément secondaire (un
+     *  interlocuteur, par exemple) peut être retiré par toute l'équipe. */
+    canDelete?: boolean;
+    deleteLabel?: string;
 }) {
     const { auth } = usePage().props;
-    const canDelete = auth.user.role === 'admin';
+    const canDelete = canDeleteOverride ?? auth.user.role === 'admin';
     const [deleting, setDeleting] = useState(false);
     const [busy, setBusy] = useState(false);
 
@@ -66,6 +75,27 @@ export function RealEstateRowActions({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                    {favorite && (
+                        <DropdownMenuItem
+                            className="justify-between"
+                            onSelect={() =>
+                                router.post(
+                                    favorite.url,
+                                    {},
+                                    { preserveScroll: true },
+                                )
+                            }
+                        >
+                            Favoris
+                            {/* Coché quand c'est déjà un favori. */}
+                            {favorite.active && (
+                                <Check
+                                    aria-hidden
+                                    className="text-muted-foreground"
+                                />
+                            )}
+                        </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onSelect={onEdit}>
                         Modifier
                     </DropdownMenuItem>
@@ -76,7 +106,7 @@ export function RealEstateRowActions({
                                 variant="destructive"
                                 onSelect={() => setDeleting(true)}
                             >
-                                Supprimer
+                                {deleteLabel}
                             </DropdownMenuItem>
                         </>
                     )}
@@ -96,7 +126,7 @@ export function RealEstateRowActions({
                             disabled={busy}
                             onClick={remove}
                         >
-                            Supprimer
+                            {deleteLabel}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

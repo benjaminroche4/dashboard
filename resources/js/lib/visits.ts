@@ -94,6 +94,21 @@ export function groupVisitsByDay(
 }
 
 /**
+ * Visites tenues à l'écran : celles à venir (aujourd'hui compris) et, dans le
+ * passé, seulement celles dont le compte rendu reste à écrire. Une visite
+ * passée déjà racontée ou annulée n'encombre plus la liste.
+ */
+export function openVisits(visits: Visit[], now = new Date()): Visit[] {
+    const todayKey = dayKey(now);
+
+    return visits.filter(
+        (visit) =>
+            dayKey(new Date(visit.scheduled_at)) >= todayKey ||
+            visit.report_due,
+    );
+}
+
+/**
  * Jour affiché par défaut sur la carte : aujourd'hui s'il a des visites,
  * sinon le prochain jour à venir, sinon le dernier jour passé.
  */
@@ -124,28 +139,4 @@ export function visitAddress(visit: Visit): string {
         .join(' ');
 
     return [property.street, line].filter(Boolean).join(', ');
-}
-
-/** Lien Google Maps d'un itinéraire enchaînant les visites du jour, dans l'ordre. */
-export function directionsUrl(visits: Visit[]): string | null {
-    const stops = visits.map((visit) =>
-        visit.property.latitude !== null && visit.property.longitude !== null
-            ? `${visit.property.latitude},${visit.property.longitude}`
-            : visitAddress(visit),
-    );
-
-    if (stops.length === 0) return null;
-
-    const params = new URLSearchParams({ api: '1' });
-    if (stops.length === 1) {
-        params.set('destination', stops[0]!);
-    } else {
-        params.set('origin', stops[0]!);
-        params.set('destination', stops[stops.length - 1]!);
-        if (stops.length > 2) {
-            params.set('waypoints', stops.slice(1, -1).join('|'));
-        }
-    }
-
-    return `https://www.google.com/maps/dir/?${params.toString()}`;
 }

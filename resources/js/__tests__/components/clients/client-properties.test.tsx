@@ -55,6 +55,7 @@ const property: ClientProperty = {
     currency: 'EUR',
     listing_url: null,
     agent: 'Zoé Martin',
+    assigned_lead: null,
     visits_count: 2,
     next_visit_at: '2026-09-20T10:00:00+02:00',
 };
@@ -108,6 +109,36 @@ describe('ClientProperties', () => {
             '/clients/client-1/properties/prop-1',
             expect.objectContaining({ preserveScroll: true }),
         );
+    });
+
+    it('flags a property attributed to a client, and says nothing for a free one', () => {
+        const { rerender } = render(
+            <ClientProperties
+                clientUuid="client-1"
+                properties={[property]}
+                options={options}
+            />,
+        );
+        expect(screen.queryByLabelText(/^Attribué à /)).not.toBeInTheDocument();
+
+        rerender(
+            <ClientProperties
+                clientUuid="client-1"
+                properties={[
+                    {
+                        ...property,
+                        assigned_lead: {
+                            uuid: 'client-1',
+                            name: 'Bruno & Charles',
+                        },
+                    },
+                ]}
+                options={options}
+            />,
+        );
+        expect(
+            screen.getByLabelText('Attribué à Bruno & Charles'),
+        ).toHaveTextContent('Attribué à Bruno & Charles');
     });
 
     it('links a property from the directory through the dialog', async () => {

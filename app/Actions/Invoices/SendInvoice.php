@@ -48,7 +48,16 @@ final readonly class SendInvoice
             $pdf = $this->docRaptor->pdf($html, "facture-{$invoice->number}.pdf");
         }
 
-        Mail::to($invoice->client_email, $invoice->client_name)->send(new InvoiceSent($invoice, $pdf));
+        // Un dossier peut compter deux locataires : le second reçoit la même
+        // facture en copie, sans jamais doubler le destinataire principal.
+        $copies = $invoice->lead === null ? [] : array_values(array_filter(
+            $invoice->lead->mailRecipients(),
+            fn (array $recipient): bool => strcasecmp($recipient['email'], (string) $invoice->client_email) !== 0,
+        ));
+
+        Mail::to($invoice->client_email, $invoice->client_name)
+            ->cc($copies)
+            ->send(new InvoiceSent($invoice, $pdf));
 
         $invoice->sent_at = now();
         $invoice->transitionTo(InvoiceStatus::Sent, $by, 'Envoyée à '.$invoice->client_email);

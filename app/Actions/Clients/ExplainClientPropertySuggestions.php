@@ -83,7 +83,7 @@ TXT;
                 'Meublé' => $suggestion['furnished_label'] ?? null,
                 'Surface' => isset($suggestion['surface_m2']) ? $suggestion['surface_m2'].' m²' : null,
                 'Loyer' => isset($suggestion['rent_cents']) ? number_format($suggestion['rent_cents'] / 100, 0, ',', ' ').' '.$suggestion['currency'].' / mois' : null,
-                'Étage' => $property?->floor === null ? null : (string) $property->floor,
+                'Étage' => $property?->floor?->label(),
                 'Pièces' => $property?->rooms === null ? null : (string) $property->rooms,
                 'Score à points' => (string) ($suggestion['score'] ?? ''),
                 'Critères remplis' => implode(', ', (array) ($suggestion['reasons'] ?? [])) ?: null,

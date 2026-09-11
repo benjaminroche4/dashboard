@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Actions\Invoices\CreateInvoice;
+use App\Data\InvoiceData;
 use App\Enums\InvoiceStatus;
 use App\Enums\StaffRole;
 use App\Events\DashboardUpdated;
@@ -16,6 +18,42 @@ beforeEach(function (): void {
     Event::fake([DashboardUpdated::class]);
     Mail::fake();
     config()->set('services.docraptor.key');
+});
+
+test('the history always opens on the creation, even for an invoice recorded without one', function (): void {
+    $admin = User::factory()->admin()->create(['name' => 'Chloé Martin']);
+    // Facture posée directement en base (import, fixtures) : aucun historique.
+    $invoice = Invoice::factory()->status(InvoiceStatus::Sent)->create(['created_by' => $admin->id, 'created_at' => '2026-09-01 09:00:00']);
+
+    $this->actingAs($admin)
+        ->get(route('invoices.show', $invoice))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->has('history', 1)
+            ->where('history.0.from', null)
+            ->where('history.0.note', 'Création')
+            ->where('history.0.by', 'Chloé Martin')
+            ->where('history.0.at', $invoice->created_at->toIso8601String()));
+
+    // Une facture créée par l'action garde sa vraie entrée, sans doublon.
+    $created = (new CreateInvoice)->handle(InvoiceData::from([
+        'client_name' => 'Léa Durand',
+        'client_email' => 'lea@example.com',
+        'currency' => 'EUR',
+        'issued_at' => '2026-09-01',
+        'due_at' => '2026-09-30',
+        'vat_rate' => 8.1,
+        'discount_percent' => 0,
+        'deposit_cents' => 0,
+        'items' => [['offer' => 'accompagne', 'quantity' => 1, 'unit_price_cents' => 100_000]],
+    ]), $admin);
+
+    $this->actingAs($admin)
+        ->get(route('invoices.show', $created))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->has('history', 1)
+            ->where('history.0.note', 'Création')
+            ->where('history.0.by', 'Chloé Martin'));
 });
 
 test('the detail page shows the invoice, its totals and its history', function (): void {
@@ -60,7 +98,7 @@ test('managers send an invoice from the detail page', function (): void {
         ->assertRedirect(route('invoices.show', $invoice));
 
     expect($invoice->fresh()->status)->toBe(InvoiceStatus::Sent);
-    Mail::assertSent(InvoiceSent::class);
+    Mail::assertQueued(InvoiceSent::class);
 });
 
 test('members cannot send or pay invoices', function (): void {

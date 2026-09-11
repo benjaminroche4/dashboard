@@ -14,7 +14,7 @@ beforeEach(function (): void {
     Event::fake([DashboardUpdated::class]);
 });
 
-test('a member stars an agent, sees it first in the list and on its page, then unstars it', function (): void {
+test('a member stars an agent without moving the row, filters on its favorites, then unstars it', function (): void {
     $user = User::factory()->create();
     Agent::factory()->create(['first_name' => 'Ali', 'last_name' => 'Bensaïd']);
     $agent = Agent::factory()->create(['first_name' => 'Zoé', 'last_name' => 'Martin']);
@@ -24,13 +24,23 @@ test('a member stars an agent, sees it first in the list and on its page, then u
     // Favori personnel : rien n'est diffusé aux autres membres.
     Event::assertNotDispatched(DashboardUpdated::class);
 
+    // L'ordre reste alphabétique : l'étoile ne fait pas sauter la ligne.
     $this->actingAs($user)
         ->get(route('agents.index'))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
-            ->where('agents.0.name', 'Zoé Martin')
-            ->where('agents.0.is_favorite', true)
-            ->where('agents.1.name', 'Ali Bensaïd')
-            ->where('agents.1.is_favorite', false));
+            ->where('agents.0.name', 'Ali Bensaïd')
+            ->where('agents.0.is_favorite', false)
+            ->where('agents.1.name', 'Zoé Martin')
+            ->where('agents.1.is_favorite', true)
+            ->where('favoritesCount', 1)
+            ->has('pagination'));
+
+    // Le bouton « Favoris » filtre la liste côté serveur.
+    $this->actingAs($user)
+        ->get(route('agents.index', ['favorites' => 1]))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->has('agents', 1)
+            ->where('agents.0.name', 'Zoé Martin'));
 
     $this->actingAs($user)
         ->get(route('agents.show', $agent))
@@ -52,7 +62,7 @@ test('a favorite is personal: another member does not see the star', function ()
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->where('agents.0.is_favorite', false));
 });
 
-test('a member stars an agency and sees it first in the list and on its page', function (): void {
+test('a member stars an agency without moving the row and filters on its favorites', function (): void {
     $user = User::factory()->create();
     Agency::factory()->create(['name' => 'Agence du Marais']);
     $agency = Agency::factory()->create(['name' => 'Zénith Immobilier']);
@@ -62,9 +72,17 @@ test('a member stars an agency and sees it first in the list and on its page', f
     $this->actingAs($user)
         ->get(route('agencies.index'))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
-            ->where('agencies.0.name', 'Zénith Immobilier')
-            ->where('agencies.0.is_favorite', true)
-            ->where('agencies.1.is_favorite', false));
+            ->where('agencies.0.name', 'Agence du Marais')
+            ->where('agencies.0.is_favorite', false)
+            ->where('agencies.1.name', 'Zénith Immobilier')
+            ->where('agencies.1.is_favorite', true)
+            ->where('favoritesCount', 1));
+
+    $this->actingAs($user)
+        ->get(route('agencies.index', ['favorites' => 1]))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->has('agencies', 1)
+            ->where('agencies.0.name', 'Zénith Immobilier'));
 
     $this->actingAs($user)
         ->get(route('agencies.show', $agency))

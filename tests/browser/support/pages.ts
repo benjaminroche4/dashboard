@@ -47,8 +47,24 @@ export const keyPages: KeyPage[] = [
     { name: 'Agences', path: '/real-estate/agencies' },
     { name: 'Partenaires', path: '/partners' },
     { name: 'Partenaire : fiche', steps: firstOf('/partners', 'partners') },
+    { name: 'Agent : fiche', steps: firstOf('/real-estate/agents', 'agents') },
+    {
+        name: 'Agence : fiche',
+        steps: firstOf('/real-estate/agencies', 'agencies'),
+    },
     { name: 'Biens', path: '/properties' },
+    { name: 'Bien : création', path: '/properties/create' },
+    { name: 'Bien : fiche', steps: firstOf('/properties', 'properties') },
+    {
+        name: 'Bien : modification',
+        steps: [
+            { list: '/properties', pattern: detail('properties') },
+            { pattern: new RegExp(`^/properties/${UUID}/edit$`) },
+        ],
+    },
+    { name: 'Visite : création', path: '/clients/visits/create' },
     { name: 'Propriétaires', path: '/owners' },
+    { name: 'Propriétaire : fiche', steps: firstOf('/owners', 'owners') },
     { name: 'Devis : liste', path: '/tools/quotes' },
     { name: 'Devis : création', path: '/tools/quotes/create' },
     { name: 'Devis : fiche', steps: firstOf('/tools/quotes', 'tools/quotes') },
@@ -57,11 +73,30 @@ export const keyPages: KeyPage[] = [
     { name: 'Facture : fiche', steps: firstOf('/invoices', 'invoices') },
     { name: 'Documents : liste', path: '/tools/documents' },
     { name: 'Documents : création', path: '/tools/documents/create' },
+    {
+        name: 'Documents : fiche',
+        steps: firstOf('/tools/documents', 'tools/documents'),
+    },
+    {
+        // Seule page vue par des gens hors de l'équipe : le jeton de dépôt est
+        // lu sur la fiche d'une liste, jamais écrit en dur.
+        name: 'Dépôt public des pièces',
+        steps: [
+            { list: '/tools/documents', pattern: detail('tools/documents') },
+            { pattern: /^\/depot\/[A-Za-z0-9]{48}$/ },
+        ],
+    },
+    { name: 'Outils', path: '/tools' },
     { name: 'Rapports', path: '/tools/reports' },
+    { name: "Journal d'activité", path: '/tools/activity' },
     { name: 'Paramètres : profil', path: '/settings/profile' },
     { name: 'Paramètres : sécurité', path: '/settings/security' },
     { name: 'Paramètres : apparence', path: '/settings/appearance' },
     { name: 'Paramètres : équipe', path: '/settings/team' },
+    {
+        name: 'Paramètres : droits d’un membre',
+        steps: firstOf('/settings/team', 'settings/team'),
+    },
 ];
 
 async function firstLink(

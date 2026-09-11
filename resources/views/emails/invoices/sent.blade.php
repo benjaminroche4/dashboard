@@ -8,7 +8,8 @@
     <p>Bonjour {{ $invoice->client_name }},</p>
     <p>Veuillez trouver ci-joint votre facture <strong>{{ $invoice->number }}</strong> d'un montant de <strong>{{ $money($invoice->amount_cents) }}</strong>@if ($invoice->deposit_cents > 0), dont {{ $money($invoice->deposit_cents) }} déjà versés (reste à payer : {{ $money($invoice->dueCents()) }})@endif.</p>
     <p>Échéance : <strong>{{ $invoice->due_at->translatedFormat('j F Y') }}</strong>.<br>
-    Paiement par virement sur {{ $company['bank'] }}, IBAN {{ $company['iban'] }}, en {{ $invoice->currency->value }}.</p>
+    @php($account = $invoice->bankAccount())
+    Paiement par virement sur {{ $account['bank'] }}, IBAN {{ $account['iban'] }}, en {{ $invoice->currency->value }}.</p>
     @if ($invoice->notes)
         <p style="white-space: pre-line">{{ $invoice->notes }}</p>
     @endif

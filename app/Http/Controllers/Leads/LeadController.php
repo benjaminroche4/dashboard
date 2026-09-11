@@ -111,6 +111,27 @@ class LeadController extends Controller
         ]);
     }
 
+    /**
+     * Lead rattaché à un document (devis, facture, liste de pièces), tel que le
+     * front l'affiche : un lead converti est un dossier client, et se rouvre
+     * comme tel.
+     *
+     * @return array{id: int, uuid: string, name: string, is_client: bool}|null
+     */
+    public static function linkSummary(?Lead $lead): ?array
+    {
+        if (! $lead instanceof Lead) {
+            return null;
+        }
+
+        return [
+            'id' => $lead->id,
+            'uuid' => $lead->uuid,
+            'name' => $lead->fullName(),
+            'is_client' => $lead->status === LeadStatus::Converted,
+        ];
+    }
+
     /** Doublons potentiels pendant la saisie : même e-mail ou même téléphone. */
     public function duplicates(Request $request): JsonResponse
     {
@@ -266,6 +287,9 @@ class LeadController extends Controller
             // Qualification proposée par l'assistant IA, en attente de relecture.
             'qualification' => self::qualification($lead),
             'can' => ['delete' => Auth::user()?->can('delete', $lead) ?? false],
+            // Fiche de l'annuaire des propriétaires créée depuis ce lead : le
+            // menu propose de l'y ajouter, ou d'ouvrir celle qui existe déjà.
+            'directoryOwner' => $this->directoryOwner($lead),
             // Ce qu'on peut envoyer au lead depuis la fiche, selon les services configurés.
             'sending' => [
                 'email' => $lead->email !== null && $lead->email !== '',
@@ -328,7 +352,12 @@ class LeadController extends Controller
     public function agent(SetLeadAgentRequest $request, Lead $lead, SetLeadAgent $setLeadAgent): RedirectResponse
     {
         $agentId = $request->validated('agent_id');
-        $setLeadAgent->handle($lead, $agentId === null ? null : Agent::query()->findOrFail((int) $agentId));
+        $agent = $agentId === null ? null : Agent::query()->findOrFail((int) $agentId);
+        $setLeadAgent->handle($lead, $agent);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => $agent === null
+            ? __('Agent retiré du lead.')
+            : __('Agent :name rattaché au lead.', ['name' => $agent->fullName()])]);
 
         return back();
     }
@@ -374,13 +403,20 @@ class LeadController extends Controller
 
         $dismiss->handle($lead, auth()->user());
 
+        Inertia::flash('toast', ['type' => 'info', 'message' => __('Proposition de l’assistant ignorée.')]);
+
         return back();
     }
 
     /** Déplace le lead entre « Tous les leads » et « Leads propriétaires ». */
     public function segment(MoveLeadSegmentRequest $request, Lead $lead, MoveLeadSegment $moveLeadSegment): RedirectResponse
     {
-        $moveLeadSegment->handle($lead, LeadSegment::from((string) $request->validated('segment')), $request->user());
+        $segment = LeadSegment::from((string) $request->validated('segment'));
+        $moveLeadSegment->handle($lead, $segment, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Lead déplacé dans « :segment ».', [
+            'segment' => $segment === LeadSegment::Owner ? 'Leads propriétaires' : 'Leads locataires',
+        ])]);
 
         return back();
     }
@@ -388,7 +424,12 @@ class LeadController extends Controller
     public function assign(AssignLeadRequest $request, Lead $lead, AssignLead $assignLead): RedirectResponse
     {
         $userId = $request->validated('user_id');
-        $assignLead->handle($lead, $userId === null ? null : User::query()->findOrFail((int) $userId));
+        $member = $userId === null ? null : User::query()->findOrFail((int) $userId);
+        $assignLead->handle($lead, $member);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => $member === null
+            ? __('Lead :name sans responsable.', ['name' => $lead->fullName()])
+            : __('Lead :name suivi par :member.', ['name' => $lead->fullName(), 'member' => $member->name])]);
 
         return back();
     }
@@ -511,6 +552,18 @@ class LeadController extends Controller
         ]);
     }
 
+    /**
+     * Fiche d'annuaire créée depuis ce lead propriétaire, s'il y en a une.
+     *
+     * @return array{uuid: string, name: string}|null
+     */
+    private function directoryOwner(Lead $lead): ?array
+    {
+        $owner = $lead->owner()->first();
+
+        return $owner === null ? null : ['uuid' => $owner->uuid, 'name' => $owner->fullName()];
+    }
+
     public function update(UpdateLeadRequest $request, Lead $lead, UpdateLead $updateLead): RedirectResponse
     {
         $lead = $updateLead->handle($lead, LeadData::from($request->validated()));
@@ -533,6 +586,11 @@ class LeadController extends Controller
             $request->validated('loss_note'),
         );
 
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Lead :name passé en « :status ».', [
+            'name' => $lead->fullName(),
+            'status' => $lead->status->label(),
+        ])]);
+
         return back();
     }
 
@@ -552,12 +610,16 @@ class LeadController extends Controller
     {
         $addLeadNote->handle($lead, $request->validated('body'), $request->user());
 
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Note ajoutée.')]);
+
         return back();
     }
 
     public function updateNote(UpdateLeadNoteRequest $request, Lead $lead, LeadNote $note, UpdateLeadNote $updateLeadNote): RedirectResponse
     {
         $updateLeadNote->handle($note, $request->validated('body'));
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Note modifiée.')]);
 
         return back();
     }
@@ -567,6 +629,8 @@ class LeadController extends Controller
         $this->authorize('delete', $note);
 
         $deleteLeadNote->handle($note);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Note supprimée.')]);
 
         return back();
     }

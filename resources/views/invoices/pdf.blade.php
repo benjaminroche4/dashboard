@@ -110,7 +110,8 @@
         @if ($invoice->notes)
             <div class="notes">{{ $invoice->notes }}</div>
         @endif
-        Paiement par virement sur {{ $company['bank'] }}, IBAN {{ $company['iban'] }}, en {{ $invoice->currency->value }}.
+        @php($account = $invoice->bankAccount())
+        Paiement par virement sur {{ $account['bank'] }}, IBAN {{ $account['iban'] }}, en {{ $invoice->currency->value }}.
     </div>
 </body>
 </html>

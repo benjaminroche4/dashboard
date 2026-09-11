@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Check, Download, Receipt, Send, X } from 'lucide-react';
+import { Check, Download, Pencil, Receipt, Send, X } from 'lucide-react';
 import { useState } from 'react';
 import { CreatedBy } from '@/components/created-by';
 import { InvoicePreview } from '@/components/invoices/invoice-preview';
@@ -11,11 +11,12 @@ import { downloadQuotePdf } from '@/lib/download-quote-pdf';
 import { formatDate, formatMoney } from '@/lib/format';
 import { quoteFormToInvoiceForm, quoteToForm } from '@/lib/quote-form';
 import { cn } from '@/lib/utils';
+import { QuoteLeadLink } from '@/components/quotes/quote-lead-link';
 import { show as invoiceShow } from '@/routes/invoices';
-import { show as leadShow } from '@/routes/leads';
 import { index as toolsIndex } from '@/routes/tools';
 import {
     accept,
+    edit as quoteEdit,
     index as quotesIndex,
     invoice as invoiceQuote,
 } from '@/routes/tools/quotes';
@@ -97,6 +98,14 @@ export default function QuotesShow({ quote, history, company, offers }: Props) {
                             <Download />
                             PDF
                         </Button>
+                        {canManage && quote.can_edit && (
+                            <Button variant="outline" asChild>
+                                <Link href={quoteEdit({ quote: quote.uuid })}>
+                                    <Pencil />
+                                    Modifier
+                                </Link>
+                            </Button>
+                        )}
                         {canManage && quote.can_send && (
                             <Button
                                 variant="outline"
@@ -162,38 +171,26 @@ export default function QuotesShow({ quote, history, company, offers }: Props) {
                     </section>
 
                     <aside className="flex flex-col gap-6">
-                        {(quote.lead || quote.invoice) && (
+                        <QuoteLeadLink
+                            quoteUuid={quote.uuid}
+                            lead={quote.lead}
+                            canEdit={canManage}
+                        />
+                        {quote.invoice && (
                             <section className="grid gap-2 text-sm">
-                                {quote.lead && (
-                                    <p>
-                                        <span className="text-muted-foreground">
-                                            Lead :{' '}
-                                        </span>
-                                        <Link
-                                            href={leadShow({
-                                                lead: quote.lead.uuid,
-                                            })}
-                                            className="font-medium underline-offset-4 hover:underline"
-                                        >
-                                            {quote.lead.name}
-                                        </Link>
-                                    </p>
-                                )}
-                                {quote.invoice && (
-                                    <p>
-                                        <span className="text-muted-foreground">
-                                            Facture :{' '}
-                                        </span>
-                                        <Link
-                                            href={invoiceShow({
-                                                invoice: quote.invoice.uuid,
-                                            })}
-                                            className="font-medium underline-offset-4 hover:underline"
-                                        >
-                                            {quote.invoice.number}
-                                        </Link>
-                                    </p>
-                                )}
+                                <p>
+                                    <span className="text-muted-foreground">
+                                        Facture :{' '}
+                                    </span>
+                                    <Link
+                                        href={invoiceShow({
+                                            invoice: quote.invoice.uuid,
+                                        })}
+                                        className="font-medium underline-offset-4 hover:underline"
+                                    >
+                                        {quote.invoice.number}
+                                    </Link>
+                                </p>
                             </section>
                         )}
                         <section className="grid gap-3">

@@ -47,7 +47,7 @@ describe('LeadDocumentRequests', () => {
             screen.getByText(/2 personne\(s\) · 5 pièce\(s\)/),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('link', { name: /Créer une liste de documents/ }),
+            screen.getByRole('link', { name: /Créer une liste de pièces/ }),
         ).toHaveAttribute(
             'href',
             '/tools/documents/create?lead=0199a9a0-0000-7000-8000-000000000007',
@@ -63,7 +63,7 @@ describe('LeadDocumentRequests', () => {
         );
 
         expect(
-            screen.getByText('Aucune liste de documents pour ce lead.'),
+            screen.getByText('Aucune liste de pièces pour ce lead.'),
         ).toBeInTheDocument();
     });
 });

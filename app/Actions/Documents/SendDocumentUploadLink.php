@@ -16,16 +16,22 @@ use Illuminate\Support\Facades\Mail;
  */
 final class SendDocumentUploadLink
 {
-    public function handle(DocumentRequest $request, string $email, ?User $by = null): DocumentRequest
+    /**
+     * @param  list<string>  $emails  un seul envoi, tous les destinataires en « À »
+     */
+    public function handle(DocumentRequest $request, array $emails, ?User $by = null): DocumentRequest
     {
-        Mail::to($email, $request->fullName())
+        $recipients = array_values(array_unique(array_filter($emails)));
+
+        Mail::to($recipients)
             ->locale($request->language->value)
             ->send(new DocumentUploadLinkSent($request));
 
-        $request->forceFill(['link_sent_to' => $email, 'link_sent_at' => now()])->save();
+        $sentTo = implode(', ', $recipients);
+        $request->forceFill(['link_sent_to' => $sentTo, 'link_sent_at' => now()])->save();
 
         if ($request->lead !== null) {
-            $request->lead->notes()->create(['body' => "Lien de dépôt des pièces envoyé à {$email}.", 'user_id' => $by?->id]);
+            $request->lead->notes()->create(['body' => "Lien de dépôt des pièces envoyé à {$sentTo}.", 'user_id' => $by?->id]);
             $request->lead->forceFill(['last_contacted_at' => now()])->save();
         }
 

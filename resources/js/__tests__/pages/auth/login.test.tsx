@@ -4,12 +4,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Erreurs injectées dans le <Form> mocké, modifiables par test.
 const formState = vi.hoisted(() => ({ errors: {} as Record<string, string> }));
+// Connexion Google : proposée seulement quand le serveur l'annonce.
+const pageProps = vi.hoisted(() => ({ features: { googleLogin: false } }));
 
 // Inertia's <Head> and <Form> need a page context that only exists at runtime,
 // so we replace them with minimal stand-ins to test the page in isolation.
 vi.mock('@inertiajs/react', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@inertiajs/react')>()),
     Head: () => null,
+    usePage: () => ({ props: pageProps }),
     Form: ({
         children,
         className,
@@ -37,6 +40,7 @@ function renderVisible(props: { status?: string } = {}) {
 describe('Login page', () => {
     beforeEach(() => {
         formState.errors = {};
+        pageProps.features = { googleLogin: false };
     });
 
     it('renders the email, password and remember fields', () => {
@@ -117,6 +121,19 @@ describe('Login page', () => {
             page.queryByRole('button', { name: /clé d'accès/ }),
         ).not.toBeInTheDocument();
         expect(page.queryByText('Ou')).not.toBeInTheDocument();
+        expect(
+            page.queryByRole('link', { name: /Se connecter avec Google/ }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('offers Google sign-in when the server announces it', () => {
+        pageProps.features = { googleLogin: true };
+        const page = renderVisible();
+
+        expect(
+            page.getByRole('link', { name: 'Se connecter avec Google' }),
+        ).toHaveAttribute('href', '/auth/google/redirect');
+        expect(page.getByText('Ou')).toBeInTheDocument();
     });
 });
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Data;
 
+use App\Enums\VisitMode;
 use Carbon\CarbonImmutable;
 
 /**
@@ -20,6 +21,8 @@ final readonly class VisitData
         /** Membre de l'équipe qui réalise la visite. */
         public ?int $assignedTo,
         public CarbonImmutable $scheduledAt,
+        /** Visite faite par l'équipe pour le client, ou visite autonome du client. */
+        public VisitMode $mode,
         public ?string $notes,
         /** Envoyer la confirmation au client par e-mail. */
         public bool $notifyClient = false,
@@ -42,6 +45,7 @@ final readonly class VisitData
             agentId: isset($data['agent_id']) && $data['agent_id'] !== '' ? (int) $data['agent_id'] : null,
             assignedTo: isset($data['assigned_to']) && $data['assigned_to'] !== '' ? (int) $data['assigned_to'] : null,
             scheduledAt: CarbonImmutable::parse((string) $data['scheduled_at'], config('app.timezone')),
+            mode: VisitMode::tryFrom((string) ($data['mode'] ?? '')) ?? VisitMode::ForClient,
             notes: $notes === '' ? null : $notes,
             notifyClient: filter_var($data['notify_client'] ?? false, FILTER_VALIDATE_BOOLEAN),
         );
@@ -59,6 +63,7 @@ final readonly class VisitData
             'agent_id' => $this->agentId,
             'assigned_to' => $this->assignedTo,
             'scheduled_at' => $this->scheduledAt->toIso8601String(),
+            'mode' => $this->mode->value,
             'notes' => $this->notes,
             'notify_client' => $this->notifyClient,
         ];

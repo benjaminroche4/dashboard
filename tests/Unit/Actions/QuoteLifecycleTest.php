@@ -97,7 +97,7 @@ test('sending a draft e-mails the client with the PDF, logs the transition and n
         ->and($lead->fresh()->last_contacted_at)->not->toBeNull()
         ->and($lead->notes()->first()?->body)->toContain('DV-27010');
 
-    Mail::assertSent(QuoteSent::class, fn (QuoteSent $mail): bool => $mail->hasTo('client@example.ch')
+    Mail::assertQueued(QuoteSent::class, fn (QuoteSent $mail): bool => $mail->hasTo('client@example.ch')
         && $mail->quote->is($quote)
         && count($mail->attachments()) === 1);
     Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => str_contains($event->message, 'a envoyé le devis'));
@@ -107,7 +107,7 @@ test('sending without DocRaptor still e-mails, without attachment', function ():
     $quote = Quote::factory()->status(QuoteStatus::Draft)->create(['client_email' => 'client@example.ch']);
 
     expect(sender()->handle($quote))->toBeFalse();
-    Mail::assertSent(QuoteSent::class, fn (QuoteSent $mail): bool => $mail->attachments() === []);
+    Mail::assertQueued(QuoteSent::class, fn (QuoteSent $mail): bool => $mail->attachments() === []);
 });
 
 test('sending requires a client e-mail and a sendable status', function (): void {

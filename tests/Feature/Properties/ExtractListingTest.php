@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Anthropic\Messages\OutputConfig\Effort;
 use App\Actions\Properties\ExtractListing;
 use App\Data\ListingExtractionData;
 use App\Enums\Furnished;
@@ -29,7 +30,7 @@ function fakeAssistant(array $reply, bool $configured = true): Assistant
             return $this->configured;
         }
 
-        public function extract(string $system, string $prompt, array $schema, int $maxTokens = 4000): array
+        public function extract(string $system, string $prompt, array $schema, int $maxTokens = 8000, Effort $effort = Effort::LOW): array
         {
             throw_unless($this->configured, RuntimeException::class, 'Assistant IA non configuré (ANTHROPIC_API_KEY).');
 
@@ -73,7 +74,7 @@ test('an extraction is normalised: enums checked, district from the postal code,
         ->and($data->chargesCents)->toBe(8_000)
         ->and($data->highlights)->toBe(['Ascenseur', 'Cuisine équipée'])
         ->and($data->toForm())->toMatchArray(['street' => '12 rue Oberkampf', 'district' => '11', 'rent' => '1500.5', 'charges' => '80', 'listing_url' => 'https://example.com/annonce', 'property_type' => 't2'])
-        ->and($data->filledFields())->toContain('rent', 'title')
+        ->and($data->filledFields())->toContain('rent', 'property_type')
         ->and(ListingExtractionData::from(['street' => '', 'property_type' => 'villa', 'currency' => 'USD'])->propertyType)->toBeNull()
         ->and(ListingExtractionData::from(['street' => '', 'currency' => 'USD'])->currency->value)->toBe('EUR');
 });

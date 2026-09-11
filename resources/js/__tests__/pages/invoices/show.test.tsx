@@ -81,8 +81,11 @@ describe('Invoice detail page', () => {
             ),
         ).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'PDF' })).toBeInTheDocument();
-        expect(screen.getByText('créée par')).toBeInTheDocument();
-        expect(screen.getByText('Admin')).toBeInTheDocument();
+        // L'auteur et la date de création vivent dans l'historique, plus dans le sous-titre.
+        expect(screen.queryByText('créée par')).toBeNull();
+        // Chaque entrée porte son auteur : « par [avatar] Admin ».
+        expect(history.getAllByText('par')).toHaveLength(2);
+        expect(history.getAllByText('Admin')).toHaveLength(2);
         expect(screen.getAllByText('4 septembre 2026').length).toBeGreaterThan(
             0,
         );

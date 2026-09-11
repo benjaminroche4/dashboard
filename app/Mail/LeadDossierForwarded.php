@@ -8,6 +8,7 @@ use App\Models\Lead;
 use App\Models\LeadPartner;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -17,7 +18,7 @@ use Illuminate\Queue\SerializesModels;
  * Dossier d'un client transmis à un partenaire (assureur, garant, déménageur…) :
  * récapitulatif du projet et coordonnées du conseiller.
  */
-final class LeadDossierForwarded extends Mailable
+final class LeadDossierForwarded extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

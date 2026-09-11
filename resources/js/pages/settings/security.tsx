@@ -1,3 +1,4 @@
+import { KeyRound } from 'lucide-react';
 import { Form, Head } from '@inertiajs/react';
 import { useRef } from 'react';
 import SecurityController from '@/actions/App/Http/Controllers/Settings/SecurityController';
@@ -6,7 +7,7 @@ import type { Props as ManagePasskeysProps } from '@/components/manage-passkeys'
 import ManagePasskeys from '@/components/manage-passkeys';
 import type { Props as ManageTwoFactorProps } from '@/components/manage-two-factor';
 import ManageTwoFactor from '@/components/manage-two-factor';
-import { Panel } from '@/components/panel';
+import { FormSection } from '@/components/form-section';
 import PasswordInput from '@/components/password-input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -27,9 +28,10 @@ export default function Security(props: Props) {
         <>
             <Head title="Sécurité" />
 
-            <Panel
+            <FormSection
                 title="Mot de passe"
-                description="Utilisez un mot de passe long et aléatoire pour protéger votre compte"
+                hint="Utilisez un mot de passe long et aléatoire pour protéger votre compte"
+                icon={KeyRound}
             >
                 <Form
                     {...SecurityController.update.form()}
@@ -121,7 +123,7 @@ export default function Security(props: Props) {
                         </>
                     )}
                 </Form>
-            </Panel>
+            </FormSection>
 
             <ManageTwoFactor
                 canManageTwoFactor={props.canManageTwoFactor}

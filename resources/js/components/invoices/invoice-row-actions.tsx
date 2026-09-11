@@ -12,13 +12,21 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { downloadInvoicePdf } from '@/lib/download-invoice-pdf';
-import { send, show } from '@/routes/invoices';
+import { edit, send, show } from '@/routes/invoices';
 import type { Invoice } from '@/types';
 
 /**
- * Menu « … » d'une ligne de la liste : voir, PDF, envoyer, marquer payée.
+ * Menu « … » d'une ligne de la liste : voir, modifier (brouillon), PDF,
+ * envoyer, marquer payée.
  */
-export function InvoiceRowActions({ invoice }: { invoice: Invoice }) {
+export function InvoiceRowActions({
+    invoice,
+    canManage = false,
+}: {
+    invoice: Invoice;
+    /** Managers et admins : les membres consultent seulement. */
+    canManage?: boolean;
+}) {
     const [paying, setPaying] = useState(false);
 
     return (
@@ -40,6 +48,13 @@ export function InvoiceRowActions({ invoice }: { invoice: Invoice }) {
                             Voir la facture
                         </Link>
                     </DropdownMenuItem>
+                    {canManage && invoice.can_edit && (
+                        <DropdownMenuItem asChild>
+                            <Link href={edit({ invoice: invoice.uuid })}>
+                                Modifier
+                            </Link>
+                        </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem
                         onClick={() =>
                             downloadInvoicePdf(invoice.uuid, invoice.number)

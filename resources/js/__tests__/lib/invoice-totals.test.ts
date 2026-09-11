@@ -123,6 +123,8 @@ describe('discount, deposit and local validation', () => {
         issued_at: '2026-09-04',
         due_at: '2026-10-04',
         notes: '',
+        bank_name: '',
+        bank_iban: '',
         items: [
             {
                 offer: 'accompagne' as const,

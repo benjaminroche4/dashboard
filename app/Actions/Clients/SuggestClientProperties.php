@@ -31,6 +31,8 @@ final class SuggestClientProperties
             ->all();
 
         return array_values(Property::query()
+            // Un bien attribué à un client est pris : jamais suggéré.
+            ->unassigned()
             ->with('agent')
             ->whereKeyNot($excluded)
             ->get()

@@ -60,7 +60,7 @@ test('it stores the request with its creator and broadcasts to the staff', funct
         ->and($request->persons)->toHaveCount(2);
 
     Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->resource === 'documents'
-        && $event->message === 'a préparé une demande de pièces pour Léa Martin');
+        && $event->message === 'a préparé la liste de pièces de Léa Martin');
 });
 
 test('it updates the request from new data and broadcasts to the staff', function (): void {

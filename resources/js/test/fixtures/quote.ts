@@ -50,6 +50,8 @@ export function makeQuoteDetail(
         accepted_at: null,
         declined_at: null,
         notes: null,
+        bank_name: null,
+        bank_iban: null,
         created_by: 'Admin',
         created_by_avatar: null,
         ...overrides,

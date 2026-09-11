@@ -96,3 +96,35 @@ test('the lists expose the author with avatar, the agency agents and the agent l
             ->where('agents.0.creator', 'Admin')
             ->where('agents.0.leads.0.name', 'Léa Durand'));
 });
+
+test('agencies are imported from a spreadsheet paste, known ones ignored', function (): void {
+    Event::fake([DashboardUpdated::class]);
+    $member = User::factory()->create();
+    Agency::factory()->create(['name' => 'Agence du Marais']);
+    Agency::factory()->create(['name' => 'Autre', 'email' => 'contact@nord.fr']);
+
+    $this->actingAs($member)
+        ->from(route('agencies.index'))
+        ->post(route('agencies.import'), ['rows' => [
+            ['name' => 'Century 21 Bastille', 'email' => 'bastille@c21.fr', 'phone' => '+33 1 43 00 00 00', 'city' => 'Paris'],
+            // Déjà connue par son nom, quelle que soit la casse.
+            ['name' => 'AGENCE DU MARAIS', 'email' => '', 'phone' => '', 'city' => ''],
+            // Déjà connue par son e-mail.
+            ['name' => 'Nord Immobilier', 'email' => 'contact@nord.fr', 'phone' => '', 'city' => 'Lille'],
+        ]])
+        ->assertRedirect(route('agencies.index'))
+        ->assertSessionHasNoErrors();
+
+    expect(Agency::query()->count())->toBe(3)
+        ->and(Agency::query()->where('name', 'Century 21 Bastille')->first()?->city)->toBe('Paris')
+        ->and(Agency::query()->where('name', 'Century 21 Bastille')->first()?->created_by)->toBe($member->id);
+
+    Event::assertDispatched(fn (DashboardUpdated $event): bool => $event->resource === 'agencies'
+        && $event->message === 'a importé 1 agence(s)');
+
+    // Le nom est obligatoire.
+    $this->actingAs($member)
+        ->from(route('agencies.index'))
+        ->post(route('agencies.import'), ['rows' => [['name' => '', 'email' => 'x@example.com']]])
+        ->assertSessionHasErrors('rows.0.name');
+});

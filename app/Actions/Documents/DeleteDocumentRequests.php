@@ -9,13 +9,13 @@ use App\Models\DocumentRequest;
 use Illuminate\Support\Collection;
 
 /**
- * Supprime plusieurs demandes de pièces (admins).
+ * Supprime plusieurs listes de pièces (admins).
  */
 final class DeleteDocumentRequests
 {
     /**
      * @param  Collection<int, DocumentRequest>  $requests
-     * @return int Nombre de demandes supprimées.
+     * @return int Nombre de listes supprimées.
      */
     public function handle(Collection $requests): int
     {
@@ -26,7 +26,7 @@ final class DeleteDocumentRequests
             $request->delete();
             $count++;
 
-            event(new DashboardUpdated('documents', ['id' => $request->id], "a supprimé la demande de pièces de {$name}"));
+            event(new DashboardUpdated('documents', ['id' => $request->id], "a supprimé la liste de pièces de {$name}"));
         }
 
         return $count;

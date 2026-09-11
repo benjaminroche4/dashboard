@@ -30,22 +30,22 @@ export default function DocumentsIndex({ requests }: Props) {
 
     return (
         <>
-            <Head title="Demandes de documents" />
+            <Head title="Listes de pièces" />
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-10">
                 <div className="flex flex-wrap items-end justify-between gap-4 pt-8 pb-6">
                     <div>
                         <h1 className="text-lg font-medium">
-                            Demandes de documents
+                            Listes de pièces
                         </h1>
                         <p className="text-muted-foreground text-sm">
-                            {requests.length} demande(s)
+                            {requests.length} liste(s)
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
                         <Button asChild>
                             <Link href={documentsCreate()}>
                                 <Plus />
-                                Nouvelle demande
+                                Nouvelle liste
                             </Link>
                         </Button>
                         {auth.user.role === 'admin' && (

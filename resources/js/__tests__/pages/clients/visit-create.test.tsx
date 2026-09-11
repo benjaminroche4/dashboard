@@ -1,3 +1,4 @@
+import { makeVisitClient, visitModes } from '@/test/fixtures/visit';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactNode, useState } from 'react';
@@ -55,8 +56,18 @@ import VisitCreate from '@/pages/clients/visit-create';
 import { propertyFormOptions } from '@/test/fixtures/property';
 
 const clients = [
-    { id: 1, uuid: 'client-1', name: 'Léa Durand', reference: 'LD-4821' },
-    { id: 2, uuid: 'client-2', name: 'Paul Roux', reference: 'LD-4822' },
+    makeVisitClient({
+        id: 1,
+        uuid: 'client-1',
+        name: 'Léa Durand',
+        reference: 'LD-4821',
+    }),
+    makeVisitClient({
+        id: 2,
+        uuid: 'client-2',
+        name: 'Paul Roux',
+        reference: 'LD-4822',
+    }),
 ];
 const properties = [
     {
@@ -78,6 +89,7 @@ describe('Visit create page', () => {
         render(
             <VisitCreate
                 clients={clients}
+                visitModes={visitModes}
                 properties={properties}
                 defaultClientId={2}
                 {...propertyFormOptions}
@@ -93,7 +105,7 @@ describe('Visit create page', () => {
         await user.type(screen.getByLabelText('Adresse'), '12 rue Oberkampf');
         await user.clear(screen.getByLabelText('Code postal'));
         await user.type(screen.getByLabelText('Code postal'), '75011');
-        await user.type(screen.getByLabelText('Loyer mensuel'), '1500');
+        await user.type(screen.getByLabelText('Loyer mensuel (€)'), '1500');
         await user.click(
             screen.getByRole('button', { name: 'Planifier la visite' }),
         );

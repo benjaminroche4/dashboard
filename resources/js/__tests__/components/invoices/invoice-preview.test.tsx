@@ -45,6 +45,8 @@ const form: InvoiceForm = {
     issued_at: '2026-09-04',
     due_at: '2026-10-04',
     notes: 'Merci.',
+    bank_name: '',
+    bank_iban: '',
     items: [
         {
             offer: 'accompagne',

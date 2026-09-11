@@ -1,6 +1,7 @@
-import { Form } from '@inertiajs/react';
+import { Form, usePage } from '@inertiajs/react';
 import { InfoIcon } from 'lucide-react';
 import AlertError from '@/components/alert-error';
+import { GoogleLoginButton } from '@/components/google-login-button';
 import PasswordInput from '@/components/password-input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,9 @@ export default function LoginForm({
     buttonClassName,
     submitLabel = 'Connexion',
 }: LoginFormProps) {
+    const { features } = usePage().props;
+    const googleLogin = Boolean(features?.googleLogin);
+
     return (
         <div className={cn('flex flex-col gap-6', className)}>
             {status && (
@@ -128,6 +132,20 @@ export default function LoginForm({
                     );
                 }}
             </Form>
+
+            {/* Connexion Google : présente seulement si elle est configurée. */}
+            {googleLogin && (
+                <>
+                    <div className="flex items-center gap-3">
+                        <span className="bg-border h-px flex-1" />
+                        <span className="text-muted-foreground text-xs">
+                            Ou
+                        </span>
+                        <span className="bg-border h-px flex-1" />
+                    </div>
+                    <GoogleLoginButton className={buttonClassName} />
+                </>
+            )}
         </div>
     );
 }

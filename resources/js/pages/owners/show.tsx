@@ -1,62 +1,58 @@
-import { Head, Link, router } from '@inertiajs/react';
-import {
-    ArrowRight,
-    Contact,
-    House,
-    Mail,
-    MessageCircle,
-    Phone,
-} from 'lucide-react';
+import { Head, Link } from '@inertiajs/react';
+import { House, Plus, UserRoundSearch } from 'lucide-react';
 import { useState } from 'react';
+import { AddressMapButton } from '@/components/address-map-dialog';
 import { OwnerDialog } from '@/components/owners/owner-dialog';
-import { OwnerStatusBadge } from '@/components/owners/owner-status-badge';
 import { formatAddress } from '@/components/real-estate/columns';
 import {
     DetailHeader,
-    DetailRow,
-    DetailSection,
     missingValue,
 } from '@/components/real-estate/detail-header';
+import { OwnerKindBadge } from '@/components/owners/owner-kind-badge';
+import { DirectoryRelationCard } from '@/components/real-estate/directory-relation-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatMoney } from '@/lib/format';
-import { show as leadShow } from '@/routes/leads';
 import {
-    convert as ownerConvert,
+    contact as ownerContact,
     destroy as ownerDestroy,
     index as ownersIndex,
 } from '@/routes/owners';
-import { show as propertyShow } from '@/routes/properties';
-import type { Owner, OwnerStatusOption, Property } from '@/types';
-
-const contactDate = new Intl.DateTimeFormat('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-});
+import { show as leadShow } from '@/routes/leads';
+import {
+    create as propertyCreate,
+    show as propertyShow,
+} from '@/routes/properties';
+import type { Owner, OwnerKindOption, OwnerParcStats, Property } from '@/types';
 
 type Props = {
+    /** Carte statique de l'adresse, null sans clé Maps Static dédiée. */
+    mapUrl?: string | null;
     owner: Owner;
     /** Biens de l'annuaire rattachés à ce propriétaire. */
     properties: Property[];
-    statuses: OwnerStatusOption[];
+    /** État du parc en trois chiffres, ce que la liste ne dit pas. */
+    stats: OwnerParcStats;
+    kinds: OwnerKindOption[];
 };
 
-/** Fiche d'un propriétaire : coordonnées, lead de gestion locative, biens, notes. */
-export default function OwnerShow({ owner, properties, statuses }: Props) {
+const visitDate = new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+});
+
+/** Fiche d'un propriétaire de l'annuaire : coordonnées, biens détenus, notes. */
+export default function OwnerShow({
+    owner,
+    properties,
+    stats,
+    kinds,
+    mapUrl = null,
+}: Props) {
     const [editing, setEditing] = useState(false);
-    const [converting, setConverting] = useState(false);
     const address = formatAddress(owner);
     const phoneDigits = owner.phone?.replace(/\s+/g, '') ?? '';
-
-    const convert = () => {
-        setConverting(true);
-        router.post(
-            ownerConvert({ owner: owner.uuid }).url,
-            {},
-            { onFinish: () => setConverting(false) },
-        );
-    };
 
     return (
         <>
@@ -66,18 +62,12 @@ export default function OwnerShow({ owner, properties, statuses }: Props) {
                     name={owner.name}
                     subtitle={
                         <>
-                            {owner.company && <span>{owner.company}</span>}
-                            <OwnerStatusBadge
-                                status={owner.status}
-                                label={owner.status_label}
+                            <OwnerKindBadge
+                                kind={owner.kind}
+                                label={owner.kind_label}
                             />
-                            {owner.last_contacted_at && (
-                                <span>
-                                    Dernier contact le{' '}
-                                    {contactDate.format(
-                                        new Date(owner.last_contacted_at),
-                                    )}
-                                </span>
+                            {owner.contact_name && (
+                                <span>{owner.contact_name}</span>
                             )}
                         </>
                     }
@@ -87,181 +77,227 @@ export default function OwnerShow({ owner, properties, statuses }: Props) {
                     onEdit={() => setEditing(true)}
                     deleteUrl={ownerDestroy({ owner: owner.uuid }).url}
                     deleteTitle={`Supprimer le propriétaire ${owner.name} ?`}
-                    deleteDescription="Sa fiche sera effacée ; ses biens et son lead éventuel sont conservés. Cette action est irréversible."
-                    backHref={ownersIndex().url}
-                    backLabel="Tous les propriétaires"
+                    deleteDescription="Sa fiche sera effacée ; ses biens sont conservés, sans propriétaire. Cette action est irréversible."
                 />
 
-                <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-                    <div className="divide-y">
-                        <DetailSection title="Contact">
-                            <dl className="grid gap-3">
-                                <DetailRow label="E-mail">
-                                    {owner.email ? (
-                                        <a
-                                            href={`mailto:${owner.email}`}
-                                            className="underline-offset-4 hover:underline"
-                                        >
-                                            {owner.email}
-                                        </a>
-                                    ) : (
-                                        missingValue
-                                    )}
-                                </DetailRow>
-                                <DetailRow label="Téléphone">
-                                    {owner.phone ? (
-                                        <a
-                                            href={`tel:${phoneDigits}`}
-                                            className="underline-offset-4 hover:underline"
-                                        >
-                                            {owner.phone}
-                                        </a>
-                                    ) : (
-                                        missingValue
-                                    )}
-                                </DetailRow>
-                                <DetailRow label="Adresse du bien">
-                                    {address ?? missingValue}
-                                </DetailRow>
-                                <DetailRow label="Nombre de biens déclarés">
-                                    {owner.property_count}
-                                </DetailRow>
-                            </dl>
-                            {(owner.phone || owner.email) && (
-                                <div className="flex flex-wrap gap-2 pt-1">
-                                    {owner.phone && (
-                                        <>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                asChild
-                                            >
-                                                <a href={`tel:${phoneDigits}`}>
-                                                    <Phone aria-hidden />
-                                                    Appeler
-                                                </a>
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                asChild
-                                            >
-                                                <a
-                                                    href={`https://wa.me/${owner.phone.replace(/\D+/g, '')}`}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                >
-                                                    <MessageCircle
-                                                        aria-hidden
-                                                    />
-                                                    WhatsApp
-                                                </a>
-                                            </Button>
-                                        </>
-                                    )}
-                                    {owner.email && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            asChild
-                                        >
-                                            <a href={`mailto:${owner.email}`}>
-                                                <Mail aria-hidden />
-                                                Écrire
-                                            </a>
-                                        </Button>
-                                    )}
-                                </div>
-                            )}
-                        </DetailSection>
-                        <DetailSection title="Notes">
-                            {owner.notes ? (
-                                <p className="text-sm/6 whitespace-pre-line">
-                                    {owner.notes}
-                                </p>
-                            ) : (
-                                <p className="text-muted-foreground text-sm">
-                                    Aucune note.
-                                </p>
-                            )}
-                        </DetailSection>
-                    </div>
-                    <aside className="grid h-fit content-start gap-6 lg:sticky lg:top-6">
+                <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                    <div className="flex flex-col gap-6">
+                        {/* Même découpe que la fiche partenaire : titre et action
+                            sur le fond gris, contenu dans un bloc blanc. */}
                         <section
-                            aria-label="Lead"
+                            aria-label="Coordonnées"
                             className="bg-sidebar grid gap-3 rounded-xl border p-4"
                         >
-                            <h2 className="flex items-center gap-2 text-base font-medium">
-                                <Contact className="size-4" aria-hidden />
-                                Lead
-                            </h2>
-                            {owner.lead ? (
-                                <>
-                                    <div className="grid gap-1 text-sm">
-                                        <Link
-                                            href={leadShow({
-                                                lead: owner.lead.uuid,
-                                            })}
-                                            className="font-medium underline-offset-4 hover:underline"
+                            <header className="flex flex-wrap items-center justify-between gap-2">
+                                <h2 className="text-base font-medium">
+                                    Coordonnées
+                                </h2>
+                                <AddressMapButton
+                                    place={{
+                                        name: owner.name,
+                                        address,
+                                        street: owner.street,
+                                        latitude: null,
+                                        longitude: null,
+                                    }}
+                                />
+                            </header>
+                            <div className="bg-background grid gap-4 rounded-lg border p-4">
+                                {mapUrl && (
+                                    <img
+                                        src={mapUrl}
+                                        alt={`Carte de ${address ?? owner.name}`}
+                                        loading="lazy"
+                                        className="h-40 w-full rounded-lg border object-cover"
+                                    />
+                                )}
+                                <dl className="divide-border grid divide-y text-sm">
+                                    {[
+                                        {
+                                            label: 'Téléphone',
+                                            value: owner.phone,
+                                            href: owner.phone
+                                                ? `tel:${phoneDigits}`
+                                                : null,
+                                        },
+                                        {
+                                            label: 'E-mail',
+                                            value: owner.email,
+                                            href: owner.email
+                                                ? `mailto:${owner.email}`
+                                                : null,
+                                        },
+                                        { label: 'Adresse', value: address },
+                                    ].map((row) => (
+                                        <div
+                                            key={row.label}
+                                            className="grid gap-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[10rem_minmax(0,1fr)] sm:gap-4"
                                         >
-                                            Lead {owner.lead.reference}
-                                        </Link>
-                                        <span className="text-muted-foreground text-xs">
-                                            {owner.lead.status_label}
-                                        </span>
-                                    </div>
-                                    <Button
-                                        variant="secondary"
-                                        size="sm"
-                                        asChild
-                                    >
-                                        <Link
-                                            href={leadShow({
-                                                lead: owner.lead.uuid,
-                                            })}
-                                        >
-                                            Ouvrir le lead
-                                            <ArrowRight aria-hidden />
-                                        </Link>
-                                    </Button>
-                                </>
-                            ) : (
-                                <>
-                                    <p className="text-muted-foreground text-sm">
-                                        Aucun lead de gestion locative pour
-                                        l’instant.
-                                    </p>
-                                    <Button
-                                        size="sm"
-                                        disabled={converting}
-                                        onClick={convert}
-                                    >
-                                        Créer le lead
-                                    </Button>
-                                </>
-                            )}
+                                            <dt className="text-muted-foreground">
+                                                {row.label}
+                                            </dt>
+                                            <dd className="break-words">
+                                                {row.value ? (
+                                                    row.href ? (
+                                                        <a
+                                                            href={row.href}
+                                                            className="underline-offset-4 hover:underline"
+                                                        >
+                                                            {row.value}
+                                                        </a>
+                                                    ) : (
+                                                        row.value
+                                                    )
+                                                ) : (
+                                                    missingValue
+                                                )}
+                                            </dd>
+                                        </div>
+                                    ))}
+                                </dl>
+                            </div>
                         </section>
 
+                        <DirectoryRelationCard
+                            lastContactedAt={owner.last_contacted_at}
+                            touchUrl={ownerContact({ owner: owner.uuid }).url}
+                        />
+
+                        {owner.lead && (
+                            <section
+                                aria-label="Lead propriétaire"
+                                className="bg-sidebar grid gap-3 rounded-xl border p-4"
+                            >
+                                <h2 className="flex items-center gap-2 text-base font-medium">
+                                    <UserRoundSearch
+                                        className="size-4"
+                                        aria-hidden
+                                    />
+                                    Lead propriétaire
+                                </h2>
+                                {/* La prospection reste le lead ; l'annuaire garde le lien. */}
+                                <div className="bg-background grid gap-1 rounded-lg border p-4 text-sm">
+                                    <Link
+                                        href={leadShow({
+                                            lead: owner.lead.uuid,
+                                        })}
+                                        className="font-medium underline-offset-4 hover:underline"
+                                    >
+                                        {owner.lead.name}
+                                    </Link>
+                                    <span className="text-muted-foreground text-xs">
+                                        {[
+                                            owner.lead.reference,
+                                            owner.lead.status_label,
+                                            owner.lead.assignee,
+                                        ]
+                                            .filter(Boolean)
+                                            .join(' · ')}
+                                    </span>
+                                </div>
+                            </section>
+                        )}
+
+                        <section
+                            aria-label="Notes"
+                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
+                        >
+                            <h2 className="text-base font-medium">Notes</h2>
+                            {/* Contenu sur fond blanc, comme les autres sections. */}
+                            <div className="bg-background rounded-lg border p-4">
+                                {owner.notes ? (
+                                    <p className="text-sm/6 whitespace-pre-line">
+                                        {owner.notes}
+                                    </p>
+                                ) : (
+                                    <p className="text-muted-foreground text-sm">
+                                        Aucune note.
+                                    </p>
+                                )}
+                            </div>
+                        </section>
+                    </div>
+                    <aside className="grid h-fit content-start gap-6 lg:sticky lg:top-6">
                         <section
                             aria-label="Biens"
                             className="bg-sidebar grid gap-3 rounded-xl border p-4"
                         >
-                            <h2 className="flex items-center gap-2 text-base font-medium">
-                                <House className="size-4" aria-hidden />
-                                Biens
-                                <Badge
-                                    variant="secondary"
-                                    className="tabular-nums"
-                                >
-                                    {properties.length}
-                                </Badge>
-                            </h2>
+                            <header className="flex flex-wrap items-center justify-between gap-2">
+                                <h2 className="flex items-center gap-2 text-base font-medium">
+                                    <House className="size-4" aria-hidden />
+                                    Biens
+                                    <Badge
+                                        variant="secondary"
+                                        className="tabular-nums"
+                                    >
+                                        {properties.length}
+                                    </Badge>
+                                </h2>
+                                <Button variant="outline" size="sm" asChild>
+                                    <Link
+                                        href={propertyCreate({
+                                            query: { owner: owner.uuid },
+                                        })}
+                                    >
+                                        <Plus />
+                                        Ajouter un bien
+                                    </Link>
+                                </Button>
+                            </header>
+                            {properties.length > 0 && (
+                                <dl className="bg-background grid grid-cols-3 divide-x rounded-lg border text-center">
+                                    {[
+                                        {
+                                            label: 'Disponibles',
+                                            value: String(stats.open),
+                                        },
+                                        {
+                                            label: 'Loués',
+                                            value: String(stats.rented),
+                                        },
+                                        {
+                                            label: 'Loyers cumulés',
+                                            value:
+                                                stats.rent_cents > 0
+                                                    ? formatMoney(
+                                                          stats.rent_cents,
+                                                          'EUR',
+                                                      )
+                                                    : '—',
+                                        },
+                                    ].map((figure) => (
+                                        <div
+                                            key={figure.label}
+                                            className="grid gap-0.5 px-2 py-3"
+                                        >
+                                            <dt className="text-muted-foreground text-xs">
+                                                {figure.label}
+                                            </dt>
+                                            <dd className="text-sm font-medium tabular-nums">
+                                                {figure.value}
+                                            </dd>
+                                        </div>
+                                    ))}
+                                </dl>
+                            )}
+                            {stats.last_visit_at && (
+                                <p className="text-muted-foreground px-1 text-xs">
+                                    Dernière visite le{' '}
+                                    {visitDate.format(
+                                        new Date(stats.last_visit_at),
+                                    )}
+                                    .
+                                </p>
+                            )}
                             {properties.length > 0 ? (
-                                <ul role="list" className="grid gap-2 text-sm">
+                                <ul
+                                    role="list"
+                                    className="bg-background divide-border grid divide-y rounded-lg border px-3 text-sm"
+                                >
                                     {properties.map((property) => (
                                         <li
                                             key={property.uuid}
-                                            className="bg-background flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2"
+                                            className="flex flex-wrap items-center justify-between gap-2 py-3"
                                         >
                                             <div className="grid min-w-0 gap-0.5">
                                                 <Link
@@ -288,10 +324,12 @@ export default function OwnerShow({ owner, properties, statuses }: Props) {
                                     ))}
                                 </ul>
                             ) : (
-                                <p className="text-muted-foreground text-sm">
-                                    Aucun bien de l’annuaire rattaché à ce
-                                    propriétaire.
-                                </p>
+                                <div className="bg-background rounded-lg border p-4">
+                                    <p className="text-muted-foreground text-sm">
+                                        Aucun bien rattaché pour l’instant. Un
+                                        propriétaire peut en détenir plusieurs.
+                                    </p>
+                                </div>
                             )}
                         </section>
                     </aside>
@@ -300,7 +338,7 @@ export default function OwnerShow({ owner, properties, statuses }: Props) {
             <OwnerDialog
                 open={editing}
                 onOpenChange={setEditing}
-                statuses={statuses}
+                kinds={kinds}
                 owner={owner}
             />
         </>

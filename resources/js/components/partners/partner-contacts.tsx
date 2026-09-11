@@ -1,21 +1,22 @@
-import { Link, router } from '@inertiajs/react';
-import { Mail, Pencil, Phone, Plus, Trash2 } from 'lucide-react';
+import { Link } from '@inertiajs/react';
+import { Plus, Send } from 'lucide-react';
 import { useState } from 'react';
 import { PartnerContactDialog } from '@/components/partners/partner-contact-dialog';
+import { PartnerForwardDialog } from '@/components/partners/partner-forward-dialog';
+import { RealEstateRowActions } from '@/components/real-estate/real-estate-row-actions';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { useInitials } from '@/hooks/use-initials';
 import { destroy as destroyContact } from '@/routes/partners/contacts';
 import { show as leadShow } from '@/routes/leads';
-import type { PartnerContact, PartnerLead } from '@/types';
+import type { PartnerContact, PartnerDetail, PartnerLead } from '@/types';
 
-/** Interlocuteurs d'un partenaire : liste, ajout, modification, retrait. */
+/**
+ * Interlocuteurs d'un partenaire : liste, ajout, modification, retrait.
+ * Chaque personne tient sur une ligne en deux colonnes : identité à gauche,
+ * coordonnées alignées à droite, menu « ⋯ » au bout.
+ */
 export function PartnerContacts({
     partnerUuid,
     contacts,
@@ -25,34 +26,23 @@ export function PartnerContacts({
 }) {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editing, setEditing] = useState<PartnerContact | null>(null);
-    const [removing, setRemoving] = useState<PartnerContact | null>(null);
-    const [busy, setBusy] = useState(false);
-
-    const remove = () => {
-        if (!removing) {
-            return;
-        }
-
-        setBusy(true);
-        router.delete(
-            destroyContact({ partner: partnerUuid, contact: removing.id }).url,
-            {
-                preserveScroll: true,
-                onFinish: () => {
-                    setBusy(false);
-                    setRemoving(null);
-                },
-            },
-        );
-    };
+    const initials = useInitials();
 
     return (
         <section
             aria-label="Interlocuteurs"
-            className="grid gap-3 py-8 first:pt-0 last:pb-0"
+            className="bg-sidebar grid gap-3 rounded-xl border p-4"
         >
-            <header className="flex items-center justify-between gap-2">
-                <h2 className="text-base font-medium">Interlocuteurs</h2>
+            <header className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="flex items-center gap-2 text-base font-medium">
+                    Interlocuteurs
+                    <Badge
+                        variant="secondary"
+                        className="font-medium tabular-nums"
+                    >
+                        {contacts.length}
+                    </Badge>
+                </h2>
                 <Button
                     variant="outline"
                     size="sm"
@@ -70,62 +60,75 @@ export function PartnerContacts({
                     Aucun interlocuteur enregistré.
                 </p>
             ) : (
-                <ul role="list" className="divide-y rounded-xl border">
+                <ul role="list" className="grid gap-2">
                     {contacts.map((contact) => (
                         <li
                             key={contact.id}
-                            className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm"
+                            className="bg-background flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border p-3 text-sm"
                         >
-                            <div className="grid min-w-0">
-                                <span className="truncate font-medium">
-                                    {contact.name}
-                                </span>
-                                <span className="text-muted-foreground truncate text-xs">
-                                    {contact.position ??
-                                        'Fonction non renseignée'}
-                                </span>
+                            <div className="flex min-w-0 flex-1 items-center gap-3">
+                                <Avatar className="size-9 shrink-0">
+                                    <AvatarFallback className="text-xs">
+                                        {initials(contact.name)}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="grid min-w-0 gap-0.5">
+                                    <span className="flex min-w-0 items-center gap-2">
+                                        <span className="truncate font-medium">
+                                            {contact.name}
+                                        </span>
+                                        {contact.is_primary && (
+                                            <Badge
+                                                variant="outline"
+                                                className="shrink-0 border-emerald-200 bg-emerald-50 font-medium text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+                                            >
+                                                Principal
+                                            </Badge>
+                                        )}
+                                    </span>
+                                    {contact.position && (
+                                        <span className="text-muted-foreground truncate text-xs">
+                                            {contact.position}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                            <div className="flex min-w-0 flex-wrap items-center gap-1">
+                            <div className="text-muted-foreground grid gap-0.5 text-right text-xs">
                                 {contact.phone && (
-                                    <Button variant="ghost" size="sm" asChild>
-                                        <a
-                                            href={`tel:${contact.phone.replace(/\s+/g, '')}`}
-                                        >
-                                            <Phone aria-hidden />
-                                            {contact.phone}
-                                        </a>
-                                    </Button>
+                                    <a
+                                        href={`tel:${contact.phone.replace(/\s+/g, '')}`}
+                                        className="hover:text-foreground tabular-nums underline-offset-4 hover:underline"
+                                    >
+                                        {contact.phone}
+                                    </a>
                                 )}
                                 {contact.email && (
-                                    <Button variant="ghost" size="sm" asChild>
-                                        <a href={`mailto:${contact.email}`}>
-                                            <Mail aria-hidden />
-                                            {contact.email}
-                                        </a>
-                                    </Button>
+                                    <a
+                                        href={`mailto:${contact.email}`}
+                                        className="hover:text-foreground max-w-64 truncate underline-offset-4 hover:underline"
+                                    >
+                                        {contact.email}
+                                    </a>
                                 )}
-                                <span className="ml-auto flex shrink-0 items-center">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        aria-label={`Modifier ${contact.name}`}
-                                        onClick={() => {
-                                            setEditing(contact);
-                                            setDialogOpen(true);
-                                        }}
-                                    >
-                                        <Pencil aria-hidden />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        aria-label={`Retirer ${contact.name}`}
-                                        onClick={() => setRemoving(contact)}
-                                    >
-                                        <Trash2 aria-hidden />
-                                    </Button>
-                                </span>
                             </div>
+                            {/* Modifier et retirer vivent dans le menu « ⋯ », comme partout ailleurs. */}
+                            <RealEstateRowActions
+                                name={contact.name}
+                                deleteUrl={
+                                    destroyContact({
+                                        partner: partnerUuid,
+                                        contact: contact.id,
+                                    }).url
+                                }
+                                deleteTitle={`Retirer ${contact.name} ?`}
+                                deleteDescription="L’interlocuteur disparaît de la fiche du partenaire."
+                                deleteLabel="Retirer"
+                                canDelete
+                                onEdit={() => {
+                                    setEditing(contact);
+                                    setDialogOpen(true);
+                                }}
+                            />
                         </li>
                     ))}
                 </ul>
@@ -136,57 +139,67 @@ export function PartnerContacts({
                 partnerUuid={partnerUuid}
                 contact={editing}
             />
-            <Dialog
-                open={removing !== null}
-                onOpenChange={(open) => !open && setRemoving(null)}
-            >
-                <DialogContent>
-                    <DialogTitle>Retirer {removing?.name} ?</DialogTitle>
-                    <DialogDescription>
-                        L’interlocuteur disparaît de la fiche du partenaire.
-                    </DialogDescription>
-                    <DialogFooter className="gap-2">
-                        <DialogClose asChild>
-                            <Button variant="secondary">Annuler</Button>
-                        </DialogClose>
-                        <Button
-                            variant="destructive"
-                            disabled={busy}
-                            onClick={remove}
-                        >
-                            Retirer
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </section>
     );
 }
 
-/** Dossiers (leads) sur lesquels le partenaire intervient. */
-export function PartnerLeads({ leads }: { leads: PartnerLead[] }) {
+/**
+ * Dossiers (leads) sur lesquels le partenaire intervient : rôles tenus, et
+ * transmission du dossier depuis chaque ligne.
+ */
+export function PartnerLeads({
+    leads,
+    partner,
+    roles = [],
+}: {
+    leads: PartnerLead[];
+    /** Fourni sur la fiche : permet de transmettre le dossier au partenaire. */
+    partner?: PartnerDetail;
+    roles?: string[];
+}) {
+    const [forwarding, setForwarding] = useState<PartnerLead | null>(null);
+
     return (
         <section
             aria-label="Dossiers"
             className="bg-sidebar grid gap-3 rounded-xl border p-4"
         >
-            <h2 className="text-base font-medium">
-                Dossiers{' '}
-                <span className="text-muted-foreground tabular-nums">
+            <h2 className="flex items-center gap-2 text-base font-medium">
+                Dossiers
+                <Badge variant="secondary" className="font-medium tabular-nums">
                     {leads.length}
-                </span>
+                </Badge>
             </h2>
+            {roles.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                    {roles.map((role) => (
+                        <Badge
+                            key={role}
+                            variant="secondary"
+                            className="font-medium"
+                        >
+                            {role}
+                        </Badge>
+                    ))}
+                </div>
+            )}
             {leads.length === 0 ? (
-                <p className="text-muted-foreground text-sm">
-                    Ce partenaire n’est intervenu sur aucun dossier. Ajoutez-le
-                    depuis la carte « Partenaires du dossier » d’une fiche lead.
-                </p>
+                <div className="bg-background rounded-lg border p-4">
+                    <p className="text-muted-foreground text-sm">
+                        Ce partenaire n’intervient sur rien pour l’instant.
+                        Rattachez-le depuis un lead, un dossier client, un
+                        propriétaire ou un bien.
+                    </p>
+                </div>
             ) : (
-                <ul role="list" className="grid gap-1">
+                <ul
+                    role="list"
+                    className="bg-background divide-border grid divide-y rounded-lg border px-4"
+                >
                     {leads.map((lead) => (
                         <li
                             key={lead.id}
-                            className="flex items-baseline justify-between gap-2 text-sm"
+                            className="flex items-baseline justify-between gap-2 py-3 text-sm first:pt-4 last:pb-4"
                         >
                             <span className="grid min-w-0">
                                 <Link
@@ -202,9 +215,27 @@ export function PartnerLeads({ leads }: { leads: PartnerLead[] }) {
                             <span className="text-muted-foreground shrink-0 text-xs">
                                 {lead.status_label}
                             </span>
+                            {partner && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="shrink-0"
+                                    onClick={() => setForwarding(lead)}
+                                >
+                                    <Send aria-hidden />
+                                    Transmettre
+                                </Button>
+                            )}
                         </li>
                     ))}
                 </ul>
+            )}
+            {partner && (
+                <PartnerForwardDialog
+                    partner={partner}
+                    lead={forwarding}
+                    onOpenChange={(open) => !open && setForwarding(null)}
+                />
             )}
         </section>
     );

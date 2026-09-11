@@ -132,6 +132,21 @@ export function DataTable<TData, TValue>({
     const table = useReactTable({
         data,
         columns,
+        // Identité stable d'une ligne : l'UUID ou l'identifiant de
+        // l'enregistrement. Sans cela, un tri déplace l'état porté par les
+        // cellules (étoile de favori, cases cochées) d'une ligne à l'autre.
+        getRowId: (row, index) => {
+            const record = row as { uuid?: unknown; id?: unknown };
+
+            if (typeof record.uuid === 'string') {
+                return record.uuid;
+            }
+
+            return typeof record.id === 'number' ||
+                typeof record.id === 'string'
+                ? String(record.id)
+                : String(index);
+        },
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
         getCoreRowModel: getCoreRowModel(),
@@ -191,6 +206,7 @@ export function DataTable<TData, TValue>({
                                     .getColumn(filterColumn)
                                     ?.setFilterValue(event.target.value)
                             }
+                            aria-label={filterPlaceholder}
                             className="max-w-sm"
                         />
                     )

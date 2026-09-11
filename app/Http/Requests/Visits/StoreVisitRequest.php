@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Requests\Visits;
 
 use App\Enums\LeadStatus;
+use App\Enums\Offer;
+use App\Enums\VisitMode;
 use App\Http\Requests\Properties\StorePropertyRequest;
+use App\Models\Lead;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreVisitRequest extends FormRequest
 {
@@ -25,6 +29,9 @@ class StoreVisitRequest extends FormRequest
         // L'arrondissement est obligatoire pour un nouveau bien, sauf s'il se déduit d'un code postal parisien.
         $propertyRules['property.district'] = [Rule::requiredIf($creating && preg_match('/^750\d{2}$/', (string) $this->input('property.postal_code')) !== 1), 'nullable', 'integer', 'min:1', 'max:20'];
 
+        // Formule « Confié » : l'équipe visite sans le client, un membre doit donc s'en charger.
+        $entrusted = $this->client()?->offer === Offer::Confie;
+
         return [
             // Une visite se planifie pour un client (lead converti), jamais pour un simple lead.
             'lead_id' => ['required', 'integer', Rule::exists('leads', 'id')->where('status', LeadStatus::Converted->value)],
@@ -32,12 +39,40 @@ class StoreVisitRequest extends FormRequest
             'property' => [Rule::requiredIf($creating), 'array'],
             ...$propertyRules,
             'agent_id' => ['nullable', 'integer', Rule::exists('agents', 'id')],
-            'assigned_to' => ['nullable', 'integer', Rule::exists('users', 'id')],
+            'assigned_to' => [Rule::requiredIf($entrusted), 'nullable', 'integer', Rule::exists('users', 'id')],
             'scheduled_at' => ['required', 'date'],
+            'mode' => ['nullable', Rule::enum(VisitMode::class)],
             'notes' => ['nullable', 'string', 'max:3000'],
             // Informer le client par e-mail (décoché par défaut).
             'notify_client' => ['nullable', 'boolean'],
         ];
+    }
+
+    /**
+     * La visite autonome suppose un client sur place : elle n'est possible que
+     * sur la formule « Accompagné ».
+     *
+     * @return list<callable>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                $mode = VisitMode::tryFrom((string) $this->input('mode', ''));
+
+                if ($mode !== null && ! $mode->allowedFor($this->client()?->offer)) {
+                    $validator->errors()->add('mode', __('La visite autonome est réservée aux clients de la formule Accompagné.'));
+                }
+            },
+        ];
+    }
+
+    /** Client de la visite, pour connaître sa formule. */
+    public function client(): ?Lead
+    {
+        $id = $this->input('lead_id');
+
+        return is_numeric($id) ? Lead::query()->find((int) $id) : null;
     }
 
     /**
@@ -51,8 +86,9 @@ class StoreVisitRequest extends FormRequest
             'property' => 'bien',
             ...StorePropertyRequest::propertyAttributes('property.'),
             'agent_id' => 'agent immobilier',
-            'assigned_to' => 'visite assignée à',
+            'assigned_to' => 'membre qui réalise la visite',
             'scheduled_at' => 'date de la visite',
+            'mode' => 'type de visite',
             'notes' => 'notes',
             'notify_client' => 'information du client',
         ];

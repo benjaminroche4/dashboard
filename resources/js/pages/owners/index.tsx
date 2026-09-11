@@ -1,23 +1,61 @@
-import { Head } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
+import { Head, usePage } from '@inertiajs/react';
+import { Building2, Plus, Upload, UserRound } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { DataTable } from '@/components/data-table';
+import { FilterMenu } from '@/components/filter-menu';
+import { OwnerBulkActions } from '@/components/owners/owner-bulk-actions';
 import { ownerColumnLabels, ownerColumns } from '@/components/owners/columns';
 import { OwnerDialog } from '@/components/owners/owner-dialog';
-import { OwnerStatusFilter } from '@/components/owners/owner-status-filter';
+import { OwnerImportDialog } from '@/components/owners/owner-import-dialog';
 import { Button } from '@/components/ui/button';
+import {
+    useServerTable,
+    type ServerPagination,
+    type ServerTableFilters,
+} from '@/hooks/use-server-table';
 import { index as ownersIndex } from '@/routes/owners';
-import type { Owner, OwnerStatus, OwnerStatusOption } from '@/types';
+import type { Owner, OwnerKind, OwnerKindOption } from '@/types';
 
 type Props = {
+    /** Page courante de l'annuaire, paginée côté serveur. */
     owners: Owner[];
-    statuses: OwnerStatusOption[];
+    kinds: OwnerKindOption[];
+    pagination: ServerPagination;
+    filters: ServerTableFilters;
+    /** Comptes sur tout l'annuaire, pas seulement la page affichée. */
+    kindCounts: Partial<Record<OwnerKind, number>>;
+    holdingCounts: { with: number; without: number };
+    propertiesCount: number;
 };
 
-export default function OwnersIndex({ owners, statuses }: Props) {
+/** Un propriétaire détient des biens, ou pas encore : le second filtre du menu. */
+const HOLDING_OPTIONS = [
+    { value: 'with', label: 'Avec au moins un bien' },
+    { value: 'without', label: 'Sans bien rattaché' },
+];
+
+/** Un filtre absent de l'URL revient en chaîne vide, pas en tableau. */
+function asList(value: string | string[] | null | undefined): string[] {
+    return Array.isArray(value) ? value : [];
+}
+
+/**
+ * Annuaire des propriétaires : notre base de données de qui possède quoi.
+ * La prospection, elle, vit dans « Leads › Propriétaires ».
+ */
+export default function OwnersIndex({
+    owners,
+    kinds,
+    pagination,
+    filters,
+    kindCounts,
+    holdingCounts,
+    propertiesCount,
+}: Props) {
+    const { auth } = usePage().props;
     const [dialogOpen, setDialogOpen] = useState(false);
+    const [importOpen, setImportOpen] = useState(false);
     const [editing, setEditing] = useState<Owner | null>(null);
-    const [statusFilter, setStatusFilter] = useState<OwnerStatus[]>([]);
 
     const add = () => {
         setEditing(null);
@@ -28,75 +66,105 @@ export default function OwnersIndex({ owners, statuses }: Props) {
         setDialogOpen(true);
     };
     const columns = useMemo(() => ownerColumns(edit), []);
-    const counts = useMemo(
-        () =>
-            owners.reduce<Partial<Record<OwnerStatus, number>>>(
-                (acc, owner) => ({
-                    ...acc,
-                    [owner.status]: (acc[owner.status] ?? 0) + 1,
-                }),
-                {},
-            ),
-        [owners],
-    );
-    const visible =
-        statusFilter.length > 0
-            ? owners.filter((owner) => statusFilter.includes(owner.status))
-            : owners;
-    const toContact = counts.to_contact ?? 0;
+    const server = useServerTable({
+        url: ownersIndex().url,
+        pagination,
+        filters,
+        only: [
+            'owners',
+            'pagination',
+            'filters',
+            'kindCounts',
+            'holdingCounts',
+            'propertiesCount',
+        ],
+    });
 
     return (
         <>
-            <Head title="Propriétaires à contacter" />
+            <Head title="Propriétaires" />
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-10">
                 <div className="flex flex-wrap items-end justify-between gap-4 pt-8 pb-6">
                     <div>
-                        <h1 className="text-lg font-medium">
-                            Propriétaires à contacter
-                        </h1>
+                        <h1 className="text-lg font-medium">Propriétaires</h1>
                         <p className="text-muted-foreground text-sm">
-                            {owners.length} propriétaire(s)
-                            {toContact > 0 && ` · ${toContact} à contacter`}
+                            {pagination.total} propriétaire(s) ·{' '}
+                            {propertiesCount} bien(s) rattaché(s)
                         </p>
                     </div>
-                    <Button onClick={add}>
-                        <Plus />
-                        Nouveau propriétaire
-                    </Button>
-                </div>
-                <div className="mb-4 flex items-center gap-2">
-                    <OwnerStatusFilter
-                        statuses={statuses}
-                        counts={counts}
-                        value={statusFilter}
-                        onChange={setStatusFilter}
-                    />
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => setImportOpen(true)}
+                        >
+                            <Upload />
+                            Importer
+                        </Button>
+                        <Button onClick={add}>
+                            <Plus />
+                            Nouveau propriétaire
+                        </Button>
+                    </div>
                 </div>
                 <DataTable
                     columns={columns}
-                    data={visible}
+                    data={owners}
+                    server={server}
                     filterColumn="name"
-                    filterPlaceholder="Filtrer par nom…"
+                    filterPlaceholder="Rechercher un propriétaire (nom, société, ville)…"
                     columnLabels={ownerColumnLabels}
                     frame="panel"
+                    actions={
+                        <FilterMenu
+                            groups={[
+                                {
+                                    title: 'Type',
+                                    options: kinds.map((kind) => ({
+                                        value: kind.value,
+                                        label: kind.label,
+                                        icon:
+                                            kind.value === 'company' ? (
+                                                <Building2 />
+                                            ) : (
+                                                <UserRound />
+                                            ),
+                                    })),
+                                    counts: kindCounts,
+                                    value: asList(filters.kind),
+                                    onChange: (value) =>
+                                        server.setFilter('kind', value),
+                                },
+                                {
+                                    title: 'Biens',
+                                    options: HOLDING_OPTIONS,
+                                    counts: holdingCounts,
+                                    value: asList(filters.holding),
+                                    onChange: (value) =>
+                                        server.setFilter('holding', value),
+                                },
+                            ]}
+                        />
+                    }
+                    bulkActions={(rows, clear) => (
+                        <OwnerBulkActions
+                            owners={rows}
+                            onDone={clear}
+                            canDelete={auth.user.role === 'admin'}
+                        />
+                    )}
                 />
             </div>
             <OwnerDialog
                 open={dialogOpen}
                 onOpenChange={setDialogOpen}
-                statuses={statuses}
+                kinds={kinds}
                 owner={editing}
-                defaultStatus={
-                    statusFilter.length === 1 ? (statusFilter[0] ?? '') : ''
-                }
             />
+            <OwnerImportDialog open={importOpen} onOpenChange={setImportOpen} />
         </>
     );
 }
 
 OwnersIndex.layout = {
-    breadcrumbs: [
-        { title: 'Propriétaires', href: ownersIndex() },
-        { title: 'À contacter', href: ownersIndex() },
-    ],
+    breadcrumbs: [{ title: 'Propriétaires', href: ownersIndex() }],
 };

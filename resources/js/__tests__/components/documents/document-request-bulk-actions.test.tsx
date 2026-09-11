@@ -51,7 +51,7 @@ describe('DocumentRequestBulkActions', () => {
             screen.getByRole('button', { name: /Supprimer \(2\)/ }),
         );
         expect(
-            screen.getByRole('heading', { name: 'Supprimer 2 demande(s) ?' }),
+            screen.getByRole('heading', { name: 'Supprimer 2 liste(s) ?' }),
         ).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: 'Supprimer' }));
 

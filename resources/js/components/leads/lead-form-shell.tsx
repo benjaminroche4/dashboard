@@ -1,5 +1,6 @@
 import { Check, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { FormSection } from '@/components/form-section';
 import InputError from '@/components/input-error';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -89,11 +90,15 @@ export function FormStepper<T extends FormStep>({
     );
 }
 
-/** Groupe de champs en panneau, comme la fiche lead : icône, titre, aide, grille. */
+/**
+ * Groupe de champs d'un formulaire de lead. Reprend le style de référence des
+ * formulaires du backoffice (`FormSection`) : carte blanche, en-tête à
+ * pictogramme séparé des champs par un filet.
+ */
 export function FormGroup({
     title,
     hint,
-    icon: Icon,
+    icon,
     children,
     className,
 }: {
@@ -104,31 +109,14 @@ export function FormGroup({
     className?: string;
 }) {
     return (
-        <section
-            aria-label={title}
-            className={cn(
-                'bg-sidebar grid content-start gap-5 rounded-xl border p-5',
-                className,
-            )}
+        <FormSection
+            title={title}
+            hint={hint}
+            icon={icon}
+            className={cn('content-start', className)}
         >
-            <div className="flex items-start gap-3">
-                {Icon && (
-                    <span
-                        aria-hidden
-                        className="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-lg"
-                    >
-                        <Icon className="size-4" />
-                    </span>
-                )}
-                <div className="min-w-0">
-                    <h2 className="text-sm font-semibold">{title}</h2>
-                    {hint && (
-                        <p className="text-muted-foreground text-xs">{hint}</p>
-                    )}
-                </div>
-            </div>
             {children}
-        </section>
+        </FormSection>
     );
 }
 

@@ -23,18 +23,18 @@ test('archiving a lead requires a loss reason and stores it', function (): void 
         ->assertSessionHasErrors('loss_reason');
 
     $this->actingAs($user)
-        ->patch(route('leads.status', $lead), ['status' => 'archived', 'loss_reason' => 'too_expensive', 'loss_note' => 'Budget à 900 €.'])
+        ->patch(route('leads.status', $lead), ['status' => 'archived', 'loss_reason' => 'small_budget', 'loss_note' => 'Budget à 900 €.'])
         ->assertRedirect();
 
     $fresh = $lead->fresh();
     expect($fresh?->status)->toBe(LeadStatus::Archived)
-        ->and($fresh?->loss_reason)->toBe(LeadLossReason::TooExpensive)
+        ->and($fresh?->loss_reason)->toBe(LeadLossReason::SmallBudget)
         ->and($fresh?->loss_note)->toBe('Budget à 900 €.');
-    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => str_contains($event->message, 'Trop cher'));
+    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => str_contains($event->message, 'Trop petit budget'));
 });
 
 test('reviving an archived lead clears its loss reason, and the pages expose the options', function (): void {
-    $lead = Lead::factory()->create(['status' => LeadStatus::Archived, 'loss_reason' => LeadLossReason::NoAnswer, 'loss_note' => 'x']);
+    $lead = Lead::factory()->create(['status' => LeadStatus::Archived, 'loss_reason' => LeadLossReason::Other, 'loss_note' => 'x']);
     $user = User::factory()->create();
 
     $this->actingAs($user)

@@ -1,44 +1,20 @@
 import { Head, router } from '@inertiajs/react';
-import { useState } from 'react';
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
-import { Panel } from '@/components/panel';
-import { DetailBars } from '@/components/reports/detail-bars';
-import { MonthlyLeadsChart } from '@/components/reports/monthly-leads-chart';
-import { WeeklyVisitsChart } from '@/components/reports/weekly-visits-chart';
-import { reportColors } from '@/components/reports/report-palette';
-import {
-    ChartContainer,
-    ChartLegend,
-    ChartLegendContent,
-    ChartTooltip,
-    ChartTooltipContent,
-    type ChartConfig,
-} from '@/components/ui/chart';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { formatDate, formatMoney } from '@/lib/format';
-import { activeCurrencies, formatDelay, formatRate } from '@/lib/report-format';
+import { LeadsChart } from '@/components/reports/leads-chart';
+import { PeriodPicker } from '@/components/reports/period-picker';
+import { VisitsByBooker } from '@/components/reports/visits-by-booker';
+import { VisitsChart } from '@/components/reports/visits-chart';
+import { formatDate } from '@/lib/format';
 import { index as toolsIndex } from '@/routes/tools';
 import { index as reportsIndex } from '@/routes/tools/reports';
-import type { Currency, Report } from '@/types';
+import type { Report, ReportPeriodOption } from '@/types';
 
 type Props = {
     report: Report;
-    months: number;
-    periods: number[];
+    /** Raccourci de période actif. */
+    period: string;
+    periods: ReportPeriodOption[];
     generatedAt: string;
 };
-
-const invoiceConfig = {
-    issued: { label: 'Émis', color: reportColors.primary },
-    paid: { label: 'Encaissé', color: reportColors.success },
-} satisfies ChartConfig;
 
 function Stat({
     label,
@@ -47,7 +23,7 @@ function Stat({
 }: {
     label: string;
     value: string;
-    hint?: string;
+    hint: string;
 }) {
     return (
         <div className="bg-sidebar grid gap-1 rounded-xl border p-4">
@@ -55,32 +31,26 @@ function Stat({
                 {label}
             </p>
             <p className="text-2xl font-semibold tabular-nums">{value}</p>
-            {hint && <p className="text-muted-foreground text-sm">{hint}</p>}
+            <p className="text-muted-foreground text-sm">{hint}</p>
         </div>
     );
 }
 
-export default function ReportsIndex({ report, months, periods }: Props) {
-    const currencies = activeCurrencies(
-        [report.invoices.issued, report.invoices.paid],
-        'EUR',
-    );
-    const [currency, setCurrency] = useState<Currency>(currencies[0] ?? 'EUR');
-    const money = (cents: number, unit: Currency = currency) =>
-        formatMoney(cents, unit);
-    // Montants en unités pour l'axe, les centimes restent dans l'infobulle.
-    const monthly = report.invoices.by_month.map((month) => ({
-        month: month.label,
-        issued: month.issued[currency] / 100,
-        paid: month.paid[currency] / 100,
-    }));
-    const { leads, quotes, invoices, visits } = report;
+export default function ReportsIndex({ report, period, periods }: Props) {
+    const { leads, visits } = report;
 
-    const changePeriod = (value: string) =>
+    const changePeriod = (query: {
+        period: string;
+        from?: string;
+        to?: string;
+    }) =>
         router.get(
-            reportsIndex({ query: { months: Number(value) } }).url,
+            reportsIndex({ query }).url,
             {},
-            { preserveState: true, preserveScroll: true },
+            {
+                preserveState: true,
+                preserveScroll: true,
+            },
         );
 
     return (
@@ -95,342 +65,38 @@ export default function ReportsIndex({ report, months, periods }: Props) {
                             {formatDate(report.period.to)}.
                         </p>
                     </div>
-                    <Select value={String(months)} onValueChange={changePeriod}>
-                        <SelectTrigger
-                            aria-label="Période"
-                            className="bg-background w-44"
-                        >
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {periods.map((period) => (
-                                <SelectItem key={period} value={String(period)}>
-                                    {period} derniers mois
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <PeriodPicker
+                        period={period}
+                        options={periods}
+                        from={report.period.from}
+                        to={report.period.to}
+                        onChange={changePeriod}
+                    />
                 </div>
-
-                <MonthlyLeadsChart daily={leads.daily} />
 
                 <section
                     aria-label="Chiffres clés"
-                    className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+                    className="grid grid-cols-1 gap-4 sm:grid-cols-2"
                 >
                     <Stat
                         label="Leads reçus"
                         value={String(leads.total)}
-                        hint={`${leads.converted} converti(s) · ${formatRate(leads.conversion_rate)}`}
+                        hint="Sur la période choisie."
                     />
                     <Stat
-                        label="Premier contact"
-                        value={formatDelay(leads.first_contact.average_minutes)}
-                        hint={
-                            leads.first_contact.measured > 0
-                                ? `${formatRate(leads.first_contact.within_30_rate)} sous 30 min · ${leads.first_contact.measured} mesuré(s)`
-                                : 'Aucun lead contacté'
-                        }
-                    />
-                    <Stat
-                        label="Devis acceptés"
-                        value={formatRate(quotes.acceptance_rate)}
-                        hint={`${quotes.total} devis émis`}
-                    />
-                    <Stat
-                        label="Encaissé"
-                        value={money(invoices.paid[currency])}
-                        hint={`${money(invoices.issued[currency])} émis · ${invoices.overdue.count} en retard`}
+                        label="Visites réservées"
+                        value={String(visits.total)}
+                        hint="Sur la période choisie, hors annulées."
                     />
                 </section>
 
-                <section
-                    aria-label="Détail des leads"
-                    className="grid grid-cols-1 gap-8 lg:grid-cols-2"
-                >
-                    <DetailBars
-                        title="Leads par source"
-                        description="Leads reçus sur la période et part convertie."
-                        empty="Aucun lead sur la période."
-                        rows={leads.by_source.map((row) => ({
-                            id: row.source,
-                            label: row.label,
-                            values: {
-                                count: row.count,
-                                converted: row.converted,
-                            },
-                        }))}
-                        series={[
-                            { key: 'count', label: 'Leads', tone: 'primary' },
-                            {
-                                key: 'converted',
-                                label: 'Convertis',
-                                tone: 'success',
-                            },
-                        ]}
-                    />
-                    <DetailBars
-                        title="Leads par statut"
-                        description="Répartition actuelle des leads reçus sur la période."
-                        empty="Aucun lead sur la période."
-                        rows={leads.by_status.map((row) => ({
-                            id: row.status,
-                            label: row.label,
-                            values: { count: row.count },
-                        }))}
-                        series={[
-                            { key: 'count', label: 'Leads', tone: 'primary' },
-                        ]}
-                    />
-                    <DetailBars
-                        title="Leads par formule"
-                        description="Formule demandée par le lead à son arrivée."
-                        empty="Aucun lead sur la période."
-                        rows={leads.by_offer.map((row) => ({
-                            id: row.offer ?? 'none',
-                            label: row.label,
-                            values: { count: row.count },
-                        }))}
-                        series={[
-                            { key: 'count', label: 'Leads', tone: 'primary' },
-                        ]}
-                    />
-                    <DetailBars
-                        title="Leads par responsable"
-                        description="Leads suivis par chaque membre et part convertie."
-                        empty="Aucun lead sur la période."
-                        rows={leads.by_assignee.map((row) => ({
-                            id: String(row.assignee ?? 'none'),
-                            label: row.label,
-                            values: {
-                                count: row.count,
-                                converted: row.converted,
-                            },
-                        }))}
-                        series={[
-                            { key: 'count', label: 'Leads', tone: 'primary' },
-                            {
-                                key: 'converted',
-                                label: 'Convertis',
-                                tone: 'success',
-                            },
-                        ]}
-                    />
-                    <DetailBars
-                        title="Devis par formule"
-                        description="Devis tranchés par le client : acceptés (ou facturés) et refusés."
-                        empty="Aucun devis sur la période."
-                        rows={quotes.by_offer.map((row) => ({
-                            id: row.offer,
-                            label: row.label,
-                            values: {
-                                accepted: row.accepted,
-                                declined: row.declined,
-                            },
-                        }))}
-                        series={[
-                            {
-                                key: 'accepted',
-                                label: 'Acceptés',
-                                tone: 'success',
-                            },
-                            {
-                                key: 'declined',
-                                label: 'Refusés',
-                                tone: 'primary',
-                            },
-                        ]}
-                    />
-                    <Panel
-                        title="Devis"
-                        description="Devis émis sur la période, par statut."
-                    >
-                        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                            {quotes.by_status.map((row) => (
-                                <div key={row.status} className="grid gap-0.5">
-                                    <dt className="text-muted-foreground text-xs">
-                                        {row.label}
-                                    </dt>
-                                    <dd className="text-lg font-semibold tabular-nums">
-                                        {row.count}
-                                    </dd>
-                                </div>
-                            ))}
-                        </dl>
-                        <p className="text-muted-foreground mt-3 text-sm">
-                            Montant des devis acceptés :{' '}
-                            {currencies.length === 0
-                                ? money(quotes.accepted_amounts.EUR, 'EUR')
-                                : currencies
-                                      .map((unit) =>
-                                          money(
-                                              quotes.accepted_amounts[unit],
-                                              unit,
-                                          ),
-                                      )
-                                      .join(' · ')}
-                            .
-                        </p>
-                    </Panel>
-                </section>
-
-                <section
-                    aria-label="Visites"
-                    className="grid grid-cols-1 gap-8 lg:grid-cols-2"
-                >
-                    <WeeklyVisitsChart weeks={visits.weekly} />
-                    <DetailBars
-                        title="Visites réservées par membre"
-                        description="Visites planifiées par chaque membre sur la période, et part effectuée."
-                        empty="Aucune visite sur la période."
-                        rows={visits.by_booker.map((row) => ({
-                            id: String(row.user ?? 'none'),
-                            label: row.label,
-                            values: { count: row.count, done: row.done },
-                        }))}
-                        series={[
-                            {
-                                key: 'count',
-                                label: 'Réservées',
-                                tone: 'primary',
-                            },
-                            {
-                                key: 'done',
-                                label: 'Effectuées',
-                                tone: 'success',
-                            },
-                        ]}
-                    />
-                </section>
-
-                <Panel
-                    title="Factures par mois"
-                    description="Montants émis et encaissés, hors factures annulées."
-                    action={
-                        currencies.length > 1 ? (
-                            <Tabs
-                                value={currency}
-                                onValueChange={(value) =>
-                                    setCurrency(value as Currency)
-                                }
-                            >
-                                <TabsList aria-label="Devise">
-                                    {currencies.map((unit) => (
-                                        <TabsTrigger key={unit} value={unit}>
-                                            {unit}
-                                        </TabsTrigger>
-                                    ))}
-                                </TabsList>
-                            </Tabs>
-                        ) : undefined
-                    }
-                >
-                    <div className="bg-background rounded-lg border p-3">
-                        <ChartContainer
-                            config={invoiceConfig}
-                            className="h-64 w-full"
-                        >
-                            <AreaChart
-                                data={monthly}
-                                margin={{ left: 8, right: 8, top: 8 }}
-                                accessibilityLayer
-                            >
-                                <CartesianGrid vertical={false} />
-                                <XAxis
-                                    dataKey="month"
-                                    tickLine={false}
-                                    axisLine={false}
-                                    tickMargin={8}
-                                />
-                                <YAxis
-                                    tickLine={false}
-                                    axisLine={false}
-                                    width={56}
-                                    tickFormatter={(value: number) =>
-                                        value.toLocaleString('fr-FR')
-                                    }
-                                />
-                                <ChartTooltip
-                                    cursor={false}
-                                    content={
-                                        <ChartTooltipContent
-                                            formatter={(
-                                                value: unknown,
-                                                name: unknown,
-                                            ) => (
-                                                <span className="flex w-full justify-between gap-4">
-                                                    <span className="text-muted-foreground">
-                                                        {
-                                                            invoiceConfig[
-                                                                name as keyof typeof invoiceConfig
-                                                            ].label
-                                                        }
-                                                    </span>
-                                                    <span className="font-medium tabular-nums">
-                                                        {money(
-                                                            Math.round(
-                                                                Number(value) *
-                                                                    100,
-                                                            ),
-                                                        )}
-                                                    </span>
-                                                </span>
-                                            )}
-                                        />
-                                    }
-                                />
-                                <Area
-                                    dataKey="issued"
-                                    type="monotone"
-                                    fill="var(--color-issued)"
-                                    fillOpacity={0.15}
-                                    stroke="var(--color-issued)"
-                                    strokeWidth={2}
-                                />
-                                <Area
-                                    dataKey="paid"
-                                    type="monotone"
-                                    fill="var(--color-paid)"
-                                    fillOpacity={0.25}
-                                    stroke="var(--color-paid)"
-                                    strokeWidth={2}
-                                />
-                                <ChartLegend content={<ChartLegendContent />} />
-                            </AreaChart>
-                        </ChartContainer>
-                    </div>
-                    <table className="mt-4 w-full text-sm">
-                        <caption className="sr-only">
-                            Factures par mois en {currency}
-                        </caption>
-                        <thead className="text-muted-foreground text-xs uppercase">
-                            <tr>
-                                <th className="py-1 text-left font-medium">
-                                    Mois
-                                </th>
-                                <th className="py-1 text-right font-medium">
-                                    Émis
-                                </th>
-                                <th className="py-1 text-right font-medium">
-                                    Encaissé
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y tabular-nums">
-                            {invoices.by_month.map((month) => (
-                                <tr key={month.month}>
-                                    <td className="py-1">{month.label}</td>
-                                    <td className="py-1 text-right">
-                                        {money(month.issued[currency])}
-                                    </td>
-                                    <td className="py-1 text-right">
-                                        {money(month.paid[currency])}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </Panel>
+                <LeadsChart leads={leads} />
+                <VisitsChart visits={visits} />
+                <VisitsByBooker
+                    bookers={visits.by_booker}
+                    from={report.period.from}
+                    to={report.period.to}
+                />
             </div>
         </>
     );

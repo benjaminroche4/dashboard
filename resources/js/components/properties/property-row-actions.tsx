@@ -10,6 +10,7 @@ import {
     DialogFooter,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { downloadPropertyPdf } from '@/lib/download-property-pdf';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -68,6 +69,13 @@ export function PropertyRowActions({ property }: { property: Property }) {
                         <Link href={propertyEdit({ property: property.uuid })}>
                             Modifier
                         </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        onSelect={() =>
+                            downloadPropertyPdf(property.uuid, property.label)
+                        }
+                    >
+                        Télécharger la fiche PDF
                     </DropdownMenuItem>
                     {property.listing_url && (
                         <DropdownMenuItem asChild>

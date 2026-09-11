@@ -7,7 +7,7 @@ const { patch, visit } = vi.hoisted(() => ({ patch: vi.fn(), visit: vi.fn() }));
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
-    router: { delete: vi.fn(), visit },
+    router: { delete: vi.fn(), visit, patch },
     usePage: () => ({
         props: {
             auth: { user: { role: 'admin' } },
@@ -49,9 +49,18 @@ function useFormStub(initial: Record<string, unknown>) {
     };
 }
 
-import PropertyShow, { describeFloor } from '@/pages/properties/show';
+import PropertyShow from '@/pages/properties/show';
 import { makeOwner } from '@/test/fixtures/owner';
 import { makeProperty, propertyFormOptions } from '@/test/fixtures/property';
+
+const clients = [
+    {
+        id: 7,
+        uuid: 'lead-1',
+        name: 'Léa Durand',
+        reference: 'LD-0042',
+    },
+];
 
 const visits = [
     {
@@ -65,12 +74,79 @@ const visits = [
     },
 ];
 
-describe('describeFloor', () => {
-    it('reads the floor in French', () => {
-        expect(describeFloor(null)).toBeNull();
-        expect(describeFloor(0)).toBe('Rez-de-chaussée');
-        expect(describeFloor(1)).toBe('1er étage');
-        expect(describeFloor(3)).toBe('3e étage');
+describe('Property assignment and photos', () => {
+    it('shows a green banner and the assignment button on an assigned property', async () => {
+        const user = userEvent.setup();
+        render(
+            <PropertyShow
+                property={makeProperty({
+                    assigned_lead: {
+                        uuid: 'client-uuid',
+                        name: 'Léa Durand',
+                    },
+                    assigned_at: '2026-09-10T10:00:00+02:00',
+                })}
+                owner={null}
+                clients={[
+                    {
+                        id: 1,
+                        uuid: 'client-uuid',
+                        name: 'Léa Durand',
+                        reference: 'LD-4821',
+                    },
+                ]}
+                visits={[]}
+                {...propertyFormOptions}
+            />,
+        );
+
+        const banner = within(
+            screen.getByRole('region', { name: 'Bien attribué' }),
+        );
+        expect(
+            banner.getByRole('link', { name: 'Léa Durand' }),
+        ).toHaveAttribute('href', '/clients/client-uuid');
+        expect(
+            banner.getByText(/n’est plus proposé pour une visite/),
+        ).toBeInTheDocument();
+
+        // Le bouton rouvre l'attribution, avec la possibilité de libérer.
+        await user.click(
+            screen.getByRole('button', { name: /Changer l’attribution/ }),
+        );
+        expect(
+            within(await screen.findByRole('dialog')).getByRole('button', {
+                name: 'Libérer le bien',
+            }),
+        ).toBeInTheDocument();
+    });
+
+    it('makes a photo the main one from the star on its tile', async () => {
+        const user = userEvent.setup();
+        patch.mockClear();
+        render(
+            <PropertyShow
+                property={makeProperty({
+                    photos: ['/storage/a.jpg', '/storage/b.jpg'],
+                })}
+                owner={null}
+                clients={[]}
+                visits={[]}
+                {...propertyFormOptions}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', {
+                name: 'Définir la photo 2 comme principale',
+            }),
+        );
+
+        expect(patch).toHaveBeenCalledWith(
+            '/properties/0199a9a0-0000-7000-8000-0000000000f1/cover',
+            { index: 1 },
+            expect.objectContaining({ preserveScroll: true }),
+        );
     });
 });
 
@@ -81,6 +157,7 @@ describe('Property detail page', () => {
             <PropertyShow
                 property={makeProperty({ notes: 'Digicode 1234.' })}
                 owner={makeOwner({ name: 'Ali Bensaïd', uuid: 'owner-1' })}
+                clients={clients}
                 visits={visits}
                 {...propertyFormOptions}
             />,
@@ -121,6 +198,15 @@ describe('Property detail page', () => {
         ).toHaveAttribute('href', '/clients/lead-1');
         expect(visitsRegion.getByText('Planifiée')).toBeInTheDocument();
 
+        // Le bien attribué à un dossier le dit, avec la date du rattachement.
+        const clientsRegion = within(
+            screen.getByRole('region', { name: 'Dossiers clients' }),
+        );
+        expect(
+            clientsRegion.getByRole('link', { name: 'Léa Durand' }),
+        ).toHaveAttribute('href', '/clients/lead-1');
+        expect(clientsRegion.getByText('LD-0042')).toBeInTheDocument();
+
         await user.click(screen.getByRole('button', { name: 'Modifier' }));
         expect(visit).toHaveBeenCalledWith(
             '/properties/0199a9a0-0000-7000-8000-0000000000f1/edit',
@@ -132,6 +218,7 @@ describe('Property detail page', () => {
             <PropertyShow
                 property={makeProperty({ agent: null, photos: [] })}
                 owner={null}
+                clients={[]}
                 visits={[]}
                 {...propertyFormOptions}
             />,
@@ -141,6 +228,9 @@ describe('Property detail page', () => {
             screen.getByText(/Aucun propriétaire rattaché/),
         ).toBeInTheDocument();
         expect(screen.getByText('Aucun agent rattaché.')).toBeInTheDocument();
+        expect(
+            screen.getByText(/n'est attribué à aucun dossier client/),
+        ).toBeInTheDocument();
         expect(
             screen.getByText('Aucune visite pour ce bien.'),
         ).toBeInTheDocument();

@@ -17,6 +17,14 @@ return [
     'iban' => env('COMPANY_IBAN', 'CH00 0000 0000 0000 0000 0'),
     'bank' => env('COMPANY_BANK', 'Banque Exemple SA'),
 
+    /*
+     * Comptes bancaires proposés sur une facture ou un devis : le compte servi
+     * par défaut est le premier de la devise du document. `COMPANY_ACCOUNTS`
+     * accepte un JSON `[{"label":…,"bank":…,"iban":…,"currency":"EUR"}]` ;
+     * sans lui, le compte historique COMPANY_BANK / COMPANY_IBAN sert seul.
+     */
+    'accounts' => env('COMPANY_ACCOUNTS'),
+
     // Préfixe des numéros de facture : RP + code activité (27 = agent immobilier), puis séquence.
     'invoice_prefix' => env('COMPANY_INVOICE_PREFIX', 'RP-27'),
 

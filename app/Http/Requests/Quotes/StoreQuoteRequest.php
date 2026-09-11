@@ -23,6 +23,16 @@ class StoreQuoteRequest extends FormRequest
      */
     public function rules(): array
     {
+        return self::quoteRules();
+    }
+
+    /**
+     * Règles d'un devis, partagées avec la modification.
+     *
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
+    public static function quoteRules(): array
+    {
         return [
             'lead_id' => ['nullable', 'integer', 'exists:leads,id'],
             'client_name' => ['required', 'string', 'max:255'],
@@ -37,6 +47,9 @@ class StoreQuoteRequest extends FormRequest
             'issued_at' => ['required', 'date'],
             'valid_until' => ['required', 'date', 'after_or_equal:issued_at'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            // Compte d'encaissement : laissé vide, le compte par défaut de la devise s'applique.
+            'bank_name' => ['nullable', 'string', 'max:255'],
+            'bank_iban' => ['nullable', 'string', 'max:60'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
             'items.*.offer' => ['nullable', 'required_without:items.*.description', Rule::enum(Offer::class)],
             'items.*.description' => ['nullable', 'required_without:items.*.offer', 'string', 'max:255'],
@@ -49,6 +62,14 @@ class StoreQuoteRequest extends FormRequest
      * @return array<string, string>
      */
     public function attributes(): array
+    {
+        return self::quoteAttributes();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function quoteAttributes(): array
     {
         return [
             'client_name' => 'nom du client',

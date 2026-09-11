@@ -3,14 +3,17 @@ import userEvent from '@testing-library/user-event';
 import { useState, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { post, put, transform, toastError } = vi.hoisted(() => ({
+const { post, put, transform, toastError, toastInfo } = vi.hoisted(() => ({
     post: vi.fn(),
     put: vi.fn(),
     transform: vi.fn(),
     toastError: vi.fn(),
+    toastInfo: vi.fn(),
 }));
 
-vi.mock('@/lib/toast', () => ({ notify: { error: toastError } }));
+vi.mock('@/lib/toast', () => ({
+    notify: { error: toastError, info: toastInfo },
+}));
 
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@inertiajs/react')>();
@@ -40,8 +43,12 @@ function useFormStub(initial: Record<string, unknown>) {
         data,
         errors: {},
         processing: false,
-        setData: (key: string, value: unknown) =>
-            setDataState((current) => ({ ...current, [key]: value })),
+        setData: (key: string | Record<string, unknown>, value?: unknown) =>
+            setDataState((current) =>
+                typeof key === 'string'
+                    ? { ...current, [key]: value }
+                    : { ...current, ...key },
+            ),
         transform,
         post,
         put,
@@ -51,6 +58,7 @@ function useFormStub(initial: Record<string, unknown>) {
 import DocumentsCreate from '@/pages/documents/create';
 import {
     catalog,
+    documentRequestLeads,
     languages,
     makeDocumentRequestEdit,
     roles,
@@ -62,12 +70,13 @@ const renderPage = () =>
             catalog={catalog}
             roles={roles}
             languages={languages}
+            leads={documentRequestLeads}
         />,
     );
 
 /** Boutons de navigation du récapitulatif « Personnes du foyer ». */
 const tabs = () =>
-    within(screen.getByRole('complementary', { name: 'Personnes du foyer' }))
+    within(screen.getByRole('region', { name: 'Personnes du foyer' }))
         .getAllByRole('listitem')
         .map((item) => within(item).getByRole('button'));
 
@@ -86,7 +95,7 @@ describe('Documents create page', () => {
         renderPage();
 
         expect(
-            screen.getByRole('heading', { name: 'Liste de documents' }),
+            screen.getByRole('heading', { name: 'Nouvelle liste de pièces' }),
         ).toBeInTheDocument();
         expect(tabs()).toHaveLength(1);
         expect(selected(0)).toBe(true);
@@ -103,12 +112,12 @@ describe('Documents create page', () => {
         expect(within(language).getByLabelText('Français')).toBeChecked();
         expect(within(language).getByLabelText('Anglais')).not.toBeChecked();
         expect(language.querySelectorAll('[data-country]')).toHaveLength(2);
-        expect(screen.getByLabelText(/Lien sécurisé de dépôt/)).toHaveAttribute(
+        expect(screen.getByLabelText(/Dossier Google Drive/)).toHaveAttribute(
             'placeholder',
             'https://drive.google.com/...',
         );
 
-        const summary = screen.getByRole('complementary', {
+        const summary = screen.getByRole('region', {
             name: 'Personnes du foyer',
         });
         expect(within(summary).getByText('1/4 max')).toBeInTheDocument();
@@ -116,7 +125,7 @@ describe('Documents create page', () => {
             within(summary).getByText('à compléter · Aucune pièce'),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Créer la demande' }),
+            screen.getByRole('button', { name: 'Créer la liste' }),
         ).toBeInTheDocument();
     });
 
@@ -179,7 +188,7 @@ describe('Documents create page', () => {
         await user.click(tabs()[0]!);
 
         await user.click(
-            screen.getByRole('button', { name: 'Créer la demande' }),
+            screen.getByRole('button', { name: 'Créer la liste' }),
         );
 
         expect(post).not.toHaveBeenCalled();
@@ -196,7 +205,7 @@ describe('Documents create page', () => {
             screen.getByText('Cochez au moins une pièce pour cette personne.'),
         ).toBeInTheDocument();
         expect(
-            screen.queryByText('Le lien de dépôt est obligatoire.'),
+            screen.queryByText('Le dossier Google Drive est obligatoire.'),
         ).not.toBeInTheDocument();
     });
 
@@ -207,12 +216,12 @@ describe('Documents create page', () => {
         await user.type(screen.getByLabelText(/Prénom/), 'Léa');
         await user.type(screen.getByLabelText(/^Nom/), 'Martin');
         await user.type(
-            screen.getByLabelText(/Lien sécurisé de dépôt/),
+            screen.getByLabelText(/Dossier Google Drive/),
             'https://drive.google.com/x',
         );
         await user.click(screen.getByLabelText(/3 derniers bulletins/));
         await user.click(
-            screen.getByRole('button', { name: 'Créer la demande' }),
+            screen.getByRole('button', { name: 'Créer la liste' }),
         );
 
         expect(toastError).not.toHaveBeenCalled();
@@ -227,6 +236,27 @@ describe('Documents create page', () => {
         });
     });
 
+    it('links a lead and prefills the household, guarantors included', async () => {
+        const user = userEvent.setup();
+        renderPage();
+
+        await user.click(
+            screen.getByRole('combobox', { name: 'Lead ou dossier client' }),
+        );
+        await user.click(
+            await screen.findByRole('option', { name: /Léa Martin/ }),
+        );
+
+        // Personne principale nommée d'après le lead, plus un garant physique.
+        expect(tabs()).toHaveLength(2);
+        expect(tabs()[0]).toHaveTextContent('Léa Martin');
+        expect(tabs()[1]).toHaveTextContent('Garant');
+        expect(toastInfo).toHaveBeenCalled();
+        expect(
+            screen.getByRole('link', { name: /Ouvrir la fiche de Léa Martin/ }),
+        ).toBeInTheDocument();
+    });
+
     it('prefills an existing list, shows its persons and saves with PUT', async () => {
         const user = userEvent.setup();
         render(
@@ -234,6 +264,7 @@ describe('Documents create page', () => {
                 catalog={catalog}
                 roles={roles}
                 languages={languages}
+                leads={documentRequestLeads}
                 request={makeDocumentRequestEdit()}
             />,
         );
@@ -247,7 +278,7 @@ describe('Documents create page', () => {
         expect(tabs()[1]).toHaveTextContent('Paul Martin');
         expect(screen.getByLabelText(/Prénom/)).toHaveValue('Léa');
         expect(screen.getByLabelText('Anglais')).toBeChecked();
-        expect(screen.getByLabelText(/Lien sécurisé de dépôt/)).toHaveValue(
+        expect(screen.getByLabelText(/Dossier Google Drive/)).toHaveValue(
             'https://drive.google.com/drive/folders/abc',
         );
         expect(screen.getByRole('link', { name: 'Annuler' })).toHaveAttribute(

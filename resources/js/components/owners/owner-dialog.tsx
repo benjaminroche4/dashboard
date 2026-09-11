@@ -27,23 +27,20 @@ import { Textarea } from '@/components/ui/textarea';
 import { useContactDuplicates } from '@/hooks/use-contact-duplicates';
 import { capitalizeName } from '@/lib/format';
 import { duplicates as ownerDuplicates, store, update } from '@/routes/owners';
-import type { Owner, OwnerForm, OwnerStatus, OwnerStatusOption } from '@/types';
+import type { Owner, OwnerForm, OwnerKind, OwnerKindOption } from '@/types';
 
 type Props = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    statuses: OwnerStatusOption[];
+    /** Particulier ou société (`OwnerKind::options()`). */
+    kinds: OwnerKindOption[];
     /** Propriétaire à modifier ; absent pour un ajout. */
     owner?: Owner | null;
-    /** Statut présélectionné pour un ajout (filtre actif de la liste). */
-    defaultStatus?: OwnerStatus | '';
 };
 
-function initial(
-    owner: Owner | null | undefined,
-    defaultStatus: OwnerStatus | '',
-): OwnerForm {
+function initial(owner: Owner | null | undefined): OwnerForm {
     return {
+        kind: owner?.kind ?? 'individual',
         first_name: owner?.first_name ?? '',
         last_name: owner?.last_name ?? '',
         company: owner?.company ?? '',
@@ -52,21 +49,19 @@ function initial(
         street: owner?.street ?? '',
         postal_code: owner?.postal_code ?? '',
         city: owner?.city ?? '',
-        property_count: String(owner?.property_count ?? 1),
-        status: owner?.status ?? (defaultStatus || 'to_contact'),
         notes: owner?.notes ?? '',
     };
 }
 
-/** Ajout ou modification d'un propriétaire à prospecter. */
+/** Ajout ou modification d'un propriétaire de l'annuaire. */
 export function OwnerDialog({
     open,
     onOpenChange,
-    statuses,
+    kinds,
     owner = null,
-    defaultStatus = '',
 }: Props) {
-    const form = useForm<OwnerForm>(initial(owner, defaultStatus));
+    const form = useForm<OwnerForm>(initial(owner));
+    const company = form.data.kind === 'company';
     const editing = owner !== null;
     const duplicates = useContactDuplicates(
         (query) => ownerDuplicates({ query }).url,
@@ -79,15 +74,18 @@ export function OwnerDialog({
     // Le dialogue est monté une fois : on recharge les champs à chaque ouverture.
     useEffect(() => {
         if (open) {
-            form.setData(initial(owner, defaultStatus));
+            form.setData(initial(owner));
             form.clearErrors();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, owner, defaultStatus]);
+    }, [open, owner]);
 
     const submit = () => {
         const options = {
             preserveScroll: true,
+            // Le dialogue s'ouvre aussi depuis le formulaire d'un bien : la
+            // page ne doit pas être remontée, la saisie en cours serait perdue.
+            preserveState: true,
             onSuccess: () => onOpenChange(false),
         };
 
@@ -99,12 +97,7 @@ export function OwnerDialog({
     };
 
     const field = (
-        key:
-            | 'first_name'
-            | 'last_name'
-            | 'company'
-            | 'email'
-            | 'property_count',
+        key: 'first_name' | 'last_name' | 'company' | 'email',
         label: string,
         props: {
             type?: string;
@@ -145,9 +138,9 @@ export function OwnerDialog({
                             : 'Nouveau propriétaire'}
                     </DialogTitle>
                     <DialogDescription>
-                        {editing
-                            ? 'Coordonnées, bien et avancement de la prospection.'
-                            : 'Prénom et nom sont obligatoires, avec un e-mail ou un téléphone pour le contacter.'}
+                        {company
+                            ? 'La raison sociale nomme la fiche ; l’interlocuteur est facultatif.'
+                            : 'Prénom et nom, avec un e-mail ou un téléphone pour le joindre.'}
                     </DialogDescription>
                 </DialogHeader>
                 <form
@@ -157,59 +150,62 @@ export function OwnerDialog({
                         submit();
                     }}
                 >
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        {field('first_name', 'Prénom', { required: true })}
-                        {field('last_name', 'Nom', { required: true })}
+                    <div className="grid gap-2">
+                        <Label htmlFor="owner-kind">Type de propriétaire</Label>
+                        <Select
+                            value={form.data.kind}
+                            onValueChange={(value) =>
+                                form.setData('kind', value as OwnerKind)
+                            }
+                        >
+                            <SelectTrigger id="owner-kind" className="w-full">
+                                <SelectValue placeholder="Type de propriétaire" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {kinds.map((kind) => (
+                                    <SelectItem
+                                        key={kind.value}
+                                        value={kind.value}
+                                    >
+                                        {kind.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <InputError message={form.errors.kind} />
                     </div>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_11rem]">
-                        {field('company', 'Société (SCI, etc.)', {
-                            placeholder: 'Facultatif',
+                    {company &&
+                        field('company', 'Raison sociale', {
+                            required: true,
+                            placeholder: 'SCI du Marais, Foncière…',
                         })}
-                        <div className="grid gap-2">
-                            <Label htmlFor="owner-status">Statut</Label>
-                            <Select
-                                value={form.data.status}
-                                onValueChange={(value) =>
-                                    form.setData('status', value as OwnerStatus)
-                                }
-                            >
-                                <SelectTrigger
-                                    id="owner-status"
-                                    className="w-full"
-                                >
-                                    <SelectValue placeholder="Statut" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {statuses.map((status) => (
-                                        <SelectItem
-                                            key={status.value}
-                                            value={status.value}
-                                        >
-                                            {status.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <InputError message={form.errors.status} />
-                        </div>
-                    </div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div className="grid gap-2">
-                            <Label htmlFor="owner-phone">Téléphone</Label>
-                            <PhoneInput
-                                id="owner-phone"
-                                value={form.data.phone}
-                                onChange={(value) =>
-                                    form.setData('phone', value)
-                                }
-                            />
-                            <InputError message={form.errors.phone} />
-                        </div>
-                        {field('email', 'E-mail', {
-                            type: 'email',
-                            placeholder: 'prenom@…',
-                        })}
+                        {field(
+                            'first_name',
+                            company ? 'Prénom de l’interlocuteur' : 'Prénom',
+                            { required: !company },
+                        )}
+                        {field(
+                            'last_name',
+                            company ? 'Nom de l’interlocuteur' : 'Nom',
+                            { required: !company },
+                        )}
                     </div>
+                    {/* Une ligne chacun : l'indicatif du téléphone et une adresse
+                        e-mail complète tiennent mal sur une demi-ligne. */}
+                    <div className="grid gap-2">
+                        <Label htmlFor="owner-phone">Téléphone</Label>
+                        <PhoneInput
+                            id="owner-phone"
+                            value={form.data.phone}
+                            onChange={(value) => form.setData('phone', value)}
+                        />
+                        <InputError message={form.errors.phone} />
+                    </div>
+                    {field('email', 'E-mail', {
+                        type: 'email',
+                        placeholder: 'prenom@…',
+                    })}
                     <ContactDuplicatesAlert
                         duplicates={duplicates}
                         noun="propriétaire"
@@ -226,10 +222,6 @@ export function OwnerDialog({
                             form.setData({ ...form.data, ...address })
                         }
                     />
-                    {field('property_count', 'Nombre de biens', {
-                        type: 'number',
-                        min: 1,
-                    })}
                     <div className="grid gap-2">
                         <Label htmlFor="owner-notes">Notes</Label>
                         <Textarea

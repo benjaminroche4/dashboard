@@ -31,9 +31,9 @@ test('each assignee receives one e-mail with their due and overdue recontacts, p
     $count = (new SendRecontactReminders)->handle();
 
     expect($count)->toBe(1);
-    Mail::assertSent(RecontactsDue::class, fn (RecontactsDue $mail): bool => $mail->hasTo('camille@example.com')
+    Mail::assertQueued(RecontactsDue::class, fn (RecontactsDue $mail): bool => $mail->hasTo('camille@example.com')
         && $mail->leads->pluck('id')->sort()->values()->all() === collect([$today->id, $late->id])->sort()->values()->all());
-    Mail::assertSentCount(1);
+    Mail::assertQueuedCount(1);
     Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->payload['mentions'] === [$camille->id]
         && str_contains($event->message, '2 recontact(s), dont 1 en retard'));
 });

@@ -1,10 +1,20 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Check, CircleDashed, FileDown, Plus } from 'lucide-react';
+import {
+    Check,
+    CircleDashed,
+    FileDown,
+    FileText,
+    Plus,
+    UserRound,
+    Users,
+} from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { CountryFlag } from '@/components/country-flag';
 import { HouseholdPersonCard } from '@/components/documents/household-person-card';
 import { FormActionBar } from '@/components/form-action-bar';
+import { FormSection } from '@/components/form-section';
 import InputError from '@/components/input-error';
+import { SearchSelect } from '@/components/search-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,9 +28,11 @@ import {
     personIndexFromErrorKey,
     personName,
     personStatus,
+    prefillFromLead,
     validateDocumentRequestForm,
     type DocumentRequestFormErrors,
 } from '@/lib/document-request-form';
+import { languageFlag } from '@/lib/language-flag';
 import { notify } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { show as leadShow } from '@/routes/leads';
@@ -36,6 +48,7 @@ import type {
     DocumentLanguage,
     DocumentRequestEdit,
     DocumentRequestForm,
+    DocumentRequestLeadOption,
     DocumentRequestPrefill,
     HouseholdPersonForm,
     HouseholdRole,
@@ -45,6 +58,8 @@ type Props = {
     catalog: CatalogGroup[];
     roles: { value: HouseholdRole; label: string }[];
     languages: { value: DocumentLanguage; label: string }[];
+    /** Leads et dossiers clients proposés dans le sélecteur. */
+    leads: DocumentRequestLeadOption[];
     /** Liste existante : la page passe en mode modification. */
     request?: DocumentRequestEdit;
     /** Création depuis une fiche lead : première personne et langue préremplies. */
@@ -55,6 +70,7 @@ export default function DocumentsCreate({
     catalog,
     roles,
     languages,
+    leads,
     request,
     prefill = null,
 }: Props) {
@@ -67,20 +83,53 @@ export default function DocumentsCreate({
                   persons: request.persons,
               }
             : prefill
-              ? {
-                    ...emptyDocumentRequestForm(),
-                    language: prefill.language,
-                    persons: [
-                        {
-                            ...emptyPerson(),
-                            first_name: prefill.first_name,
-                            last_name: prefill.last_name,
-                        },
-                    ],
-                }
+              ? // Ouverture depuis une fiche lead : même préremplissage que le sélecteur.
+                prefillFromLead(emptyDocumentRequestForm(), {
+                    ...prefill,
+                    id: prefill.lead_id,
+                    uuid: prefill.lead_uuid,
+                    name: prefill.lead_name,
+                    reference: null,
+                    company: null,
+                    is_client: false,
+                    guarantors:
+                        leads.find(
+                            (candidate) => candidate.id === prefill.lead_id,
+                        )?.guarantors ?? [],
+                })
               : emptyDocumentRequestForm(),
     );
-    const leadId = request ? request.lead_id : (prefill?.lead_id ?? null);
+    const [leadId, setLeadId] = useState<number | null>(
+        request ? request.lead_id : (prefill?.lead_id ?? null),
+    );
+    const lead = leads.find((candidate) => candidate.id === leadId) ?? null;
+
+    /** Rattache la liste au lead choisi et préremplit le foyer. */
+    const chooseLead = (value: string) => {
+        const chosen = leads.find(
+            (candidate) => String(candidate.id) === value,
+        );
+
+        if (!chosen) {
+            setLeadId(null);
+
+            return;
+        }
+
+        setLeadId(chosen.id);
+
+        const next = prefillFromLead(form.data, chosen);
+        form.setData(next);
+        setActive(0);
+
+        const added = next.persons.length - form.data.persons.length;
+        notify.info(
+            `Foyer prérempli depuis ${chosen.name}`,
+            added > 0
+                ? `${added} garant(s) déclaré(s) par le lead ont été ajoutés au foyer.`
+                : undefined,
+        );
+    };
     const [localErrors, setLocalErrors] = useState<DocumentRequestFormErrors>(
         {},
     );
@@ -128,7 +177,7 @@ export default function DocumentsCreate({
         if (Object.keys(found).length > 0) {
             notify.error(
                 'Formulaire incomplet',
-                'Corrigez les champs signalés avant de créer la demande.',
+                'Corrigez les champs signalés avant de créer la liste.',
             );
 
             // Une personne en erreur est peut-être repliée : on l'affiche en priorité.
@@ -184,7 +233,7 @@ export default function DocumentsCreate({
                 title={
                     request
                         ? `Modifier la liste de ${request.name}`
-                        : 'Liste de documents'
+                        : 'Nouvelle liste de pièces'
                 }
             />
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4">
@@ -193,7 +242,7 @@ export default function DocumentsCreate({
                         <h1 className="text-lg font-medium">
                             {request
                                 ? `Modifier la liste de ${request.name}`
-                                : 'Liste de documents'}
+                                : 'Nouvelle liste de pièces'}
                         </h1>
                         <p className="text-muted-foreground text-sm">
                             {prefill ? (
@@ -210,7 +259,7 @@ export default function DocumentsCreate({
                                     , la liste lui sera rattachée.
                                 </>
                             ) : (
-                                'Préparez le PDF des pièces à fournir par chaque personne du foyer, avec le lien sécurisé où les déposer.'
+                                'Préparez le PDF des pièces à fournir par chaque personne du foyer, avec le lien de dépôt sécurisé.'
                             )}
                         </p>
                     </div>
@@ -225,6 +274,55 @@ export default function DocumentsCreate({
                     className="grid grid-cols-1 gap-6 pb-6 lg:grid-cols-[minmax(0,1fr)_280px]"
                 >
                     <div className="grid gap-6">
+                        {/* Rattachement : la liste suit un lead, qui préremplit le foyer */}
+                        <FormSection
+                            title="Lead ou dossier client"
+                            hint="Facultatif. La liste est rattachée au lead, et son nom, sa langue et ses garants déclarés préremplissent le foyer."
+                            icon={UserRound}
+                        >
+                            <div className="grid gap-2">
+                                <Label htmlFor="lead" className="sr-only">
+                                    Lead ou dossier client
+                                </Label>
+                                <SearchSelect
+                                    id="lead"
+                                    value={
+                                        leadId === null ? '' : String(leadId)
+                                    }
+                                    onChange={chooseLead}
+                                    options={leads.map((candidate) => ({
+                                        value: String(candidate.id),
+                                        label: candidate.name,
+                                        hint: [
+                                            candidate.reference,
+                                            candidate.company,
+                                            candidate.is_client
+                                                ? 'Dossier client'
+                                                : null,
+                                        ]
+                                            .filter(Boolean)
+                                            .join(' · '),
+                                    }))}
+                                    placeholder="Aucun lead rattaché"
+                                    searchPlaceholder="Rechercher un lead, une référence…"
+                                    emptyLabel="Aucun lead rattaché"
+                                    noResults="Aucun lead trouvé."
+                                />
+                                {lead && (
+                                    <p className="text-muted-foreground text-xs">
+                                        <Link
+                                            href={leadShow({
+                                                lead: lead.uuid,
+                                            })}
+                                            className="text-foreground font-medium underline-offset-4 hover:underline"
+                                        >
+                                            Ouvrir la fiche de {lead.name}
+                                        </Link>
+                                    </p>
+                                )}
+                            </div>
+                        </FormSection>
+
                         {/* Personnes : une seule carte visible, navigation dans le récapitulatif à droite */}
                         <div className="grid gap-3">
                             <InputError message={errors.persons} />
@@ -254,20 +352,12 @@ export default function DocumentsCreate({
                         </div>
 
                         {/* Réglages du PDF */}
-                        <section
-                            aria-label="Message et lien de dépôt"
-                            className="bg-sidebar rounded-xl border"
+                        <FormSection
+                            title="Réglages du PDF"
+                            hint="Contenu commun à toutes les personnes, imprimé dans le PDF."
+                            icon={FileText}
                         >
-                            <header className="px-4 pt-4 pb-3">
-                                <h2 className="text-sm font-medium">
-                                    Message et lien de dépôt
-                                </h2>
-                                <p className="text-muted-foreground text-sm">
-                                    Contenu commun à toutes les personnes,
-                                    imprimé dans le PDF.
-                                </p>
-                            </header>
-                            <div className="grid gap-4 px-4 pb-4">
+                            <div className="grid gap-4">
                                 <div className="grid gap-2">
                                     <Label>Langue du PDF</Label>
                                     <RadioGroup
@@ -292,11 +382,9 @@ export default function DocumentsCreate({
                                                     value={language.value}
                                                 />
                                                 <CountryFlag
-                                                    code={
-                                                        language.value === 'en'
-                                                            ? 'GB'
-                                                            : 'FR'
-                                                    }
+                                                    code={languageFlag(
+                                                        language.value,
+                                                    )}
                                                 />
                                                 {language.label}
                                             </Label>
@@ -328,16 +416,16 @@ export default function DocumentsCreate({
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="upload_url">
-                                        Lien sécurisé de dépôt{' '}
+                                        Dossier Google Drive{' '}
                                         <span className="text-muted-foreground font-normal">
                                             (facultatif)
                                         </span>
                                     </Label>
                                     <p className="text-muted-foreground text-xs">
-                                        Une page publique de dépôt est créée
-                                        automatiquement et incluse dans le PDF.
-                                        Ajoutez ici un dossier partagé (Drive…)
-                                        si vous en utilisez un en plus.
+                                        Le lien de dépôt sécurisé est créé
+                                        automatiquement et imprimé dans le PDF.
+                                        Ajoutez ici un dossier Google Drive si
+                                        vous en utilisez un en plus.
                                     </p>
                                     <Input
                                         id="upload_url"
@@ -356,23 +444,21 @@ export default function DocumentsCreate({
                                     <InputError message={errors.upload_url} />
                                 </div>
                             </div>
-                        </section>
+                        </FormSection>
                     </div>
 
                     {/* Récapitulatif du foyer */}
-                    <aside
-                        aria-label="Personnes du foyer"
-                        className="bg-sidebar h-fit rounded-xl border lg:sticky lg:top-6"
-                    >
-                        <header className="flex items-baseline justify-between px-4 pt-4 pb-3">
-                            <h2 className="text-sm font-medium">
-                                Personnes du foyer
-                            </h2>
+                    <FormSection
+                        title="Personnes du foyer"
+                        icon={Users}
+                        className="h-fit lg:sticky lg:top-6"
+                        action={
                             <span className="text-muted-foreground text-xs tabular-nums">
                                 {persons.length}/{MAX_PERSONS} max
                             </span>
-                        </header>
-                        <ul role="list" className="grid gap-1 px-4">
+                        }
+                    >
+                        <ul role="list" className="grid gap-1">
                             {persons.map((person, index) => {
                                 const status = personStatus(person);
                                 const role = roles.find(
@@ -437,19 +523,17 @@ export default function DocumentsCreate({
                                 );
                             })}
                         </ul>
-                        <div className="px-4 pt-3 pb-4">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="w-full"
-                                onClick={addPerson}
-                                disabled={persons.length >= MAX_PERSONS}
-                            >
-                                <Plus />
-                                Ajouter une personne
-                            </Button>
-                        </div>
-                    </aside>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full"
+                            onClick={addPerson}
+                            disabled={persons.length >= MAX_PERSONS}
+                        >
+                            <Plus />
+                            Ajouter une personne
+                        </Button>
+                    </FormSection>
                 </form>
             </div>
 
@@ -465,7 +549,7 @@ export default function DocumentsCreate({
                     {form.processing ? <Spinner /> : <FileDown />}
                     {request
                         ? 'Enregistrer les modifications'
-                        : 'Créer la demande'}
+                        : 'Créer la liste'}
                 </Button>
             </FormActionBar>
         </>

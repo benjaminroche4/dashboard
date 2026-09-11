@@ -16,9 +16,12 @@ use Illuminate\Database\Seeder;
 
 /**
  * Biens et visites de développement : 12 biens (dont 6 suivis par un agent),
- * 9 visites pour les clients existants, chacune confiée à un membre de l'équipe :
- * 5 planifiées, 3 effectuées (2 avec compte rendu, 1 dont le compte rendu est
- * attendu et sera rappelé par `visits:remind-reports`), 1 annulée.
+ * et des visites pour les clients existants, chacune confiée à un membre de
+ * l'équipe. Les visites planifiées sont **groupées par journée** (trois jours
+ * de tournée de 3 à 4 visites, plus quelques visites isolées) : c'est ce qui
+ * fait vivre la carte du jour et l'itinéraire de la tournée. S'y ajoutent
+ * 3 visites effectuées (2 avec compte rendu, 1 dont le compte rendu est
+ * attendu et sera rappelé par `visits:remind-reports`) et 1 annulée.
  */
 final class PropertySeeder extends Seeder
 {
@@ -33,6 +36,10 @@ final class PropertySeeder extends Seeder
         Property::factory()->count(5)->located()->state($creator)->state($agent)->create();
         Property::factory()->located()->status(PropertyStatus::Rented)->state($creator)->state($agent)->create();
 
+        // Deux photos par bien : les vignettes des listes et la couverture des
+        // cartes n'ont d'intérêt que si le jeu de démonstration en a.
+        Property::query()->each(fn (Property $property): array => PropertyPhotos::attach($property));
+
         $clients = Lead::query()->where('status', LeadStatus::Converted)->inRandomOrder()->limit(5)->get();
 
         if ($clients->isEmpty()) {
@@ -45,7 +52,23 @@ final class PropertySeeder extends Seeder
             'property_id' => Property::query()->inRandomOrder()->value('id'),
         ];
 
-        foreach (range(1, 5) as $ignored) {
+        // Trois journées de tournée : plusieurs visites le même jour, à des
+        // heures ouvrables espacées, pour la carte du jour et son itinéraire.
+        $days = [now()->addDay(), now()->addDays(3), now()->addDays(8)];
+
+        foreach ($days as $index => $day) {
+            $hours = [9, 11, 14, 16];
+
+            foreach (array_slice($hours, 0, $index === 1 ? 4 : 3) as $hour) {
+                Visit::factory()->status(VisitStatus::Planned)->state($creator)->state($assignee)->create([
+                    ...$target(),
+                    'scheduled_at' => $day->copy()->setTime($hour, 0),
+                ]);
+            }
+        }
+
+        // Quelques visites isolées, ailleurs dans les trois semaines à venir.
+        foreach (range(1, 3) as $ignored) {
             Visit::factory()->status(VisitStatus::Planned)->state($creator)->state($assignee)->create($target());
         }
 

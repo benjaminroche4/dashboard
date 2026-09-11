@@ -1,4 +1,4 @@
-import { Building2, Check, House, Plus } from 'lucide-react';
+import { Building2, House, Plus } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { SearchSelect } from '@/components/search-select';
 import { Label } from '@/components/ui/label';
@@ -40,8 +40,8 @@ export function PropertyThumb({
     return photo ? (
         <img
             src={photo}
-            alt=""
-            aria-label={`Photo de ${label}`}
+            alt={`Photo de ${label}`}
+            loading="lazy"
             className={cn('size-8 shrink-0 rounded-md object-cover', className)}
         />
     ) : (
@@ -68,6 +68,7 @@ export function PropertyPicker({
     propertyId,
     onPropertyChange,
     error,
+    lockExisting = false,
 }: {
     source: PropertySource;
     onSourceChange: (source: PropertySource) => void;
@@ -75,10 +76,12 @@ export function PropertyPicker({
     propertyId: string;
     onPropertyChange: (id: string) => void;
     error?: string;
+    /** Modification d'une visite : le bien se choisit dans l'annuaire. */
+    lockExisting?: boolean;
 }) {
     return (
         <div className="grid gap-4">
-            <div className="grid gap-2">
+            <div className={cn('grid gap-2', lockExisting && 'hidden')}>
                 <Label id="visit-source-label">Bien à visiter</Label>
                 <div
                     role="radiogroup"
@@ -100,38 +103,39 @@ export function PropertyPicker({
                                 disabled={disabled}
                                 onClick={() => onSourceChange(value)}
                                 className={cn(
-                                    'focus-visible:ring-ring/50 flex items-center gap-3 rounded-lg border p-3 text-left transition-colors outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50',
+                                    'focus-visible:ring-ring/50 flex items-start gap-3 rounded-xl border p-3 text-left transition-colors outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50',
                                     active
-                                        ? 'border-primary bg-primary/5'
+                                        ? 'border-primary/40 bg-muted'
                                         : 'hover:bg-accent/60',
                                 )}
                             >
-                                <span
-                                    className={cn(
-                                        'flex size-9 shrink-0 items-center justify-center rounded-md',
-                                        active
-                                            ? 'bg-primary text-primary-foreground'
-                                            : 'bg-muted text-muted-foreground',
-                                    )}
-                                >
-                                    <Icon className="size-4" aria-hidden />
-                                </span>
-                                <span className="grid min-w-0 flex-1 gap-0.5">
+                                <Icon
+                                    className="text-foreground mt-0.5 size-5 shrink-0"
+                                    aria-hidden
+                                />
+                                <span className="grid min-w-0 flex-1 gap-1">
                                     <span className="text-sm font-medium">
                                         {label}
                                     </span>
-                                    <span className="text-muted-foreground text-xs">
+                                    <span className="text-muted-foreground text-sm">
                                         {disabled
                                             ? 'L’annuaire est vide'
                                             : hint}
                                     </span>
                                 </span>
-                                {active && (
-                                    <Check
-                                        className="text-primary size-4 shrink-0"
-                                        aria-hidden
-                                    />
-                                )}
+                                <span
+                                    aria-hidden
+                                    className={cn(
+                                        'mt-1 flex size-4 shrink-0 items-center justify-center rounded-full border',
+                                        active
+                                            ? 'bg-primary border-primary'
+                                            : 'bg-background',
+                                    )}
+                                >
+                                    {active && (
+                                        <span className="bg-background size-1.5 rounded-full" />
+                                    )}
+                                </span>
                             </button>
                         );
                     })}

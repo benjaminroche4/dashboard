@@ -47,7 +47,7 @@ test('it e-mails the recap, the payment link and the contract link, then logs a 
     $links = resolve(SendLeadDossier::class)->handle($lead, [LeadMailItem::Recap, LeadMailItem::PaymentLink, LeadMailItem::ContractLink], $staff);
 
     expect($links)->toBe(['payment_url' => 'https://payment.relocation-in-paris.fr/b/4gMaEZ9h1dKrcCr7zy7EQ0N', 'contract_url' => 'https://yousign.app/sign/abc']);
-    Mail::assertSent(LeadDossierSent::class, fn (LeadDossierSent $mail): bool => $mail->hasTo('lea@example.com')
+    Mail::assertQueued(LeadDossierSent::class, fn (LeadDossierSent $mail): bool => $mail->hasTo('lea@example.com')
         && $mail->paymentUrl === 'https://payment.relocation-in-paris.fr/b/4gMaEZ9h1dKrcCr7zy7EQ0N'
         && $mail->contractUrl === 'https://yousign.app/sign/abc'
         && in_array(LeadMailItem::Recap, $mail->items, true));
@@ -68,8 +68,8 @@ test('the e-mail is written in the lead’s contact language', function (): void
     resolve(SendLeadDossier::class)->handle($english, [LeadMailItem::Recap]);
     resolve(SendLeadDossier::class)->handle($french, [LeadMailItem::Recap]);
 
-    Mail::assertSent(LeadDossierSent::class, fn (LeadDossierSent $mail): bool => $mail->hasTo('emma@example.com') && $mail->locale === 'en');
-    Mail::assertSent(LeadDossierSent::class, fn (LeadDossierSent $mail): bool => $mail->hasTo('lea@example.com') && $mail->locale === 'fr');
+    Mail::assertQueued(LeadDossierSent::class, fn (LeadDossierSent $mail): bool => $mail->hasTo('emma@example.com') && $mail->locale === 'en');
+    Mail::assertQueued(LeadDossierSent::class, fn (LeadDossierSent $mail): bool => $mail->hasTo('lea@example.com') && $mail->locale === 'fr');
 
     $rendered = (new LeadDossierSent($english, [LeadMailItem::Recap]))->locale('en')->render();
     expect($rendered)->toContain('Hello Emma, here is the summary')->toContain('Desired move-in')->toContain('early November 2026')->toContain('>1st<')->toContain('>3rd<')
@@ -96,7 +96,7 @@ test('the recap alone needs no external service, and replies go to the advisor',
 
     expect($links)->toBe(['payment_url' => null, 'contract_url' => null]);
     // Domaine vérifié : l'e-mail part de l'adresse du conseiller.
-    Mail::assertSent(LeadDossierSent::class, fn (LeadDossierSent $mail): bool => $mail->hasReplyTo('camille@relocation-in-paris.fr', 'Camille')
+    Mail::assertQueued(LeadDossierSent::class, fn (LeadDossierSent $mail): bool => $mail->hasReplyTo('camille@relocation-in-paris.fr', 'Camille')
         // hasFrom() lit aussi l'enveloppe (sans expéditeur ici) : on vérifie l'expéditeur posé sur le mailable.
         && ($mail->from[0]['address'] ?? null) === 'camille@relocation-in-paris.fr'
         && ($mail->from[0]['name'] ?? null) === 'Camille · Relocation in Paris');
@@ -105,7 +105,7 @@ test('the recap alone needs no external service, and replies go to the advisor',
     $dev = User::factory()->create(['name' => 'Admin', 'email' => 'admin@admin.fr']);
     $other = Lead::factory()->create(['email' => 'max@example.com', 'assigned_to' => $dev->id]);
     resolve(SendLeadDossier::class)->handle($other, [LeadMailItem::Recap]);
-    Mail::assertSent(LeadDossierSent::class, fn (LeadDossierSent $mail): bool => $mail->hasTo('max@example.com')
+    Mail::assertQueued(LeadDossierSent::class, fn (LeadDossierSent $mail): bool => $mail->hasTo('max@example.com')
         && ($mail->from[0]['address'] ?? null) === 'contact@relocation-in-paris.fr'
         && $mail->hasReplyTo('admin@admin.fr', 'Admin'));
     expect(SendLeadDossier::canSendAs('Charles@Relocation-In-Paris.fr'))->toBeTrue()
@@ -124,7 +124,7 @@ test('it refuses a lead without e-mail, an empty selection, and a missing offer'
     expect(fn () => resolve(SendLeadDossier::class)->handle($lead, [LeadMailItem::PaymentLink]))
         ->toThrow(ValidationException::class, 'formule');
 
-    Mail::assertNothingSent();
+    Mail::assertNothingQueued();
 });
 
 test('the payment link follows the plan and the language, and refuses a deposit on Accompagné', function (): void {
@@ -132,7 +132,7 @@ test('the payment link follows the plan and the language, and refuses a deposit 
     $links = resolve(SendLeadDossier::class)->handle($english, [LeadMailItem::PaymentLink], null, PaymentPlan::Deposit);
 
     expect($links['payment_url'])->toBe('https://payment.relocation-in-paris.fr/b/6oU00ldxhfSzauj3ji7EQ0u');
-    Mail::assertSent(LeadDossierSent::class, fn (LeadDossierSent $mail): bool => $mail->plan === PaymentPlan::Deposit
+    Mail::assertQueued(LeadDossierSent::class, fn (LeadDossierSent $mail): bool => $mail->plan === PaymentPlan::Deposit
         && str_contains($mail->locale('en')->render(), '50% deposit on')
         && str_contains($mail->locale('en')->render(), 'Confirm my Confié package'));
     expect($english->notes()->first()?->body)->toContain('acompte de 50 %');

@@ -1,10 +1,12 @@
 import { Link } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown } from 'lucide-react';
+import { CountryFlag } from '@/components/country-flag';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DocumentRequestRowActions } from '@/components/documents/document-request-row-actions';
 import { show as documentsShow } from '@/routes/tools/documents';
+import { languageFlag } from '@/lib/language-flag';
 import type { DocumentRequestSummary } from '@/types';
 
 const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
@@ -96,6 +98,12 @@ export const documentColumns: ColumnDef<DocumentRequestSummary>[] = [
     {
         accessorKey: 'language_label',
         header: 'Langue',
+        cell: ({ row }) => (
+            <span className="flex items-center gap-2">
+                <CountryFlag code={languageFlag(row.original.language)} />
+                {row.original.language_label}
+            </span>
+        ),
     },
     {
         accessorKey: 'person_count',

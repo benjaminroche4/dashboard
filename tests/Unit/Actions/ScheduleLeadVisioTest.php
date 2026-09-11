@@ -63,7 +63,7 @@ test('it creates the Meet event in the advisor agenda and e-mails the invitation
         && collect($request['attendees'])->pluck('email')->all() === ['emma@example.com', 'charles@relocation-in-paris.fr']
         && $request['conferenceData']['createRequest']['conferenceSolutionKey']['type'] === 'hangoutsMeet');
 
-    Mail::assertSent(LeadVisioScheduled::class, function (LeadVisioScheduled $mail): bool {
+    Mail::assertQueued(LeadVisioScheduled::class, function (LeadVisioScheduled $mail): bool {
         $rendered = $mail->locale('en')->render();
 
         return $mail->hasTo('emma@example.com')
@@ -94,7 +94,7 @@ test('without Google Calendar the ICS invitation still goes out, from the centra
 
     Http::assertNothingSent();
     expect($lead->refresh()->visio_event_id)->toBeNull()->and($lead->visio_meet_link)->toBeNull();
-    Mail::assertSent(LeadVisioScheduled::class, function (LeadVisioScheduled $mail): bool {
+    Mail::assertQueued(LeadVisioScheduled::class, function (LeadVisioScheduled $mail): bool {
         $attachment = $mail->attachments()[0] ?? null;
         $rendered = $mail->locale('fr')->render();
 
@@ -113,7 +113,7 @@ test('rescheduling patches the same event and says so', function (): void {
     resolve(ScheduleLeadVisio::class)->handle($lead, CarbonImmutable::parse('2026-10-15 11:00', 'Europe/Paris'));
 
     Http::assertSent(fn ($request): bool => $request->method() === 'PATCH' && str_contains($request->url(), '/events/evt_1'));
-    Mail::assertSent(LeadVisioScheduled::class, fn (LeadVisioScheduled $mail): bool => $mail->rescheduled);
+    Mail::assertQueued(LeadVisioScheduled::class, fn (LeadVisioScheduled $mail): bool => $mail->rescheduled);
     expect($lead->refresh()->notes()->first()?->body)->toStartWith('Visio déplacée au');
 });
 
@@ -122,5 +122,5 @@ test('it refuses a lead without e-mail', function (): void {
 
     expect(fn () => resolve(ScheduleLeadVisio::class)->handle($lead, CarbonImmutable::parse('2026-10-14 10:00')))
         ->toThrow(ValidationException::class, 'e-mail');
-    Mail::assertNothingSent();
+    Mail::assertNothingQueued();
 });

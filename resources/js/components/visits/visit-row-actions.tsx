@@ -1,4 +1,4 @@
-import { router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { MoreHorizontal } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -19,8 +19,16 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { VisitReportDialog } from '@/components/visits/visit-report-dialog';
-import { destroy, update } from '@/routes/clients/visits';
+import { destroy, edit, show, update } from '@/routes/clients/visits';
 import type { Visit, VisitStatus } from '@/types';
+
+const visitDateTime = new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+});
 
 /** Visite visée par le lien « Rédiger le compte rendu » de l'e-mail de rappel (`?report=UUID`). */
 function reportRequested(uuid: string): boolean {
@@ -41,6 +49,7 @@ export function VisitRowActions({ visit }: { visit: Visit }) {
     const { auth } = usePage().props;
     const canDelete = auth.user.role === 'admin';
     const [deleting, setDeleting] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
     const [reporting, setReporting] = useState(false);
     const [busy, setBusy] = useState(false);
 
@@ -51,12 +60,29 @@ export function VisitRowActions({ visit }: { visit: Visit }) {
         }
     }, [visit.uuid]);
 
+    const visitMoment = visitDateTime.format(new Date(visit.scheduled_at));
+
     const setStatus = (status: VisitStatus) =>
         router.patch(
             update({ visit: visit.uuid }).url,
             { status },
             { preserveScroll: true },
         );
+
+    const cancel = () => {
+        setBusy(true);
+        router.patch(
+            update({ visit: visit.uuid }).url,
+            { status: 'cancelled' },
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setBusy(false);
+                    setCancelling(false);
+                },
+            },
+        );
+    };
 
     const remove = () => {
         setBusy(true);
@@ -83,6 +109,14 @@ export function VisitRowActions({ visit }: { visit: Visit }) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                    <DropdownMenuItem asChild>
+                        <Link href={show({ visit: visit.uuid })}>
+                            Voir la fiche
+                        </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                        <Link href={edit({ visit: visit.uuid })}>Modifier</Link>
+                    </DropdownMenuItem>
                     {visit.status !== 'cancelled' && (
                         <DropdownMenuItem onSelect={() => setReporting(true)}>
                             {visit.report
@@ -96,9 +130,7 @@ export function VisitRowActions({ visit }: { visit: Visit }) {
                         </DropdownMenuItem>
                     )}
                     {visit.status !== 'cancelled' && (
-                        <DropdownMenuItem
-                            onSelect={() => setStatus('cancelled')}
-                        >
+                        <DropdownMenuItem onSelect={() => setCancelling(true)}>
                             Annuler la visite
                         </DropdownMenuItem>
                     )}
@@ -126,6 +158,33 @@ export function VisitRowActions({ visit }: { visit: Visit }) {
                 open={reporting}
                 onOpenChange={setReporting}
             />
+
+            <Dialog open={cancelling} onOpenChange={setCancelling}>
+                <DialogContent>
+                    <DialogTitle>
+                        Annuler la visite de {visit.client.name} ?
+                    </DialogTitle>
+                    <DialogDescription>
+                        La visite du {visitMoment} passe en « Annulée ». Le
+                        client n’est pas prévenu automatiquement : prévenez-le
+                        de votre côté. Vous pourrez la replanifier ensuite.
+                    </DialogDescription>
+                    <DialogFooter className="gap-2">
+                        <DialogClose asChild>
+                            <Button variant="secondary">
+                                Garder la visite
+                            </Button>
+                        </DialogClose>
+                        <Button
+                            variant="destructive"
+                            disabled={busy}
+                            onClick={cancel}
+                        >
+                            Annuler la visite
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={deleting} onOpenChange={setDeleting}>
                 <DialogContent>

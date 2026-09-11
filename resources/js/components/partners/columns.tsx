@@ -2,14 +2,17 @@ import { Link } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown } from 'lucide-react';
 import { CreatedBy } from '@/components/created-by';
+import { FavoriteStar } from '@/components/favorite-star';
 import { formatAddress } from '@/components/real-estate/columns';
 import { RealEstateRowActions } from '@/components/real-estate/real-estate-row-actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { partnerTypeIcons } from '@/lib/partner-type-icons';
 import { cn } from '@/lib/utils';
 import {
     destroy as partnerDestroy,
+    favorite as partnerFavorite,
     show as partnerShow,
 } from '@/routes/partners';
 import type { Partner, PartnerType } from '@/types';
@@ -73,6 +76,30 @@ export function partnerColumns(
 ): ColumnDef<Partner>[] {
     return [
         {
+            id: 'select',
+            header: ({ table }) => (
+                <Checkbox
+                    checked={
+                        table.getIsAllPageRowsSelected() ||
+                        (table.getIsSomePageRowsSelected() && 'indeterminate')
+                    }
+                    onCheckedChange={(value) =>
+                        table.toggleAllPageRowsSelected(!!value)
+                    }
+                    aria-label="Tout sélectionner"
+                />
+            ),
+            cell: ({ row }) => (
+                <Checkbox
+                    checked={row.getIsSelected()}
+                    onCheckedChange={(value) => row.toggleSelected(!!value)}
+                    aria-label={`Sélectionner ${row.original.name}`}
+                />
+            ),
+            enableSorting: false,
+            enableHiding: false,
+        },
+        {
             accessorKey: 'name',
             header: ({ column }) => (
                 <SortableHeader
@@ -84,12 +111,15 @@ export function partnerColumns(
             ),
             cell: ({ row }) => (
                 <div className="grid">
-                    <Link
-                        href={partnerShow({ partner: row.original.uuid })}
-                        className="font-medium hover:underline"
-                    >
-                        {row.original.name}
-                    </Link>
+                    <span className="flex items-center gap-1.5">
+                        <Link
+                            href={partnerShow({ partner: row.original.uuid })}
+                            className="font-medium hover:underline"
+                        >
+                            {row.original.name}
+                        </Link>
+                        <FavoriteStar favorite={row.original.is_favorite} />
+                    </span>
                     {row.original.website && (
                         <a
                             href={row.original.website}
@@ -200,6 +230,12 @@ export function partnerColumns(
                         deleteTitle={`Supprimer le partenaire ${row.original.name} ?`}
                         deleteDescription="Sa fiche sera effacée. Cette action est irréversible."
                         onEdit={() => onEdit(row.original)}
+                        favorite={{
+                            active: row.original.is_favorite,
+                            url: partnerFavorite({
+                                partner: row.original.uuid,
+                            }).url,
+                        }}
                     />
                 </div>
             ),

@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { type ReactNode, useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { post, patch, del, setData } = vi.hoisted(() => ({
+const { post, patch, del, setData, get } = vi.hoisted(() => ({
+    get: vi.fn(),
     post: vi.fn(),
     patch: vi.fn(),
     del: vi.fn(),
@@ -28,7 +29,7 @@ vi.mock('@inertiajs/react', () => ({
             {children}
         </a>
     ),
-    router: { delete: del, post },
+    router: { delete: del, post, get },
     usePage: () => ({
         props: {
             auth: { user: { role: 'admin' } },
@@ -62,6 +63,13 @@ function useFormStub(initial: Record<string, string>) {
 import Agents from '@/pages/real-estate/agents';
 import { agencyOptions, makeAgent } from '@/test/fixtures/real-estate';
 
+/** Props du mode serveur : la liste est paginée par le serveur. */
+const serverProps = (total: number) => ({
+    pagination: { current_page: 1, last_page: 1, per_page: 50, total },
+    filters: { q: '', sort: 'name', dir: 'asc' as const, favorites: '' },
+    favoritesCount: 1,
+});
+
 describe('Agents page', () => {
     beforeEach(() => {
         post.mockClear();
@@ -92,6 +100,7 @@ describe('Agents page', () => {
                     }),
                 ]}
                 agencies={agencyOptions}
+                {...serverProps(2)}
             />,
         );
 
@@ -115,7 +124,13 @@ describe('Agents page', () => {
 
     it('adds an agent with capitalised names and edits one with its agency preselected', async () => {
         const user = userEvent.setup();
-        render(<Agents agents={[makeAgent()]} agencies={agencyOptions} />);
+        render(
+            <Agents
+                agents={[makeAgent()]}
+                agencies={agencyOptions}
+                {...serverProps(2)}
+            />,
+        );
 
         await user.click(screen.getByRole('button', { name: 'Nouvel agent' }));
         const dialog = screen.getByRole('dialog', { name: 'Nouvel agent' });
@@ -174,6 +189,35 @@ describe('Agents page', () => {
         );
     });
 
+    it('keeps the phone on its own row and records the quality of the relationship', async () => {
+        const user = userEvent.setup();
+        render(
+            <Agents
+                agents={[makeAgent()]}
+                agencies={agencyOptions}
+                {...serverProps(1)}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Nouvel agent' }));
+        const dialog = within(
+            screen.getByRole('dialog', { name: 'Nouvel agent' }),
+        );
+
+        // Le téléphone occupe sa propre ligne, hors de la grille à deux colonnes.
+        const phone = dialog.getByLabelText('Téléphone');
+        expect(phone.closest('.sm\\:grid-cols-2')).toBeNull();
+
+        await user.click(dialog.getByLabelText('Qualité de la relation'));
+        await user.click(
+            await screen.findByRole('option', { name: 'Excellente' }),
+        );
+        expect(setData).toHaveBeenCalledWith(
+            'relationship_quality',
+            'excellent',
+        );
+    });
+
     it('shows a star per agent and restricts the list to the favorites', async () => {
         const user = userEvent.setup();
         render(
@@ -190,44 +234,36 @@ describe('Agents page', () => {
                     }),
                 ]}
                 agencies={agencyOptions}
+                {...serverProps(2)}
             />,
         );
 
-        expect(
-            screen.getByRole('button', {
-                name: 'Retirer Zoé Martin des favoris',
-            }),
-        ).toHaveAttribute('aria-pressed', 'true');
-        expect(
-            screen.getByRole('button', {
-                name: 'Ajouter Ali Bensaïd aux favoris',
-            }),
-        ).toHaveAttribute('aria-pressed', 'false');
+        // Une seule étoile : celle de Zoé Martin, à côté de son nom.
+        expect(screen.getAllByRole('img', { name: 'Favori' })).toHaveLength(1);
 
-        const filter = screen.getByRole('button', { name: 'Favoris (1)' });
-        await user.click(filter);
-        expect(filter).toHaveAttribute('aria-pressed', 'true');
-        expect(
-            screen.getByRole('link', { name: 'Zoé Martin' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('link', { name: 'Ali Bensaïd' }),
-        ).not.toBeInTheDocument();
+        // Le filtre « Favoris » est un filtre serveur : il repart en visite.
+        await user.click(screen.getByRole('button', { name: 'Favoris (1)' }));
+        expect(get).toHaveBeenCalledWith(
+            '/real-estate/agents',
+            expect.objectContaining({ favorites: '1' }),
+            expect.objectContaining({ preserveState: true }),
+        );
 
         await user.click(
-            screen.getByRole('button', {
-                name: 'Retirer Zoé Martin des favoris',
-            }),
+            screen.getByRole('button', { name: 'Actions pour Zoé Martin' }),
         );
+        const favorite = await screen.findByRole('menuitem', {
+            name: 'Favoris',
+        });
+        // Un favori déjà posé porte une coche, poussée à droite de l'entrée.
+        expect(favorite.className).toContain('justify-between');
+        expect(favorite.querySelector('svg')).not.toBeNull();
+
+        await user.click(favorite);
         expect(post).toHaveBeenCalledWith(
-            '/real-estate/agents/0199a9a0-0000-7000-8000-0000000000b1/favorite',
+            expect.stringContaining('/favorite'),
             {},
             expect.objectContaining({ preserveScroll: true }),
         );
-
-        await user.click(filter);
-        expect(
-            screen.getByRole('link', { name: 'Ali Bensaïd' }),
-        ).toBeInTheDocument();
     });
 });

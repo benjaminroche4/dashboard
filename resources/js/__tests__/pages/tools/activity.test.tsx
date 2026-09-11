@@ -26,6 +26,7 @@ import ActivityIndex, { dayLabel, groupByDay } from '@/pages/tools/activity';
 import { show as leadShow } from '@/routes/leads';
 import {
     activityMembers,
+    activityPeriods,
     activityResources,
     makeActivity,
     makeActivityPage,
@@ -36,7 +37,8 @@ const now = new Date('2026-09-08T14:00:00+02:00');
 const props = {
     members: activityMembers,
     resources: activityResources,
-    filters: { member: null, resource: null, lead: null },
+    periods: activityPeriods,
+    filters: { period: 'month', member: null, resource: null, lead: null },
     lead: null,
 };
 
@@ -139,6 +141,7 @@ describe('Activity log page', () => {
                 {...props}
                 activities={makeActivityPage({ data: [], total: 0 })}
                 filters={{
+                    period: 'month',
                     member: null,
                     resource: null,
                     lead: '0199a9a0-0000-7000-8000-0000000000e1',
@@ -152,7 +155,7 @@ describe('Activity log page', () => {
         );
 
         expect(
-            screen.getByText('Aucune activité pour ces filtres.'),
+            screen.getByText('Aucune activité sur cette période.'),
         ).toBeInTheDocument();
         expect(
             screen.getByRole('link', { name: 'Léa Durand' }),
@@ -173,7 +176,12 @@ describe('Activity log page', () => {
             <ActivityIndex
                 {...props}
                 activities={makeActivityPage()}
-                filters={{ member: 2, resource: null, lead: 'lead-uuid' }}
+                filters={{
+                    period: 'month',
+                    member: 2,
+                    resource: null,
+                    lead: 'lead-uuid',
+                }}
             />,
         );
 
@@ -186,7 +194,7 @@ describe('Activity log page', () => {
             await screen.findByRole('option', { name: 'Factures' }),
         );
         expect(get).toHaveBeenCalledWith(
-            '/tools/activity?member=2&resource=invoices&lead=lead-uuid',
+            '/tools/activity?period=month&member=2&resource=invoices&lead=lead-uuid',
             {},
             expect.objectContaining({ preserveState: true }),
         );
@@ -196,7 +204,37 @@ describe('Activity log page', () => {
             await screen.findByRole('option', { name: 'Tous les membres' }),
         );
         expect(get).toHaveBeenLastCalledWith(
-            '/tools/activity?lead=lead-uuid',
+            '/tools/activity?period=month&lead=lead-uuid',
+            {},
+            expect.objectContaining({ preserveState: true }),
+        );
+    });
+
+    it('filters by period and drops the default from the query', async () => {
+        const user = userEvent.setup({
+            advanceTimers: vi.advanceTimersByTime,
+        });
+        render(<ActivityIndex {...props} activities={makeActivityPage()} />);
+
+        const period = screen.getByRole('combobox', { name: 'Période' });
+        expect(period).toHaveTextContent('30 derniers jours');
+
+        await user.click(period);
+        await user.click(
+            await screen.findByRole('option', { name: '7 derniers jours' }),
+        );
+        expect(get).toHaveBeenCalledWith(
+            '/tools/activity?period=week',
+            {},
+            expect.objectContaining({ preserveState: true }),
+        );
+
+        await user.click(screen.getByRole('combobox', { name: 'Période' }));
+        await user.click(
+            await screen.findByRole('option', { name: 'Depuis le début' }),
+        );
+        expect(get).toHaveBeenLastCalledWith(
+            '/tools/activity?period=all',
             {},
             expect.objectContaining({ preserveState: true }),
         );
@@ -216,24 +254,30 @@ describe('Activity log page', () => {
                     prev_page_url: '/tools/activity?page=1',
                     next_page_url: '/tools/activity?page=3',
                 })}
-                filters={{ member: null, resource: 'leads', lead: null }}
+                filters={{
+                    period: 'month',
+                    member: null,
+                    resource: 'leads',
+                    lead: null,
+                }}
             />,
         );
 
         expect(
             screen.getByRole('navigation', { name: 'Pagination' }),
-        ).toHaveTextContent('Page 2 sur 3 · 120 entrées');
+        ).toHaveTextContent('Page 2 sur 3');
+        expect(screen.getByText('120 entrées')).toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: 'Suivant' }));
+        await user.click(screen.getByRole('button', { name: 'Page 3' }));
         expect(get).toHaveBeenCalledWith(
-            '/tools/activity?resource=leads&page=3',
+            '/tools/activity?period=month&resource=leads&page=3',
             {},
             expect.objectContaining({ preserveState: true }),
         );
 
-        await user.click(screen.getByRole('button', { name: 'Précédent' }));
+        await user.click(screen.getByRole('button', { name: 'Page 1' }));
         expect(get).toHaveBeenLastCalledWith(
-            '/tools/activity?resource=leads',
+            '/tools/activity?period=month&resource=leads',
             {},
             expect.objectContaining({ preserveState: true }),
         );

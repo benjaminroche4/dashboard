@@ -4,15 +4,12 @@ declare(strict_types=1);
 
 use App\Actions\Documents\DeleteCatalogDocument;
 use App\Actions\Leads\AddLeadNote;
-use App\Actions\Owners\UpdateOwner;
-use App\Data\OwnerData;
-use App\Enums\OwnerStatus;
+use App\Enums\Offer;
 use App\Enums\SiteSection;
 use App\Events\DashboardUpdated;
 use App\Models\CatalogDocument;
 use App\Models\DocumentRequest;
 use App\Models\Lead;
-use App\Models\Owner;
 use App\Models\User;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Validation\ValidationException;
@@ -102,7 +99,8 @@ test('a mention needs a word boundary: @Admin 2 does not mention @Admin', functi
 test('a visit is only scheduled for a client and a new property needs the property right', function (): void {
     $member = User::factory()->create(['permissions' => ['properties' => 'read']]);
     $open = Lead::factory()->create();
-    $client = Lead::factory()->converted()->create();
+    // Formule « Accompagné » : le membre qui réalise la visite n'est pas exigé.
+    $client = Lead::factory()->converted()->create(['offer' => Offer::Accompagne]);
 
     $this->actingAs($member)
         ->from(route('clients.visits'))
@@ -114,11 +112,7 @@ test('a visit is only scheduled for a client and a new property needs the proper
         ->assertForbidden();
 });
 
-test('any owner status change out of « to contact » dates the last contact, and the first contact of a lead is kept', function (): void {
-    $owner = Owner::factory()->create(['status' => OwnerStatus::Contacted, 'last_contacted_at' => null, 'first_name' => 'Ali', 'last_name' => 'Bensaïd', 'email' => 'ali@example.com']);
-    (new UpdateOwner)->handle($owner, OwnerData::from([...$owner->only(['first_name', 'last_name', 'email', 'phone', 'company', 'street', 'postal_code', 'city', 'property_count', 'notes']), 'status' => 'interested']));
-    expect($owner->fresh()->last_contacted_at)->not->toBeNull();
-
+test('the first contact of a lead is kept once it is dated', function (): void {
     $lead = Lead::factory()->create(['last_contacted_at' => null]);
     $lead->forceFill(['last_contacted_at' => '2026-09-01 10:00:00'])->save();
     $lead->forceFill(['last_contacted_at' => '2026-09-05 10:00:00'])->save();

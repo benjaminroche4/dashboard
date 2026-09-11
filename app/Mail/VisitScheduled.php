@@ -6,6 +6,7 @@ namespace App\Mail;
 
 use App\Models\Visit;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Attachment;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -16,7 +17,7 @@ use Illuminate\Queue\SerializesModels;
  * Confirmation de visite au client, dans sa langue, avec l'adresse du bien,
  * l'invitation ICS jointe et les liens « ajouter à l'agenda ». Charte du site RIP.
  */
-final class VisitScheduled extends Mailable
+final class VisitScheduled extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

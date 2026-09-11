@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Concerns\Favoritable;
 use App\Enums\AgentPosition;
+use App\Enums\RelationshipQuality;
 use App\Support\ContactMatch;
 use Carbon\CarbonInterface;
 use Database\Factories\AgentFactory;
@@ -27,6 +28,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $first_name
  * @property string $last_name
  * @property AgentPosition|null $position
+ * @property RelationshipQuality|null $relationship_quality
  * @property string|null $street
  * @property string|null $postal_code
  * @property string|null $city
@@ -36,11 +38,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int|null $created_by
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
+ * @property bool $is_primary
+ * @property CarbonInterface|null $last_contacted_at
+ * @property float|null $latitude
+ * @property float|null $longitude
  * @property-read Agency|null $agency
  * @property-read User|null $creator
  * @property-read Collection<int, Lead> $leads
+ * @property-read Collection<int, Visit> $visits
+ * @property int|null $visits_count
+ * @property string|null $visits_max_scheduled_at
  */
-#[Fillable(['agency_id', 'first_name', 'last_name', 'position', 'street', 'postal_code', 'city', 'email', 'phone', 'notes', 'created_by'])]
+#[Fillable(['agency_id', 'first_name', 'last_name', 'position', 'relationship_quality', 'is_primary', 'street', 'postal_code', 'city', 'email', 'phone', 'notes', 'latitude', 'longitude', 'last_contacted_at', 'created_by'])]
 class Agent extends Model
 {
     use Favoritable;
@@ -65,7 +74,7 @@ class Agent extends Model
      */
     protected function casts(): array
     {
-        return ['position' => AgentPosition::class];
+        return ['position' => AgentPosition::class, 'relationship_quality' => RelationshipQuality::class, 'latitude' => 'float', 'longitude' => 'float', 'last_contacted_at' => 'datetime', 'is_primary' => 'boolean'];
     }
 
     public function getRouteKeyName(): string
@@ -92,6 +101,16 @@ class Agent extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Visites faites avec cet agent, la plus récente d'abord.
+     *
+     * @return HasMany<Visit, $this>
+     */
+    public function visits(): HasMany
+    {
+        return $this->hasMany(Visit::class)->latest('scheduled_at');
     }
 
     /**

@@ -27,6 +27,7 @@ import {
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { agentPositions } from '@/lib/agent-positions';
+import { relationshipQualities } from '@/lib/relationship-quality';
 import { capitalizeName } from '@/lib/format';
 import { useContactDuplicates } from '@/hooks/use-contact-duplicates';
 import { duplicates as agentDuplicates, store, update } from '@/routes/agents';
@@ -42,6 +43,9 @@ type Props = {
     defaultAgencyId?: number | null;
 };
 
+/** Valeur du choix « Pas encore notée » (Radix refuse une valeur vide). */
+const NONE = '__none__';
+
 function initial(
     agent: Agent | null | undefined,
     defaultAgencyId: number | null,
@@ -55,12 +59,14 @@ function initial(
         first_name: agent?.first_name ?? '',
         last_name: agent?.last_name ?? '',
         position: agent?.position_value ?? '',
+        relationship_quality: agent?.relationship_quality ?? '',
         street: agent?.street ?? '',
         postal_code: agent?.postal_code ?? '',
         city: agent?.city ?? '',
         email: agent?.email ?? '',
         phone: agent?.phone ?? '',
         notes: agent?.notes ?? '',
+        is_primary: agent?.is_primary ?? false,
         notify: false,
     };
 }
@@ -95,6 +101,9 @@ export function AgentDialog({
     const submit = () => {
         const options = {
             preserveScroll: true,
+            // Le dialogue s'ouvre aussi depuis le formulaire d'un bien : la
+            // page ne doit pas être remontée, la saisie en cours serait perdue.
+            preserveState: true,
             onSuccess: () => onOpenChange(false),
         };
 
@@ -115,6 +124,7 @@ export function AgentDialog({
             | 'city'
             | 'position'
             | 'notify'
+            | 'is_primary'
         >,
         label: string,
         props: { type?: string; placeholder?: string; required?: boolean } = {},
@@ -216,22 +226,55 @@ export function AgentDialog({
                             form.setData({ ...form.data, ...address })
                         }
                     />
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div className="grid gap-2">
-                            <Label htmlFor="agent-phone">Téléphone</Label>
-                            <PhoneInput
-                                id="agent-phone"
-                                value={form.data.phone}
-                                onChange={(value) =>
-                                    form.setData('phone', value)
-                                }
-                            />
-                            <InputError message={form.errors.phone} />
-                        </div>
-                        {field('email', 'E-mail', {
-                            type: 'email',
-                            placeholder: 'prenom@agence.fr',
-                        })}
+                    <div className="grid gap-2">
+                        <Label htmlFor="agent-phone">Téléphone</Label>
+                        <PhoneInput
+                            id="agent-phone"
+                            value={form.data.phone}
+                            onChange={(value) => form.setData('phone', value)}
+                        />
+                        <InputError message={form.errors.phone} />
+                    </div>
+                    {field('email', 'E-mail', {
+                        type: 'email',
+                        placeholder: 'prenom@agence.fr',
+                    })}
+                    <div className="grid gap-2">
+                        <Label htmlFor="agent-relationship">
+                            Qualité de la relation
+                        </Label>
+                        <Select
+                            value={form.data.relationship_quality || NONE}
+                            onValueChange={(value) =>
+                                form.setData(
+                                    'relationship_quality',
+                                    value === NONE ? '' : value,
+                                )
+                            }
+                        >
+                            <SelectTrigger
+                                id="agent-relationship"
+                                className="w-full"
+                            >
+                                <SelectValue placeholder="Pas encore notée" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={NONE}>
+                                    Pas encore notée
+                                </SelectItem>
+                                {relationshipQualities.map((quality) => (
+                                    <SelectItem
+                                        key={quality.value}
+                                        value={quality.value}
+                                    >
+                                        {quality.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <InputError
+                            message={form.errors.relationship_quality}
+                        />
                     </div>
                     <ContactDuplicatesAlert
                         duplicates={duplicates}
@@ -250,6 +293,29 @@ export function AgentDialog({
                         />
                         <InputError message={form.errors.notes} />
                     </div>
+                    {/* Un agent principal ouvre la liste de son agence. */}
+                    <label
+                        htmlFor="agent-primary"
+                        className="bg-sidebar flex items-start gap-3 rounded-lg border p-3 text-sm"
+                    >
+                        <Checkbox
+                            id="agent-primary"
+                            checked={form.data.is_primary}
+                            onCheckedChange={(state) =>
+                                form.setData('is_primary', state === true)
+                            }
+                            className="mt-0.5"
+                        />
+                        <span className="grid gap-0.5">
+                            <span className="font-medium">
+                                Agent principal de l’agence
+                            </span>
+                            <span className="text-muted-foreground text-xs">
+                                Celui que l’équipe appelle en premier ; il passe
+                                en tête de la liste de son agence.
+                            </span>
+                        </span>
+                    </label>
                     {!editing && (
                         <label
                             htmlFor="agent-notify"

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Actions\Properties\GeocodeProperty;
+use App\Enums\Offer;
 use App\Events\DashboardUpdated;
 use App\Models\Lead;
 use App\Models\Property;
@@ -46,7 +47,7 @@ test('a scheduled visit on a new property geocodes it, and the visits page expos
     config()->set('services.google.maps_key', 'server-key');
     fakeGeocoding();
     $member = User::factory()->create();
-    $client = Lead::factory()->converted()->create();
+    $client = Lead::factory()->converted()->create(['offer' => Offer::Accompagne]);
 
     $this->actingAs($member)
         ->post(route('clients.visits.store'), [
@@ -92,7 +93,7 @@ test('the properties:geocode command locates the properties without coordinates'
 });
 
 test('a visit summary keeps null coordinates for an unlocated property', function (): void {
-    $client = Lead::factory()->converted()->create();
+    $client = Lead::factory()->converted()->create(['offer' => Offer::Accompagne]);
     $property = Property::factory()->create();
     Visit::factory()->create(['lead_id' => $client->id, 'property_id' => $property->id]);
 

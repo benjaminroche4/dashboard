@@ -1,3 +1,4 @@
+import type { OfferValue } from '@/types';
 export type ClientPriority = 'low' | 'normal' | 'high' | 'urgent';
 
 export type ClientPriorityOption = { value: ClientPriority; label: string };
@@ -11,6 +12,7 @@ export type Client = {
     company: string | null;
     email: string | null;
     phone: string | null;
+    offer: OfferValue | null;
     offer_label: string | null;
     priority: ClientPriority;
     priority_label: string;
@@ -20,6 +22,21 @@ export type Client = {
     /** Date de passage en « Converti » (ISO 8601). */
     converted_at: string | null;
     assignee: { id: number; name: string; avatar: string | null } | null;
+    /** Second locataire du foyer, quand le dossier en compte deux. */
+    co_tenant: {
+        first_name: string | null;
+        last_name: string | null;
+        name: string | null;
+        email: string | null;
+        phone: string | null;
+        income_cents: number | null;
+    } | null;
+    /** Second membre qui suit le dossier. */
+    co_assignee: { id: number; name: string; avatar: string | null } | null;
+    /** Revenus mensuels nets du foyer, en centimes. */
+    income_cents: number | null;
+    co_income_cents: number | null;
+    household_income_cents: number | null;
     invoices_count: number;
     document_requests_count: number;
 };
@@ -37,6 +54,44 @@ export type ClientDetail = Client & {
     guarantor_label: string | null;
     message: string | null;
     score: number | null;
+};
+
+/** Emplacement d'un locataire du dossier. */
+export type TenantSlot = 'primary' | 'co';
+
+/**
+ * Détails d'un locataire : état civil, titre de séjour et situation
+ * professionnelle. Un garant ou un membre du suivi n'en a pas.
+ */
+export type TenantProfile = {
+    name: string;
+    role: string;
+    birth_date: string | null;
+    nationality: string | null;
+    birth_place: string | null;
+    residency_status: string | null;
+    residency_label: string | null;
+    /** Faux pour un citoyen de l'UE : ni numéro ni validité à fournir. */
+    residency_needs_document: boolean;
+    residency_number: string | null;
+    residency_expires_at: string | null;
+    employment_status: string | null;
+    employment_label: string | null;
+    employer: string | null;
+    income_cents: number | null;
+};
+
+/** Garant du dossier, repris des listes de documents (personnes du foyer). */
+export type ClientGuarantor = {
+    uuid: string;
+    first_name: string;
+    last_name: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    /** Revenu mensuel net, en centimes. */
+    income_cents: number | null;
+    note: string | null;
 };
 
 /** Facturé, encaissé et reste dû d'un dossier, par devise (hors factures annulées). */
@@ -69,6 +124,8 @@ export type ClientProperty = {
     currency: string;
     listing_url: string | null;
     agent: string | null;
+    /** Client à qui le bien est attribué : il est pris, même par un autre dossier. */
+    assigned_lead: { uuid: string; name: string } | null;
     visits_count: number;
     /** Prochaine visite planifiée de ce client sur ce bien (ISO), ou null. */
     next_visit_at: string | null;

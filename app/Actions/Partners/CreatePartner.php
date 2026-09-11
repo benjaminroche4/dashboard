@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Partners;
 
+use App\Actions\Directory\GeocodeDirectoryEntry;
 use App\Actions\Directory\SendDirectoryWelcome;
 use App\Data\PartnerData;
 use App\Events\DashboardUpdated;
@@ -15,11 +16,17 @@ use App\Models\User;
  */
 final readonly class CreatePartner
 {
-    public function __construct(private SendDirectoryWelcome $welcome = new SendDirectoryWelcome) {}
+    public function __construct(
+        private SendDirectoryWelcome $welcome = new SendDirectoryWelcome,
+        private ?GeocodeDirectoryEntry $geocode = null,
+    ) {}
 
     public function handle(PartnerData $data, ?User $by = null, bool $notify = false): Partner
     {
         $partner = Partner::query()->create([...$data->toArray(), 'created_by' => $by?->id]);
+
+        // Position pour la carte : sans clé ni adresse, l'entrée reste sans position.
+        ($this->geocode ?? resolve(GeocodeDirectoryEntry::class))->handle($partner);
 
         if ($notify && $partner->email !== null) {
             $this->welcome->handle($partner->email, $partner->name, "partenaire · {$partner->type->label()}", $partner->phone, $by);

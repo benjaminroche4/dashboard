@@ -5,28 +5,17 @@ declare(strict_types=1);
 namespace App\Actions\Owners;
 
 use App\Data\OwnerData;
-use App\Enums\OwnerStatus;
 use App\Events\DashboardUpdated;
 use App\Models\Owner;
 
 /**
- * Modifie un propriétaire. Passer de « À contacter » à un autre statut
- * date le dernier contact.
+ * Modifie un propriétaire de l'annuaire.
  */
 final class UpdateOwner
 {
     public function handle(Owner $owner, OwnerData $data): Owner
     {
-        // Tout changement de statut vers un état « contacté » date le dernier contact.
-        $touched = $owner->status !== $data->status && $data->status !== OwnerStatus::ToContact;
-
-        $owner->fill($data->toArray());
-
-        if ($touched) {
-            $owner->last_contacted_at = now();
-        }
-
-        $owner->save();
+        $owner->fill($data->toArray())->save();
 
         event(new DashboardUpdated('owners', ['id' => $owner->id], "a modifié le propriétaire {$owner->fullName()}"));
 

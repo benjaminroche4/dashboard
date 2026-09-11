@@ -28,7 +28,7 @@ test('staff schedule a video call from the lead page', function (): void {
         ->assertRedirect(route('leads.show', $lead))
         ->assertSessionHasNoErrors();
 
-    Mail::assertSent(LeadVisioScheduled::class, fn (LeadVisioScheduled $mail): bool => $mail->hasTo('lea@example.com'));
+    Mail::assertQueued(LeadVisioScheduled::class, fn (LeadVisioScheduled $mail): bool => $mail->hasTo('lea@example.com'));
     expect($lead->refresh()->visio_at?->format('H:i'))->toBe('10:00');
 
     $this->actingAs($user)
@@ -49,7 +49,7 @@ test('the date is required, well formed and in the future', function (): void {
     $this->actingAs($user)->from(route('leads.show', $lead))
         ->post(route('leads.visio', $lead), ['visio_at' => now()->subDay()->format('Y-m-d\TH:i')])->assertSessionHasErrors('visio_at');
 
-    Mail::assertNothingSent();
+    Mail::assertNothingQueued();
 });
 
 test('guests cannot schedule', function (): void {

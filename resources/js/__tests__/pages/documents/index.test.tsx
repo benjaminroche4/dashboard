@@ -35,26 +35,34 @@ describe('Documents index page', () => {
                     makeDocumentRequest({
                         id: 2,
                         name: 'John Doe',
+                        language: 'en',
                         language_label: 'Anglais',
                     }),
                 ]}
             />,
         );
 
-        expect(screen.getByText('2 demande(s)')).toBeInTheDocument();
+        expect(screen.getByText('2 liste(s)')).toBeInTheDocument();
         expect(
             screen.getByRole('link', { name: 'Léa Martin' }),
         ).toHaveAttribute(
             'href',
             '/tools/documents/0199b0c0-0000-7000-8000-000000000001',
         );
+        // Un drapeau par langue, à côté de son libellé.
+        const flags = document.querySelectorAll('[data-country]');
+        expect(
+            [...flags].map((flag) => flag.getAttribute('data-country')),
+        ).toEqual(['FR', 'GB']);
+        expect(screen.getByText('Anglais')).toBeInTheDocument();
+
         expect(screen.queryByText('À envoyer')).toBeNull();
         expect(screen.queryByText('Statut')).toBeNull();
         expect(
             screen.getByRole('button', { name: 'Actions pour John Doe' }),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('link', { name: /Nouvelle demande/ }),
+            screen.getByRole('link', { name: /Nouvelle liste/ }),
         ).toHaveAttribute('href', '/tools/documents/create');
     });
 

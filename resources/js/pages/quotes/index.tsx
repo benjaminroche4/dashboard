@@ -1,6 +1,7 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 import { DataTable } from '@/components/data-table';
+import { QuoteBulkActions } from '@/components/quotes/quote-bulk-actions';
 import { quoteColumnLabels, quoteColumns } from '@/components/quotes/columns';
 import { Button } from '@/components/ui/button';
 import { index as toolsIndex } from '@/routes/tools';
@@ -58,6 +59,16 @@ export default function QuotesIndex({ quotes }: Props) {
                     filterPlaceholder="Filtrer par client…"
                     columnLabels={quoteColumnLabels}
                     frame="panel"
+                    bulkActions={
+                        canManage
+                            ? (rows, clear) => (
+                                  <QuoteBulkActions
+                                      quotes={rows}
+                                      onDone={clear}
+                                  />
+                              )
+                            : undefined
+                    }
                 />
             </div>
         </>

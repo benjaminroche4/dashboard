@@ -3,6 +3,7 @@ import { CalendarPlus, ExternalLink, Link2, Sparkles, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AiBadge } from '@/components/ai-badge';
 import InputError from '@/components/input-error';
+import { PropertyAssignmentBadge } from '@/components/properties/property-assignment';
 import { formatAddress } from '@/components/real-estate/columns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -217,6 +218,11 @@ export function ClientProperties({
                                     {property.next_visit_at &&
                                         ` · prochaine ${dateTime.format(new Date(property.next_visit_at))}`}
                                 </span>
+                                {/* Bien pris : on le voit ici aussi, même s'il l'est par un autre dossier. */}
+                                <PropertyAssignmentBadge
+                                    property={property}
+                                    className="mt-1 w-fit"
+                                />
                             </div>
                             <div className="flex shrink-0 items-center gap-1">
                                 <Button variant="outline" size="sm" asChild>

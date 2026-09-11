@@ -14,11 +14,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { downloadQuotePdf } from '@/lib/download-quote-pdf';
 import { show as invoiceShow } from '@/routes/invoices';
-import { accept, invoice, show } from '@/routes/tools/quotes';
+import { accept, edit, invoice, show } from '@/routes/tools/quotes';
 import type { Quote } from '@/types';
 
 /**
- * Menu « … » d'une ligne de la liste : voir, PDF, envoyer, accepter, refuser, facturer.
+ * Menu « … » d'une ligne de la liste : voir, modifier (devis en jeu), PDF,
+ * envoyer, accepter, refuser, facturer.
  */
 export function QuoteRowActions({
     quote,
@@ -53,6 +54,13 @@ export function QuoteRowActions({
                             Voir le devis
                         </Link>
                     </DropdownMenuItem>
+                    {canManage && quote.can_edit && (
+                        <DropdownMenuItem asChild>
+                            <Link href={edit({ quote: quote.uuid })}>
+                                Modifier
+                            </Link>
+                        </DropdownMenuItem>
+                    )}
                     {quote.invoice && (
                         <DropdownMenuItem asChild>
                             <Link

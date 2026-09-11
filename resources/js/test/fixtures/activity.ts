@@ -2,6 +2,7 @@ import type {
     Activity,
     ActivityMember,
     ActivityPage,
+    ActivityPeriodOption,
     ActivityResourceOption,
 } from '@/types';
 
@@ -45,4 +46,14 @@ export const activityMembers: ActivityMember[] = [
 export const activityResources: ActivityResourceOption[] = [
     { value: 'invoices', label: 'Factures' },
     { value: 'leads', label: 'Leads' },
+];
+
+/** Périodes du journal (miroir de App\Enums\ActivityPeriod::options()). */
+export const activityPeriods: ActivityPeriodOption[] = [
+    { value: 'today', label: "Aujourd'hui" },
+    { value: 'week', label: '7 derniers jours' },
+    { value: 'month', label: '30 derniers jours' },
+    { value: 'quarter', label: '3 derniers mois' },
+    { value: 'year', label: '12 derniers mois' },
+    { value: 'all', label: 'Depuis le début' },
 ];

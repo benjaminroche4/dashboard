@@ -19,7 +19,7 @@ test('the command reminds assignees and is scheduled every morning', function ()
     $this->artisan('leads:remind-recontacts')
         ->expectsOutput('1 responsable(s) prévenu(s).')
         ->assertSuccessful();
-    Mail::assertSent(RecontactsDue::class);
+    Mail::assertQueued(RecontactsDue::class);
 
     $this->artisan('leads:remind-recontacts')->expectsOutput('1 responsable(s) prévenu(s).');
 

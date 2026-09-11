@@ -6,6 +6,7 @@ import { formatAddress } from '@/components/real-estate/columns';
 import { Button } from '@/components/ui/button';
 import { VisitRowActions } from '@/components/visits/visit-row-actions';
 import { VisitReportBadge } from '@/components/visits/visit-report-badge';
+import { VisitModeBadge } from '@/components/visits/visit-mode-badge';
 import { VisitStatusBadge } from '@/components/visits/visit-status-badge';
 import { formatMoney } from '@/lib/format';
 import { show as agentShow } from '@/routes/agents';
@@ -40,9 +41,10 @@ export const visitColumnLabels: Record<string, string> = {
     scheduled_at: 'Date',
     client: 'Client',
     property: 'Bien',
+    mode: 'Réalisée par',
     status_label: 'Statut',
     agent: 'Agent',
-    assignee: 'Réalisée par',
+    assignee: 'Membre',
     creator: 'Planifiée par',
 };
 
@@ -103,6 +105,12 @@ export const visitColumns: ColumnDef<Visit>[] = [
         },
     },
     {
+        id: 'mode',
+        accessorFn: (visit) => visit.mode,
+        header: 'Réalisée par',
+        cell: ({ row }) => <VisitModeBadge mode={row.original.mode} />,
+    },
+    {
         accessorKey: 'status_label',
         header: 'Statut',
         cell: ({ row }) => (
@@ -134,7 +142,7 @@ export const visitColumns: ColumnDef<Visit>[] = [
     {
         id: 'assignee',
         accessorFn: (visit) => visit.assignee?.name ?? '',
-        header: 'Réalisée par',
+        header: 'Membre',
         cell: ({ row }) =>
             row.original.assignee ? (
                 <span className="text-sm">

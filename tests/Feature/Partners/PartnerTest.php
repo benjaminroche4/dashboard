@@ -7,6 +7,7 @@ use App\Events\DashboardUpdated;
 use App\Mail\DirectoryWelcome;
 use App\Models\Partner;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia;
@@ -90,18 +91,18 @@ test('a new partner is e-mailed only when asked, and only if it has an address',
     $this->actingAs($member)
         ->post(route('partners.store'), ['name' => 'Silencieux', 'type' => 'bank', 'email' => 'bank@example.com'])
         ->assertSessionHasNoErrors();
-    Mail::assertNothingSent();
+    Mail::assertNothingQueued();
 
     $this->actingAs($member)
         ->post(route('partners.store'), ['name' => 'Sans adresse', 'type' => 'bank', 'phone' => '+33 1 00 00 00 00', 'notify' => true])
         ->assertSessionHasNoErrors();
-    Mail::assertNothingSent();
+    Mail::assertNothingQueued();
 
     $this->actingAs($member)
         ->post(route('partners.store'), ['name' => 'Zen Assurances', 'type' => 'insurance', 'email' => 'contact@zen.example', 'notify' => true])
         ->assertSessionHasNoErrors();
 
-    Mail::assertSent(DirectoryWelcome::class, fn (DirectoryWelcome $mail): bool => $mail->hasTo('contact@zen.example')
+    Mail::assertQueued(DirectoryWelcome::class, fn (DirectoryWelcome $mail): bool => $mail->hasTo('contact@zen.example')
         && $mail->name === 'Zen Assurances'
         && $mail->hasReplyTo('charles@relocation-in-paris.fr')
         && str_contains($mail->render(), 'Bienvenue parmi nos partenaires')
@@ -126,4 +127,59 @@ test('only admins delete a partner, and the duplicates lookup finds partners by 
         ->assertRedirect(route('partners.index'));
 
     expect(Partner::query()->count())->toBe(0);
+});
+
+test('the primary contact opens the list of a partner', function (): void {
+    $partner = Partner::factory()->create();
+    $partner->contacts()->create(['first_name' => 'Paul', 'last_name' => 'Gaudin']);
+    $partner->contacts()->create(['first_name' => 'Zoé', 'last_name' => 'Zola', 'is_primary' => true]);
+    $partner->contacts()->create(['first_name' => 'Ali', 'last_name' => 'Bensaïd']);
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('partners.show', $partner))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            // Le principal d'abord, les autres par nom.
+            ->where('partner.contacts.0.name', 'Zoé Zola')
+            ->where('partner.contacts.0.is_primary', true)
+            ->where('partner.contacts.1.name', 'Ali Bensaïd')
+            ->where('partner.contacts.2.name', 'Paul Gaudin'));
+});
+
+test('a member stars a partner, sees it first in the list and on its page, then unstars it', function (): void {
+    $user = User::factory()->create();
+    $other = User::factory()->create();
+    Partner::factory()->create(['name' => 'Alpha Assurances']);
+    $zen = Partner::factory()->create(['name' => 'Zen Gestion']);
+
+    $this->actingAs($user)->post(route('partners.favorite', $zen))->assertRedirect();
+
+    // Les favoris du membre passent en tête, le compteur les suit.
+    $this->actingAs($user)->get(route('partners.index'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('partners.0.name', 'Zen Gestion')
+            ->where('partners.0.is_favorite', true)
+            ->where('partners.1.name', 'Alpha Assurances')
+            ->where('partners.1.is_favorite', false)
+            ->where('favoritesCount', 1));
+
+    $this->actingAs($user)->get(route('partners.show', $zen))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->where('partner.is_favorite', true));
+
+    // L'étoile est personnelle : les autres membres ne la voient pas.
+    $this->actingAs($other)->get(route('partners.index'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('partners.0.name', 'Alpha Assurances')
+            ->where('partners.0.is_favorite', false)
+            ->where('favoritesCount', 0));
+
+    $this->actingAs($user)->post(route('partners.favorite', $zen))->assertRedirect();
+    $this->actingAs($user)->get(route('partners.index'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('partners.0.name', 'Alpha Assurances')
+            ->where('favoritesCount', 0));
+
+    // Un partenaire supprimé emporte les étoiles posées sur lui.
+    $this->actingAs($user)->post(route('partners.favorite', $zen));
+    $zen->delete();
+    expect(DB::table('favorites')->count())->toBe(0);
 });

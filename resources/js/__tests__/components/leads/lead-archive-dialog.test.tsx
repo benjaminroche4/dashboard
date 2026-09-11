@@ -24,7 +24,9 @@ describe('LeadArchiveDialog', () => {
         const confirm = screen.getByRole('button', { name: 'Archiver' });
         expect(confirm).toBeDisabled();
 
-        await user.click(screen.getByRole('radio', { name: 'Trop cher' }));
+        await user.click(
+            screen.getByRole('radio', { name: 'Trop petit budget' }),
+        );
         await user.type(
             screen.getByLabelText('Précision (facultatif)'),
             'Budget à 900 €.',
@@ -32,7 +34,7 @@ describe('LeadArchiveDialog', () => {
         await user.click(confirm);
 
         expect(onConfirm).toHaveBeenCalledWith({
-            reason: 'too_expensive',
+            reason: 'small_budget',
             note: 'Budget à 900 €.',
         });
     });

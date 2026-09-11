@@ -20,7 +20,7 @@ use Inertia\Response;
 
 /**
  * Page publique de dépôt des pièces (/depot/{jeton}) : seule page hors
- * connexion avec /login. La demande est retrouvée par son jeton, jamais par
+ * connexion avec /login. La liste est retrouvée par son jeton, jamais par
  * son identifiant.
  */
 class PublicDocumentUploadController extends Controller

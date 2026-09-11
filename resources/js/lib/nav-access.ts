@@ -1,3 +1,4 @@
+import { toUrl } from '@/lib/utils';
 import type {
     AccessMap,
     NavGroup,
@@ -18,12 +19,6 @@ function subItemVisible(
     access: AccessMap | null | undefined,
     sub: NavSubItem,
 ): boolean {
-    if (sub.anySection) {
-        return sub.anySection.some((section) =>
-            canAccessSection(access, section),
-        );
-    }
-
     return sub.section === undefined || canAccessSection(access, sub.section);
 }
 
@@ -49,15 +44,28 @@ export function filterNavGroups(
                         subItemVisible(access, sub),
                     );
 
-                    return items.length === 0
-                        ? []
-                        : [
-                              {
-                                  ...item,
-                                  items,
-                                  href: items[0]?.href ?? item.href,
-                              },
-                          ];
+                    if (items.length === 0) {
+                        return [];
+                    }
+
+                    // Le menu garde sa propre page (« Outils » → /tools) ; il ne
+                    // bascule sur le premier sous-lien restant que si sa cible
+                    // était justement le sous-lien retiré au membre.
+                    const closed = item.items.some(
+                        (sub) =>
+                            !subItemVisible(access, sub) &&
+                            toUrl(sub.href) === toUrl(item.href),
+                    );
+
+                    return [
+                        {
+                            ...item,
+                            items,
+                            href: closed
+                                ? (items[0]?.href ?? item.href)
+                                : item.href,
+                        },
+                    ];
                 }
 
                 return item.section === undefined ||

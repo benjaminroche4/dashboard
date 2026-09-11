@@ -72,7 +72,7 @@ export function DocumentRequestBulkActions({
                 <DialogContent className="sm:max-w-sm">
                     <DialogHeader>
                         <DialogTitle>
-                            Supprimer {requests.length} demande(s) ?
+                            Supprimer {requests.length} liste(s) ?
                         </DialogTitle>
                         <DialogDescription>
                             Les demandes cochées seront supprimées

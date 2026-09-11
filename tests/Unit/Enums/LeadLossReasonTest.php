@@ -5,7 +5,8 @@ declare(strict_types=1);
 use App\Enums\LeadLossReason;
 
 test('loss reasons have French labels and options for the form', function (): void {
-    expect(LeadLossReason::TooExpensive->label())->toBe('Trop cher')
+    expect(LeadLossReason::SmallBudget->label())->toBe('Trop petit budget')
         ->and(LeadLossReason::options())->toHaveCount(5)
-        ->and(LeadLossReason::options()[2])->toBe(['value' => 'no_answer', 'label' => 'Sans réponse']);
+        ->and(LeadLossReason::options()[0])->toBe(['value' => 'not_qualified', 'label' => 'Pas du tout qualifié'])
+        ->and(LeadLossReason::options()[3])->toBe(['value' => 'tight_timing', 'label' => 'Timing trop serré']);
 });

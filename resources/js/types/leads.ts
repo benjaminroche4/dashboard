@@ -1,10 +1,10 @@
 import type { Currency, OfferValue } from '@/types/invoices';
 
 export type LeadLossReason =
-    | 'too_expensive'
-    | 'went_elsewhere'
-    | 'no_answer'
-    | 'out_of_scope'
+    | 'not_qualified'
+    | 'bad_closing'
+    | 'small_budget'
+    | 'tight_timing'
     | 'other';
 
 export type LeadStatus =
@@ -152,6 +152,12 @@ export type LeadForm = {
     assigned_to: number | null;
     /** Liste de destination à la création : locataires ou propriétaires. */
     segment: LeadSegment;
+};
+
+/** Fiche d'annuaire des propriétaires créée depuis un lead. */
+export type LeadDirectoryOwner = {
+    uuid: string;
+    name: string;
 };
 
 export type LeadDetail = Lead & {

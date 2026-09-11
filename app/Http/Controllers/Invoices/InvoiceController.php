@@ -10,21 +10,25 @@ use App\Actions\Invoices\MarkInvoicePaid;
 use App\Actions\Invoices\MarkInvoicesPaid;
 use App\Actions\Invoices\SendInvoice;
 use App\Actions\Invoices\SendInvoices;
+use App\Actions\Invoices\UpdateInvoice;
 use App\Data\InvoiceData;
 use App\Enums\Currency;
 use App\Enums\InvoiceStatus;
 use App\Enums\Offer;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Leads\LeadController;
 use App\Http\Requests\Invoices\BulkPayInvoicesRequest;
 use App\Http\Requests\Invoices\BulkSendInvoicesRequest;
 use App\Http\Requests\Invoices\IndexInvoicesRequest;
 use App\Http\Requests\Invoices\LinkInvoiceLeadRequest;
 use App\Http\Requests\Invoices\PayInvoiceRequest;
 use App\Http\Requests\Invoices\StoreInvoiceRequest;
+use App\Http\Requests\Invoices\UpdateInvoiceRequest;
 use App\Models\Invoice;
 use App\Models\InvoiceStatusChange;
 use App\Models\Lead;
 use App\Services\DocRaptor;
+use App\Support\BankAccounts;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
@@ -77,6 +81,7 @@ class InvoiceController extends Controller
                 'paid_at' => $invoice->paid_at?->toDateString(),
                 'can_send' => $invoice->status->canTransitionTo(InvoiceStatus::Sent) && $invoice->client_email !== null,
                 'can_pay' => $invoice->status->canTransitionTo(InvoiceStatus::Paid),
+                'can_edit' => $invoice->status === InvoiceStatus::Draft,
             ])
             ->all();
 
@@ -110,15 +115,29 @@ class InvoiceController extends Controller
         $lead = $request->filled('lead') ? Lead::query()->where('uuid', (string) $request->query('lead'))->first() : null;
 
         return Inertia::render('invoices/create', [
+            ...$this->formOptions(),
             'prefill' => $lead === null ? null : [
                 'lead_id' => $lead->id,
                 'lead_uuid' => $lead->uuid,
                 'lead_name' => $lead->fullName(),
-                'client_name' => $lead->company !== null && $lead->company !== '' ? $lead->company : $lead->fullName(),
+                // La société d'abord ; sinon le foyer (« Bruno & Charles » à deux locataires).
+                'client_name' => $lead->company !== null && $lead->company !== '' ? $lead->company : $lead->householdName(),
                 'client_email' => $lead->email ?? '',
                 'currency' => $lead->currency->value,
                 'offer' => $lead->offer?->value,
             ],
+            'nextNumber' => CreateInvoice::nextNumber(),
+        ]);
+    }
+
+    /**
+     * Options du formulaire, partagées par la création et la modification.
+     *
+     * @return array<string, mixed>
+     */
+    private function formOptions(): array
+    {
+        return [
             'company' => config('company'),
             'offers' => collect(Offer::cases())
                 ->map(fn (Offer $offer): array => [
@@ -135,14 +154,14 @@ class InvoiceController extends Controller
                 ->all(),
             'vatRates' => config('company.vat_rates'),
             'countries' => config('company.countries'),
-            'nextNumber' => CreateInvoice::nextNumber(),
+            'bankAccounts' => BankAccounts::all(),
             'defaults' => [
                 'currency' => config('company.default_currency'),
                 'vat_rate' => config('company.default_vat_rate'),
                 'issued_at' => now()->toDateString(),
                 'due_at' => now()->addDays((int) config('company.default_payment_terms_days'))->toDateString(),
             ],
-        ]);
+        ];
     }
 
     public function store(StoreInvoiceRequest $request, CreateInvoice $createInvoice): RedirectResponse
@@ -152,6 +171,52 @@ class InvoiceController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Facture :number créée.', ['number' => $invoice->number])]);
 
         return to_route('invoices.index');
+    }
+
+    /** Modification d'un brouillon : la page de création, préremplie. */
+    public function edit(Invoice $invoice): Response
+    {
+        $this->authorize('update', $invoice);
+
+        abort_unless($invoice->status === InvoiceStatus::Draft, 403, __('Seule une facture en brouillon peut être modifiée.'));
+
+        $invoice->load('lead');
+
+        return Inertia::render('invoices/create', [
+            ...$this->formOptions(),
+            'nextNumber' => $invoice->number,
+            'invoice' => [
+                'id' => $invoice->id,
+                'uuid' => $invoice->uuid,
+                'number' => $invoice->number,
+                'client_name' => $invoice->client_name,
+                'client_email' => $invoice->client_email,
+                'client_street' => $invoice->client_street,
+                'client_postal_code' => $invoice->client_postal_code,
+                'client_city' => $invoice->client_city,
+                'client_country' => $invoice->client_country,
+                'items' => $invoice->items ?? [],
+                'vat_rate' => $invoice->vat_rate,
+                'discount_percent' => $invoice->discount_percent,
+                'deposit_cents' => $invoice->deposit_cents,
+                'currency' => $invoice->currency->value,
+                'issued_at' => $invoice->issued_at->toDateString(),
+                'due_at' => $invoice->due_at->toDateString(),
+                'notes' => $invoice->notes,
+                'bank_name' => $invoice->bank_name,
+                'bank_iban' => $invoice->bank_iban,
+                'lead' => $this->leadSummary($invoice),
+            ],
+        ]);
+    }
+
+    public function update(UpdateInvoiceRequest $request, Invoice $invoice, UpdateInvoice $updateInvoice): RedirectResponse
+    {
+        $updateInvoice->handle($invoice, InvoiceData::from($request->validated()), $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Facture :number mise à jour.', ['number' => $invoice->number])]);
+
+        return to_route('invoices.show', $invoice);
     }
 
     /** Rattache (ou détache avec lead_id null) la facture à un lead. */
@@ -213,7 +278,7 @@ class InvoiceController extends Controller
      */
     private function leadSummary(Invoice $invoice): ?array
     {
-        return $invoice->lead === null ? null : ['id' => $invoice->lead->id, 'uuid' => $invoice->lead->uuid, 'name' => $invoice->lead->fullName()];
+        return LeadController::linkSummary($invoice->lead);
     }
 
     public function pdf(Invoice $invoice): HttpResponse
@@ -236,6 +301,50 @@ class InvoiceController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="facture-'.$invoice->number.'.pdf"',
         ]);
+    }
+
+    /**
+     * Historique d'une facture, la création en tête. Les factures créées hors
+     * de `CreateInvoice` (import, fixtures) n'ont pas d'entrée de création :
+     * elle est alors reconstituée depuis `invoices.created_at`, pour que la
+     * date de création figure toujours dans l'historique.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function history(Invoice $invoice): array
+    {
+        $changes = $invoice->statusChanges
+            ->map(fn (InvoiceStatusChange $change): array => [
+                'id' => $change->id,
+                'from' => $change->from_status?->label(),
+                'to' => $change->to_status->label(),
+                'to_status' => $change->to_status->value,
+                'by' => $change->author?->name,
+                'by_avatar' => $change->author?->avatar,
+                'note' => $change->note,
+                'at' => $change->created_at->toIso8601String(),
+            ])
+            ->all();
+
+        if ($invoice->statusChanges->contains(fn (InvoiceStatusChange $change): bool => $change->from_status === null)) {
+            return $changes;
+        }
+
+        $first = $invoice->statusChanges->first();
+        $status = $first === null ? $invoice->status : ($first->from_status ?? $invoice->status);
+
+        array_unshift($changes, [
+            'id' => 0,
+            'from' => null,
+            'to' => $status->label(),
+            'to_status' => $status->value,
+            'by' => $invoice->creator?->name,
+            'by_avatar' => $invoice->creator?->avatar,
+            'note' => 'Création',
+            'at' => $invoice->created_at->toIso8601String(),
+        ]);
+
+        return $changes;
     }
 
     public function show(Invoice $invoice): Response
@@ -277,16 +386,9 @@ class InvoiceController extends Controller
                 'lead' => $this->leadSummary($invoice),
                 'can_send' => $invoice->status->canTransitionTo(InvoiceStatus::Sent) && $invoice->client_email !== null,
                 'can_pay' => $invoice->status->canTransitionTo(InvoiceStatus::Paid),
+                'can_edit' => $invoice->status === InvoiceStatus::Draft,
             ],
-            'history' => $invoice->statusChanges->map(fn (InvoiceStatusChange $change): array => [
-                'id' => $change->id,
-                'from' => $change->from_status?->label(),
-                'to' => $change->to_status->label(),
-                'to_status' => $change->to_status->value,
-                'by' => $change->author?->name,
-                'note' => $change->note,
-                'at' => $change->created_at->toIso8601String(),
-            ])->all(),
+            'history' => self::history($invoice),
             'company' => config('company'),
             'offers' => collect(Offer::cases())
                 ->map(fn (Offer $offer): array => ['value' => $offer->value, 'label' => $offer->label(), 'description' => $offer->description()])

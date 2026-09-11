@@ -6,6 +6,7 @@ namespace App\Mail;
 
 use App\Models\Lead;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -14,7 +15,7 @@ use Illuminate\Queue\SerializesModels;
 /**
  * Rappel au conseiller après l'appel vidéo avec un lead : le compte rendu est attendu.
  */
-final class VisioReportDue extends Mailable
+final class VisioReportDue extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

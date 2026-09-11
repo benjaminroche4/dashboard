@@ -4,6 +4,7 @@ import { ArrowUpDown } from 'lucide-react';
 import { QuoteRowActions } from '@/components/quotes/quote-row-actions';
 import { QuoteStatusBadge } from '@/components/quotes/quote-status-badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { formatDate, formatMoney } from '@/lib/format';
 import { show as quoteShow } from '@/routes/tools/quotes';
 import type { Quote } from '@/types';
@@ -35,6 +36,30 @@ function SortableHeader({
 /** Colonnes de la liste ; `canManage` masque les actions de statut aux membres. */
 export function quoteColumns(canManage: boolean): ColumnDef<Quote>[] {
     return [
+        {
+            id: 'select',
+            header: ({ table }) => (
+                <Checkbox
+                    checked={
+                        table.getIsAllPageRowsSelected() ||
+                        (table.getIsSomePageRowsSelected() && 'indeterminate')
+                    }
+                    onCheckedChange={(value) =>
+                        table.toggleAllPageRowsSelected(!!value)
+                    }
+                    aria-label="Tout sélectionner"
+                />
+            ),
+            cell: ({ row }) => (
+                <Checkbox
+                    checked={row.getIsSelected()}
+                    onCheckedChange={(value) => row.toggleSelected(!!value)}
+                    aria-label={`Sélectionner ${row.original.number}`}
+                />
+            ),
+            enableSorting: false,
+            enableHiding: false,
+        },
         {
             accessorKey: 'number',
             header: ({ column }) => (

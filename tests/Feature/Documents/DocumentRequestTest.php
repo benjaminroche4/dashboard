@@ -2,10 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Enums\GuarantorType;
+use App\Enums\LeadStatus;
 use App\Events\DashboardUpdated;
 use App\Models\DocumentRequest;
 use App\Models\Lead;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -181,6 +184,36 @@ test('bulk deletion is reserved to admins', function (): void {
         ->delete(route('tools.documents.bulk-destroy'), ['ids' => $ids])
         ->assertRedirect(route('tools.documents.index'));
     expect(DocumentRequest::query()->count())->toBe(0);
+});
+
+test('the create page proposes the leads with what prefills the household', function (): void {
+    $staff = User::factory()->create();
+    $client = Lead::factory()->converted()->create(['first_name' => 'Léa', 'last_name' => 'Durand', 'language' => 'en', 'guarantors' => [GuarantorType::Individual, GuarantorType::Garantme]]);
+    $archived = Lead::factory()->status(LeadStatus::Archived)->create();
+
+    $this->actingAs($staff)->get(route('tools.documents.create'))
+        ->assertInertia(function (AssertableInertia $page) use ($client, $archived): void {
+            $leads = collect($page->toArray()['props']['leads']);
+
+            expect($leads->firstWhere('id', $archived->id))->toBeNull();
+
+            $option = $leads->firstWhere('id', $client->id);
+            expect($option)->toMatchArray([
+                'name' => 'Léa Durand',
+                'first_name' => 'Léa',
+                'language' => 'en',
+                'is_client' => true,
+                'guarantors' => ['physique', 'garantme'],
+            ]);
+        });
+
+    // Le lead déjà rattaché reste proposé, même archivé.
+    $request = DocumentRequest::factory()->create(['lead_id' => $archived->id]);
+
+    $this->actingAs($staff)->get(route('tools.documents.edit', $request))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('request.lead_id', $archived->id)
+            ->where('leads', fn (Collection $leads): bool => $leads->contains('id', $archived->id)));
 });
 
 test('bulk requests validate the ids', function (): void {

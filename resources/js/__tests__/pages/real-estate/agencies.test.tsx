@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { type ReactNode, useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { post, patch, del, role } = vi.hoisted(() => ({
+const { post, patch, del, role, get } = vi.hoisted(() => ({
+    get: vi.fn(),
     post: vi.fn(),
     patch: vi.fn(),
     del: vi.fn(),
@@ -28,7 +29,7 @@ vi.mock('@inertiajs/react', () => ({
             {children}
         </a>
     ),
-    router: { delete: del, post },
+    router: { delete: del, post, get },
     usePage: () => ({
         props: {
             auth: { user: { role: role.value } },
@@ -60,6 +61,13 @@ function useFormStub(initial: Record<string, string>) {
 import Agencies from '@/pages/real-estate/agencies';
 import { makeAgency } from '@/test/fixtures/real-estate';
 
+/** Props du mode serveur : la liste est paginée par le serveur. */
+const serverProps = (total: number) => ({
+    pagination: { current_page: 1, last_page: 1, per_page: 50, total },
+    filters: { q: '', sort: 'name', dir: 'asc' as const, favorites: '' },
+    favoritesCount: 1,
+});
+
 describe('Agencies page', () => {
     beforeEach(() => {
         post.mockClear();
@@ -86,6 +94,7 @@ describe('Agencies page', () => {
                         agents_count: 0,
                     }),
                 ]}
+                {...serverProps(2)}
             />,
         );
 
@@ -101,13 +110,14 @@ describe('Agencies page', () => {
         expect(
             screen.getByRole('link', { name: 'marais.example' }),
         ).toHaveAttribute('href', 'https://marais.example');
-        expect(screen.getAllByText('—')).toHaveLength(2);
+        // Deux tirets par agence sans donnée : contact manquant et dernier échange.
+        expect(screen.getAllByText('—')).toHaveLength(4);
         expect(screen.getAllByText('Admin')).toHaveLength(2);
     });
 
     it('opens the agents of an agency and adds one with the agency preselected', async () => {
         const user = userEvent.setup();
-        render(<Agencies agencies={[makeAgency()]} />);
+        render(<Agencies agencies={[makeAgency()]} {...serverProps(2)} />);
 
         await user.click(
             screen.getByRole('button', {
@@ -127,7 +137,7 @@ describe('Agencies page', () => {
 
     it('opens the dialog to add, then to edit, and posts to the right route', async () => {
         const user = userEvent.setup();
-        render(<Agencies agencies={[makeAgency()]} />);
+        render(<Agencies agencies={[makeAgency()]} {...serverProps(2)} />);
 
         await user.click(
             screen.getByRole('button', { name: 'Nouvelle agence' }),
@@ -193,7 +203,7 @@ describe('Agencies page', () => {
 
     it('lets admins delete after confirmation', async () => {
         const user = userEvent.setup();
-        render(<Agencies agencies={[makeAgency()]} />);
+        render(<Agencies agencies={[makeAgency()]} {...serverProps(2)} />);
 
         await user.click(
             screen.getByRole('button', {
@@ -217,7 +227,12 @@ describe('Agencies page', () => {
     it('hides deletion from members', async () => {
         const user = userEvent.setup();
         role.value = 'member';
-        render(<Agencies agencies={[makeAgency({ id: 3, name: 'Autre' })]} />);
+        render(
+            <Agencies
+                agencies={[makeAgency({ id: 3, name: 'Autre' })]}
+                {...serverProps(2)}
+            />,
+        );
 
         await user.click(
             screen.getByRole('button', { name: 'Actions pour Autre' }),
@@ -243,21 +258,33 @@ describe('Agencies page', () => {
                         website: null,
                     }),
                 ]}
+                {...serverProps(2)}
             />,
         );
 
-        expect(
-            screen.getByRole('button', {
-                name: 'Retirer Agence du Marais des favoris',
-            }),
-        ).toHaveAttribute('aria-pressed', 'true');
+        // L'étoile signale le favori à côté du nom ; la bascule est dans le menu « ⋯ ».
+        expect(screen.getAllByRole('img', { name: 'Favori' })).toHaveLength(1);
 
+        // Le filtre « Favoris » est un filtre serveur : il repart en visite.
         await user.click(screen.getByRole('button', { name: 'Favoris (1)' }));
-        expect(
-            screen.getByRole('link', { name: 'Agence du Marais' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('link', { name: 'Bureau Paris Ouest' }),
-        ).not.toBeInTheDocument();
+        expect(get).toHaveBeenCalledWith(
+            '/real-estate/agencies',
+            expect.objectContaining({ favorites: '1' }),
+            expect.objectContaining({ preserveState: true }),
+        );
+
+        await user.click(
+            screen.getByRole('button', {
+                name: 'Actions pour Agence du Marais',
+            }),
+        );
+        await user.click(
+            await screen.findByRole('menuitem', { name: 'Favoris' }),
+        );
+        expect(post).toHaveBeenCalledWith(
+            expect.stringContaining('/favorite'),
+            {},
+            expect.objectContaining({ preserveScroll: true }),
+        );
     });
 });

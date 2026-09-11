@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\LeadStatus;
-use App\Enums\OwnerStatus;
+use App\Enums\OwnerKind;
 use App\Enums\WebsiteHelpType;
 use App\Events\DashboardUpdated;
 use App\Models\Lead;
@@ -11,17 +11,18 @@ use App\Models\Owner;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Route;
 use Inertia\Testing\AssertableInertia;
 
 beforeEach(fn () => Event::fake([DashboardUpdated::class]));
 
-test('the owners page lists every owner with status and lead, sorted by name, plus the statuses', function (): void {
+test('the owners directory lists everyone with their kind and how many properties they hold', function (): void {
     $this->get(route('owners.index'))->assertRedirect(route('login'));
 
     $author = User::factory()->create(['name' => 'Admin']);
-    $lead = Lead::factory()->create(['reference' => 'LD-0042']);
-    Owner::factory()->status(OwnerStatus::Interested)->create(['first_name' => 'Zoé', 'last_name' => 'Martin', 'lead_id' => $lead->id, 'created_by' => $author->id]);
-    Owner::factory()->create(['first_name' => 'Ali', 'last_name' => 'Bensaïd']);
+    $company = Owner::factory()->company()->create(['company' => 'SCI du Marais', 'created_by' => $author->id]);
+    $owner = Owner::factory()->create(['first_name' => 'Ali', 'last_name' => 'Bensaïd']);
+    Property::factory()->count(2)->create(['owner_id' => $company->id]);
 
     $this->actingAs($author)
         ->get(route('owners.index'))
@@ -29,12 +30,29 @@ test('the owners page lists every owner with status and lead, sorted by name, pl
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->component('owners/index')
             ->has('owners', 2)
+            // Trié sur le nom affiché : la personne, puis la raison sociale.
             ->where('owners.0.name', 'Ali Bensaïd')
-            ->where('owners.0.status_label', 'À contacter')
-            ->where('owners.0.lead', null)
-            ->where('owners.1.lead.reference', 'LD-0042')
+            ->where('owners.0.kind_label', 'Particulier')
+            ->where('owners.0.properties_count', 0)
+            // Un propriétaire peut détenir plusieurs biens : on compte les vrais.
+            ->where('owners.1.name', 'SCI du Marais')
+            ->where('owners.1.kind', 'company')
+            ->where('owners.1.kind_label', 'Société ou agence')
+            ->where('owners.1.properties_count', 2)
             ->where('owners.1.creator', 'Admin')
-            ->has('statuses', count(OwnerStatus::cases())));
+            ->has('kinds', 2)
+            // L'annuaire n'est pas un pipeline : aucun statut de prospection.
+            ->missing('statuses')
+            ->missing('owners.0.status')
+            // Mais il dit quand on s'est parlé pour la dernière fois.
+            ->where('owners.0.last_contacted_at', null)
+            ->has('pagination')
+            ->where('pagination.total', 2)
+            ->where('holdingCounts.with', 1)
+            ->where('holdingCounts.without', 1)
+            ->where('propertiesCount', 2));
+
+    expect($owner->kind)->toBe(OwnerKind::Individual);
 });
 
 test('any member creates, updates and the payload needs a name and a way to reach the owner', function (): void {
@@ -54,47 +72,35 @@ test('any member creates, updates and the payload needs a name and a way to reac
             'street' => '5 rue de Bretagne',
             'postal_code' => '75003',
             'city' => 'Paris',
-            'property_count' => 3,
         ])
         ->assertRedirect(route('owners.index'))
         ->assertSessionHasNoErrors();
 
     $owner = Owner::query()->firstOrFail();
     expect($owner->fullName())->toBe('Jean-Pierre Dupont')
-        ->and($owner->status)->toBe(OwnerStatus::ToContact)
-        ->and($owner->property_count)->toBe(3)
+        ->and($owner->kind)->toBe(OwnerKind::Individual)
         ->and($owner->created_by)->toBe($member->id);
 
+    // Une société est nommée par sa raison sociale, l'interlocuteur est facultatif.
     $this->actingAs($member)
-        ->patch(route('owners.update', $owner), ['first_name' => 'Jean-Pierre', 'last_name' => 'Dupont', 'phone' => '+33 6 12 34 56 78', 'status' => 'contacted'])
-        ->assertRedirect()
+        ->from(route('owners.index'))
+        ->post(route('owners.store'), ['kind' => 'company', 'phone' => '+33 1 22 33 44 55'])
+        ->assertSessionHasErrors('company');
+
+    $this->actingAs($member)
+        ->post(route('owners.store'), ['kind' => 'company', 'company' => 'SCI du Marais', 'phone' => '+33 1 22 33 44 55'])
         ->assertSessionHasNoErrors();
 
-    expect($owner->fresh()->status)->toBe(OwnerStatus::Contacted)
-        ->and($owner->fresh()->last_contacted_at)->not->toBeNull();
-
+    $sci = Owner::query()->where('company', 'SCI du Marais')->sole();
+    expect($sci->fullName())->toBe('SCI du Marais')
+        ->and($sci->contactName())->toBeNull();
 });
 
-test('converting an owner creates a rental-management lead assigned to the member and links it', function (): void {
-    $member = User::factory()->create();
-    $owner = Owner::factory()->create(['first_name' => 'Zoé', 'last_name' => 'Martin', 'email' => 'zoe@example.com', 'property_count' => 2, 'notes' => 'Deux studios dans le 11e.']);
+test('the directory offers no conversion to a lead: prospecting lives in the leads pages', function (): void {
+    $owner = Owner::factory()->create();
 
-    $response = $this->actingAs($member)->post(route('owners.convert', $owner));
-
-    $lead = Lead::query()->sole();
-    $response->assertRedirect(route('leads.show', $lead));
-
-    expect($lead->fullName())->toBe('Zoé Martin')
-        ->and($lead->help_type)->toBe(WebsiteHelpType::RentalManagement)
-        ->and($lead->status)->toBe(LeadStatus::Todo)
-        ->and($lead->assigned_to)->toBe($member->id)
-        ->and($lead->source_note)->toBe('Propriétaire prospecté · 2 bien(s)')
-        ->and($lead->message)->toBe('Deux studios dans le 11e.')
-        ->and($owner->fresh()->lead_id)->toBe($lead->id)
-        ->and($owner->fresh()->status)->toBe(OwnerStatus::Interested);
-
-    $this->actingAs($member)->from(route('owners.index'))->post(route('owners.convert', $owner))->assertSessionHasErrors('lead');
-    expect(Lead::count())->toBe(1);
+    expect(Route::has('owners.convert'))->toBeFalse();
+    expect(fn (): string => route('owners.convert', $owner))->toThrow(Exception::class);
 });
 
 test('the owner leads page lists only rental-management leads, newest first', function (): void {
@@ -145,10 +151,10 @@ test('duplicates are found by e-mail or phone ending, and only admins delete', f
     expect(Owner::count())->toBe(0);
 });
 
-test('an owner has a detail page with its lead and properties, addressed by uuid', function (): void {
-    $lead = Lead::factory()->create(['reference' => 'LD-0042']);
-    $owner = Owner::factory()->create(['first_name' => 'Zoé', 'last_name' => 'Martin', 'lead_id' => $lead->id]);
+test('an owner has a detail page with the properties held, addressed by uuid', function (): void {
+    $owner = Owner::factory()->create(['first_name' => 'Zoé', 'last_name' => 'Martin']);
     Property::factory()->create(['title' => 'Studio · 5e', 'owner_id' => $owner->id]);
+    Property::factory()->create(['title' => 'Loft · 11e', 'owner_id' => $owner->id]);
     Property::factory()->create(['title' => 'Ailleurs']);
 
     $this->actingAs(User::factory()->create())
@@ -157,10 +163,12 @@ test('an owner has a detail page with its lead and properties, addressed by uuid
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->component('owners/show')
             ->where('owner.name', 'Zoé Martin')
-            ->where('owner.lead.reference', 'LD-0042')
-            ->has('properties', 1)
-            ->where('properties.0.label', 'Studio · 5e')
-            ->has('statuses', count(OwnerStatus::cases())));
+            ->where('owner.properties_count', 2)
+            ->has('properties', 2)
+            ->has('kinds', 2)
+            // Le parc en trois chiffres, et aucun lead d'origine ici.
+            ->where('stats.properties', 2)
+            ->where('owner.lead', null));
 
     $this->actingAs(User::factory()->create())->get("/owners/{$owner->id}")->assertNotFound();
 });

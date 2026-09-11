@@ -3,8 +3,8 @@ import {
     chronologicalDays,
     dayKey,
     defaultVisitDay,
-    directionsUrl,
     groupVisitsByDay,
+    openVisits,
     visitAddress,
 } from '@/lib/visits';
 import { makeVisit } from '@/test/fixtures/visit';
@@ -104,40 +104,33 @@ describe('defaultVisitDay', () => {
     });
 });
 
-describe('directionsUrl and visitAddress', () => {
+describe('visitAddress', () => {
     it('builds the one-line address of the property', () => {
         expect(visitAddress(makeVisit())).toBe('12 rue Oberkampf, 75011 Paris');
         expect(dayKey(new Date(2026, 0, 5))).toBe('2026-01-05');
     });
+});
 
-    it('links a Google Maps route through the stops in order, by coordinates when known', () => {
-        expect(directionsUrl([])).toBeNull();
-        expect(directionsUrl([makeVisit()])).toBe(
-            'https://www.google.com/maps/dir/?api=1&destination=48.8656%2C2.3705',
-        );
+describe('openVisits', () => {
+    it('keeps the coming days and only the past visits still awaiting a report', () => {
+        const visits = [
+            at(1, '2026-09-20T10:00:00+02:00'),
+            // Aujourd'hui, même passée de quelques heures : toujours visible.
+            at(2, '2026-09-15T08:00:00+02:00'),
+            // Passées : seule celle sans compte rendu reste.
+            at(3, '2026-09-10T11:00:00+02:00', { report_due: true }),
+            at(4, '2026-09-09T11:00:00+02:00', {
+                report: 'Visite faite.',
+                report_due: false,
+            }),
+            at(5, '2026-09-08T11:00:00+02:00', {
+                status: 'cancelled',
+                report_due: false,
+            }),
+        ];
 
-        const url = directionsUrl([
-            makeVisit(),
-            at(2, '2026-09-15T12:00:00+02:00', {
-                property: {
-                    ...makeVisit().property,
-                    latitude: null,
-                    longitude: null,
-                    street: '5 rue de Bretagne',
-                    postal_code: '75003',
-                },
-            }),
-            at(3, '2026-09-15T14:00:00+02:00', {
-                property: {
-                    ...makeVisit().property,
-                    latitude: 48.87,
-                    longitude: 2.31,
-                },
-            }),
+        expect(openVisits(visits, now).map((visit) => visit.id)).toEqual([
+            1, 2, 3,
         ]);
-        const params = new URL(url!).searchParams;
-        expect(params.get('origin')).toBe('48.8656,2.3705');
-        expect(params.get('waypoints')).toBe('5 rue de Bretagne, 75003 Paris');
-        expect(params.get('destination')).toBe('48.87,2.31');
     });
 });

@@ -6,6 +6,7 @@ namespace App\Mail;
 
 use App\Models\Visit;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -14,7 +15,7 @@ use Illuminate\Queue\SerializesModels;
 /**
  * Rappel au membre qui a réalisé une visite : le compte rendu est attendu.
  */
-final class VisitReportDue extends Mailable
+final class VisitReportDue extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

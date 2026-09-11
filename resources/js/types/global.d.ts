@@ -18,6 +18,8 @@ declare module '@inertiajs/core' {
                 assistant: boolean;
                 /** Clé navigateur Google Maps, null sans carte réelle. */
                 googleMapsKey: string | null;
+                /** « Se connecter avec Google » proposé sur la page de connexion. */
+                googleLogin?: boolean;
             };
             /** Compteurs affichés dans le menu. */
             counts: { leadsTodo: number; ownerLeadsTodo: number };

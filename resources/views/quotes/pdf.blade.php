@@ -107,7 +107,8 @@
             <div class="notes">{{ $quote->notes }}</div>
         @endif
         Devis valable jusqu'au {{ $quote->valid_until->translatedFormat('j F Y') }}. Bon pour accord : date et signature du client.<br>
-        Règlement par virement sur {{ $company['bank'] }}, IBAN {{ $company['iban'] }}, en {{ $quote->currency->value }}.
+        @php($account = $quote->bankAccount())
+        Règlement par virement sur {{ $account['bank'] }}, IBAN {{ $account['iban'] }}, en {{ $quote->currency->value }}.
     </div>
 </body>
 </html>

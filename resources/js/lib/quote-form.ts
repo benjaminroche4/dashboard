@@ -20,6 +20,8 @@ export function quoteFormToInvoiceForm(form: QuoteForm): InvoiceForm {
         issued_at: form.issued_at,
         due_at: form.valid_until,
         notes: form.notes,
+        bank_name: form.bank_name,
+        bank_iban: form.bank_iban,
         items: form.items,
     };
 }
@@ -39,6 +41,8 @@ export function quoteToForm(quote: QuoteDetail): QuoteForm {
         issued_at: quote.issued_at,
         valid_until: quote.valid_until,
         notes: quote.notes ?? '',
+        bank_name: quote.bank_name ?? '',
+        bank_iban: quote.bank_iban ?? '',
         items: quote.items.map((line) => ({
             offer: line.offer,
             description: line.offer === null ? line.description : '',

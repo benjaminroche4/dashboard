@@ -2,6 +2,7 @@ import { capitalizeName } from '@/lib/format';
 import type {
     CatalogGroup,
     DocumentRequestForm,
+    DocumentRequestLeadOption,
     HouseholdPersonForm,
 } from '@/types';
 
@@ -18,6 +19,61 @@ export function emptyDocumentRequestForm(): DocumentRequestForm {
         message: '',
         upload_url: '',
         persons: [emptyPerson()],
+    };
+}
+
+/**
+ * Préremplit le foyer depuis un lead : la personne principale prend le nom du
+ * lead, et chaque garant physique déclaré ajoute un garant au foyer. Rien
+ * n'est écrasé : une personne déjà nommée est conservée, et la limite de
+ * MAX_PERSONS est respectée.
+ */
+export function prefillFromLead(
+    form: DocumentRequestForm,
+    lead: DocumentRequestLeadOption,
+): DocumentRequestForm {
+    const persons = [...form.persons];
+    const tenant = persons.findIndex(
+        (person) =>
+            person.role === 'tenant' &&
+            person.first_name.trim() === '' &&
+            person.last_name.trim() === '',
+    );
+
+    const named: HouseholdPersonForm = {
+        ...(persons[tenant] ?? emptyPerson()),
+        role: 'tenant',
+        first_name: lead.first_name,
+        last_name: lead.last_name,
+    };
+
+    if (tenant === -1) {
+        persons.push(named);
+    } else {
+        persons[tenant] = named;
+    }
+
+    // Un garant physique est une personne du foyer ; Garantme et la garantie
+    // bancaire n'en sont pas et n'ajoutent personne.
+    const wanted = lead.guarantors.filter(
+        (guarantor) => guarantor === 'physique',
+    ).length;
+    const already = persons.filter(
+        (person) => person.role === 'guarantor',
+    ).length;
+
+    for (let index = 0; index < wanted - already; index++) {
+        if (persons.length >= MAX_PERSONS) {
+            break;
+        }
+
+        persons.push({ ...emptyPerson(), role: 'guarantor' });
+    }
+
+    return {
+        ...form,
+        language: lead.language,
+        persons: persons.slice(0, MAX_PERSONS),
     };
 }
 
@@ -138,7 +194,7 @@ export function validateDocumentRequestForm(
         !/^https:\/\/\S+$/.test(data.upload_url.trim())
     ) {
         errors.upload_url =
-            'Le lien de dépôt doit être une adresse https valide.';
+            'Le dossier Google Drive doit être une adresse https valide.';
     }
 
     if (data.persons.length === 0) {

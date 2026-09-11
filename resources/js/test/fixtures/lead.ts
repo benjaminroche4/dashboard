@@ -96,10 +96,10 @@ export function makeInbound(
 }
 
 export const lossReasons = [
-    { value: 'too_expensive' as const, label: 'Trop cher' },
-    { value: 'went_elsewhere' as const, label: 'Parti ailleurs' },
-    { value: 'no_answer' as const, label: 'Sans réponse' },
-    { value: 'out_of_scope' as const, label: 'Hors périmètre' },
+    { value: 'not_qualified' as const, label: 'Pas du tout qualifié' },
+    { value: 'bad_closing' as const, label: 'Mauvais closing' },
+    { value: 'small_budget' as const, label: 'Trop petit budget' },
+    { value: 'tight_timing' as const, label: 'Timing trop serré' },
     { value: 'other' as const, label: 'Autre' },
 ];
 

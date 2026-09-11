@@ -69,7 +69,7 @@ test('managers send, accept, decline and invoice quotes; members cannot', functi
         ->post(route('tools.quotes.send', $quote))
         ->assertRedirect(route('tools.quotes.show', $quote));
     expect($quote->fresh()->status)->toBe(QuoteStatus::Sent);
-    Mail::assertSent(QuoteSent::class);
+    Mail::assertQueued(QuoteSent::class);
 
     $this->actingAs($member)->post(route('tools.quotes.accept', $quote))->assertForbidden();
     $this->actingAs($manager)->post(route('tools.quotes.accept', $quote))->assertSessionHasNoErrors();

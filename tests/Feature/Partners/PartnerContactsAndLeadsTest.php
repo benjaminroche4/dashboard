@@ -24,7 +24,7 @@ test('contacts are added, updated and removed on a partner, names capitalised', 
     $member = User::factory()->create();
 
     $this->actingAs($member)
-        ->post(route('partners.contacts.store', $partner), ['first_name' => 'marie', 'last_name' => 'DURAND', 'position' => 'Commerciale', 'email' => 'marie@zen.example'])
+        ->post(route('partners.contacts.store', $partner), ['first_name' => 'marie', 'last_name' => 'DURAND', 'position' => 'sales', 'email' => 'marie@zen.example'])
         ->assertRedirect()
         ->assertSessionHasNoErrors();
 
@@ -114,7 +114,7 @@ test('the dossier is forwarded to the partner by e-mail, with the reply-to on th
         ->assertRedirect()
         ->assertSessionHasNoErrors();
 
-    Mail::assertSent(LeadDossierForwarded::class, fn (LeadDossierForwarded $mail): bool => $mail->hasTo('garantie@zen.example')
+    Mail::assertQueued(LeadDossierForwarded::class, fn (LeadDossierForwarded $mail): bool => $mail->hasTo('garantie@zen.example')
         && $mail->hasReplyTo('charles@relocation-in-paris.fr')
         && $mail->envelope()->subject === 'Dossier Léa Durand · Garantie'
         && str_contains($mail->render(), 'Merci de traiter en priorité.'));

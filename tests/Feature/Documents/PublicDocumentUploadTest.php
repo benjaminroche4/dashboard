@@ -224,39 +224,52 @@ test('the public page asks for the pairing code first, unlocks the session with 
 test('the team emails the upload link and pairing code to the client in the list language, which is noted on the lead', function (): void {
     Mail::fake();
     $member = User::factory()->create();
-    $lead = Lead::factory()->create(['email' => 'lea@example.com']);
+    $lead = Lead::factory()->create(['email' => 'lea@example.com', 'co_email' => 'marc@example.com', 'co_first_name' => 'Marc']);
     $request = DocumentRequest::factory()->english()->create(['lead_id' => $lead->id, 'first_name' => 'Léa', 'last_name' => 'Durand', 'access_code' => '482913']);
 
     $this->actingAs($member)
         ->get(route('tools.documents.show', $request))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->where('request.access_code', '482913')
-            ->where('request.lead_email', 'lea@example.com')
+            // Les deux adresses du dossier sont proposées d'office.
+            ->where('request.lead_emails', ['lea@example.com', 'marc@example.com'])
             ->where('request.link_sent_at', null));
 
     $this->actingAs($member)
-        ->post(route('tools.documents.send-link', $request), ['email' => 'pas-un-email'])
-        ->assertSessionHasErrors(['email']);
+        ->post(route('tools.documents.send-link', $request), ['emails' => ['pas-un-email']])
+        ->assertSessionHasErrors(['emails.0']);
 
+    // Un seul envoi, tous les destinataires en « À », y compris un tiers ajouté.
     $this->actingAs($member)
-        ->post(route('tools.documents.send-link', $request), ['email' => 'lea@example.com'])
+        ->post(route('tools.documents.send-link', $request), ['emails' => ['lea@example.com', 'marc@example.com', 'agence@example.com']])
         ->assertRedirect()
         ->assertSessionHasNoErrors();
 
-    Mail::assertSent(DocumentUploadLinkSent::class, function (DocumentUploadLinkSent $mail) use ($request): bool {
+    Mail::assertQueued(DocumentUploadLinkSent::class, function (DocumentUploadLinkSent $mail) use ($request): bool {
         $mail->locale('en');
         $html = $mail->render();
 
         return $mail->hasTo('lea@example.com')
+            && $mail->hasTo('marc@example.com')
+            && $mail->hasTo('agence@example.com')
             && $mail->locale === 'en'
             && str_contains($html, $request->publicUrl())
             && str_contains($html, '482913')
             && str_contains($html, 'pairing code');
     });
 
-    expect($request->refresh()->link_sent_to)->toBe('lea@example.com')
+    expect($request->refresh()->link_sent_to)->toBe('lea@example.com, marc@example.com, agence@example.com')
         ->and($request->link_sent_at)->not->toBeNull()
-        ->and($lead->refresh()->notes()->latest()->value('body'))->toBe('Lien de dépôt des pièces envoyé à lea@example.com.')
+        ->and($lead->refresh()->notes()->latest()->value('body'))->toBe('Lien de dépôt des pièces envoyé à lea@example.com, marc@example.com, agence@example.com.')
         ->and($lead->last_contacted_at)->not->toBeNull();
     Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => str_contains((string) $event->message, 'lien de dépôt'));
+
+    // Au-delà de cinq destinataires, ou sans destinataire, l'envoi est refusé.
+    $this->actingAs($member)
+        ->post(route('tools.documents.send-link', $request), ['emails' => []])
+        ->assertSessionHasErrors('emails');
+
+    $this->actingAs($member)
+        ->post(route('tools.documents.send-link', $request), ['emails' => array_map(fn (int $i): string => "a{$i}@example.com", range(1, 6))])
+        ->assertSessionHasErrors('emails');
 });

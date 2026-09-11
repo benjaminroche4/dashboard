@@ -12,6 +12,7 @@ import {
     Languages,
     Mail,
     MapPin,
+    MoreHorizontal,
     Phone,
     ShieldCheck,
     Sofa,
@@ -19,8 +20,17 @@ import {
 } from 'lucide-react';
 import type { ComponentType, ReactNode, SVGProps } from 'react';
 import { ClientPriorityMenu } from '@/components/clients/client-priority';
+import { ArrivalProgress } from '@/components/clients/arrival-progress';
+import { ClientPeople } from '@/components/clients/client-people';
 import { ClientProperties } from '@/components/clients/client-properties';
 import { CreatedBy } from '@/components/created-by';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { FolderIllustration } from '@/components/folder-card';
 import { LeadDocumentRequests } from '@/components/leads/lead-document-requests';
 import { LeadInvoices } from '@/components/leads/lead-invoices';
@@ -44,6 +54,7 @@ import { create as quoteCreate } from '@/routes/tools/quotes';
 import type {
     Activity,
     ClientDetail,
+    ClientGuarantor,
     ClientNote,
     ClientPriorityOption,
     ClientProperty,
@@ -54,6 +65,8 @@ import type {
     LeadInvoice,
     LeadPartnerLink,
     LeadQuote,
+    TenantProfile,
+    TenantSlot,
     Visit,
 } from '@/types';
 
@@ -74,6 +87,12 @@ type Props = {
     visits?: Visit[];
     /** Journal : les 10 dernières actions du backoffice sur ce dossier. */
     activities?: Activity[];
+    /** Garants du dossier, repris des listes de documents. */
+    guarantors?: ClientGuarantor[];
+    /** Détails des locataires du dossier, par emplacement. */
+    tenantProfiles?: Partial<Record<TenantSlot, TenantProfile>>;
+    residencyStatuses?: { value: string; label: string }[];
+    employmentStatuses?: { value: string; label: string }[];
 };
 
 const dateTime = new Intl.DateTimeFormat('fr-FR', {
@@ -115,11 +134,22 @@ function Fact({
     );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({
+    label,
+    value,
+    children,
+}: {
+    label: string;
+    value?: string;
+    /** Contenu libre à la place du chiffre (barre d'avancement, badge…). */
+    children?: ReactNode;
+}) {
     return (
         <div className="grid gap-1 px-4 py-3 first:pl-0 last:pr-0 max-sm:border-b max-sm:px-0 max-sm:last:border-b-0 sm:border-l sm:first:border-l-0">
             <p className="text-muted-foreground truncate text-sm">{label}</p>
-            <p className="text-xl font-semibold tabular-nums">{value}</p>
+            {children ?? (
+                <p className="text-xl font-semibold tabular-nums">{value}</p>
+            )}
         </div>
     );
 }
@@ -179,8 +209,19 @@ export default function ClientShow({
     propertyOptions = [],
     suggestedProperties = [],
     notes,
+    guarantors = [],
+    tenantProfiles = {},
+    residencyStatuses = [],
+    employmentStatuses = [],
 }: Props) {
     const initials = useInitials();
+    // Onglet « Personnes » : locataires, garants et membres du suivi.
+    const peopleCount =
+        1 +
+        (client.co_tenant ? 1 : 0) +
+        guarantors.length +
+        (client.assignee ? 1 : 0) +
+        (client.co_assignee ? 1 : 0);
     const money = (cents: number, currency: string) =>
         formatMoney(cents, currency);
     const main = totals[0] ?? null;
@@ -242,42 +283,59 @@ export default function ClientShow({
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <Button variant="outline" asChild>
-                            <Link href={leadShow({ lead: client.uuid })}>
-                                <ExternalLink />
-                                Fiche lead
-                            </Link>
-                        </Button>
-                        <Button variant="outline" asChild>
-                            <Link
-                                href={visitCreate({
-                                    query: { client: client.uuid },
-                                })}
-                            >
-                                <CalendarClock />
-                                Planifier une visite
-                            </Link>
-                        </Button>
-                        <Button variant="outline" asChild>
-                            <Link
-                                href={quoteCreate({
-                                    query: { lead: client.uuid },
-                                })}
-                            >
-                                <FileSignature />
-                                Nouveau devis
-                            </Link>
-                        </Button>
-                        <Button asChild>
-                            <Link
-                                href={invoiceCreate({
-                                    query: { lead: client.uuid },
-                                })}
-                            >
-                                <FilePlus2 />
-                                Nouvelle facture
-                            </Link>
-                        </Button>
+                        {/* Actions secondaires du dossier, derrière le menu « ⋯ ». */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    aria-label="Plus d’actions"
+                                >
+                                    <MoreHorizontal aria-hidden />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem asChild>
+                                    <Link
+                                        href={leadShow({ lead: client.uuid })}
+                                    >
+                                        <ExternalLink />
+                                        Fiche lead
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <Link
+                                        href={visitCreate({
+                                            query: { client: client.uuid },
+                                        })}
+                                    >
+                                        <CalendarClock />
+                                        Planifier une visite
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <Link
+                                        href={quoteCreate({
+                                            query: { lead: client.uuid },
+                                        })}
+                                    >
+                                        <FileSignature />
+                                        Nouveau devis
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <Link
+                                        href={invoiceCreate({
+                                            query: { lead: client.uuid },
+                                        })}
+                                    >
+                                        <FilePlus2 />
+                                        Nouvelle facture
+                                    </Link>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
 
@@ -285,14 +343,19 @@ export default function ClientShow({
                     aria-label="Chiffres du dossier"
                     className="grid grid-cols-1 rounded-xl border px-4 sm:grid-cols-4"
                 >
-                    <Stat
-                        label="Arrivée"
-                        value={
-                            client.arrival_at
-                                ? formatDate(client.arrival_at)
-                                : '—'
-                        }
-                    />
+                    <Stat label="Arrivée">
+                        {client.arrival_at ? (
+                            // Même barre d'avancement que la liste des dossiers.
+                            <ArrivalProgress
+                                convertedAt={client.converted_at}
+                                arrivalAt={client.arrival_at}
+                            />
+                        ) : (
+                            <p className="text-xl font-semibold tabular-nums">
+                                —
+                            </p>
+                        )}
+                    </Stat>
                     <Stat
                         label="Facturé"
                         value={
@@ -334,6 +397,11 @@ export default function ClientShow({
                         className="w-full justify-start border-b"
                     >
                         <Tab value="apercu" label="Aperçu" />
+                        <Tab
+                            value="personnes"
+                            label="Personnes"
+                            count={peopleCount}
+                        />
                         <Tab
                             value="visites"
                             label="Visites"
@@ -446,6 +514,15 @@ export default function ClientShow({
                                 </p>
                             )}
                         </Section>
+                    </TabsContent>
+                    <TabsContent value="personnes">
+                        <ClientPeople
+                            client={client}
+                            guarantors={guarantors}
+                            tenantProfiles={tenantProfiles}
+                            residencyStatuses={residencyStatuses}
+                            employmentStatuses={employmentStatuses}
+                        />
                     </TabsContent>
                     <TabsContent value="visites">
                         <Section title="Visites">

@@ -22,7 +22,7 @@ enum LeaseType: string
             self::CivilCode => 'Code civil',
             self::Mobility => 'Bail mobilité',
             self::Airbnb => 'Airbnb',
-            self::NoIdea => 'Aucune idée',
+            self::NoIdea => 'Non défini',
         };
     }
 

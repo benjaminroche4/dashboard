@@ -36,6 +36,12 @@ const DropzoneContext = createContext<DropzoneContextType | undefined>(
 export type DropzoneProps = Omit<DropzoneOptions, 'onDrop'> & {
     src?: File[];
     className?: string;
+    /**
+     * Nom accessible de la zone de dépôt (retouche projet : react-dropzone
+     * pose `role="presentation"` par défaut, alors que la racine est ici un
+     * vrai bouton).
+     */
+    'aria-label'?: string;
     onDrop?: (
         acceptedFiles: File[],
         fileRejections: FileRejection[],
@@ -55,6 +61,7 @@ export const Dropzone = ({
     src,
     className,
     children,
+    'aria-label': ariaLabel,
     ...props
 }: DropzoneProps) => {
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -90,7 +97,7 @@ export const Dropzone = ({
                 disabled={disabled}
                 type="button"
                 variant="outline"
-                {...getRootProps()}
+                {...getRootProps({ role: 'button', 'aria-label': ariaLabel })}
             >
                 <input {...getInputProps()} disabled={disabled} />
                 {children}

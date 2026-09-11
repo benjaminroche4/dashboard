@@ -50,8 +50,8 @@ test('the assignee is reminded once by e-mail after the visio, and again after a
     Lead::factory()->create(['assigned_to' => $camille->id, 'visio_at' => now()->subDay(), 'visio_report' => 'Fait.', 'visio_report_submitted_at' => now()->subHours(20)]);
 
     expect((new SendVisioReportReminders)->handle())->toBe(1);
-    Mail::assertSent(VisioReportDue::class, fn (VisioReportDue $mail): bool => $mail->hasTo('camille@example.com') && $mail->lead->is($due));
-    Mail::assertSentCount(1);
+    Mail::assertQueued(VisioReportDue::class, fn (VisioReportDue $mail): bool => $mail->hasTo('camille@example.com') && $mail->lead->is($due));
+    Mail::assertQueuedCount(1);
     Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->payload['mentions'] === [$camille->id]
         && str_contains((string) $event->message, "compte rendu de l'appel vidéo"));
     expect((new SendVisioReportReminders)->handle())->toBe(0);

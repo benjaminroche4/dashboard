@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { notify } from '@/lib/toast';
 
 /**
- * Lien public de dépôt d'une liste de documents : adresse à transmettre au
+ * Lien de dépôt d'une liste de pièces : adresse à transmettre au
  * client, bouton de copie, nombre de fichiers déjà reçus.
  */
 const sentAt = new Intl.DateTimeFormat('fr-FR', {
@@ -20,7 +20,7 @@ export function PublicUploadLink({
     url,
     accessCode,
     uploadsCount,
-    defaultEmail,
+    leadEmails,
     linkSentTo,
     linkSentAt,
 }: {
@@ -28,7 +28,7 @@ export function PublicUploadLink({
     url: string;
     accessCode: string;
     uploadsCount: number;
-    defaultEmail: string | null;
+    leadEmails: string[];
     linkSentTo: string | null;
     linkSentAt: string | null;
 }) {
@@ -47,55 +47,72 @@ export function PublicUploadLink({
     };
 
     return (
-        <div className="grid gap-2">
-            <a
-                href={url}
-                target="_blank"
-                rel="noreferrer"
-                className="bg-background flex items-start gap-2 rounded-lg border p-3 text-sm break-all hover:underline"
-            >
-                <ExternalLink className="mt-0.5 size-4 shrink-0" aria-hidden />
-                {url}
-            </a>
-            <div className="bg-background flex items-center justify-between gap-2 rounded-lg border p-3 text-sm">
-                <span className="text-muted-foreground flex items-center gap-2">
-                    <KeyRound className="size-4 shrink-0" aria-hidden />
-                    Code d’appairage
-                </span>
-                <span
-                    aria-label={`Code d’appairage ${accessCode}`}
-                    className="font-mono text-base font-semibold tracking-[0.3em]"
-                >
-                    {accessCode}
-                </span>
+        <div className="grid gap-3">
+            {/* Le panneau vit dans une colonne étroite : tout s'empile, rien
+                n'est mis en concurrence sur une même ligne. */}
+            <div className="bg-background grid gap-2 rounded-lg border p-3">
+                <div className="grid gap-1">
+                    <p className="text-muted-foreground text-xs">
+                        Adresse de dépôt
+                    </p>
+                    <a
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm leading-5 break-all underline-offset-4 hover:underline"
+                    >
+                        {url}
+                        <ExternalLink
+                            className="ml-1 inline size-3.5 align-[-2px]"
+                            aria-hidden
+                        />
+                    </a>
+                </div>
+                <div className="flex items-center justify-between gap-2 border-t pt-2">
+                    <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                        <KeyRound className="size-3.5 shrink-0" aria-hidden />
+                        Code d’appairage
+                    </span>
+                    <span
+                        aria-label={`Code d’appairage ${accessCode}`}
+                        className="font-mono text-base font-semibold tracking-[0.2em] tabular-nums"
+                    >
+                        {accessCode}
+                    </span>
+                </div>
             </div>
-            <div className="flex items-center justify-between gap-2">
-                <p className="text-muted-foreground text-sm tabular-nums">
+
+            <div className="grid gap-2">
+                <Button size="sm" onClick={() => setSending(true)}>
+                    <Send aria-hidden />
+                    Envoyer par e-mail
+                </Button>
+                <Button variant="outline" size="sm" onClick={copy}>
+                    {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
+                    {copied ? 'Copié' : 'Copier le lien'}
+                </Button>
+            </div>
+
+            <div className="text-muted-foreground grid gap-1 text-xs">
+                <p className="tabular-nums">
                     {uploadsCount === 0
                         ? 'Aucun fichier reçu pour le moment.'
                         : `${uploadsCount} fichier${uploadsCount > 1 ? 's' : ''} reçu${uploadsCount > 1 ? 's' : ''}.`}
                 </p>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={copy}>
-                        {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
-                        {copied ? 'Copié' : 'Copier le lien'}
-                    </Button>
-                    <Button size="sm" onClick={() => setSending(true)}>
-                        <Send aria-hidden />
-                        Envoyer par e-mail
-                    </Button>
-                </div>
+                {linkSentTo && (
+                    <p className="break-all">
+                        Envoyé à {linkSentTo}
+                        {linkSentAt &&
+                            ` le ${sentAt.format(new Date(linkSentAt))}`}
+                        .
+                    </p>
+                )}
             </div>
-            {linkSentTo && (
-                <p className="text-muted-foreground text-sm">
-                    Envoyé à {linkSentTo}
-                    {linkSentAt && ` le ${sentAt.format(new Date(linkSentAt))}`}
-                    .
-                </p>
-            )}
+
             <SendUploadLinkDialog
                 requestUuid={requestUuid}
-                defaultEmail={linkSentTo ?? defaultEmail}
+                leadEmails={leadEmails}
+                lastSentTo={linkSentTo}
                 accessCode={accessCode}
                 open={sending}
                 onOpenChange={setSending}

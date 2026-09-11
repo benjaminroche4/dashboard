@@ -18,8 +18,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { show as leadShow } from '@/routes/leads';
-import { convert, destroy, show as ownerShow } from '@/routes/owners';
+import { destroy, show as ownerShow } from '@/routes/owners';
 import type { Owner } from '@/types';
 
 /**
@@ -71,25 +70,6 @@ export function OwnerRowActions({
                     <DropdownMenuItem onSelect={onEdit}>
                         Modifier
                     </DropdownMenuItem>
-                    {owner.lead ? (
-                        <DropdownMenuItem asChild>
-                            <Link href={leadShow({ lead: owner.lead.uuid })}>
-                                Ouvrir le lead {owner.lead.reference}
-                            </Link>
-                        </DropdownMenuItem>
-                    ) : (
-                        <DropdownMenuItem
-                            onSelect={() =>
-                                router.post(
-                                    convert({ owner: owner.uuid }).url,
-                                    {},
-                                    { preserveScroll: true },
-                                )
-                            }
-                        >
-                            Créer le lead
-                        </DropdownMenuItem>
-                    )}
                     {canDelete && (
                         <>
                             <DropdownMenuSeparator />

@@ -1,5 +1,6 @@
 import type {
     AccessLevel,
+    AccessLevelOption,
     AccessMap,
     SiteSection,
     SiteSectionOption,
@@ -43,14 +44,37 @@ export function customizedSections(
     );
 }
 
-/** Même niveau sur toutes les sections. */
+/**
+ * Même niveau sur toutes les sections, borné section par section : « Gérer »
+ * n'existe pas là où il n'ajoute rien (miroir de SiteSection::clamp()).
+ */
 export function setEveryLevel(
     permissions: AccessMap,
     level: AccessLevel,
+    sections: SiteSectionOption[] = [],
 ): AccessMap {
+    const noManage = new Set(
+        sections.filter((section) => !section.has_manage).map((s) => s.value),
+    );
+
     return Object.fromEntries(
-        Object.keys(permissions).map((section) => [section, level]),
+        Object.keys(permissions).map((section) => [
+            section,
+            level === 'manage' && noManage.has(section as SiteSection)
+                ? 'write'
+                : level,
+        ]),
     ) as AccessMap;
+}
+
+/** Niveaux proposés par une section : « Gérer » seulement s'il ajoute une action. */
+export function levelsFor(
+    levels: AccessLevelOption[],
+    section: SiteSectionOption,
+): AccessLevelOption[] {
+    return section.has_manage
+        ? levels
+        : levels.filter((level) => level.value !== 'manage');
 }
 
 /** Niveaux d'un rôle, tels qu'ils s'appliqueraient sans personnalisation. */

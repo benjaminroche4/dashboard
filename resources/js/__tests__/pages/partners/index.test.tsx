@@ -84,7 +84,13 @@ describe('Partners index page', () => {
 
     it('lists the partners with type badge, contact, address and author, and filters by type', async () => {
         const user = userEvent.setup();
-        render(<PartnersIndex partners={partners} types={partnerTypes} />);
+        render(
+            <PartnersIndex
+                partners={partners}
+                types={partnerTypes}
+                favoritesCount={0}
+            />,
+        );
 
         expect(screen.getByText('2 partenaire(s)')).toBeInTheDocument();
         expect(
@@ -161,7 +167,13 @@ describe('Partners index page', () => {
 
     it('does not offer the welcome e-mail when editing a partner', async () => {
         const user = userEvent.setup();
-        render(<PartnersIndex partners={partners} types={partnerTypes} />);
+        render(
+            <PartnersIndex
+                partners={partners}
+                types={partnerTypes}
+                favoritesCount={0}
+            />,
+        );
 
         await user.click(
             screen.getByRole('button', { name: 'Actions pour Zen Assurances' }),
@@ -176,7 +188,13 @@ describe('Partners index page', () => {
 
     it('edits a partner from its menu', async () => {
         const user = userEvent.setup();
-        render(<PartnersIndex partners={partners} types={partnerTypes} />);
+        render(
+            <PartnersIndex
+                partners={partners}
+                types={partnerTypes}
+                favoritesCount={0}
+            />,
+        );
 
         await user.click(
             screen.getByRole('button', { name: 'Actions pour Zen Assurances' }),

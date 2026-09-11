@@ -84,7 +84,8 @@ test('the journal lists the activities, newest first, with their actor, resource
             ->where('activities.data.1.lead', null)
             ->where('members.0.name', 'Chloé Martin')
             ->where('resources', [['value' => 'invoices', 'label' => 'Factures'], ['value' => 'leads', 'label' => 'Leads']])
-            ->where('filters', ['member' => null, 'resource' => null, 'lead' => null])
+            ->where('periods.2', ['value' => 'month', 'label' => '30 derniers jours'])
+            ->where('filters', ['period' => 'month', 'member' => null, 'resource' => null, 'lead' => null])
             ->where('lead', null));
 });
 
@@ -115,11 +116,43 @@ test('the journal filters by member, resource and lead', function (): void {
             ->has('activities.data', 1)
             ->where('activities.data.0.message', 'a créé le lead')
             ->where('lead.uuid', $lead->uuid)
-            ->where('filters.lead', $lead->uuid));
+            ->where('filters.lead', $lead->uuid)
+            ->where('filters.period', 'all'));
 
     $this->actingAs($member)
         ->get(route('tools.activity.index', ['member' => 'abc']))
         ->assertSessionHasErrors('member');
+});
+
+test('the journal shows the last thirty days by default and follows the period asked', function (): void {
+    Date::setTestNow('2026-09-08 10:00:00');
+    $member = User::factory()->create();
+    Activity::factory()->resource('leads', "d'aujourd'hui")->create(['created_at' => now()->subHours(2)]);
+    Activity::factory()->resource('leads', 'de la semaine')->create(['created_at' => now()->subDays(3)]);
+    Activity::factory()->resource('leads', 'du trimestre')->create(['created_at' => now()->subDays(60)]);
+
+    $this->actingAs($member)
+        ->get(route('tools.activity.index'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->has('activities.data', 2)
+            ->where('filters.period', 'month'));
+
+    $this->actingAs($member)
+        ->get(route('tools.activity.index', ['period' => 'today']))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->has('activities.data', 1)
+            ->where('activities.data.0.message', "d'aujourd'hui")
+            ->where('filters.period', 'today'));
+
+    $this->actingAs($member)
+        ->get(route('tools.activity.index', ['period' => 'all']))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->has('activities.data', 3)
+            ->where('filters.period', 'all'));
+
+    $this->actingAs($member)
+        ->get(route('tools.activity.index', ['period' => 'decade']))
+        ->assertSessionHasErrors('period');
 });
 
 test('the journal paginates fifty entries per page keeping the filters', function (): void {

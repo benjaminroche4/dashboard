@@ -11,6 +11,7 @@ use App\Enums\LeadDuration;
 use App\Enums\LeadLanguage;
 use App\Enums\PropertyType;
 use App\Models\Lead;
+use App\Support\JsonSchema;
 use Carbon\CarbonImmutable;
 
 /**
@@ -52,8 +53,8 @@ final readonly class LeadQualificationData
      */
     public static function schema(): array
     {
-        $nullable = fn (string $type, array $extra = []): array => ['type' => [$type, 'null'], ...$extra];
-        $values = fn (string $enum): array => array_map(fn (\BackedEnum $case): string => (string) $case->value, $enum::cases());
+        $nullable = JsonSchema::nullable(...);
+        $values = JsonSchema::values(...);
 
         return [
             'type' => 'object',
@@ -62,17 +63,18 @@ final readonly class LeadQualificationData
             'properties' => [
                 'summary' => ['type' => 'string', 'description' => 'Le projet en une ou deux phrases, en français, factuel'],
                 'company' => $nullable('string', ['description' => 'Employeur ou société qui finance, si cité']),
-                'language' => $nullable('string', ['enum' => [...$values(LeadLanguage::class), null], 'description' => 'Langue dans laquelle le lead écrit ou parle']),
+                'language' => JsonSchema::nullableEnum($values(LeadLanguage::class), 'Langue dans laquelle le lead écrit ou parle'),
                 'budget' => $nullable('number', ['description' => 'Budget mensuel maximal en unités de la devise']),
                 'currency' => ['type' => 'string', 'enum' => $values(Currency::class)],
                 'arrival_at' => $nullable('string', ['description' => 'Date d’emménagement souhaitée, AAAA-MM-JJ (1er du mois si seul le mois est connu)']),
-                'districts' => ['type' => 'array', 'items' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 20], 'description' => 'Arrondissements de Paris cités ou déduits des quartiers (Marais → 3 et 4, Oberkampf → 11…)'],
+                // Bornes 1 à 20 dites dans la description : l'API refuse `minimum` / `maximum`.
+                'districts' => ['type' => 'array', 'items' => ['type' => 'integer'], 'description' => 'Arrondissements de Paris (1 à 20) cités ou déduits des quartiers (Marais → 3 et 4, Oberkampf → 11…)'],
                 'property_types' => ['type' => 'array', 'items' => ['type' => 'string', 'enum' => $values(PropertyType::class)]],
-                'furnished' => $nullable('string', ['enum' => [...$values(Furnished::class), null]]),
-                'duration' => $nullable('string', ['enum' => [...$values(LeadDuration::class), null], 'description' => 'short = 1 à 3 mois, medium = 3 à 12 mois, long = 12 mois et plus']),
+                'furnished' => JsonSchema::nullableEnum($values(Furnished::class)),
+                'duration' => JsonSchema::nullableEnum($values(LeadDuration::class), 'short = 1 à 3 mois, medium = 3 à 12 mois, long = 12 mois et plus'),
                 'guarantors' => ['type' => 'array', 'items' => ['type' => 'string', 'enum' => $values(GuarantorType::class)], 'description' => 'physique = un proche, garantme = garant institutionnel, bancaire = caution bancaire'],
                 'origin_city' => $nullable('string', ['description' => 'Ville ou pays de départ']),
-                'score' => $nullable('integer', ['minimum' => 1, 'maximum' => 5, 'description' => 'Qualité du lead : 5 = projet clair, budget réaliste, date proche ; 1 = vague ou hors cible']),
+                'score' => $nullable('integer', ['description' => 'Qualité du lead, de 1 à 5 : 5 = projet clair, budget réaliste, date proche ; 1 = vague ou hors cible']),
                 'score_reason' => $nullable('string', ['description' => 'Motif de la note en une phrase, en français']),
             ],
         ];

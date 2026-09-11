@@ -65,14 +65,14 @@ describe('PropertyPicker', () => {
         const trigger = screen.getByRole('combobox');
         expect(trigger).toHaveTextContent('T2 lumineux · 11e');
         expect(
-            within(trigger).getByLabelText('Photo de T2 lumineux · 11e'),
+            within(trigger).getByAltText('Photo de T2 lumineux · 11e'),
         ).toHaveAttribute('src', '/storage/properties/salon.jpg');
 
         await user.click(trigger);
         const options = await screen.findAllByRole('option');
         expect(options).toHaveLength(2);
         expect(
-            within(options[0] as HTMLElement).getByLabelText(
+            within(options[0] as HTMLElement).getByAltText(
                 'Photo de T2 lumineux · 11e',
             ),
         ).toBeInTheDocument();

@@ -34,11 +34,14 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
  * @property int|null $created_by
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
+ * @property CarbonInterface|null $last_contacted_at
+ * @property float|null $latitude
+ * @property float|null $longitude
  * @property-read User|null $creator
  * @property-read Collection<int, Agent> $agents
  * @property-read Collection<int, Lead> $leads
  */
-#[Fillable(['name', 'street', 'postal_code', 'city', 'phone', 'email', 'website', 'notes', 'created_by'])]
+#[Fillable(['name', 'street', 'postal_code', 'city', 'phone', 'email', 'website', 'notes', 'latitude', 'longitude', 'last_contacted_at', 'created_by'])]
 class Agency extends Model
 {
     use Favoritable;
@@ -56,6 +59,14 @@ class Agency extends Model
     public function uniqueIds(): array
     {
         return ['uuid'];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return ['latitude' => 'float', 'longitude' => 'float', 'last_contacted_at' => 'datetime'];
     }
 
     public function getRouteKeyName(): string
@@ -76,7 +87,8 @@ class Agency extends Model
      */
     public function agents(): HasMany
     {
-        return $this->hasMany(Agent::class)->orderBy('last_name')->orderBy('first_name');
+        // L'agent principal ouvre la liste, partout où elle est affichée.
+        return $this->hasMany(Agent::class)->orderByDesc('is_primary')->orderBy('last_name')->orderBy('first_name');
     }
 
     /**
@@ -87,6 +99,17 @@ class Agency extends Model
     public function leads(): HasManyThrough
     {
         return $this->hasManyThrough(Lead::class, Agent::class)->latest('leads.created_at')->orderByDesc('leads.id');
+    }
+
+    /**
+     * Visites réalisées avec l'un des agents de l'agence : c'est ce qui dit si
+     * l'on a déjà travaillé avec elle, mieux que le nombre de leads.
+     *
+     * @return HasManyThrough<Visit, Agent, $this>
+     */
+    public function visits(): HasManyThrough
+    {
+        return $this->hasManyThrough(Visit::class, Agent::class)->latest('visits.scheduled_at');
     }
 
     /**

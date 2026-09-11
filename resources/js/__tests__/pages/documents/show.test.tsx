@@ -3,9 +3,10 @@ import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { download, post } = vi.hoisted(() => ({
+const { download, post, patch } = vi.hoisted(() => ({
     download: vi.fn().mockResolvedValue(true),
     post: vi.fn(),
+    patch: vi.fn(),
 }));
 
 vi.mock('@inertiajs/react', () => ({
@@ -17,7 +18,7 @@ vi.mock('@inertiajs/react', () => ({
         href: { url: string };
         children: ReactNode;
     }) => <a href={href.url}>{children}</a>,
-    router: { delete: vi.fn(), post },
+    router: { delete: vi.fn(), post, patch },
     usePage: () => ({
         props: { auth: { user: { id: 1, name: 'Admin', role: 'admin' } } },
     }),
@@ -69,7 +70,7 @@ describe('Documents show page', () => {
 
         expect(
             screen.getByRole('heading', {
-                name: 'Liste de documents · Léa Martin',
+                name: 'Liste de pièces · Léa Martin',
             }),
         ).toBeInTheDocument();
         expect(screen.getByText('Locataire')).toBeInTheDocument();
@@ -181,11 +182,13 @@ describe('Documents show page', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('shows the pairing code and emails the upload link to the lead address', async () => {
+    it('proposes every address of the linked file, and lets one be added', async () => {
         const user = userEvent.setup();
         render(
             <DocumentsShow
-                request={makeDocumentRequestDetail()}
+                request={makeDocumentRequestDetail({
+                    lead_emails: ['lea@example.com', 'marc@example.com'],
+                })}
                 pdfAvailable
             />,
         );
@@ -197,14 +200,76 @@ describe('Documents show page', () => {
         await user.click(
             screen.getByRole('button', { name: 'Envoyer par e-mail' }),
         );
-        expect(screen.getByLabelText('E-mail du client')).toHaveValue(
+
+        // Les deux adresses du dossier sont là d'office.
+        expect(screen.getByLabelText('Destinataire 1')).toHaveValue(
             'lea@example.com',
+        );
+        expect(screen.getByLabelText('Destinataire 2')).toHaveValue(
+            'marc@example.com',
+        );
+
+        // On en retire une, on en ajoute une autre.
+        await user.click(
+            screen.getByRole('button', { name: 'Retirer marc@example.com' }),
+        );
+        await user.click(
+            screen.getByRole('button', { name: 'Ajouter un destinataire' }),
+        );
+        await user.type(
+            screen.getByLabelText('Destinataire 2'),
+            'agence@example.com',
         );
         await user.click(screen.getByRole('button', { name: 'Envoyer' }));
 
         expect(post).toHaveBeenCalledWith(
             '/tools/documents/0199b0c0-0000-7000-8000-000000000001/send-link',
-            { email: 'lea@example.com' },
+            { emails: ['lea@example.com', 'agence@example.com'] },
+            expect.objectContaining({ preserveScroll: true }),
+        );
+    });
+
+    it('links a list created without a lead, and detaches it', async () => {
+        const user = userEvent.setup();
+        const { rerender } = render(
+            <DocumentsShow
+                request={makeDocumentRequestDetail({ lead: null })}
+                pdfAvailable
+            />,
+        );
+
+        expect(
+            screen.getByText('Aucun lead rattaché à cette liste.'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Lier à un lead' }),
+        ).toBeInTheDocument();
+
+        // Une fois rattachée, la fiche mène au lead et propose de le détacher.
+        rerender(
+            <DocumentsShow
+                request={makeDocumentRequestDetail({
+                    lead: {
+                        id: 4,
+                        uuid: '0199a9a0-0000-7000-8000-0000000000e1',
+                        name: 'Léa Durand',
+                        reference: 'LD-4821',
+                    },
+                })}
+                pdfAvailable
+            />,
+        );
+        expect(
+            screen.getByRole('link', { name: 'Léa Durand' }),
+        ).toHaveAttribute(
+            'href',
+            '/locataires/0199a9a0-0000-7000-8000-0000000000e1',
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Détacher' }));
+        expect(patch).toHaveBeenCalledWith(
+            expect.stringContaining('/lead'),
+            { lead_id: null },
             expect.objectContaining({ preserveScroll: true }),
         );
     });

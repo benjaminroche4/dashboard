@@ -74,6 +74,14 @@ const props = {
         default_currency: 'CHF' as const,
         default_payment_terms_days: 30,
     },
+    bankAccounts: [
+        {
+            label: 'Banque',
+            bank: 'Banque',
+            iban: 'CH00',
+            currency: null,
+        },
+    ],
     offers: [
         {
             value: 'accompagne' as const,

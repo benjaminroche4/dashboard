@@ -11,158 +11,61 @@ import type { Report } from '@/types';
 
 const report: Report = {
     period: { from: '2026-07-01', to: '2026-09-07' },
+    granularity: 'day',
     leads: {
         total: 12,
-        converted: 3,
-        archived: 2,
-        daily: {
-            current: 'Septembre 2026',
-            previous: 'Août 2026',
-            days: [
-                { day: 1, current: 2, previous: 1 },
-                { day: 2, current: 1, previous: 3 },
-                { day: 3, current: null, previous: 0 },
-            ],
-        },
-        by_offer: [
-            { offer: 'accompagne', label: 'Accompagné', count: 5 },
-            { offer: 'confie', label: 'Confié', count: 4 },
-            { offer: null, label: 'Sans formule', count: 3 },
+        previous_total: 8,
+        previous_label: 'Du 12 juil. 2026 au 10 août 2026',
+        series: [
+            { label: '7 sept.', current: 2, previous: 1 },
+            { label: '8 sept.', current: 1, previous: 3 },
+            { label: '9 sept.', current: 0, previous: 0 },
         ],
-        by_assignee: [
-            { assignee: 1, label: 'Charles', count: 9, converted: 3 },
-            { assignee: null, label: 'Non attribué', count: 3, converted: 0 },
-        ],
-        conversion_rate: 25,
-        by_status: [
-            { status: 'todo', label: 'À traiter', count: 4 },
-            { status: 'converted', label: 'Converti', count: 3 },
-        ],
-        by_source: [
-            {
-                source: 'website',
-                label: 'Site web',
-                count: 8,
-                converted: 2,
-                rate: 25,
-            },
-            {
-                source: 'phone',
-                label: 'Téléphone',
-                count: 4,
-                converted: 1,
-                rate: 25,
-            },
-        ],
-        first_contact: {
-            measured: 10,
-            average_minutes: 42,
-            within_30_rate: 60,
-        },
-    },
-    quotes: {
-        total: 5,
-        by_status: [],
-        acceptance_rate: 75,
-        by_offer: [
-            {
-                offer: 'accompagne',
-                label: 'Accompagné',
-                count: 2,
-                accepted: 1,
-                declined: 1,
-                rate: 50,
-            },
-            {
-                offer: 'confie',
-                label: 'Confié',
-                count: 3,
-                accepted: 2,
-                declined: 0,
-                rate: 100,
-            },
-        ],
-        accepted_amounts: { CHF: 0, EUR: 657_000 },
     },
     visits: {
         total: 4,
-        done: 1,
-        cancelled: 0,
-        weekly: [
-            {
-                week: '2026-W36',
-                label: '31 août – 6 sept.',
-                days: [
-                    { day: 'Lun', count: 0 },
-                    { day: 'Mar', count: 1 },
-                    { day: 'Mer', count: 0 },
-                    { day: 'Jeu', count: 0 },
-                    { day: 'Ven', count: 0 },
-                    { day: 'Sam', count: 0 },
-                    { day: 'Dim', count: 0 },
-                ],
-                total: 1,
-                daily_average: 0.1,
-            },
-            {
-                week: '2026-W37',
-                label: '7 sept. – 13 sept.',
-                days: [
-                    { day: 'Lun', count: 2 },
-                    { day: 'Mar', count: 1 },
-                    { day: 'Mer', count: 0 },
-                    { day: 'Jeu', count: 0 },
-                    { day: 'Ven', count: 0 },
-                    { day: 'Sam', count: 0 },
-                    { day: 'Dim', count: 0 },
-                ],
-                total: 3,
-                daily_average: 0.4,
-            },
+        series: [
+            { label: '7 sept.', count: 3 },
+            { label: '8 sept.', count: 1 },
+            { label: '9 sept.', count: 0 },
         ],
         by_booker: [
-            { user: 1, label: 'Charles', count: 3, done: 1, cancelled: 0 },
-            { user: 2, label: 'Camille', count: 1, done: 0, cancelled: 0 },
-        ],
-    },
-    invoices: {
-        count: 4,
-        paid_count: 2,
-        issued: { CHF: 50_000, EUR: 300_000 },
-        paid: { CHF: 0, EUR: 120_000 },
-        overdue: { count: 1, amounts: { CHF: 0, EUR: 40_000 } },
-        by_month: [
             {
-                month: '2026-07',
-                label: 'Juil. 2026',
-                issued: { CHF: 0, EUR: 100_000 },
-                paid: { CHF: 0, EUR: 0 },
+                name: 'Charles',
+                avatar: '/storage/avatars/charles.jpg',
+                total: 3,
+                done: 1,
+                cancelled: 0,
             },
             {
-                month: '2026-08',
-                label: 'Août 2026',
-                issued: { CHF: 50_000, EUR: 100_000 },
-                paid: { CHF: 0, EUR: 60_000 },
-            },
-            {
-                month: '2026-09',
-                label: 'Sept. 2026',
-                issued: { CHF: 0, EUR: 100_000 },
-                paid: { CHF: 0, EUR: 60_000 },
+                name: 'Sans auteur',
+                avatar: null,
+                total: 1,
+                done: 0,
+                cancelled: 1,
             },
         ],
     },
 };
 
+const periods = [
+    { value: 'day', label: "Aujourd'hui" },
+    { value: 'week', label: '7 derniers jours' },
+    { value: 'days30', label: '30 derniers jours' },
+    { value: 'months6', label: '6 derniers mois' },
+    { value: 'months12', label: '12 derniers mois' },
+    { value: 'custom', label: 'Période personnalisée' },
+];
+
 const props = {
     report,
-    months: 3,
-    periods: [3, 6, 12, 24],
+    period: 'days30',
+    periods,
     generatedAt: '2026-09-07T10:00:00+00:00',
 };
 
 describe('Reports page', () => {
-    it('shows the period, the key figures and the tables behind the charts', () => {
+    it('shows the period and the two key figures only', () => {
         render(<ReportsIndex {...props} />);
 
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
@@ -175,111 +78,146 @@ describe('Reports page', () => {
         const stats = within(
             screen.getByRole('region', { name: 'Chiffres clés' }),
         );
+        expect(stats.getByText('Leads reçus')).toBeInTheDocument();
         expect(stats.getByText('12')).toBeInTheDocument();
-        expect(stats.getByText('3 converti(s) · 25 %')).toBeInTheDocument();
-        expect(stats.getByText('42 min')).toBeInTheDocument();
-        expect(stats.getByText('75 %')).toBeInTheDocument();
-        expect(stats.getByText(/1.200,00 €/)).toBeInTheDocument();
+        expect(stats.getByText('Visites réservées')).toBeInTheDocument();
+        expect(stats.getByText('4')).toBeInTheDocument();
 
-        const monthly = within(
-            screen.getByRole('table', { name: 'Factures par mois en EUR' }),
-        );
-        expect(monthly.getAllByRole('row')).toHaveLength(4);
-        expect(monthly.getByText('Août 2026')).toBeInTheDocument();
         expect(
-            within(
-                screen.getByRole('table', { name: 'Leads par source' }),
-            ).getByText('Téléphone'),
-        ).toBeInTheDocument();
-        expect(
-            within(
-                screen.getByRole('table', { name: 'Devis par formule' }),
-            ).getByText('Confié'),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByText(/Montant des devis acceptés : 6.570,00 €/),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('combobox', { name: 'Période' }),
-        ).toHaveTextContent('3 derniers mois');
+            screen.queryByRole('region', { name: 'Détail des leads' }),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText('Factures par mois')).not.toBeInTheDocument();
+        expect(screen.queryByText('Devis')).not.toBeInTheDocument();
     });
 
-    it('switches the currency tab and reloads on period change', async () => {
+    it('draws both curves over the chosen period, not over a fixed window', () => {
+        const { container } = render(<ReportsIndex {...props} />);
+
+        // Les totaux des courbes sont ceux de la période, pas ceux du mois en cours.
+        expect(
+            container.querySelector('[data-test="leads-summary"]'),
+        ).toHaveTextContent('12 lead(s) sur la période');
+        expect(screen.getByTestId('visits-summary')).toHaveTextContent(
+            '4 visite(s) sur la période',
+        );
+
+        const visits = within(screen.getByRole('region', { name: 'Visites' }));
+        expect(
+            visits.getByText(/sur la période choisie, hors annulées/i),
+        ).toBeInTheDocument();
+    });
+
+    it('lists who booked the visits of the period', () => {
+        render(<ReportsIndex {...props} />);
+
+        const bookers = within(
+            screen.getByRole('region', {
+                name: 'Visites réservées par membre',
+            }),
+        );
+        const rows = bookers.getAllByRole('listitem');
+        // Classement décroissant : l'avatar du membre précède son nom.
+        expect(rows[0]).toHaveTextContent('Charles');
+        // Radix ne peint l'image qu'une fois chargée : en test, l'initiale tient la place.
+        expect(rows[0]).toHaveTextContent('C');
+        expect(rows[0]).toHaveTextContent('75 % · 1 effectuée · 0 annulée');
+        // Sans photo, les initiales prennent le relais.
+        expect(rows[1]).toHaveTextContent('Sans auteur');
+        expect(rows[1]).toHaveTextContent('SA');
+    });
+
+    it('reloads on a shortcut period, day to twelve months', async () => {
         const user = userEvent.setup();
         render(<ReportsIndex {...props} />);
 
-        await user.click(screen.getByRole('tab', { name: 'CHF' }));
         expect(
-            screen.getByRole('table', { name: 'Factures par mois en CHF' }),
-        ).toBeInTheDocument();
+            screen.getByRole('combobox', { name: 'Période' }),
+        ).toHaveTextContent('30 derniers jours');
 
         await user.click(screen.getByRole('combobox', { name: 'Période' }));
         await user.click(
-            await screen.findByRole('option', { name: '12 derniers mois' }),
+            await screen.findByRole('option', { name: "Aujourd'hui" }),
         );
 
         expect(get).toHaveBeenCalledWith(
-            '/tools/reports?months=12',
+            '/tools/reports?period=day',
             {},
             expect.objectContaining({ preserveState: true }),
         );
     });
 
-    it('shows empty states without leads or quotes', () => {
-        render(
-            <ReportsIndex
-                {...props}
-                report={{
-                    ...report,
-                    leads: {
-                        ...report.leads,
-                        by_source: [],
-                        first_contact: {
-                            measured: 0,
-                            average_minutes: null,
-                            within_30_rate: null,
-                        },
-                    },
-                    quotes: {
-                        ...report.quotes,
-                        by_offer: report.quotes.by_offer.map((row) => ({
-                            ...row,
-                            accepted: 0,
-                            declined: 0,
-                        })),
-                    },
-                }}
-            />,
-        );
+    it('opens the calendar when « Période personnalisée » is chosen from a shortcut', async () => {
+        const user = userEvent.setup();
+        get.mockClear();
+        // On part d'un raccourci : le calendrier doit s'ouvrir sans recharger,
+        // le serveur ne connaît la période qu'une fois les deux bornes posées.
+        render(<ReportsIndex {...props} period="days30" />);
 
         expect(
-            screen.getByText('Aucun lead sur la période.'),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByText('Aucun devis sur la période.'),
-        ).toBeInTheDocument();
-        expect(screen.getByText('Aucun lead contacté')).toBeInTheDocument();
-    });
+            screen.queryByRole('button', { name: 'Dates de la période' }),
+        ).toBeNull();
 
-    it('shows the visits per week and the visits booked per member', () => {
-        render(<ReportsIndex {...props} />);
-
-        const weekly = within(
-            screen.getByRole('region', { name: 'Visites par semaine' }),
-        );
-        expect(weekly.getByTestId('weekly-visits-summary')).toHaveTextContent(
-            '3 cette semaine',
-        );
-        expect(
-            weekly.getByRole('cell', { name: '7 sept. – 13 sept.' }),
-        ).toBeInTheDocument();
-
-        const booked = within(
-            screen.getByRole('region', {
-                name: 'Visites réservées par membre',
+        await user.click(screen.getByRole('combobox', { name: 'Période' }));
+        await user.click(
+            await screen.findByRole('option', {
+                name: 'Période personnalisée',
             }),
         );
-        const charles = booked.getByRole('row', { name: /Charles/ });
-        expect(charles).toHaveTextContent('Charles31');
+
+        expect(get).not.toHaveBeenCalled();
+        // La plage courante sert de point de départ à l'ajustement.
+        expect(
+            screen.getByRole('button', { name: 'Dates de la période' }),
+        ).toHaveTextContent('1 juil. 2026 – 7 sept. 2026');
+        console.log(
+            'BUTTONS',
+            screen
+                .getAllByRole('button', { hidden: true })
+                .map((b) => b.textContent)
+                .slice(0, 12),
+        );
+        console.log(
+            'GRIDCELLS',
+            document.querySelectorAll('[role="gridcell"], .rdp-day, table')
+                .length,
+        );
+        // Le calendrier est ouvert : on peut poser les deux bornes dans la foulée.
+        await user.click(
+            await screen.findByRole('button', { name: /^\S+ 5 juillet 2026/ }),
+        );
+        await user.click(
+            screen.getByRole('button', { name: /^\S+ 20 juillet 2026/ }),
+        );
+        expect(get).toHaveBeenCalledWith(
+            '/tools/reports?period=custom&from=2026-07-05&to=2026-07-20',
+            {},
+            expect.objectContaining({ preserveState: true }),
+        );
+    });
+
+    it('sends a custom period once both ends are picked in the single calendar', async () => {
+        const user = userEvent.setup();
+        get.mockClear();
+        render(<ReportsIndex {...props} period="custom" />);
+
+        // Un seul champ, qui montre la plage courante.
+        await user.click(
+            screen.getByRole('button', { name: 'Dates de la période' }),
+        );
+        // Premier clic : début, la requête attend la seconde borne.
+        await user.click(
+            await screen.findByRole('button', { name: /^\S+ 5 juillet 2026/ }),
+        );
+        expect(get).not.toHaveBeenCalled();
+
+        await user.click(
+            screen.getByRole('button', { name: /^\S+ 20 juillet 2026/ }),
+        );
+
+        expect(get).toHaveBeenCalledWith(
+            '/tools/reports?period=custom&from=2026-07-05&to=2026-07-20',
+            {},
+            expect.objectContaining({ preserveState: true }),
+        );
     });
 });

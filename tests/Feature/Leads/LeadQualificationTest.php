@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Anthropic\Messages\OutputConfig\Effort;
 use App\Actions\Leads\CreateLead;
 use App\Actions\Leads\QualifyLead;
 use App\Data\LeadData;
@@ -39,7 +40,7 @@ function qualificationAssistant(array $reply, bool $configured = true): Assistan
             return $this->configured;
         }
 
-        public function extract(string $system, string $prompt, array $schema, int $maxTokens = 4000): array
+        public function extract(string $system, string $prompt, array $schema, int $maxTokens = 8000, Effort $effort = Effort::LOW): array
         {
             $this->lastPrompt = $prompt;
 

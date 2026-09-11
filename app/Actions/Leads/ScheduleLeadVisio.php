@@ -10,6 +10,7 @@ use App\Mail\LeadVisioScheduled;
 use App\Models\Lead;
 use App\Models\User;
 use App\Services\GoogleCalendar;
+use App\Support\HouseholdMail;
 use App\Support\IcsInvite;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Mail;
@@ -88,10 +89,10 @@ final readonly class ScheduleLeadVisio
             }
         }
 
-        Mail::to($lead->email, $lead->fullName())->locale($lead->language->value)->send($mailable);
+        $sentTo = HouseholdMail::send($lead, $mailable);
 
         $when = $start->settings(['locale' => 'fr'])->translatedFormat('l j F \à H\hi');
-        $lead->notes()->create(['body' => ($rescheduled ? 'Visio déplacée au ' : 'Visio programmée le ')."{$when}, invitation envoyée à {$lead->email}.".($meetLink !== null ? " Meet : {$meetLink}" : ''), 'user_id' => $by?->id]);
+        $lead->notes()->create(['body' => ($rescheduled ? 'Visio déplacée au ' : 'Visio programmée le ')."{$when}, invitation envoyée à ".implode(', ', $sentTo).'.'.($meetLink !== null ? " Meet : {$meetLink}" : ''), 'user_id' => $by?->id]);
 
         event(new DashboardUpdated('leads', ['id' => $lead->id], ($rescheduled ? 'a déplacé la visio avec ' : 'a programmé une visio avec ').$lead->fullName()." ({$when})"));
 

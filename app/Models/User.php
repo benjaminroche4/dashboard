@@ -124,7 +124,9 @@ class User extends Authenticatable implements PasskeyUser
 
         $custom = $this->permissions[$section->value] ?? null;
 
-        return (is_string($custom) ? AccessLevel::tryFrom($custom) : null) ?? $section->defaultLevel($this->role);
+        $level = (is_string($custom) ? AccessLevel::tryFrom($custom) : null) ?? $section->defaultLevel($this->role);
+
+        return $section->clamp($level);
     }
 
     public function canRead(SiteSection ...$sections): bool

@@ -1,4 +1,9 @@
-import type { Visit, VisitStatusOption } from '@/types';
+import type {
+    Visit,
+    VisitClientOption,
+    VisitModeOption,
+    VisitStatusOption,
+} from '@/types';
 
 /** Miroir de VisitStatus::options(). */
 export const visitStatuses: VisitStatusOption[] = [
@@ -16,7 +21,10 @@ export function makeVisit(overrides: Partial<Visit> = {}): Visit {
         status: 'planned',
         status_label: 'Planifiée',
         notes: null,
+        mode: 'for_client',
+        mode_label: 'Par l’équipe',
         report: null,
+        report_photos: [],
         report_submitted_at: null,
         report_author: null,
         report_due: false,
@@ -25,6 +33,8 @@ export function makeVisit(overrides: Partial<Visit> = {}): Visit {
             uuid: '0199a9a0-0000-7000-8000-000000000001',
             name: 'Léa Durand',
             reference: 'LD-4821',
+            offer: 'accompagne',
+            offer_label: 'Accompagné',
         },
         property: {
             id: 1,
@@ -36,6 +46,7 @@ export function makeVisit(overrides: Partial<Visit> = {}): Visit {
             district: 11,
             latitude: 48.8656,
             longitude: 2.3705,
+            photo: null,
             rent_cents: 150_000,
             currency: 'EUR',
         },
@@ -51,3 +62,32 @@ export function makeVisit(overrides: Partial<Visit> = {}): Visit {
         ...overrides,
     };
 }
+
+/** Client sélectionnable pour une visite ; formule « Accompagné » par défaut. */
+export function makeVisitClient(
+    overrides: Partial<VisitClientOption> = {},
+): VisitClientOption {
+    return {
+        id: 1,
+        uuid: 'client-1',
+        name: 'Léa Durand',
+        reference: 'LD-4821',
+        offer: 'accompagne',
+        offer_label: 'Accompagné',
+        ...overrides,
+    };
+}
+
+/** Les deux façons de visiter (`VisitMode::options()`). */
+export const visitModes: VisitModeOption[] = [
+    {
+        value: 'for_client',
+        label: 'Visite réalisée par l’équipe',
+        hint: 'Un membre de l’équipe se rend sur place, avec ou sans le client.',
+    },
+    {
+        value: 'client_alone',
+        label: 'Visite autonome du client',
+        hint: 'Le client visite seul ; réservé à la formule Accompagné.',
+    },
+];

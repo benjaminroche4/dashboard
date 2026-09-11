@@ -7,6 +7,7 @@ namespace App\Http\Middleware;
 use App\Enums\LeadStatus;
 use App\Enums\StaffFunction;
 use App\Enums\WebsiteHelpType;
+use App\Http\Controllers\Auth\GoogleLoginController;
 use App\Models\Lead;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -75,6 +76,8 @@ class HandleInertiaRequests extends Middleware
                 'assistant' => (bool) config('services.anthropic.key'),
                 // Clé navigateur : publique par nature, à restreindre par référent dans la console Google.
                 'googleMapsKey' => config('services.google.maps_browser_key') ?: null,
+                // « Se connecter avec Google » : le bouton n'apparaît qu'avec des identifiants OAuth.
+                'googleLogin' => GoogleLoginController::configured(),
             ],
             // Compteurs du menu : leads « À traiter » (tous, et ceux des propriétaires), rafraîchis à chaque événement temps réel.
             'counts' => fn (): array => $request->user() === null

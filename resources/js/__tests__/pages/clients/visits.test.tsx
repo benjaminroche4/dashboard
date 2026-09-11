@@ -64,22 +64,8 @@ function useFormStub(initial: Record<string, unknown>) {
 }
 
 import ClientsVisits from '@/pages/clients/visits';
-import { propertyFormOptions } from '@/test/fixtures/property';
 import { makeVisit, visitStatuses } from '@/test/fixtures/visit';
 
-const clients = [
-    { id: 1, uuid: 'client-1', name: 'Léa Durand', reference: 'LD-4821' },
-    { id: 2, uuid: 'client-2', name: 'Paul Roux', reference: 'LD-4822' },
-];
-const properties = [
-    {
-        id: 1,
-        label: 'T2 lumineux · 11e',
-        street: '12 rue Oberkampf',
-        postal_code: '75011',
-        city: 'Paris',
-    },
-];
 const visits = [
     makeVisit(),
     makeVisit({
@@ -93,21 +79,15 @@ const visits = [
             uuid: 'client-2',
             name: 'Paul Roux',
             reference: 'LD-4822',
+            offer: 'accompagne',
+            offer_label: 'Accompagné',
         },
         agent: null,
     }),
 ];
 
 function renderPage(list = visits) {
-    return render(
-        <ClientsVisits
-            visits={list}
-            statuses={visitStatuses}
-            clients={clients}
-            properties={properties}
-            {...propertyFormOptions}
-        />,
-    );
+    return render(<ClientsVisits visits={list} statuses={visitStatuses} />);
 }
 
 describe('Clients visits page', () => {
@@ -144,7 +124,9 @@ describe('Clients visits page', () => {
         renderPage();
 
         expect(
-            screen.getByText('2 visite(s) · 1 planifiée(s)'),
+            screen.getByText(
+                '2 visite(s) · 1 planifiée(s) · 1 passée(s) masquée(s)',
+            ),
         ).toBeInTheDocument();
         // Carte des visites du jour, sur le jour courant qui a une visite.
         const map = within(
@@ -165,15 +147,21 @@ describe('Clients visits page', () => {
         const sections = screen
             .getAllByRole('region')
             .filter((section) => section.hasAttribute('data-day'));
+        // Le passé sans compte rendu à écrire est masqué : reste aujourd'hui.
         expect(
             sections.map((section) => section.getAttribute('data-day')),
-        ).toEqual(['2026-09-15', '2026-09-01']);
+        ).toEqual(['2026-09-15']);
         const today = within(sections[0] as HTMLElement);
         expect(today.getByRole('heading')).toHaveTextContent(
             "Aujourd'hui · mardi 15 septembre 2026",
         );
+        // Une colonne dit qui réalise la visite : l'équipe ou le client seul.
+        expect(
+            today.getByRole('columnheader', { name: 'Réalisée par' }),
+        ).toBeInTheDocument();
         const rows = today.getAllByRole('row').slice(1);
         expect(rows).toHaveLength(1);
+        expect(rows[0]).toHaveTextContent('Par l’équipe');
         expect(rows[0]).toHaveTextContent('10:30');
         expect(rows[0]).toHaveTextContent('Léa Durand');
         expect(rows[0]).toHaveTextContent('T2 lumineux · 11e');
@@ -186,8 +174,8 @@ describe('Clients visits page', () => {
             'href',
             '/clients/0199a9a0-0000-7000-8000-000000000001',
         );
-        expect(sections[1]).toHaveTextContent('Effectuée');
 
+        // Le filtre de statut rouvre les visites passées correspondantes.
         await user.click(screen.getByRole('radio', { name: /Effectuée/ }));
         expect(
             screen
@@ -199,7 +187,16 @@ describe('Clients visits page', () => {
             screen.getByRole('region', { name: 'Visites du jour' }),
         ).toHaveTextContent('Léa Durand');
 
+        expect(
+            screen
+                .getAllByRole('region')
+                .filter((section) => section.hasAttribute('data-day'))[0],
+        ).toHaveTextContent('Paul Roux');
+
         await user.click(screen.getByRole('radio', { name: /Toutes/ }));
+        await user.click(
+            screen.getByRole('button', { name: /Visites passées/ }),
+        );
         await user.type(
             screen.getByRole('textbox', { name: 'Filtrer par client' }),
             'paul',
@@ -256,17 +253,28 @@ describe('Clients visits page', () => {
                     uuid: 'client-2',
                     name: 'Paul Roux',
                     reference: 'LD-4822',
+                    offer: 'accompagne',
+                    offer_label: 'Accompagné',
                 },
             }),
         ]);
 
+        // Seule la visite sans compte rendu reste à l'écran.
         expect(screen.getByText('Compte rendu à rédiger')).toHaveAttribute(
             'data-report',
             'due',
         );
+        expect(screen.queryByText('Compte rendu')).not.toBeInTheDocument();
+
+        await user.click(
+            screen.getByRole('button', { name: /Visites passées/ }),
+        );
         expect(screen.getByText('Compte rendu')).toHaveAttribute(
             'data-report',
             'done',
+        );
+        await user.click(
+            screen.getByRole('button', { name: /Visites passées/ }),
         );
 
         await user.click(
@@ -295,7 +303,53 @@ describe('Clients visits page', () => {
         );
         expect(post).toHaveBeenCalledWith(
             '/clients/visits/visit-due/report',
-            { report: 'Très bon accueil, cuisine un peu petite.' },
+            expect.objectContaining({
+                report: 'Très bon accueil, cuisine un peu petite.',
+            }),
+            expect.objectContaining({ preserveScroll: true }),
+        );
+    });
+
+    it('asks for confirmation before cancelling a visit', async () => {
+        const user = userEvent.setup();
+        renderPage();
+
+        await user.click(
+            screen.getByRole('button', {
+                name: 'Actions pour la visite de Léa Durand',
+            }),
+        );
+        await user.click(
+            await screen.findByRole('menuitem', { name: 'Annuler la visite' }),
+        );
+
+        const dialog = within(await screen.findByRole('dialog'));
+        expect(screen.getByRole('dialog')).toHaveTextContent(
+            'Annuler la visite de Léa Durand ?',
+        );
+
+        // On peut se raviser : rien n'est envoyé.
+        await user.click(
+            dialog.getByRole('button', { name: 'Garder la visite' }),
+        );
+        expect(patch).not.toHaveBeenCalled();
+
+        await user.click(
+            screen.getByRole('button', {
+                name: 'Actions pour la visite de Léa Durand',
+            }),
+        );
+        await user.click(
+            await screen.findByRole('menuitem', { name: 'Annuler la visite' }),
+        );
+        await user.click(
+            within(await screen.findByRole('dialog')).getByRole('button', {
+                name: 'Annuler la visite',
+            }),
+        );
+        expect(patch).toHaveBeenCalledWith(
+            '/clients/visits/0199a9a0-0000-7000-8000-0000000000a1',
+            { status: 'cancelled' },
             expect.objectContaining({ preserveScroll: true }),
         );
     });
@@ -326,5 +380,51 @@ describe('Clients visits page', () => {
         expect(
             screen.getByRole('link', { name: 'Planifier une visite' }),
         ).toHaveAttribute('href', '/clients/visits/create');
+    });
+
+    it('puts the visits awaiting their report at the top of the list', () => {
+        render(
+            <ClientsVisits
+                visits={[
+                    makeVisit({
+                        id: 1,
+                        uuid: 'visit-1',
+                        scheduled_at: '2026-09-20T11:00:00+00:00',
+                    }),
+                    makeVisit({
+                        id: 2,
+                        uuid: 'visit-2',
+                        // Visite passée, effectuée, sans compte rendu.
+                        scheduled_at: '2026-09-09T13:00:00+00:00',
+                        status: 'done',
+                        status_label: 'Effectuée',
+                        report: null,
+                        report_due: true,
+                    }),
+                ]}
+                statuses={visitStatuses}
+            />,
+        );
+
+        const sections = screen
+            .getAllByRole('region')
+            .map((region) => region.getAttribute('aria-label'));
+
+        // La section des comptes rendus précède les journées (la carte du jour
+        // reste au-dessus de la liste).
+        const dueIndex = sections.indexOf('Comptes rendus à rédiger');
+        const dayIndex = sections.findIndex((label) =>
+            label?.includes('septembre 2026'),
+        );
+        expect(dueIndex).toBeGreaterThan(-1);
+        expect(dueIndex).toBeLessThan(dayIndex);
+        const due = within(
+            screen.getByRole('region', { name: 'Comptes rendus à rédiger' }),
+        );
+        expect(due.getByText('Compte rendu à rédiger')).toBeInTheDocument();
+        // Sortie de sa journée : celle-ci n'a plus lieu d'être dans la liste.
+        expect(
+            screen.queryByRole('region', { name: /9 septembre 2026/ }),
+        ).toBeNull();
     });
 });

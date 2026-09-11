@@ -93,11 +93,8 @@ describe('Agent detail page', () => {
         expect(
             screen.getByRole('heading', { level: 1, name: 'Zoé Martin' }),
         ).toBeInTheDocument();
-        expect(
-            screen.getByRole('button', {
-                name: 'Retirer Zoé Martin des favoris',
-            }),
-        ).toHaveAttribute('aria-pressed', 'true');
+        // Favori : une étoile à côté du nom.
+        expect(screen.getByRole('img', { name: 'Favori' })).toBeInTheDocument();
         const agencyCard = within(
             screen.getByRole('region', { name: 'Agence' }),
         );
@@ -123,10 +120,8 @@ describe('Agent detail page', () => {
         expect(
             screen.getByText('5 rue de Bretagne, 75003 Paris'),
         ).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute(
-            'href',
-            'https://wa.me/33612345678',
-        );
+        // La carte « Joindre » faisait doublon avec les coordonnées de l'en-tête.
+        expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();
         expect(screen.getByText('Très réactive.')).toBeInTheDocument();
         const leads = within(
             screen.getByRole('region', { name: 'Leads en contact' }),
@@ -135,9 +130,10 @@ describe('Agent detail page', () => {
             'href',
             '/locataires/abc',
         );
+        // Le retour se fait par le fil d'Ariane : plus de lien dans l'en-tête.
         expect(
-            screen.getByRole('link', { name: 'Tous les agents' }),
-        ).toHaveAttribute('href', '/real-estate/agents');
+            screen.queryByRole('link', { name: 'Tous les agents' }),
+        ).toBeNull();
 
         await user.click(screen.getByRole('button', { name: 'Modifier' }));
         const dialog = screen.getByRole('dialog', {
@@ -174,6 +170,7 @@ describe('Agent detail page', () => {
         expect(
             screen.getByText(/Aucun lead ne lui est rattaché/),
         ).toBeInTheDocument();
-        expect(screen.getAllByText('Non renseigné')).toHaveLength(3);
+        // Adresse, fonction, qualité de la relation et visites : rien de renseigné.
+        expect(screen.getAllByText('Non renseigné')).toHaveLength(4);
     });
 });

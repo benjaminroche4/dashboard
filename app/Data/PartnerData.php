@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Data;
 
 use App\Enums\PartnerType;
+use App\Enums\RelationshipQuality;
 
 /**
  * Données validées d'un partenaire (création ou modification).
@@ -14,6 +15,7 @@ final readonly class PartnerData
     public function __construct(
         public string $name,
         public PartnerType $type,
+        public ?RelationshipQuality $relationshipQuality,
         public ?string $email,
         public ?string $phone,
         public ?string $website,
@@ -31,6 +33,9 @@ final readonly class PartnerData
         return new self(
             name: trim((string) $data['name']),
             type: PartnerType::from((string) $data['type']),
+            relationshipQuality: is_string($data['relationship_quality'] ?? null) && $data['relationship_quality'] !== ''
+                ? RelationshipQuality::from($data['relationship_quality'])
+                : null,
             email: self::blankToNull($data['email'] ?? null),
             phone: self::blankToNull($data['phone'] ?? null),
             website: self::blankToNull($data['website'] ?? null),
@@ -42,13 +47,14 @@ final readonly class PartnerData
     }
 
     /**
-     * @return array{name: string, type: string, email: string|null, phone: string|null, website: string|null, street: string|null, postal_code: string|null, city: string|null, notes: string|null}
+     * @return array{name: string, type: string, relationship_quality: RelationshipQuality|null, email: string|null, phone: string|null, website: string|null, street: string|null, postal_code: string|null, city: string|null, notes: string|null}
      */
     public function toArray(): array
     {
         return [
             'name' => $this->name,
             'type' => $this->type->value,
+            'relationship_quality' => $this->relationshipQuality,
             'email' => $this->email,
             'phone' => $this->phone,
             'website' => $this->website,

@@ -9,11 +9,14 @@ import { create as visitCreate } from '@/routes/clients/visits';
 import type {
     PropertyFormOptions,
     VisitClientOption,
+    VisitModeOption,
     VisitPropertyOption,
 } from '@/types';
 
 type Props = PropertyFormOptions & {
     clients: VisitClientOption[];
+    /** Les deux façons de visiter. */
+    visitModes: VisitModeOption[];
     properties: VisitPropertyOption[];
     /** Client présélectionné (`?client=UUID`, depuis un dossier). */
     defaultClientId: number | null;
@@ -23,6 +26,7 @@ type Props = PropertyFormOptions & {
 
 export default function VisitCreate({
     clients,
+    visitModes,
     properties,
     defaultClientId,
     defaultPropertyId = null,
@@ -44,6 +48,7 @@ export default function VisitCreate({
                 <Panel title="Visite">
                     <VisitForm
                         clients={clients}
+                        visitModes={visitModes}
                         properties={properties}
                         options={options}
                         defaultClientId={defaultClientId}

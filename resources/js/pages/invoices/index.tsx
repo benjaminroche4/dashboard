@@ -65,7 +65,7 @@ export default function InvoicesIndex({
                     </Button>
                 </div>
                 <DataTable
-                    columns={invoiceColumns}
+                    columns={invoiceColumns(canManage)}
                     data={invoices}
                     server={server}
                     filterPlaceholder="Rechercher un numéro ou un client…"

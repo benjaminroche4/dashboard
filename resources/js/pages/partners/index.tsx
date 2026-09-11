@@ -1,7 +1,9 @@
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { DataTable } from '@/components/data-table';
+import { DirectoryBulkActions } from '@/components/real-estate/directory-bulk-actions';
+import { FavoritesFilter } from '@/components/favorites-filter';
 import {
     partnerColumnLabels,
     partnerColumns,
@@ -9,18 +11,26 @@ import {
 import { PartnerDialog } from '@/components/partners/partner-dialog';
 import { PartnerTypeFilter } from '@/components/partners/partner-type-filter';
 import { Button } from '@/components/ui/button';
-import { index as partnersIndex } from '@/routes/partners';
+import { bulkDestroy, index as partnersIndex } from '@/routes/partners';
 import type { Partner, PartnerType, PartnerTypeOption } from '@/types';
 
 type Props = {
     partners: Partner[];
     types: PartnerTypeOption[];
+    /** Nombre de partenaires étoilés par le membre connecté. */
+    favoritesCount: number;
 };
 
-export default function PartnersIndex({ partners, types }: Props) {
+export default function PartnersIndex({
+    partners,
+    types,
+    favoritesCount,
+}: Props) {
+    const { auth } = usePage().props;
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editing, setEditing] = useState<Partner | null>(null);
     const [typeFilter, setTypeFilter] = useState<PartnerType[]>([]);
+    const [favoritesOnly, setFavoritesOnly] = useState(false);
 
     const add = () => {
         setEditing(null);
@@ -42,10 +52,12 @@ export default function PartnersIndex({ partners, types }: Props) {
             ),
         [partners],
     );
-    const visible =
-        typeFilter.length > 0
-            ? partners.filter((partner) => typeFilter.includes(partner.type))
-            : partners;
+    const visible = partners
+        .filter(
+            (partner) =>
+                typeFilter.length === 0 || typeFilter.includes(partner.type),
+        )
+        .filter((partner) => !favoritesOnly || partner.is_favorite);
 
     return (
         <>
@@ -70,6 +82,11 @@ export default function PartnersIndex({ partners, types }: Props) {
                         value={typeFilter}
                         onChange={setTypeFilter}
                     />
+                    <FavoritesFilter
+                        active={favoritesOnly}
+                        onChange={setFavoritesOnly}
+                        count={favoritesCount}
+                    />
                 </div>
                 <DataTable
                     columns={columns}
@@ -78,6 +95,16 @@ export default function PartnersIndex({ partners, types }: Props) {
                     filterPlaceholder="Filtrer par nom…"
                     columnLabels={partnerColumnLabels}
                     frame="panel"
+                    bulkActions={(rows, clear) => (
+                        <DirectoryBulkActions
+                            ids={rows.map((row) => row.id)}
+                            url={bulkDestroy().url}
+                            title={`Supprimer ${rows.length} partenaire(s) ?`}
+                            description="Leurs fiches et leurs interlocuteurs seront effacés. Les dossiers sur lesquels ils sont intervenus sont conservés. Cette action est irréversible."
+                            onDone={clear}
+                            canDelete={auth.user.role === 'admin'}
+                        />
+                    )}
                 />
             </div>
             <PartnerDialog

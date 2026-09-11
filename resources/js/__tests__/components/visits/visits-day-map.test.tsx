@@ -41,6 +41,28 @@ const fake = vi.hoisted(() => {
         }
     }
 
+    const routes: { request: Record<string, unknown> }[] = [];
+    let routeShown: unknown = null;
+    let routeFails = false;
+
+    class DirectionsService {
+        route(request: Record<string, unknown>) {
+            routes.push({ request });
+
+            return routeFails
+                ? Promise.reject(new Error('ZERO_RESULTS'))
+                : Promise.resolve({ request });
+        }
+    }
+
+    class DirectionsRenderer {
+        setDirections() {}
+
+        setMap(map: unknown) {
+            routeShown = map;
+        }
+    }
+
     class Map {
         constructor(_el: HTMLElement, options: Record<string, unknown>) {
             mapOptions = options;
@@ -57,17 +79,35 @@ const fake = vi.hoisted(() => {
 
     return {
         markers,
+        routes,
         get mapOptions() {
             return mapOptions;
         },
         get fitted() {
             return fitted;
         },
-        maps: { Map, Marker, LatLngBounds, SymbolPath: { CIRCLE: 0 } },
+        get routeShown() {
+            return routeShown;
+        },
+        failRoute(fails: boolean) {
+            routeFails = fails;
+        },
+        maps: {
+            Map,
+            Marker,
+            LatLngBounds,
+            DirectionsService,
+            DirectionsRenderer,
+            SymbolPath: { CIRCLE: 0 },
+            TravelMode: { DRIVING: 'DRIVING' },
+        },
         reset() {
             markers.length = 0;
+            routes.length = 0;
             mapOptions = null;
             fitted = 0;
+            routeShown = null;
+            routeFails = false;
         },
     };
 });
@@ -113,7 +153,14 @@ const visits = [
         scheduled_at: '2026-09-15T10:00:00+02:00',
         status: 'cancelled',
         status_label: 'Annulée',
-        client: { id: 2, uuid: 'client-2', name: 'Paul Roux', reference: null },
+        client: {
+            id: 2,
+            uuid: 'client-2',
+            name: 'Paul Roux',
+            reference: null,
+            offer: 'accompagne',
+            offer_label: 'Accompagné',
+        },
         property: {
             ...makeVisit().property,
             id: 2,
@@ -128,7 +175,14 @@ const visits = [
         id: 3,
         uuid: 'v3',
         scheduled_at: '2026-09-15T16:00:00+02:00',
-        client: { id: 3, uuid: 'client-3', name: 'Ana Silva', reference: null },
+        client: {
+            id: 3,
+            uuid: 'client-3',
+            name: 'Ana Silva',
+            reference: null,
+            offer: 'accompagne',
+            offer_label: 'Accompagné',
+        },
         property: {
             ...makeVisit().property,
             id: 3,
@@ -146,6 +200,8 @@ const visits = [
             uuid: 'client-5',
             name: 'Lou Bernard',
             reference: null,
+            offer: 'accompagne',
+            offer_label: 'Accompagné',
         },
         property: {
             ...makeVisit().property,
@@ -168,6 +224,8 @@ const visits = [
             uuid: 'client-4',
             name: 'Marc Petit',
             reference: null,
+            offer: 'accompagne',
+            offer_label: 'Accompagné',
         },
     }),
 ];
@@ -232,12 +290,47 @@ describe('VisitsDayMap', () => {
         ).toBeInTheDocument();
         expect(screen.getByText(/1 adresse non géocodée/)).toBeInTheDocument();
         expect(screen.getByText(/1 adresse non localisée/)).toBeInTheDocument();
+        // L'itinéraire se trace sur la carte, sans ouvrir Google Maps ailleurs.
         expect(
-            screen.getByRole('link', { name: 'Itinéraire de la tournée' }),
-        ).toHaveAttribute(
-            'href',
-            expect.stringContaining('google.com/maps/dir/'),
+            screen.queryByRole('link', { name: 'Itinéraire de la tournée' }),
+        ).toBeNull();
+        expect(fake.routes).toHaveLength(0);
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Itinéraire de la tournée' }),
         );
+        await waitFor(() => expect(fake.routes).toHaveLength(1));
+        // Les étapes localisées, dans l'ordre du jour : départ, escale, arrivée.
+        expect(fake.routes[0]?.request).toEqual({
+            origin: { lat: 48.8627, lng: 2.3623 },
+            waypoints: [{ location: { lat: 48.8656, lng: 2.3705 } }],
+            destination: { lat: 48.85772, lng: 2.38473 },
+            travelMode: 'DRIVING',
+        });
+        await waitFor(() => expect(fake.routeShown).not.toBeNull());
+        expect(
+            screen.getByRole('button', { name: 'Masquer l’itinéraire' }),
+        ).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('reports an unavailable route without breaking the map', async () => {
+        const user = userEvent.setup();
+        fake.failRoute(true);
+        renderMap();
+        await waitFor(() => expect(fake.markers.length).toBeGreaterThan(0));
+
+        await user.click(
+            screen.getByRole('button', { name: 'Itinéraire de la tournée' }),
+        );
+        expect(
+            await screen.findByText(
+                'Itinéraire indisponible pour cette tournée.',
+            ),
+        ).toBeInTheDocument();
+        // La carte reste en place : ses pastilles n'ont pas disparu.
+        expect(
+            fake.markers.filter((marker) => marker.map !== null).length,
+        ).toBeGreaterThan(0);
     });
 
     it('navigates to the previous and next days with visits, and back to today', async () => {

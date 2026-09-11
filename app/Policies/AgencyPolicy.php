@@ -15,26 +15,26 @@ final class AgencyPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->canRead(SiteSection::Agencies);
+        return $user->canRead(SiteSection::Agents);
     }
 
     public function view(User $user): bool
     {
-        return $user->canRead(SiteSection::Agencies);
+        return $user->canRead(SiteSection::Agents);
     }
 
     public function create(User $user): bool
     {
-        return $user->canWrite(SiteSection::Agencies);
+        return $user->canWrite(SiteSection::Agents);
     }
 
     public function update(User $user): bool
     {
-        return $user->canWrite(SiteSection::Agencies);
+        return $user->canWrite(SiteSection::Agents);
     }
 
     public function delete(User $user): bool
     {
-        return $user->canManage(SiteSection::Agencies);
+        return $user->canManage(SiteSection::Agents);
     }
 }

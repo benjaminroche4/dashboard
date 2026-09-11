@@ -16,7 +16,8 @@ export type ServerTableFilters = {
     q: string;
     sort: string;
     dir: 'asc' | 'desc';
-    [key: string]: string | null | undefined;
+    /** Un filtre à choix multiple (statuts cochés) voyage en tableau. */
+    [key: string]: string | string[] | null | undefined;
 };
 
 /**
@@ -35,7 +36,10 @@ export function useServerTable({
     filters: ServerTableFilters;
     /** Props Inertia à recharger (ex. `['invoices', 'pagination', 'filters']`). */
     only: string[];
-}): ServerTableState {
+}): ServerTableState & {
+    /** Change un filtre de la liste (statut, favoris…) et revient page 1. */
+    setFilter: (key: string, value: string | string[] | null) => void;
+} {
     const [query, setQuery] = useState(filters.q);
     const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -44,9 +48,11 @@ export function useServerTable({
         setQuery(filters.q);
     }, [filters.q]);
 
-    const visit = (params: Record<string, string | number | null>) => {
+    const visit = (
+        params: Record<string, string | number | string[] | null>,
+    ) => {
         const { q, sort, dir, ...rest } = filters;
-        const data: Record<string, string | number> = {};
+        const data: Record<string, string | number | string[]> = {};
 
         for (const [key, value] of Object.entries({
             ...rest,
@@ -56,6 +62,14 @@ export function useServerTable({
             page: pagination.current_page,
             ...params,
         })) {
+            if (Array.isArray(value)) {
+                if (value.length > 0) {
+                    data[key] = value;
+                }
+
+                continue;
+            }
+
             if (value !== null && value !== undefined && value !== '') {
                 data[key] = value;
             }
@@ -85,6 +99,7 @@ export function useServerTable({
     };
 
     return {
+        setFilter: (key, value) => visit({ [key]: value, page: 1 }),
         page: pagination.current_page,
         lastPage: pagination.last_page,
         total: pagination.total,
@@ -96,7 +111,7 @@ export function useServerTable({
             const [first] = sorting;
 
             visit({
-                sort: first?.id ?? 'issued_at',
+                sort: first?.id ?? filters.sort,
                 dir: first ? (first.desc ? 'desc' : 'asc') : 'desc',
                 page: 1,
             });

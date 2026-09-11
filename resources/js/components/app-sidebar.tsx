@@ -1,7 +1,6 @@
 import {
     Building2,
-    ChartPie,
-    History,
+    CalendarCheck,
     Contact,
     Handshake,
     House,
@@ -35,9 +34,9 @@ import { create as ownerLeadCreate } from '@/routes/owners/leads';
 import { index as partnersIndex } from '@/routes/partners';
 import { index as propertiesIndex } from '@/routes/properties';
 import { index as toolsIndex } from '@/routes/tools';
+import { index as activityIndex } from '@/routes/tools/activity';
 import { index as documentsIndex } from '@/routes/tools/documents';
 import { index as quotesIndex } from '@/routes/tools/quotes';
-import { index as activityIndex } from '@/routes/tools/activity';
 import { index as reportsIndex } from '@/routes/tools/reports';
 import { filterNavGroups } from '@/lib/nav-access';
 import type { NavGroup } from '@/types';
@@ -71,7 +70,7 @@ function buildNavGroups(leadsTodo: number, ownerLeadsTodo: number): NavGroup[] {
                             section: 'leads',
                         },
                         {
-                            title: 'Converting Machine',
+                            title: 'Nouveau lead locataire',
                             href: leadsCreate(),
                             section: 'leads_create',
                         },
@@ -90,7 +89,7 @@ function buildNavGroups(leadsTodo: number, ownerLeadsTodo: number): NavGroup[] {
                             section: 'owner_leads',
                         },
                         {
-                            title: 'Converting Machine',
+                            title: 'Nouveau lead propriétaire',
                             href: ownerLeadCreate(),
                             section: 'owner_leads_create',
                         },
@@ -98,25 +97,22 @@ function buildNavGroups(leadsTodo: number, ownerLeadsTodo: number): NavGroup[] {
                 },
             ],
         },
+        // Un seul menu par page : pas de niveau intermédiaire qui répète le
+        // libellé du groupe (« Clients › Clients › Dossiers clients »).
         {
             label: 'Clients',
             items: [
                 {
-                    title: 'Clients',
+                    title: 'Dossiers clients',
                     href: clientsIndex(),
                     icon: Users,
-                    items: [
-                        {
-                            title: 'Dossiers clients',
-                            href: clientsIndex(),
-                            section: 'clients',
-                        },
-                        {
-                            title: 'Visites',
-                            href: clientsVisits(),
-                            section: 'visits',
-                        },
-                    ],
+                    section: 'clients',
+                },
+                {
+                    title: 'Visites',
+                    href: clientsVisits(),
+                    icon: CalendarCheck,
+                    section: 'visits',
                 },
             ],
         },
@@ -124,7 +120,7 @@ function buildNavGroups(leadsTodo: number, ownerLeadsTodo: number): NavGroup[] {
             label: 'Réseau',
             items: [
                 {
-                    title: 'Agents immobiliers',
+                    title: 'Agents et agences',
                     href: agentsIndex(),
                     icon: Building2,
                     items: [
@@ -136,7 +132,7 @@ function buildNavGroups(leadsTodo: number, ownerLeadsTodo: number): NavGroup[] {
                         {
                             title: 'Agences',
                             href: agenciesIndex(),
-                            section: 'agencies',
+                            section: 'agents',
                         },
                     ],
                 },
@@ -153,6 +149,8 @@ function buildNavGroups(leadsTodo: number, ownerLeadsTodo: number): NavGroup[] {
                     key: 'Réseau propriétaires',
                     items: [
                         {
+                            // L'annuaire des propriétaires : qui possède quoi.
+                            // La prospection vit dans « Leads › Propriétaires ».
                             title: 'Propriétaires',
                             href: ownersIndex(),
                             section: 'owners',
@@ -166,24 +164,16 @@ function buildNavGroups(leadsTodo: number, ownerLeadsTodo: number): NavGroup[] {
                 },
             ],
         },
+        // Le menu porte déjà le nom « Outils » : le groupe n'a pas de libellé.
+        // Rapports et Journal d'activité sont dedans, comme les autres outils.
         {
-            label: 'Outils',
+            label: '',
             items: [
                 {
                     title: 'Outils',
                     href: toolsIndex(),
                     icon: Wrench,
                     items: [
-                        {
-                            title: 'Tous les outils',
-                            href: toolsIndex(),
-                            anySection: [
-                                'quotes',
-                                'invoices',
-                                'documents',
-                                'reports',
-                            ],
-                        },
                         {
                             title: 'Devis',
                             href: quotesIndex(),
@@ -199,19 +189,17 @@ function buildNavGroups(leadsTodo: number, ownerLeadsTodo: number): NavGroup[] {
                             href: documentsIndex(),
                             section: 'documents',
                         },
+                        {
+                            title: 'Rapports',
+                            href: reportsIndex(),
+                            section: 'reports',
+                        },
+                        {
+                            title: "Journal d'activité",
+                            href: activityIndex(),
+                            section: 'activity',
+                        },
                     ],
-                },
-                {
-                    title: 'Rapports',
-                    href: reportsIndex(),
-                    icon: ChartPie,
-                    section: 'reports',
-                },
-                {
-                    title: "Journal d'activité",
-                    href: activityIndex(),
-                    icon: History,
-                    section: 'reports',
                 },
             ],
         },

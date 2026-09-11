@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\Currency;
 use App\Enums\InvoiceStatus;
+use App\Support\BankAccounts;
 use Carbon\CarbonInterface;
 use Database\Factories\InvoiceFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -41,6 +42,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property CarbonInterface|null $sent_at
  * @property CarbonInterface|null $paid_at
  * @property string|null $notes
+ * @property string|null $bank_name
+ * @property string|null $bank_iban
  * @property int|null $created_by
  * @property int|null $lead_id
  * @property CarbonInterface|null $created_at
@@ -50,7 +53,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'number', 'client_name', 'client_email', 'client_street', 'client_postal_code', 'client_city', 'client_country',
     'client_address', 'items', 'vat_rate', 'discount_percent', 'discount_cents',
     'subtotal_cents', 'vat_cents', 'amount_cents', 'deposit_cents', 'currency', 'status',
-    'issued_at', 'due_at', 'sent_at', 'paid_at', 'notes', 'created_by', 'lead_id',
+    'issued_at', 'due_at', 'sent_at', 'paid_at', 'notes', 'created_by', 'lead_id', 'bank_name', 'bank_iban',
 ])]
 class Invoice extends Model
 {
@@ -116,6 +119,17 @@ class Invoice extends Model
     public function statusChanges(): HasMany
     {
         return $this->hasMany(InvoiceStatusChange::class)->oldest()->orderBy('id');
+    }
+
+    /**
+     * Coordonnées bancaires à imprimer : celles figées sur le document, sinon
+     * le compte par défaut de sa devise.
+     *
+     * @return array{bank: string, iban: string}
+     */
+    public function bankAccount(): array
+    {
+        return BankAccounts::resolve($this->bank_name, $this->bank_iban, $this->currency);
     }
 
     /** Reste à payer : total TTC moins l'acompte déjà versé. */

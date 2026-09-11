@@ -43,7 +43,6 @@ import { daysUntil, firstContactTimer, leadUrgency } from '@/lib/lead-urgency';
 import { useNow } from '@/hooks/use-now';
 import { FirstContactBadge } from '@/components/leads/first-contact-badge';
 import { budgetTier, budgetTierLabels } from '@/lib/paris-budget';
-import { notify } from '@/lib/toast';
 import { describeDistricts } from '@/lib/paris-districts';
 import { cn } from '@/lib/utils';
 import {
@@ -57,6 +56,7 @@ import { edit as ownerLeadEdit } from '@/routes/owners/leads';
 import type {
     LabeledOption,
     LeadDetail,
+    LeadDirectoryOwner,
     LeadPropertyDetail,
     AgentOption,
     LeadPartnerLink,
@@ -101,6 +101,8 @@ type Props = {
     partnerRoles: PartnerRoleOption[];
     can: { delete: boolean };
     lossReasons: LabeledOption<LeadLossReason>[];
+    /** Fiche de l'annuaire des propriétaires créée depuis ce lead, s'il y en a une. */
+    directoryOwner?: LeadDirectoryOwner | null;
 };
 
 /** Valeur absente : une seule formulation, en gris. */
@@ -136,6 +138,7 @@ export default function LeadsShow({
     partnerRoles,
     can,
     lossReasons,
+    directoryOwner = null,
 }: Props) {
     const { staff, auth } = usePage().props;
     const noteForm = useForm({ body: '' });
@@ -150,10 +153,8 @@ export default function LeadsShow({
             { status: 'quote_sent' },
             {
                 preserveScroll: true,
-                onSuccess: () => {
-                    setSuggestQuote(false);
-                    notify.success('Lead passé en « Devis envoyé ».');
-                },
+                // Le toast vient du serveur, comme pour tout changement de statut.
+                onSuccess: () => setSuggestQuote(false),
                 onFinish: () => setMovingToQuote(false),
             },
         );
@@ -542,6 +543,7 @@ export default function LeadsShow({
                             lead={lead}
                             canDelete={can.delete}
                             lossReasons={lossReasons}
+                            directoryOwner={directoryOwner}
                         />
                     </div>
                 </div>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Reports;
 
 use App\Actions\Reports\BuildReport;
+use App\Enums\ReportPeriod;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reports\ShowReportRequest;
 use Inertia\Inertia;
@@ -16,8 +17,8 @@ class ReportController extends Controller
     {
         return Inertia::render('reports/index', [
             'report' => $buildReport->handle($request->from(), $request->to()),
-            'months' => $request->months(),
-            'periods' => ShowReportRequest::MONTHS,
+            'period' => $request->period()->value,
+            'periods' => ReportPeriod::options(),
             'generatedAt' => now()->toIso8601String(),
         ]);
     }

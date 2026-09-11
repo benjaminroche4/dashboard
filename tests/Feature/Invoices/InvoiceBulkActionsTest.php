@@ -29,7 +29,7 @@ test('a manager sends every sendable invoice at once and the others are reported
     expect($draft->fresh()->status)->toBe(InvoiceStatus::Sent)
         ->and($noEmail->fresh()->status)->toBe(InvoiceStatus::Draft)
         ->and($paid->fresh()->status)->toBe(InvoiceStatus::Paid);
-    Mail::assertSent(InvoiceSent::class, 1);
+    Mail::assertQueued(InvoiceSent::class, 1);
 });
 
 test('a manager marks several invoices paid at the same date, skipping the non-payable ones', function (): void {

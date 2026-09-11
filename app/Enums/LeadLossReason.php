@@ -9,19 +9,19 @@ namespace App\Enums;
  */
 enum LeadLossReason: string
 {
-    case TooExpensive = 'too_expensive';
-    case WentElsewhere = 'went_elsewhere';
-    case NoAnswer = 'no_answer';
-    case OutOfScope = 'out_of_scope';
+    case NotQualified = 'not_qualified';
+    case BadClosing = 'bad_closing';
+    case SmallBudget = 'small_budget';
+    case TightTiming = 'tight_timing';
     case Other = 'other';
 
     public function label(): string
     {
         return match ($this) {
-            self::TooExpensive => 'Trop cher',
-            self::WentElsewhere => 'Parti ailleurs',
-            self::NoAnswer => 'Sans réponse',
-            self::OutOfScope => 'Hors périmètre',
+            self::NotQualified => 'Pas du tout qualifié',
+            self::BadClosing => 'Mauvais closing',
+            self::SmallBudget => 'Trop petit budget',
+            self::TightTiming => 'Timing trop serré',
             self::Other => 'Autre',
         };
     }

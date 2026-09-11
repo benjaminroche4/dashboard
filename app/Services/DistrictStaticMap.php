@@ -82,6 +82,38 @@ final readonly class DistrictStaticMap
      * Signature d'URL Google Maps : HMAC-SHA1 du chemin et de la requête avec le
      * secret décodé (base64 URL-safe), résultat encodé de la même façon.
      */
+    /**
+     * Carte statique d'un lieu : une épingle sur ses coordonnées, ou sur son
+     * adresse à défaut. Renvoie `null` sans clé dédiée ou sans lieu.
+     */
+    public function place(?float $latitude, ?float $longitude, ?string $address = null, int $zoom = 15): ?string
+    {
+        if ($this->apiKey === null || $this->apiKey === '') {
+            return null;
+        }
+
+        $center = $latitude !== null && $longitude !== null
+            ? "{$latitude},{$longitude}"
+            : ($address === null || trim($address) === '' ? null : trim($address));
+
+        if ($center === null) {
+            return null;
+        }
+
+        $query = http_build_query(array_filter([
+            'size' => '560x200',
+            'scale' => '2',
+            'zoom' => (string) $zoom,
+            'center' => $center,
+            'markers' => 'color:0x7f1d3f|'.$center,
+            'language' => 'fr',
+            'map_id' => $this->mapId,
+            'key' => $this->apiKey,
+        ]));
+
+        return 'https://maps.googleapis.com'.$this->sign('/maps/api/staticmap?'.$query);
+    }
+
     private function sign(string $pathAndQuery): string
     {
         if ($this->signingSecret === null || $this->signingSecret === '') {

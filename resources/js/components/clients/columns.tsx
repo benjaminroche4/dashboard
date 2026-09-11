@@ -4,7 +4,8 @@ import { ArrowUpDown } from 'lucide-react';
 import { ArrivalProgress } from '@/components/clients/arrival-progress';
 import { FolderIllustration } from '@/components/folder-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+import { ClientPriorityBadge } from '@/components/clients/client-priority';
+import { OfferBadge } from '@/components/clients/offer-badge';
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/format';
 import { show as clientShow } from '@/routes/clients';
@@ -28,6 +29,7 @@ function SortableHeader({
 export const clientColumnLabels: Record<string, string> = {
     name: 'Client',
     contact: 'Contact',
+    priority: 'Priorité',
     offer_label: 'Formule',
     converted_at: 'Client depuis',
     assignee: 'Suivi par',
@@ -106,16 +108,35 @@ export const clientColumns: ColumnDef<Client>[] = [
         },
     },
     {
+        accessorKey: 'priority',
+        // Le tri suit l'urgence (Urgente d'abord), pas l'ordre alphabétique.
+        sortingFn: (a, b) =>
+            a.original.priority_rank - b.original.priority_rank,
+        header: ({ column }) => (
+            <SortableHeader
+                label="Priorité"
+                onClick={() =>
+                    column.toggleSorting(column.getIsSorted() === 'asc')
+                }
+            />
+        ),
+        cell: ({ row }) => (
+            <ClientPriorityBadge
+                priority={row.original.priority}
+                label={row.original.priority_label}
+                showNormal
+            />
+        ),
+    },
+    {
         accessorKey: 'offer_label',
         header: 'Formule',
-        cell: ({ row }) =>
-            row.original.offer_label ? (
-                <Badge variant="secondary" className="font-medium">
-                    {row.original.offer_label}
-                </Badge>
-            ) : (
-                <span className="text-muted-foreground">—</span>
-            ),
+        cell: ({ row }) => (
+            <OfferBadge
+                offer={row.original.offer}
+                label={row.original.offer_label}
+            />
+        ),
     },
     {
         accessorKey: 'converted_at',

@@ -23,7 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property array<string, mixed>|null $payload
  * @property CarbonInterface $created_at
  */
-#[Fillable(['resource', 'message', 'user_id', 'lead_id', 'payload', 'created_at'])]
+#[Fillable(['resource', 'message', 'user_id', 'lead_id', 'partner_id', 'agency_id', 'agent_id', 'payload', 'created_at'])]
 class Activity extends Model
 {
     /** @use HasFactory<ActivityFactory> */
@@ -48,6 +48,32 @@ class Activity extends Model
     public function actor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Partenaire concerné, quand l'action en désigne un.
+     *
+     * @return BelongsTo<Partner, $this>
+     */
+    public function partner(): BelongsTo
+    {
+        return $this->belongsTo(Partner::class);
+    }
+
+    /**
+     * @return BelongsTo<Agency, $this>
+     */
+    public function agency(): BelongsTo
+    {
+        return $this->belongsTo(Agency::class);
+    }
+
+    /**
+     * @return BelongsTo<Agent, $this>
+     */
+    public function agent(): BelongsTo
+    {
+        return $this->belongsTo(Agent::class);
     }
 
     /**

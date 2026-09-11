@@ -1,11 +1,58 @@
 import { Head, Link } from '@inertiajs/react';
 import { FileSignature, FileText, History, Receipt } from 'lucide-react';
+import type { ComponentType } from 'react';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import { index as invoicesIndex } from '@/routes/invoices';
 import { index as toolsIndex } from '@/routes/tools';
 import { index as activityIndex } from '@/routes/tools/activity';
 import { index as documentsIndex } from '@/routes/tools/documents';
 import { index as quotesIndex } from '@/routes/tools/quotes';
+
+type ToolCardProps = {
+    title: string;
+    description: string;
+    icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+    href: ReturnType<typeof toolsIndex>;
+    cta: string;
+};
+
+/** Même panneau que les fiches : fond « sidebar », une seule bordure. */
+function ToolCard({
+    title,
+    description,
+    icon: Icon,
+    href,
+    cta,
+}: ToolCardProps) {
+    return (
+        <section
+            aria-label={title}
+            className="bg-sidebar flex flex-col gap-3 rounded-xl border p-4"
+        >
+            <div className="flex items-center gap-3">
+                <span className="bg-background flex size-8 shrink-0 items-center justify-center rounded-md border">
+                    <Icon
+                        aria-hidden={true}
+                        className="text-muted-foreground size-4"
+                    />
+                </span>
+                <h2 className="text-sm font-medium">{title}</h2>
+            </div>
+            {/* Trait et texte alignés sur le titre, pas sur l'icône : ils commencent
+                après la colonne de l'icône (size-8) et son écart (gap-3). */}
+            <div className="grid gap-3 pl-11">
+                <Separator />
+                <p className="text-muted-foreground text-sm">{description}</p>
+            </div>
+            <div className="mt-auto flex justify-end pt-1">
+                <Button size="sm" asChild>
+                    <Link href={href}>{cta}</Link>
+                </Button>
+            </div>
+        </section>
+    );
+}
 
 export default function ToolsIndex() {
     return (
@@ -20,123 +67,34 @@ export default function ToolsIndex() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {/* Même panneau que les fiches : fond « sidebar », une seule bordure. */}
-                    <section
-                        aria-label="Devis"
-                        className="bg-sidebar flex flex-col gap-4 rounded-xl border p-4"
-                    >
-                        <div className="flex items-start gap-3">
-                            <span className="bg-background flex size-8 shrink-0 items-center justify-center rounded-md border">
-                                <FileSignature
-                                    aria-hidden="true"
-                                    className="text-muted-foreground size-4"
-                                />
-                            </span>
-                            <div className="grid gap-1">
-                                <h2 className="text-sm font-medium">Devis</h2>
-                                <p className="text-muted-foreground text-sm">
-                                    Chiffrez une offre avant la facture : PDF
-                                    envoyé au client, suivi accepté ou refusé,
-                                    puis facture créée d'un clic.
-                                </p>
-                            </div>
-                        </div>
-                        <div className="mt-auto flex justify-end">
-                            <Button size="sm" asChild>
-                                <Link href={quotesIndex()}>Voir les devis</Link>
-                            </Button>
-                        </div>
-                    </section>
-                    <section
-                        aria-label="Factures"
-                        className="bg-sidebar flex flex-col gap-4 rounded-xl border p-4"
-                    >
-                        <div className="flex items-start gap-3">
-                            <span className="bg-background flex size-8 shrink-0 items-center justify-center rounded-md border">
-                                <Receipt
-                                    aria-hidden="true"
-                                    className="text-muted-foreground size-4"
-                                />
-                            </span>
-                            <div className="grid gap-1">
-                                <h2 className="text-sm font-medium">
-                                    Factures
-                                </h2>
-                                <p className="text-muted-foreground text-sm">
-                                    Émettez et suivez les factures : envoi avec
-                                    PDF, paiement, retards détectés chaque nuit,
-                                    rattachement au lead.
-                                </p>
-                            </div>
-                        </div>
-                        <div className="mt-auto flex justify-end">
-                            <Button size="sm" asChild>
-                                <Link href={invoicesIndex()}>
-                                    Voir les factures
-                                </Link>
-                            </Button>
-                        </div>
-                    </section>
-                    <section
-                        aria-label="Liste de documents"
-                        className="bg-sidebar flex flex-col gap-4 rounded-xl border p-4"
-                    >
-                        <div className="flex items-start gap-3">
-                            <span className="bg-background flex size-8 shrink-0 items-center justify-center rounded-md border">
-                                <FileText
-                                    aria-hidden="true"
-                                    className="text-muted-foreground size-4"
-                                />
-                            </span>
-                            <div className="grid gap-1">
-                                <h2 className="text-sm font-medium">
-                                    Liste de documents
-                                </h2>
-                                <p className="text-muted-foreground text-sm">
-                                    Générez le PDF des pièces à fournir par le
-                                    client (pièce d'identité, justificatifs,
-                                    contrat signé…), par personne du foyer.
-                                </p>
-                            </div>
-                        </div>
-                        <div className="mt-auto flex justify-end">
-                            <Button size="sm" asChild>
-                                <Link href={documentsIndex()}>
-                                    Voir les demandes
-                                </Link>
-                            </Button>
-                        </div>
-                    </section>
-                    <section
-                        aria-label="Journal d'activité"
-                        className="bg-sidebar flex flex-col gap-4 rounded-xl border p-4"
-                    >
-                        <div className="flex items-start gap-3">
-                            <span className="bg-background flex size-8 shrink-0 items-center justify-center rounded-md border">
-                                <History
-                                    aria-hidden="true"
-                                    className="text-muted-foreground size-4"
-                                />
-                            </span>
-                            <div className="grid gap-1">
-                                <h2 className="text-sm font-medium">
-                                    Journal d'activité
-                                </h2>
-                                <p className="text-muted-foreground text-sm">
-                                    Toutes les actions de l'équipe, jour par
-                                    jour : qui a fait quoi, sur quel dossier,
-                                    avec filtres par membre et par ressource.
-                                </p>
-                            </div>
-                        </div>
-                        <div className="mt-auto flex justify-end">
-                            <Button size="sm" asChild>
-                                <Link href={activityIndex()}>
-                                    Voir le journal
-                                </Link>
-                            </Button>
-                        </div>
-                    </section>
+                    <ToolCard
+                        title="Devis"
+                        icon={FileSignature}
+                        description="Chiffrez une offre avant la facture : PDF envoyé au client, suivi accepté ou refusé, puis facture créée d'un clic."
+                        href={quotesIndex()}
+                        cta="Voir les devis"
+                    />
+                    <ToolCard
+                        title="Factures"
+                        icon={Receipt}
+                        description="Émettez et suivez les factures : envoi avec PDF, paiement, retards détectés chaque nuit, rattachement au lead."
+                        href={invoicesIndex()}
+                        cta="Voir les factures"
+                    />
+                    <ToolCard
+                        title="Listes de pièces"
+                        icon={FileText}
+                        description="Générez le PDF des pièces à fournir par le client (pièce d'identité, justificatifs, contrat signé…), par personne du foyer."
+                        href={documentsIndex()}
+                        cta="Voir les listes"
+                    />
+                    <ToolCard
+                        title="Journal d'activité"
+                        icon={History}
+                        description="Toutes les actions de l'équipe, jour par jour : qui a fait quoi, sur quel dossier, avec filtres par membre et par ressource."
+                        href={activityIndex()}
+                        cta="Voir le journal"
+                    />
                 </div>
             </div>
         </>

@@ -54,6 +54,7 @@ describe('InvoiceLeadLink', () => {
                     id: 7,
                     uuid: '0199a9a0-0000-7000-8000-000000000007',
                     name: 'Léa Durand',
+                    is_client: false,
                 }}
                 canEdit
             />,
@@ -84,14 +85,14 @@ describe('InvoiceLeadLink', () => {
             />,
         );
 
-        expect(screen.getByText('Aucun lead rattaché.')).toBeInTheDocument();
+        expect(
+            screen.getByText('Aucun lead ni dossier client rattaché.'),
+        ).toBeInTheDocument();
         await user.click(
-            screen.getByRole('button', { name: 'Lier à un lead' }),
+            screen.getByRole('button', { name: 'Lier à un lead ou un client' }),
         );
         await user.type(
-            await screen.findByPlaceholderText(
-                'Nom, e-mail ou téléphone du lead…',
-            ),
+            await screen.findByPlaceholderText('Nom, e-mail ou téléphone…'),
             'lea',
         );
 
@@ -119,7 +120,9 @@ describe('InvoiceLeadLink', () => {
         );
 
         expect(
-            screen.queryByRole('button', { name: 'Lier à un lead' }),
+            screen.queryByRole('button', {
+                name: 'Lier à un lead ou un client',
+            }),
         ).not.toBeInTheDocument();
     });
 });

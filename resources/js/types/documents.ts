@@ -98,9 +98,11 @@ export type DocumentRequestDetail = DocumentRequestSummary & {
     access_code: string;
     link_sent_to: string | null;
     link_sent_at: string | null;
-    /** E-mail du lead rattaché, pour préremplir l'envoi du lien. */
-    lead_email: string | null;
+    /** Adresses du lead rattaché (client puis second locataire), pour préremplir l'envoi. */
+    lead_emails: string[];
     uploads_count: number;
+    /** Le membre peut modifier la liste (et donc la rattacher à un lead). */
+    can_update: boolean;
     persons: HouseholdPersonDetail[];
 };
 
@@ -126,7 +128,26 @@ export type DocumentRequestPrefill = {
     language: DocumentLanguage;
 };
 
-/** Liste de documents telle que listée sur la fiche d'un lead. */
+/**
+ * Lead (ou dossier client) proposé dans le sélecteur du formulaire, avec de
+ * quoi préremplir le foyer.
+ */
+export type DocumentRequestLeadOption = {
+    id: number;
+    uuid: string;
+    name: string;
+    first_name: string;
+    last_name: string;
+    reference: string | null;
+    company: string | null;
+    language: DocumentLanguage;
+    /** Lead converti : c'est un dossier client. */
+    is_client: boolean;
+    /** Garants déclarés par le lead ; un garant physique est une personne du foyer. */
+    guarantors: string[];
+};
+
+/** Liste de pièces telle que listée sur la fiche d'un lead. */
 export type LeadDocumentRequest = {
     id: number;
     uuid: string;

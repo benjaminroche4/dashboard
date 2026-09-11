@@ -2,7 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Enums\OwnerStatus;
+use App\Models\Agency;
+use App\Models\Agent;
 use App\Models\Invoice;
 use App\Models\Owner;
 use App\Models\Property;
@@ -83,7 +84,7 @@ test('properties are found by title, street, city or district, eight at most', f
 test('owners are found by name, company, e-mail or phone, eight at most', function (): void {
     $user = User::factory()->create();
     $owner = Owner::factory()->create(['first_name' => 'Zoé', 'last_name' => 'Martin', 'company' => 'Foncière Zed', 'email' => 'zoe@example.com', 'phone' => '+33 6 11 22 33 44']);
-    $contacted = Owner::factory()->status(OwnerStatus::Contacted)->create(['first_name' => 'Paul', 'last_name' => 'Durand', 'company' => null, 'email' => 'paul@example.com', 'phone' => '+33 6 99 88 77 66']);
+    $individual = Owner::factory()->create(['first_name' => 'Paul', 'last_name' => 'Durand', 'company' => null, 'email' => 'paul@example.com', 'phone' => '+33 6 99 88 77 66']);
     Owner::factory()->count(9)->create(['last_name' => 'Zola', 'company' => null]);
 
     $this->actingAs($user)
@@ -93,13 +94,13 @@ test('owners are found by name, company, e-mail or phone, eight at most', functi
             'id' => $owner->id,
             'uuid' => $owner->uuid,
             'title' => 'Zoé Martin',
-            'subtitle' => 'Foncière Zed',
+            'subtitle' => 'Particulier',
             'url' => route('owners.show', $owner),
         ]]);
 
     $this->actingAs($user)->getJson(route('owners.search', ['q' => 'foncière']))->assertJsonCount(1);
     $this->actingAs($user)->getJson(route('owners.search', ['q' => 'zoe@']))->assertJsonCount(1);
-    $this->actingAs($user)->getJson(route('owners.search', ['q' => '99 88']))->assertJsonCount(1)->assertJsonPath('0.subtitle', 'Contacté')->assertJsonPath('0.uuid', $contacted->uuid);
+    $this->actingAs($user)->getJson(route('owners.search', ['q' => '99 88']))->assertJsonCount(1)->assertJsonPath('0.subtitle', 'Particulier')->assertJsonPath('0.uuid', $individual->uuid);
     $this->actingAs($user)->getJson(route('owners.search', ['q' => 'zo']))->assertJsonCount(8);
 });
 
@@ -111,4 +112,34 @@ test('invoice search exposes the url of the invoice page', function (): void {
         ->assertOk()
         ->assertJsonPath('0.uuid', $invoice->uuid)
         ->assertJsonPath('0.url', route('invoices.show', $invoice));
+});
+
+test('agents and agencies answer the palette, by name, agency, e-mail or city', function (): void {
+    $user = User::factory()->create();
+    $agency = Agency::factory()->create(['name' => 'Century 21 Marais', 'city' => 'Paris']);
+    $agent = Agent::factory()->forAgency($agency)->create(['first_name' => 'Julie', 'last_name' => 'Roux', 'email' => 'julie@century21.fr']);
+    Agent::factory()->create(['first_name' => 'Marc', 'last_name' => 'Bernard', 'email' => 'marc@example.com', 'agency_id' => null]);
+
+    // Un agent se retrouve par son nom…
+    $this->actingAs($user)->getJson(route('agents.search', ['q' => 'julie']))
+        ->assertOk()
+        ->assertJsonCount(1)
+        ->assertJsonPath('0.uuid', $agent->uuid)
+        ->assertJsonPath('0.title', 'Julie Roux')
+        ->assertJsonPath('0.url', route('agents.show', $agent));
+
+    // … par son agence, ou par son e-mail.
+    $this->actingAs($user)->getJson(route('agents.search', ['q' => 'century']))->assertJsonCount(1);
+    $this->actingAs($user)->getJson(route('agents.search', ['q' => 'julie@']))->assertJsonCount(1);
+
+    // Les agences répondent sur leur nom et leur ville.
+    $this->actingAs($user)->getJson(route('agencies.search', ['q' => 'marais']))
+        ->assertJsonCount(1)
+        ->assertJsonPath('0.uuid', $agency->uuid)
+        ->assertJsonPath('0.subtitle', 'Paris · 1 agent(s)');
+    $this->actingAs($user)->getJson(route('agencies.search', ['q' => 'paris']))->assertJsonCount(1);
+
+    // Une seule lettre ne cherche rien.
+    $this->actingAs($user)->getJson(route('agents.search', ['q' => 'j']))->assertExactJson([]);
+    $this->actingAs($user)->getJson(route('agencies.search', ['q' => 'm']))->assertExactJson([]);
 });

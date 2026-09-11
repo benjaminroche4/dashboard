@@ -49,11 +49,6 @@ const groups: NavGroup[] = [
                 href: '/tools',
                 items: [
                     {
-                        title: 'Tous les outils',
-                        href: '/tools',
-                        anySection: ['quotes', 'invoices'],
-                    },
-                    {
                         title: 'Devis',
                         href: '/tools/quotes',
                         section: 'quotes',
@@ -98,12 +93,13 @@ describe('nav access', () => {
             'Outils',
         ]);
         expect(filtered[2]?.items[0]?.items?.map((sub) => sub.title)).toEqual([
-            'Tous les outils',
             'Factures',
         ]);
+        // Le menu « Outils » garde sa propre page, qui n'est le lien d'aucun sous-lien.
+        expect(filtered[2]?.items[0]?.href).toBe('/tools');
     });
 
-    it('hides « Tous les outils » when no tool is open', () => {
+    it('drops the tools menu when no tool is open', () => {
         const filtered = filterNavGroups(groups, only('reports'));
 
         expect(filtered.map((group) => group.label)).toEqual(['', 'Outils']);

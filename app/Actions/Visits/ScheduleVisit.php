@@ -5,21 +5,27 @@ declare(strict_types=1);
 namespace App\Actions\Visits;
 
 use App\Actions\Properties\CreateProperty;
+use App\Data\PropertyData;
 use App\Data\VisitData;
+use App\Enums\Offer;
+use App\Enums\VisitMode;
 use App\Events\DashboardUpdated;
 use App\Mail\VisitScheduled;
 use App\Models\Lead;
 use App\Models\Property;
 use App\Models\User;
 use App\Models\Visit;
+use App\Support\HouseholdMail;
 use App\Support\IcsInvite;
+use App\Support\PropertyAddress;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 
 /**
  * Planifie une visite pour un client. Un bien saisi à la volée est d'abord
- * ajouté à l'annuaire « Biens », puis la visite est notée sur le lead. Sur
- * demande, le client reçoit la confirmation par e-mail (invitation ICS jointe).
+ * ajouté à l'annuaire « Biens » — sauf si l'annuaire connaît déjà la même
+ * adresse, auquel cas la visite reprend ce bien plutôt que d'en créer un
+ * doublon —, puis la visite est notée sur le lead. Sur demande, le client
+ * reçoit la confirmation par e-mail (invitation ICS jointe).
  */
 final readonly class ScheduleVisit
 {
@@ -31,7 +37,7 @@ final readonly class ScheduleVisit
             $lead = Lead::query()->findOrFail($data->leadId);
             $property = $data->propertyId !== null
                 ? Property::query()->findOrFail($data->propertyId)
-                : $this->createProperty->handle($data->property ?? throw new \InvalidArgumentException('Un bien existant ou un nouveau bien est requis.'), $by);
+                : $this->newProperty($data->property ?? throw new \InvalidArgumentException('Un bien existant ou un nouveau bien est requis.'), $by);
 
             $visit = Visit::query()->create([
                 'lead_id' => $lead->id,
@@ -39,12 +45,14 @@ final readonly class ScheduleVisit
                 'agent_id' => $data->agentId ?? $property->agent_id,
                 'assigned_to' => $data->assignedTo,
                 'scheduled_at' => $data->scheduledAt,
+                'mode' => $data->mode,
                 'notes' => $data->notes,
                 'created_by' => $by?->id,
             ]);
 
             $when = $data->scheduledAt->translatedFormat('j F Y \à H:i');
-            $lead->notes()->create(['body' => "Visite planifiée le {$when} : {$property->label()}.", 'user_id' => $by?->id]);
+            $how = $data->mode === VisitMode::ClientAlone ? ' (visite autonome du client)' : '';
+            $lead->notes()->create(['body' => "Visite planifiée le {$when} : {$property->label()}{$how}.", 'user_id' => $by?->id]);
 
             event(new DashboardUpdated('visits', ['id' => $visit->id], "a planifié une visite pour {$lead->fullName()} : {$property->label()}", $by));
 
@@ -58,11 +66,46 @@ final readonly class ScheduleVisit
         return $visit;
     }
 
+    /**
+     * Le bien saisi dans le formulaire : celui de l'annuaire qui porte déjà
+     * cette adresse, sinon un nouveau bien.
+     */
+    private function newProperty(PropertyData $data, ?User $by): Property
+    {
+        return $this->existing($data) ?? $this->createProperty->handle($data, $by);
+    }
+
+    /**
+     * Bien de l'annuaire à la même adresse. Les candidats sont réduits par le
+     * code postal (ou la ville) puis comparés sur l'empreinte de l'adresse,
+     * la ponctuation et les accents d'une saisie à l'autre ne devant pas
+     * créer de doublon.
+     */
+    private function existing(PropertyData $data): ?Property
+    {
+        $key = PropertyAddress::key($data->street, $data->postalCode, $data->city);
+
+        if ($key === null) {
+            return null;
+        }
+
+        return Property::query()
+            ->when($data->postalCode !== null, fn ($query) => $query->where('postal_code', $data->postalCode))
+            ->when($data->postalCode === null && $data->city !== null, fn ($query) => $query->where('city', $data->city))
+            ->get()
+            ->first(fn (Property $property): bool => PropertyAddress::key($property->street, $property->postal_code, $property->city) === $key);
+    }
+
     /** Envoie la confirmation au client, dans sa langue, si son adresse est connue. */
     private function notifyClient(Visit $visit, ?User $by): void
     {
-        $visit->load(['lead.assignee', 'property', 'agent.agency']);
+        $visit->load(['lead.assignee', 'lead.coAssignee', 'property', 'agent.agency']);
         $lead = $visit->lead;
+
+        // Formule « Confié » : le client ne vient pas, on ne l'invite pas.
+        if ($lead->offer === Offer::Confie) {
+            return;
+        }
 
         if ($lead->email === null || $lead->email === '') {
             return;
@@ -71,7 +114,7 @@ final readonly class ScheduleVisit
         $fr = $lead->language->value !== 'en';
         $start = $visit->scheduled_at->toImmutable();
         $advisor = $lead->assignee;
-        $attendees = [['email' => $lead->email, 'name' => $lead->fullName()]];
+        $attendees = $lead->mailRecipients();
 
         if ($advisor !== null) {
             $attendees[] = ['email' => $advisor->email, 'name' => $advisor->name];
@@ -94,8 +137,8 @@ final readonly class ScheduleVisit
             $mailable->replyTo($advisor->email, $advisor->name);
         }
 
-        Mail::to($lead->email, $lead->fullName())->locale($lead->language->value)->send($mailable);
+        $sentTo = HouseholdMail::send($lead, $mailable);
 
-        $lead->notes()->create(['body' => "Confirmation de visite envoyée à {$lead->email}.", 'user_id' => $by?->id]);
+        $lead->notes()->create(['body' => 'Confirmation de visite envoyée à '.implode(', ', $sentTo).'.', 'user_id' => $by?->id]);
     }
 }

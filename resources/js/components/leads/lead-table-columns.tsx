@@ -3,6 +3,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown } from 'lucide-react';
 import { leadStatusClasses } from '@/components/leads/lead-status-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { OfferBadge } from '@/components/clients/offer-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDate, formatMoney } from '@/lib/format';
@@ -124,14 +125,12 @@ export const leadTableColumns: ColumnDef<Lead>[] = [
     {
         accessorKey: 'offer_label',
         header: 'Formule',
-        cell: ({ row }) =>
-            row.original.offer_label ? (
-                <Badge variant="secondary" className="font-medium">
-                    {row.original.offer_label}
-                </Badge>
-            ) : (
-                <span className="text-muted-foreground">—</span>
-            ),
+        cell: ({ row }) => (
+            <OfferBadge
+                offer={row.original.offer}
+                label={row.original.offer_label}
+            />
+        ),
     },
     {
         accessorKey: 'budget_cents',

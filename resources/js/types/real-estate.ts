@@ -10,6 +10,11 @@ export type Agency = {
     email: string | null;
     website: string | null;
     notes: string | null;
+    /** Position posée depuis l'adresse, pour la carte. */
+    latitude: number | null;
+    longitude: number | null;
+    /** Dernier échange noté par l'équipe. */
+    last_contacted_at: string | null;
     /** Étoile du membre connecté (favori personnel). */
     is_favorite: boolean;
     agents_count: number;
@@ -25,6 +30,7 @@ export type AgencyAgent = {
     id: number;
     uuid: string;
     name: string;
+    is_primary: boolean;
     position: string | null;
     phone: string | null;
     email: string | null;
@@ -52,9 +58,20 @@ export type AgentAgencyCard = {
 };
 
 /** Fiche d'une agence : ses agents avec leur nombre de leads, et les leads via ses agents. */
+/** Bien visité avec l'un des agents de l'agence. */
+export type AgencyVisitedProperty = {
+    uuid: string;
+    label: string;
+    visits_count: number;
+    last_visit_at: string;
+    last_visit_status: string;
+    agent: string | null;
+};
+
 export type AgencyDetail = Omit<Agency, 'agents'> & {
     agents: (AgencyAgent & { leads_count: number })[];
-    leads: (AgentLead & { agent: string | null })[];
+    /** Biens visités avec l'un de ses agents, le plus récent d'abord. */
+    properties: AgencyVisitedProperty[];
 };
 
 /** Agent proposé sur une fiche lead. */
@@ -115,12 +132,25 @@ export type Agent = {
     position: string | null;
     /** Valeur de la fonction (`agentPositions`), pour le formulaire. */
     position_value: string | null;
+    /** Qualité de la relation (`relationshipQualities`), null si non notée. */
+    relationship_quality: string | null;
+    relationship_quality_label: string | null;
     street: string | null;
     postal_code: string | null;
     city: string | null;
     email: string | null;
     phone: string | null;
     notes: string | null;
+    /** Visites faites avec cet agent, et la plus récente. */
+    visits_count: number;
+    last_visit_at: string | null;
+    /** Agent principal de son agence : celui qu'on appelle en premier. */
+    is_primary: boolean;
+    /** Position posée depuis l'adresse, pour la carte. */
+    latitude: number | null;
+    longitude: number | null;
+    /** Dernier échange noté par l'équipe. */
+    last_contacted_at: string | null;
     /** Étoile du membre connecté (favori personnel). */
     is_favorite: boolean;
     agency: AgencyOption | null;
@@ -130,11 +160,21 @@ export type Agent = {
     created_at: string | null;
 };
 
+/** Ligne d'un import d'agences collé depuis un tableur. */
+export type AgencyImportRow = {
+    name: string;
+    email: string;
+    phone: string;
+    city: string;
+};
+
 export type AgentForm = {
+    is_primary: boolean;
     agency_id: string;
     first_name: string;
     last_name: string;
     position: string;
+    relationship_quality: string;
     street: string;
     postal_code: string;
     city: string;

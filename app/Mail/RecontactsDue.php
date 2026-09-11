@@ -7,6 +7,7 @@ namespace App\Mail;
 use App\Models\Lead;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -16,7 +17,7 @@ use Illuminate\Support\Collection;
 /**
  * Rappel matinal au conseiller : ses recontacts du jour et en retard.
  */
-final class RecontactsDue extends Mailable
+final class RecontactsDue extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

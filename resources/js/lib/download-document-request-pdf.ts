@@ -2,7 +2,7 @@ import { notify } from '@/lib/toast';
 import { pdf } from '@/routes/tools/documents';
 
 /**
- * Télécharge le PDF d'une demande de pièces sans quitter la page, avec un
+ * Télécharge le PDF d'une liste de pièces sans quitter la page, avec un
  * toast qui suit la génération.
  */
 export async function downloadDocumentRequestPdf(

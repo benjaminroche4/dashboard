@@ -60,6 +60,7 @@ const agency = {
             id: 1,
             uuid: '0199a9a0-0000-7000-8000-0000000000b1',
             name: 'Zoé Martin',
+            is_primary: false,
             position: 'Négociatrice',
             phone: '+33 6 12 34 56 78',
             email: null,
@@ -69,35 +70,35 @@ const agency = {
             id: 2,
             uuid: '0199a9a0-0000-7000-8000-0000000000b2',
             name: 'Paul Roux',
+            is_primary: false,
             position: null,
             phone: null,
             email: null,
             leads_count: 0,
         },
     ],
-    leads: [
+    properties: [
         {
-            uuid: 'abc',
-            name: 'Léa Durand',
-            status_label: 'En cours',
+            uuid: 'property-1',
+            label: 'T2 lumineux · 11e',
+            visits_count: 2,
+            last_visit_at: '2026-09-08T10:00:00+00:00',
+            last_visit_status: 'Effectuée',
             agent: 'Zoé Martin',
         },
     ],
 };
 
 describe('Agency detail page', () => {
-    it('shows coordinates, agents with their lead count, leads via agents, and adds an agent preselected', async () => {
+    it('shows coordinates, agents with their lead count, the properties visited with the agency, and adds an agent preselected', async () => {
         const user = userEvent.setup();
         render(<AgencyShow agency={agency} />);
 
         expect(
             screen.getByRole('heading', { level: 1, name: 'Agence du Marais' }),
         ).toBeInTheDocument();
-        expect(
-            screen.getByRole('button', {
-                name: 'Ajouter Agence du Marais aux favoris',
-            }),
-        ).toHaveAttribute('aria-pressed', 'false');
+        // Pas un favori : aucune étoile.
+        expect(screen.queryByRole('img', { name: 'Favori' })).toBeNull();
         expect(
             screen.getByText('12 rue de Turenne, 75003 Paris'),
         ).toBeInTheDocument();
@@ -109,15 +110,26 @@ describe('Agency detail page', () => {
             '/real-estate/agents/0199a9a0-0000-7000-8000-0000000000b1',
         );
         expect(agents.getByLabelText('1 lead(s)')).toBeInTheDocument();
-        expect(agents.getByText('Fonction non renseignée')).toBeInTheDocument();
-        const leads = within(
-            screen.getByRole('region', { name: 'Leads en contact' }),
+        // Téléphone et e-mail cliquables, sur leur propre ligne (même carte que
+        // les interlocuteurs d'un partenaire).
+        expect(
+            agents.getByRole('link', { name: '+33 6 12 34 56 78' }),
+        ).toHaveAttribute('href', 'tel:+33612345678');
+        // Sans fonction, la ligne disparaît plutôt que d'annoncer un vide.
+        expect(agents.queryByText('Fonction non renseignée')).toBeNull();
+        // Ce qui compte pour une agence : les biens qu'on a visités avec elle.
+        const visited = within(
+            screen.getByRole('region', { name: 'Biens visités' }),
         );
-        expect(leads.getByRole('link', { name: 'Léa Durand' })).toHaveAttribute(
-            'href',
-            '/locataires/abc',
-        );
-        expect(leads.getByText('via Zoé Martin')).toBeInTheDocument();
+        expect(
+            visited.getByRole('link', { name: 'T2 lumineux · 11e' }),
+        ).toHaveAttribute('href', '/properties/property-1');
+        expect(visited.getByText('2 visites')).toBeInTheDocument();
+        expect(
+            visited.getByText(
+                /Dernière : 8 sept. 2026 · Effectuée · Zoé Martin/,
+            ),
+        ).toBeInTheDocument();
 
         await user.click(
             screen.getByRole('button', { name: 'Ajouter un agent' }),

@@ -21,6 +21,8 @@ const form: QuoteForm = {
     issued_at: '2026-09-07',
     valid_until: '2026-10-07',
     notes: '',
+    bank_name: '',
+    bank_iban: '',
     items: [
         {
             offer: 'accompagne',

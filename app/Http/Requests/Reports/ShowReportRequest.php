@@ -4,19 +4,18 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Reports;
 
+use App\Enums\ReportPeriod;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Validation\Rule;
 
 /**
- * Période du rapport : 3, 6 ou 12 derniers mois, ou 24 (deux ans).
+ * Période du rapport : un raccourci (`period`) ou deux dates (`period=custom`).
  */
 class ShowReportRequest extends FormRequest
 {
-    /** @var list<int> */
-    public const array MONTHS = [3, 6, 12, 24];
-
     public function authorize(): bool
     {
         return true;
@@ -27,21 +26,32 @@ class ShowReportRequest extends FormRequest
      */
     public function rules(): array
     {
-        return ['months' => ['nullable', 'integer', Rule::in(self::MONTHS)]];
+        return [
+            'period' => ['nullable', Rule::enum(ReportPeriod::class)],
+            'from' => ['nullable', 'date', 'required_if:period,custom'],
+            'to' => ['nullable', 'date', 'after_or_equal:from', 'required_if:period,custom'],
+        ];
     }
 
-    public function months(): int
+    public function period(): ReportPeriod
     {
-        return (int) ($this->validated('months') ?? 12);
+        return ReportPeriod::tryFrom((string) $this->validated('period')) ?? ReportPeriod::Days30;
     }
 
     public function from(): CarbonInterface
     {
-        return now()->subMonths($this->months() - 1)->startOfMonth();
+        $period = $this->period();
+
+        return $period->start(today())
+            ?? Date::parse((string) $this->validated('from'))->startOfDay();
     }
 
     public function to(): CarbonInterface
     {
-        return now()->endOfDay();
+        if ($this->period() !== ReportPeriod::Custom) {
+            return now()->endOfDay();
+        }
+
+        return Date::parse((string) $this->validated('to'))->endOfDay();
     }
 }

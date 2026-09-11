@@ -20,7 +20,7 @@ test('the command alerts the contact address and runs every minute', function ()
     $this->artisan('leads:alert-first-contact')
         ->expectsOutput('1 lead(s) signalé(s).')
         ->assertSuccessful();
-    Mail::assertSent(FirstContactOverdue::class);
+    Mail::assertQueued(FirstContactOverdue::class);
     Http::assertNothingSent();
 
     $this->artisan('leads:alert-first-contact')->expectsOutput('Aucun lead en attente de premier contact.');

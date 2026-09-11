@@ -15,6 +15,8 @@ export function FavoritesFilter({ active, onChange, count }: Props) {
         <Button
             type="button"
             variant="outline"
+            // Même gabarit que le bouton « Filtres » (`FilterMenu`), qu'il côtoie.
+            size="sm"
             aria-pressed={active}
             onClick={() => onChange(!active)}
             className={cn(

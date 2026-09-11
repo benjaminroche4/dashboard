@@ -29,8 +29,6 @@ export type NavSubItem = {
     badge?: number;
     /** Section requise ; absente = toujours visible. */
     section?: SiteSection;
-    /** Visible dès qu'une de ces sections est ouverte (ex. « Tous les outils »). */
-    anySection?: SiteSection[];
 };
 
 export type NavGroup = {

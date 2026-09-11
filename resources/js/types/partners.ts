@@ -18,10 +18,20 @@ export type Partner = {
     email: string | null;
     phone: string | null;
     website: string | null;
+    /** Qualité de la relation (`relationshipQualities`), null si non notée. */
+    relationship_quality: string | null;
+    relationship_quality_label: string | null;
+    /** Dernier échange avec le partenaire (ISO 8601). */
+    last_contacted_at: string | null;
     street: string | null;
     postal_code: string | null;
     city: string | null;
     notes: string | null;
+    /** Position posée depuis l'adresse, pour la carte. */
+    latitude: number | null;
+    longitude: number | null;
+    /** Étoile personnelle du membre connecté. */
+    is_favorite: boolean;
     /** Interlocuteurs chez le partenaire. */
     contacts: PartnerContact[];
     /** Nombre de dossiers (leads) où il intervient. */
@@ -36,7 +46,12 @@ export type PartnerContact = {
     first_name: string;
     last_name: string;
     name: string;
+    /** Libellé de la fonction, pour l'affichage. */
     position: string | null;
+    /** Valeur de la fonction (`contactFunctions`), pour le formulaire. */
+    position_value: string | null;
+    /** Interlocuteur que l'équipe joint d'abord. */
+    is_primary: boolean;
     email: string | null;
     phone: string | null;
 };
@@ -45,6 +60,7 @@ export type PartnerContactForm = {
     first_name: string;
     last_name: string;
     position: string;
+    is_primary: boolean;
     email: string;
     phone: string;
 };
@@ -59,7 +75,27 @@ export type PartnerLead = {
     at: string | null;
 };
 
-export type PartnerDetail = Partner & { leads: PartnerLead[] };
+export type PartnerDetail = Partner & {
+    leads: PartnerLead[];
+    contacts_count: number;
+    /** Interlocuteur à joindre d'abord (principal, sinon le premier). */
+    primary_contact: {
+        id: number;
+        name: string;
+        position: string | null;
+        email: string | null;
+        phone: string | null;
+    } | null;
+    /** Rôles tenus par le partenaire sur les dossiers, sans doublon. */
+    roles: string[];
+};
+
+/** Partenaire qui partage l'e-mail ou le téléphone : doublon probable. */
+export type PartnerDuplicate = {
+    uuid: string;
+    name: string;
+    type_label: string;
+};
 
 /** Ce que fait un partenaire sur un dossier. */
 export type PartnerRole =
@@ -100,6 +136,8 @@ export type LeadPartnerLink = {
 
 export type PartnerForm = {
     name: string;
+    /** Qualité de la relation (`relationshipQualities`), vide si non notée. */
+    relationship_quality: string;
     type: PartnerType | '';
     email: string;
     phone: string;

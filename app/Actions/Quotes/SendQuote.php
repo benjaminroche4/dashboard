@@ -37,7 +37,16 @@ final readonly class SendQuote
 
         $pdf = $this->renderPdf->handle($quote);
 
-        Mail::to($quote->client_email, $quote->client_name)->send(new QuoteSent($quote, $pdf));
+        // Même règle que pour une facture : le second locataire du dossier est
+        // mis en copie du devis.
+        $copies = $quote->lead === null ? [] : array_values(array_filter(
+            $quote->lead->mailRecipients(),
+            fn (array $recipient): bool => strcasecmp($recipient['email'], (string) $quote->client_email) !== 0,
+        ));
+
+        Mail::to($quote->client_email, $quote->client_name)
+            ->cc($copies)
+            ->send(new QuoteSent($quote, $pdf));
 
         $quote->sent_at = now();
         $quote->transitionTo(QuoteStatus::Sent, $by, 'Envoyé à '.$quote->client_email);

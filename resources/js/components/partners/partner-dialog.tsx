@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { relationshipQualities } from '@/lib/relationship-quality';
 import {
     Select,
     SelectContent,
@@ -48,6 +49,9 @@ type Props = {
     defaultType?: PartnerType | '';
 };
 
+/** Valeur du choix « Pas encore notée » (Radix refuse une valeur vide). */
+const NONE = '__none__';
+
 function initial(
     partner: Partner | null | undefined,
     defaultType: PartnerType | '',
@@ -62,6 +66,7 @@ function initial(
         postal_code: partner?.postal_code ?? '',
         city: partner?.city ?? '',
         notes: partner?.notes ?? '',
+        relationship_quality: partner?.relationship_quality ?? '',
         notify: false,
     };
 }
@@ -180,23 +185,58 @@ export function PartnerDialog({
                             <InputError message={form.errors.type} />
                         </div>
                     </div>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div className="grid gap-2">
-                            <Label htmlFor="partner-phone">Téléphone</Label>
-                            <PhoneInput
-                                id="partner-phone"
-                                value={form.data.phone}
-                                onChange={(value) =>
-                                    form.setData('phone', value)
-                                }
-                            />
-                            <InputError message={form.errors.phone} />
-                        </div>
-                        {field('email', 'E-mail', {
-                            type: 'email',
-                            placeholder: 'contact@…',
-                        })}
+                    <div className="grid gap-2">
+                        <Label htmlFor="partner-quality">
+                            Qualité de la relation
+                        </Label>
+                        <Select
+                            value={form.data.relationship_quality || NONE}
+                            onValueChange={(value) =>
+                                form.setData(
+                                    'relationship_quality',
+                                    value === NONE ? '' : value,
+                                )
+                            }
+                        >
+                            <SelectTrigger
+                                id="partner-quality"
+                                className="w-full"
+                            >
+                                <SelectValue placeholder="Pas encore notée" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={NONE}>
+                                    Pas encore notée
+                                </SelectItem>
+                                {relationshipQualities.map((quality) => (
+                                    <SelectItem
+                                        key={quality.value}
+                                        value={quality.value}
+                                    >
+                                        {quality.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <InputError
+                            message={form.errors.relationship_quality}
+                        />
                     </div>
+                    {/* Une ligne pleine largeur chacun : l'indicatif du téléphone
+                        et une adresse e-mail complète tiennent mal sur une demi-ligne. */}
+                    <div className="grid gap-2">
+                        <Label htmlFor="partner-phone">Téléphone</Label>
+                        <PhoneInput
+                            id="partner-phone"
+                            value={form.data.phone}
+                            onChange={(value) => form.setData('phone', value)}
+                        />
+                        <InputError message={form.errors.phone} />
+                    </div>
+                    {field('email', 'E-mail', {
+                        type: 'email',
+                        placeholder: 'contact@…',
+                    })}
                     <ContactDuplicatesAlert
                         duplicates={duplicates}
                         noun="partenaire"

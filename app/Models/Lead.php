@@ -78,7 +78,17 @@ use Illuminate\Support\Collection;
  * @property CarbonInterface|null $first_contacted_at
  * @property CarbonInterface|null $first_contact_alerted_at
  * @property int|null $created_by
+ * @property array<string, array<string, mixed>>|null $tenant_profiles
+ * @property string|null $co_first_name
+ * @property string|null $co_last_name
+ * @property string|null $co_email
+ * @property string|null $co_phone
+ * @property int|null $income_cents
+ * @property int|null $co_income_cents
  * @property int|null $assigned_to
+ * @property int|null $co_assigned_to
+ * @property-read User|null $assignee
+ * @property-read User|null $coAssignee
  * @property int|null $agent_id
  * @property-read Agent|null $agent
  * @property-read LeadProperty|null $property
@@ -88,9 +98,9 @@ use Illuminate\Support\Collection;
  */
 #[Fillable([
     'reference', 'external_reference',
-    'first_name', 'last_name', 'email', 'phone', 'company', 'language', 'offer', 'arrival_at', 'budget_cents', 'currency',
+    'first_name', 'last_name', 'email', 'phone', 'co_first_name', 'co_last_name', 'co_email', 'co_phone', 'tenant_profiles', 'company', 'language', 'offer', 'arrival_at', 'budget_cents', 'income_cents', 'co_income_cents', 'currency',
     'origin_city', 'districts', 'property_types', 'duration', 'guarantors', 'furnished', 'source', 'source_note', 'help_type', 'message', 'ai_qualification', 'ai_qualified_at',
-    'score', 'priority', 'recontact_channel', 'recontact_at', 'visio_at', 'visio_event_id', 'visio_meet_link', 'visio_report', 'visio_report_submitted_at', 'visio_report_submitted_by', 'visio_report_reminded_at', 'qualification_note', 'status', 'loss_reason', 'loss_note', 'position', 'last_contacted_at', 'first_contact_alerted_at', 'created_by', 'assigned_to',
+    'score', 'priority', 'recontact_channel', 'recontact_at', 'visio_at', 'visio_event_id', 'visio_meet_link', 'visio_report', 'visio_report_submitted_at', 'visio_report_submitted_by', 'visio_report_reminded_at', 'qualification_note', 'status', 'loss_reason', 'loss_note', 'position', 'last_contacted_at', 'first_contact_alerted_at', 'created_by', 'assigned_to', 'co_assigned_to',
     'agent_id',
 ])]
 class Lead extends Model
@@ -150,6 +160,7 @@ class Lead extends Model
             'recontact_channel' => RecontactChannel::class,
             'recontact_at' => 'date',
             'ai_qualification' => 'array',
+            'tenant_profiles' => 'array',
             'ai_qualified_at' => 'datetime',
             'visio_at' => 'datetime',
             'visio_report_submitted_at' => 'datetime',
@@ -204,11 +215,31 @@ class Lead extends Model
     }
 
     /**
+     * Garants du dossier, saisis par l'équipe.
+     *
+     * @return HasMany<LeadGuarantor, $this>
+     */
+    public function guarantorPeople(): HasMany
+    {
+        return $this->hasMany(LeadGuarantor::class)->oldest('id');
+    }
+
+    /**
      * @return BelongsTo<User, $this>
      */
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    /**
+     * Second membre qui suit le dossier, à côté du responsable principal.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function coAssignee(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'co_assigned_to');
     }
 
     /**
@@ -247,6 +278,16 @@ class Lead extends Model
     public function property(): HasOne
     {
         return $this->hasOne(LeadProperty::class);
+    }
+
+    /**
+     * Fiche de l'annuaire des propriétaires créée depuis ce lead.
+     *
+     * @return HasOne<Owner, $this>
+     */
+    public function owner(): HasOne
+    {
+        return $this->hasOne(Owner::class);
     }
 
     /**
@@ -298,5 +339,82 @@ class Lead extends Model
     public function fullName(): string
     {
         return trim("{$this->first_name} {$this->last_name}");
+    }
+
+    /**
+     * Revenu mensuel net du foyer (les deux locataires), null si aucun n'est
+     * renseigné.
+     */
+    public function householdIncomeCents(): ?int
+    {
+        if ($this->income_cents === null && $this->co_income_cents === null) {
+            return null;
+        }
+
+        return ($this->income_cents ?? 0) + ($this->co_income_cents ?? 0);
+    }
+
+    /**
+     * Nom du dossier : les prénoms des deux locataires (« Bruno & Charles »)
+     * quand le foyer en compte deux, sinon le nom complet du locataire.
+     */
+    public function householdName(): string
+    {
+        $first = trim((string) $this->first_name);
+        $co = trim((string) $this->co_first_name);
+
+        if ($first === '' || $co === '') {
+            return $this->fullName();
+        }
+
+        return "{$first} & {$co}";
+    }
+
+    /** Nom du second locataire du dossier, null s'il n'y en a pas. */
+    public function coFullName(): ?string
+    {
+        $name = trim("{$this->co_first_name} {$this->co_last_name}");
+
+        return $name === '' ? null : $name;
+    }
+
+    /**
+     * Destinataires d'un e-mail au client : le locataire, puis le second s'il
+     * a une adresse.
+     *
+     * @return list<array{email: string, name: string}>
+     */
+    public function mailRecipients(): array
+    {
+        $recipients = [];
+
+        if ($this->email !== null && $this->email !== '') {
+            $recipients[] = ['email' => $this->email, 'name' => $this->fullName()];
+        }
+
+        if ($this->co_email !== null && $this->co_email !== '') {
+            $recipients[] = ['email' => $this->co_email, 'name' => $this->coFullName() ?? $this->co_email];
+        }
+
+        return $recipients;
+    }
+
+    /**
+     * Membres qui suivent le dossier : le responsable puis le second, sans
+     * doublon.
+     *
+     * @return list<User>
+     */
+    public function followers(): array
+    {
+        $followers = [];
+
+        foreach ([$this->assignee, $this->coAssignee] as $member) {
+            if ($member instanceof User && ! in_array($member->id, array_map(fn (User $kept): int => $kept->id, $followers), true)) {
+                $followers[] = $member;
+            }
+        }
+
+        return $followers;
     }
 }

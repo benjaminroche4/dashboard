@@ -18,8 +18,18 @@ final class CreatePartnerContact
     {
         $contact = $partner->contacts()->create($data->toArray());
 
+        if ($contact->is_primary) {
+            $this->keepSinglePrimary($partner, $contact);
+        }
+
         event(new DashboardUpdated('partners', ['id' => $partner->id], "a ajouté {$contact->fullName()} chez {$partner->name}"));
 
         return $contact;
+    }
+
+    /** Un seul interlocuteur principal : les autres perdent l'étiquette. */
+    private function keepSinglePrimary(Partner $partner, PartnerContact $contact): void
+    {
+        $partner->contacts()->whereKeyNot($contact->id)->update(['is_primary' => false]);
     }
 }

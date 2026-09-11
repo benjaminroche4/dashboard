@@ -38,7 +38,7 @@ test('sending a draft e-mails the client with the PDF and logs the transition', 
         ->and($invoice->statusChanges()->count())->toBe(1)
         ->and($invoice->statusChanges()->latest('id')->first()->to_status)->toBe(InvoiceStatus::Sent);
 
-    Mail::assertSent(InvoiceSent::class, fn (InvoiceSent $mail): bool => $mail->hasTo('client@example.ch')
+    Mail::assertQueued(InvoiceSent::class, fn (InvoiceSent $mail): bool => $mail->hasTo('client@example.ch')
         && $mail->invoice->is($invoice)
         && count($mail->attachments()) === 1);
     Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => str_contains($event->message, 'a envoyé'));
@@ -50,7 +50,7 @@ test('sending without DocRaptor still e-mails, without attachment', function ():
     $withPdf = (new SendInvoice(new DocRaptor(null, true, 'https://api.docraptor.com/docs')))->handle($invoice);
 
     expect($withPdf)->toBeFalse();
-    Mail::assertSent(InvoiceSent::class, fn (InvoiceSent $mail): bool => $mail->attachments() === []);
+    Mail::assertQueued(InvoiceSent::class, fn (InvoiceSent $mail): bool => $mail->attachments() === []);
 });
 
 test('sending requires a client e-mail and a sendable status', function (): void {
@@ -60,7 +60,7 @@ test('sending requires a client e-mail and a sendable status', function (): void
         ->toThrow(ValidationException::class);
     expect(fn (): bool => $sender->handle(Invoice::factory()->paid()->create(['client_email' => 'c@example.ch'])))
         ->toThrow(ValidationException::class);
-    Mail::assertNothingSent();
+    Mail::assertNothingQueued();
 });
 
 test('a sent invoice can be marked paid with a payment date', function (): void {

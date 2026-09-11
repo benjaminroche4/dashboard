@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Data;
 
 use App\Enums\AgentPosition;
+use App\Enums\RelationshipQuality;
 use App\Support\PersonName;
 
 /**
@@ -18,11 +19,13 @@ final readonly class AgentData
         public string $firstName,
         public string $lastName,
         public ?AgentPosition $position,
+        public ?RelationshipQuality $relationshipQuality,
         public ?string $street,
         public ?string $postalCode,
         public ?string $city,
         public ?string $email,
         public ?string $phone,
+        public bool $isPrimary,
         public ?string $notes,
     ) {}
 
@@ -38,17 +41,21 @@ final readonly class AgentData
             firstName: PersonName::capitalize((string) $data['first_name']),
             lastName: PersonName::capitalize((string) $data['last_name']),
             position: AgentPosition::parse(is_string($data['position'] ?? null) ? $data['position'] : null),
+            relationshipQuality: is_string($data['relationship_quality'] ?? null) && $data['relationship_quality'] !== ''
+                ? RelationshipQuality::from($data['relationship_quality'])
+                : null,
             street: self::blankToNull($data['street'] ?? null),
             postalCode: self::blankToNull($data['postal_code'] ?? null),
             city: self::blankToNull($data['city'] ?? null),
             email: self::blankToNull($data['email'] ?? null),
             phone: self::blankToNull($data['phone'] ?? null),
+            isPrimary: filter_var($data['is_primary'] ?? false, FILTER_VALIDATE_BOOLEAN),
             notes: self::blankToNull($data['notes'] ?? null),
         );
     }
 
     /**
-     * @return array{agency_id: int|null, first_name: string, last_name: string, position: AgentPosition|null, street: string|null, postal_code: string|null, city: string|null, email: string|null, phone: string|null, notes: string|null}
+     * @return array{agency_id: int|null, first_name: string, last_name: string, position: AgentPosition|null, relationship_quality: RelationshipQuality|null, street: string|null, postal_code: string|null, city: string|null, email: string|null, phone: string|null, notes: string|null}
      */
     public function toArray(): array
     {
@@ -57,11 +64,13 @@ final readonly class AgentData
             'first_name' => $this->firstName,
             'last_name' => $this->lastName,
             'position' => $this->position,
+            'relationship_quality' => $this->relationshipQuality,
             'street' => $this->street,
             'postal_code' => $this->postalCode,
             'city' => $this->city,
             'email' => $this->email,
             'phone' => $this->phone,
+            'is_primary' => $this->isPrimary,
             'notes' => $this->notes,
         ];
     }

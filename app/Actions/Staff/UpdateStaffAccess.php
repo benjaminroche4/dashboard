@@ -36,9 +36,11 @@ final class UpdateStaffAccess
         $custom = [];
         foreach ($permissions ?? [] as $key => $level) {
             $section = SiteSection::from($key);
+            // « Gérer » n'existe pas partout : il vaut « Modifier » ailleurs.
+            $wanted = $section->clamp($level);
 
-            if ($level !== $section->defaultLevel($member->role)) {
-                $custom[$section->value] = $level->value;
+            if ($wanted !== $section->clamp($section->defaultLevel($member->role))) {
+                $custom[$section->value] = $wanted->value;
             }
         }
 

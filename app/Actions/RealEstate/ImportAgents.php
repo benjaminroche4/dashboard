@@ -21,11 +21,11 @@ final class ImportAgents
 {
     /**
      * @param  list<AgentImportRowData>  $rows
-     * @return array{created: int, skipped: int, agencies_created: int}
+     * @return array{created: int, skipped: int, agencies_created: int, unknown_positions: list<string>}
      */
     public function handle(array $rows, ?User $by = null): array
     {
-        $result = ['created' => 0, 'skipped' => 0, 'agencies_created' => 0];
+        $result = ['created' => 0, 'skipped' => 0, 'agencies_created' => 0, 'unknown_positions' => []];
 
         DB::transaction(function () use ($rows, $by, &$result): void {
             /** @var array<string, Agency> $agencies */
@@ -48,11 +48,19 @@ final class ImportAgents
                         });
                 }
 
+                $position = AgentPosition::parse($row->position);
+
+                // Fonction non reconnue, rangée en « Autre » : à relire.
+                if ($position === AgentPosition::Other && $row->position !== null
+                    && mb_strtolower(trim($row->position)) !== mb_strtolower(AgentPosition::Other->label())) {
+                    $result['unknown_positions'][] = trim($row->position);
+                }
+
                 Agent::query()->create([
                     'agency_id' => $agency?->id,
                     'first_name' => $row->firstName,
                     'last_name' => $row->lastName,
-                    'position' => AgentPosition::parse($row->position),
+                    'position' => $position,
                     'email' => $row->email,
                     'phone' => $row->phone,
                     'created_by' => $by?->id,
@@ -60,6 +68,8 @@ final class ImportAgents
                 $result['created']++;
             }
         });
+
+        $result['unknown_positions'] = array_values(array_unique($result['unknown_positions']));
 
         if ($result['created'] > 0 || $result['agencies_created'] > 0) {
             event(new DashboardUpdated('agents', $result, "a importé {$result['created']} agent(s) immobilier(s)"));

@@ -27,20 +27,19 @@
                         Nous accompagnons des personnes qui s’installent à Paris et nous vous solliciterons lorsque l’un de nos clients aura besoin de vos services.
                     </p>
 
+                    {{-- Ce qui est enregistré, sur une seule ligne : catégorie, puis coordonnées. --}}
                     <table width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin-top:1.2em;background-color:#f5f5f5;border-radius:12px">
                         <tbody><tr><td style="padding:14px 16px;color:#171717">
-                            Vos coordonnées enregistrées :
-                            <strong>{{ $email }}</strong>@if ($phone) · {{ $phone }}@endif
-                            <br />
-                            <span style="color:#737373;font-size:0.9em">Une erreur ? Répondez simplement à cet e-mail.</span>
+                            <strong>{{ $category }}</strong> · {{ $email }}@if ($phone) · {{ $phone }}@endif
                         </td></tr></tbody>
                     </table>
 
+                    {{-- Signature : un nom, une adresse, un téléphone. --}}
                     <p style="margin:0;padding:1.6em 0 0;color:#525252">
                         @if ($sender)
-                            Votre contact : <strong>{{ $sender->name }}</strong> · <a href="mailto:{{ $sender->email }}" style="color:#7f1d1d">{{ $sender->email }}</a>
+                            <strong>{{ $sender->name }}</strong> · <a href="mailto:{{ $sender->email }}" style="color:#7f1d1d">{{ $sender->email }}</a>
                         @else
-                            L’équipe Relocation in Paris
+                            <strong>L’équipe Relocation in Paris</strong>
                         @endif
                         @if (! empty($mail['phone_display']))
                             · {{ $mail['phone_display'] }}

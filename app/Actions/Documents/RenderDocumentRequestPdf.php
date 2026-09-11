@@ -12,7 +12,7 @@ use App\Support\DocumentCatalog;
 use Illuminate\Support\Facades\App;
 
 /**
- * Rend la demande de pièces en HTML (dans la langue du client) puis en PDF
+ * Rend la liste de pièces en HTML (dans la langue du client) puis en PDF
  * via DocRaptor.
  */
 final readonly class RenderDocumentRequestPdf
@@ -30,7 +30,7 @@ final readonly class RenderDocumentRequestPdf
     }
 
     /**
-     * HTML du document, rendu dans la langue de la demande.
+     * HTML du document, rendu dans la langue de la liste.
      */
     public function html(DocumentRequest $request): string
     {

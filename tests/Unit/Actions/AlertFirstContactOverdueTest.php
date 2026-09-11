@@ -36,10 +36,10 @@ test('a lead left 30 minutes without contact alerts the contact address once, wi
 
     expect(resolve(AlertFirstContactOverdue::class)->handle())->toBe(1);
 
-    Mail::assertSentCount(2);
-    Mail::assertSent(FirstContactOverdue::class, fn (FirstContactOverdue $mail): bool => $mail->hasTo('contact@example.com')
+    Mail::assertQueuedCount(2);
+    Mail::assertQueued(FirstContactOverdue::class, fn (FirstContactOverdue $mail): bool => $mail->hasTo('contact@example.com')
         && $mail->lead->is($waiting) && $mail->minutes === 30);
-    Mail::assertSent(FirstContactOverdueForAssignee::class, fn (FirstContactOverdueForAssignee $mail): bool => $mail->hasTo($camille->email)
+    Mail::assertQueued(FirstContactOverdueForAssignee::class, fn (FirstContactOverdueForAssignee $mail): bool => $mail->hasTo($camille->email)
         && $mail->lead->is($waiting) && $mail->assignee->is($camille));
     Http::assertNothingSent();
     Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->payload['id'] === $waiting->id
@@ -50,7 +50,7 @@ test('a lead left 30 minutes without contact alerts the contact address once, wi
 
     // Un second passage ne renvoie rien.
     expect(resolve(AlertFirstContactOverdue::class)->handle())->toBe(0);
-    Mail::assertSentCount(2);
+    Mail::assertQueuedCount(2);
 });
 
 test('an assignee with a phone gets an SMS through Allo, plus the e-mails', function (): void {
@@ -61,8 +61,8 @@ test('an assignee with a phone gets an SMS through Allo, plus the e-mails', func
 
     expect(resolve(AlertFirstContactOverdue::class)->handle())->toBe(1);
 
-    Mail::assertSent(FirstContactOverdue::class, fn (FirstContactOverdue $mail): bool => $mail->hasTo('contact@example.com'));
-    Mail::assertSent(FirstContactOverdueForAssignee::class, fn (FirstContactOverdueForAssignee $mail): bool => $mail->hasTo($charles->email));
+    Mail::assertQueued(FirstContactOverdue::class, fn (FirstContactOverdue $mail): bool => $mail->hasTo('contact@example.com'));
+    Mail::assertQueued(FirstContactOverdueForAssignee::class, fn (FirstContactOverdueForAssignee $mail): bool => $mail->hasTo($charles->email));
     Http::assertSentCount(1);
     Http::assertSent(fn ($request): bool => $request->url() === 'https://api.withallo.com/v1/api/sms'
         && $request->hasHeader('Authorization', 'Api-Key ak_test')
@@ -79,7 +79,7 @@ test('no SMS without a phone, and no HTTP call when Allo is not configured', fun
     Lead::factory()->create(['created_at' => now()->subHour(), 'last_contacted_at' => null, 'assigned_to' => $noPhone->id]);
 
     expect(resolve(AlertFirstContactOverdue::class)->handle())->toBe(1);
-    Mail::assertSent(FirstContactOverdueForAssignee::class, fn (FirstContactOverdueForAssignee $mail): bool => $mail->hasTo($noPhone->email));
+    Mail::assertQueued(FirstContactOverdueForAssignee::class, fn (FirstContactOverdueForAssignee $mail): bool => $mail->hasTo($noPhone->email));
     Http::assertNothingSent();
 
     config()->set('services.allo.api_key');
@@ -87,7 +87,7 @@ test('no SMS without a phone, and no HTTP call when Allo is not configured', fun
     Lead::factory()->create(['created_at' => now()->subHour(), 'last_contacted_at' => null, 'assigned_to' => $withPhone->id]);
 
     expect(resolve(AlertFirstContactOverdue::class)->handle())->toBe(1);
-    Mail::assertSent(FirstContactOverdueForAssignee::class, fn (FirstContactOverdueForAssignee $mail): bool => $mail->hasTo($withPhone->email));
+    Mail::assertQueued(FirstContactOverdueForAssignee::class, fn (FirstContactOverdueForAssignee $mail): bool => $mail->hasTo($withPhone->email));
     Http::assertNothingSent();
 });
 
@@ -98,9 +98,9 @@ test('an unassigned lead only alerts the contact address', function (): void {
 
     expect(resolve(AlertFirstContactOverdue::class)->handle())->toBe(1);
 
-    Mail::assertSentCount(1);
-    Mail::assertSent(FirstContactOverdue::class);
-    Mail::assertNotSent(FirstContactOverdueForAssignee::class);
+    Mail::assertQueuedCount(1);
+    Mail::assertQueued(FirstContactOverdue::class);
+    Mail::assertNotQueued(FirstContactOverdueForAssignee::class);
     Http::assertNothingSent();
 });
 
@@ -122,7 +122,7 @@ test('nothing is sent without an alert address', function (): void {
     Lead::factory()->create(['created_at' => now()->subHour(), 'last_contacted_at' => null]);
 
     expect(resolve(AlertFirstContactOverdue::class)->handle())->toBe(0);
-    Mail::assertNothingSent();
+    Mail::assertNothingQueued();
 });
 
 test('the alert e-mail names the lead, its reference and links to its page', function (): void {
@@ -135,4 +135,43 @@ test('the alert e-mail names the lead, its reference and links to its page', fun
         ->and($html)->toContain('Léa Durand')->toContain('LD-1234')->toContain('Non attribué')
         ->toContain('+33 6 12 34 56 78')->toContain(route('leads.show', $lead))
         ->not->toContain('staff');
+});
+
+test('both followers of a dossier are alerted, by e-mail and by SMS', function (): void {
+    config()->set('services.allo.api_key', 'ak_test');
+    config()->set('services.allo.from', '+33184804344');
+    $charles = User::factory()->create(['name' => 'Charles Martin', 'phone' => '+33 6 12 34 56 78']);
+    $camille = User::factory()->create(['name' => 'Camille Roy', 'phone' => '+33 6 99 99 99 99']);
+    $lead = Lead::factory()->create([
+        'created_at' => now()->subMinutes(45),
+        'last_contacted_at' => null,
+        'assigned_to' => $charles->id,
+        'co_assigned_to' => $camille->id,
+    ]);
+
+    expect(resolve(AlertFirstContactOverdue::class)->handle())->toBe(1);
+
+    // L'adresse de contact, plus un e-mail par personne de suivi.
+    Mail::assertQueuedCount(3);
+    Mail::assertQueued(FirstContactOverdueForAssignee::class, fn (FirstContactOverdueForAssignee $mail): bool => $mail->hasTo($charles->email));
+    Mail::assertQueued(FirstContactOverdueForAssignee::class, fn (FirstContactOverdueForAssignee $mail): bool => $mail->hasTo($camille->email));
+    Http::assertSentCount(2);
+    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->payload['id'] === $lead->id
+        && $event->payload['mentions'] === [$charles->id, $camille->id]
+        && str_contains((string) $event->message, 'et à Charles Martin, Camille Roy'));
+});
+
+test('the same member followed twice is only alerted once', function (): void {
+    $charles = User::factory()->create(['name' => 'Charles Martin']);
+    Lead::factory()->create([
+        'created_at' => now()->subHour(),
+        'last_contacted_at' => null,
+        'assigned_to' => $charles->id,
+        'co_assigned_to' => $charles->id,
+    ]);
+
+    expect(resolve(AlertFirstContactOverdue::class)->handle())->toBe(1);
+
+    Mail::assertQueuedCount(2);
+    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->payload['mentions'] === [$charles->id]);
 });

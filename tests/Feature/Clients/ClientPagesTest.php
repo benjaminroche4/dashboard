@@ -36,6 +36,10 @@ test('the clients page lists only converted leads, newest conversion first, with
             ->where('clients.1.assignee.name', 'Camille')
             ->where('clients.1.invoices_count', 0)
             ->where('clients.1.document_requests_count', 0)
+            // Filtres de la liste : priorité et formule (le suivi et l'arrivée
+            // se déduisent des dossiers eux-mêmes).
+            ->has('priorities', 4)
+            ->has('offers', 2)
             ->where('realtimeOnly', ['clients']));
 });
 

@@ -88,10 +88,13 @@ describe('AppSidebar', () => {
             .map((link) => link.getAttribute('href'));
         expect(hrefs).toContain('/owners/leads/create');
         expect(hrefs).toContain('/owners');
-        // « Propriétaires » : le menu des leads propriétaires, et la page de l'annuaire dans Réseau.
-        expect(
-            screen.getAllByRole('link', { name: 'Propriétaires' }),
-        ).toHaveLength(2);
+        // Deux entrées « Propriétaires » : les leads en gestion locative dans
+        // le groupe Leads, et l'annuaire (notre base) dans le groupe Réseau.
+        const owners = screen
+            .getAllByRole('link', { name: 'Propriétaires' })
+            .map((link) => link.getAttribute('href'));
+        expect(owners).toContain('/owners/leads');
+        expect(owners).toContain('/owners');
         // Réseau : un seul menu « Propriétaires et biens » avec les deux pages.
         expect(
             screen.getByRole('link', { name: 'Propriétaires et biens' }),
@@ -103,6 +106,50 @@ describe('AppSidebar', () => {
         expect(
             screen.queryByRole('link', { name: 'Biens et propriétaires' }),
         ).not.toBeInTheDocument();
+        localStorage.clear();
+    });
+
+    it('puts every tool under one menu, without repeating the group label', () => {
+        localStorage.setItem('sidebar.branch.Outils', '1');
+        localStorage.setItem('sidebar.branch.Locataires', '1');
+        localStorage.setItem('sidebar.branch.Leads propriétaires', '1');
+        render(
+            <TooltipProvider>
+                <SidebarProvider>
+                    <AppSidebar />
+                </SidebarProvider>
+            </TooltipProvider>,
+        );
+
+        // Rapports et Journal d'activité sont des outils comme les autres.
+        for (const [name, href] of [
+            ['Devis', '/tools/quotes'],
+            ['Factures', '/invoices'],
+            ['Rapports', '/tools/reports'],
+            ["Journal d'activité", '/tools/activity'],
+        ]) {
+            expect(screen.getByRole('link', { name })).toHaveAttribute(
+                'href',
+                href,
+            );
+        }
+        // Un seul lien « Outils » : le groupe n'a pas de libellé qui le répète.
+        expect(screen.getAllByRole('link', { name: 'Outils' })).toHaveLength(1);
+        // Les dossiers clients et les visites sont des menus de premier niveau.
+        expect(
+            screen.getByRole('link', { name: 'Dossiers clients' }),
+        ).toHaveAttribute('href', '/clients');
+        expect(screen.getByRole('link', { name: 'Visites' })).toHaveAttribute(
+            'href',
+            '/clients/visits',
+        );
+        // Les deux Converting Machines ne portent plus le même nom.
+        expect(
+            screen.getByRole('link', { name: 'Nouveau lead locataire' }),
+        ).toHaveAttribute('href', '/locataires/create');
+        expect(
+            screen.getByRole('link', { name: 'Nouveau lead propriétaire' }),
+        ).toHaveAttribute('href', '/owners/leads/create');
         localStorage.clear();
     });
 
@@ -129,7 +176,9 @@ describe('AppSidebar', () => {
         expect(names).toContain('Tableau de bord');
         expect(names).toContain('Visites');
         expect(names).toContain('Factures');
-        expect(names).toContain('Tous les outils');
+        // Le menu « Outils » mène à la page des outils, sans sous-lien dédié.
+        expect(names).toContain('Outils');
+        expect(names).not.toContain('Tous les outils');
         expect(names).not.toContain('Dossiers clients');
         expect(names).not.toContain('Partenaires');
         expect(names).not.toContain('Rapports');

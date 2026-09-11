@@ -34,6 +34,9 @@ final readonly class InvoiceData
         public float $discountPercent = 0,
         public int $depositCents = 0,
         public ?int $leadId = null,
+        /** Compte d'encaissement figé sur le document ; null = compte par défaut de la devise. */
+        public ?string $bankName = null,
+        public ?string $bankIban = null,
     ) {}
 
     /**
@@ -58,6 +61,8 @@ final readonly class InvoiceData
             discountPercent: (float) ($data['discount_percent'] ?? 0),
             depositCents: (int) ($data['deposit_cents'] ?? 0),
             leadId: isset($data['lead_id']) ? (int) $data['lead_id'] : null,
+            bankName: self::blank($data['bank_name'] ?? null),
+            bankIban: self::blank($data['bank_iban'] ?? null),
         );
     }
 
@@ -107,5 +112,13 @@ final readonly class InvoiceData
     public function dueCents(): int
     {
         return max(0, $this->totalCents() - $this->depositCents);
+    }
+
+    /** Chaîne vide ou blanche : rien de choisi. */
+    private static function blank(mixed $value): ?string
+    {
+        $text = is_string($value) ? trim($value) : '';
+
+        return $text === '' ? null : $text;
     }
 }

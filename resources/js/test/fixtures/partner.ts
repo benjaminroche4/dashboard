@@ -33,7 +33,9 @@ export function makePartnerContact(
         first_name: 'Marie',
         last_name: 'Durand',
         name: 'Marie Durand',
-        position: 'Commerciale',
+        position: 'Commercial',
+        position_value: 'sales',
+        is_primary: false,
         email: 'marie@zen.example',
         phone: '+33 6 12 34 56 78',
         ...overrides,
@@ -43,7 +45,20 @@ export function makePartnerContact(
 export function makePartnerDetail(
     overrides: Partial<PartnerDetail> = {},
 ): PartnerDetail {
-    return { ...makePartner(), leads: [], ...overrides };
+    return {
+        ...makePartner(),
+        leads: [],
+        contacts_count: 1,
+        primary_contact: {
+            id: 1,
+            name: 'Marie Durand',
+            position: 'Commerciale',
+            email: 'marie@zen.example',
+            phone: '+33 6 12 34 56 78',
+        },
+        roles: [],
+        ...overrides,
+    };
 }
 
 export function makePartner(overrides: Partial<Partner> = {}): Partner {
@@ -60,6 +75,12 @@ export function makePartner(overrides: Partial<Partner> = {}): Partner {
         postal_code: '75004',
         city: 'Paris',
         notes: null,
+        relationship_quality: null,
+        relationship_quality_label: null,
+        last_contacted_at: null,
+        latitude: null,
+        longitude: null,
+        is_favorite: false,
         contacts: [makePartnerContact()],
         leads_count: 0,
         creator: 'Admin',

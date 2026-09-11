@@ -55,15 +55,22 @@ vi.mock('@inertiajs/react', () => ({
 
 import { VisitForm } from '@/components/visits/visit-form';
 import { propertyFormOptions } from '@/test/fixtures/property';
+import { makeVisitClient, visitModes } from '@/test/fixtures/visit';
 
 const clients = [
-    { id: 1, uuid: 'client-1', name: 'Léa Durand', reference: 'LD-4821' },
+    makeVisitClient({
+        id: 1,
+        uuid: 'client-1',
+        name: 'Léa Durand',
+        reference: 'LD-4821',
+    }),
 ];
 
 function renderForm() {
     return render(
         <VisitForm
             clients={clients}
+            visitModes={visitModes}
             properties={[]}
             options={propertyFormOptions}
             defaultClientId={1}
@@ -76,28 +83,35 @@ describe('VisitForm', () => {
         post.mockReset();
     });
 
-    it('assigns the visit to the current member by default and sends floor, lease type, charges and photos of a new property', async () => {
+    it('assigns the visit to the current member by default and sends floor, lease type and charges of a new property', async () => {
         const user = userEvent.setup();
         renderForm();
         const dialog = within(
             screen.getByRole('form', { name: 'Planifier une visite' }),
         );
 
-        expect(dialog.getByLabelText('Visite assignée à')).toHaveTextContent(
-            'Charles',
-        );
+        expect(
+            dialog.getByLabelText('Visite accompagnée par'),
+        ).toHaveTextContent('Charles');
 
         await user.type(dialog.getByLabelText('Adresse'), '3 rue de la Paix');
         await user.type(dialog.getByLabelText('Arrondissement'), '2');
-        await user.type(dialog.getByLabelText('Étage'), '4');
-        await user.type(dialog.getByLabelText('Charges mensuelles'), '120');
+        await user.click(dialog.getByLabelText('Étage'));
+        await user.click(
+            await screen.findByRole('option', { name: '4e étage' }),
+        );
+        await user.type(dialog.getByLabelText('Charges mensuelles (€)'), '120');
+        // Charges comprises : le libellé du champ suit la case cochée.
+        await user.click(dialog.getByLabelText('Loyer charges comprises'));
+        expect(dialog.getByLabelText('Dont charges (€)')).toHaveValue(120);
         await user.click(dialog.getByLabelText('Type de bail'));
         await user.click(
             await screen.findByRole('option', { name: 'Bail mobilité' }),
         );
-        const photo = new File(['x'], 'salon.jpg', { type: 'image/jpeg' });
-        await user.upload(dialog.getByLabelText('Photos'), photo);
-        expect(dialog.getByText('salon.jpg')).toBeInTheDocument();
+        // Aucune photo depuis un dossier : le champ n'existe pas (mobile compris).
+        expect(dialog.queryByLabelText('Photos')).not.toBeInTheDocument();
+        // Le titre du bien ne se saisit pas en planifiant une visite.
+        expect(dialog.queryByLabelText('Titre')).not.toBeInTheDocument();
 
         await user.type(
             dialog.getByLabelText('Commentaires internes'),
@@ -116,17 +130,18 @@ describe('VisitForm', () => {
                 property: expect.objectContaining({
                     street: '3 rue de la Paix',
                     district: 2,
-                    floor: 4,
+                    floor: '4',
                     charges_cents: 12_000,
+                    charges_included: true,
                     lease_type: 'mobility',
-                    photos: [photo],
+                    photos: [],
                 }),
             }),
-            expect.objectContaining({ forceFormData: true }),
+            expect.anything(),
         );
     });
 
-    it('does not email the client unless the box is ticked', async () => {
+    it('emails an accompanied client by default, and not once unticked', async () => {
         const user = userEvent.setup();
         renderForm();
         const form = within(
@@ -135,7 +150,8 @@ describe('VisitForm', () => {
         const box = form.getByRole('checkbox', {
             name: /Informer le client par e-mail/,
         });
-        expect(box).not.toBeChecked();
+        // Formule « Accompagné » : le client vient, la confirmation est cochée.
+        expect(box).toBeChecked();
 
         await user.type(form.getByLabelText('Adresse'), '3 rue de la Paix');
         await user.type(form.getByLabelText('Arrondissement'), '2');
@@ -144,20 +160,78 @@ describe('VisitForm', () => {
         );
         expect(post).toHaveBeenLastCalledWith(
             '/clients/visits',
-            expect.objectContaining({ notify_client: false }),
+            expect.objectContaining({ notify_client: true }),
             expect.anything(),
         );
 
         await user.click(box);
-        expect(box).toBeChecked();
+        expect(box).not.toBeChecked();
         await user.click(
             form.getByRole('button', { name: 'Planifier la visite' }),
         );
         expect(post).toHaveBeenLastCalledWith(
             '/clients/visits',
-            expect.objectContaining({ notify_client: true }),
+            expect.objectContaining({ notify_client: false }),
             expect.anything(),
         );
+    });
+
+    it('adapts to the offer: an entrusted client is visited without them', async () => {
+        const user = userEvent.setup();
+        render(
+            <VisitForm
+                clients={[
+                    makeVisitClient(),
+                    makeVisitClient({
+                        id: 2,
+                        uuid: 'client-2',
+                        name: 'Bruno Petit',
+                        reference: 'LD-9002',
+                        offer: 'confie',
+                        offer_label: 'Confié',
+                    }),
+                ]}
+                visitModes={visitModes}
+                properties={[]}
+                options={propertyFormOptions}
+                defaultClientId={1}
+            />,
+        );
+
+        // Accompagné : le client vient, on lui envoie la confirmation.
+        expect(
+            screen.getByText(
+                'Formule Accompagné · le client visite avec nous.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('checkbox', {
+                name: /Informer le client par e-mail/,
+            }),
+        ).toBeChecked();
+        expect(
+            screen.getByLabelText('Visite accompagnée par'),
+        ).toBeInTheDocument();
+
+        await user.click(screen.getByLabelText('Client'));
+        await user.click(
+            await screen.findByRole('option', { name: /Bruno Petit/ }),
+        );
+
+        // Confié : l'équipe visite seule, pas d'e-mail au client.
+        expect(
+            screen.getByText(
+                'Formule Confié · l’équipe visite sans le client.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('checkbox', {
+                name: /Informer le client par e-mail/,
+            }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByLabelText('Visite réalisée par'),
+        ).toBeInTheDocument();
     });
 
     it('cancels back to the visits list', () => {
@@ -169,23 +243,14 @@ describe('VisitForm', () => {
         );
     });
 
-    it('removes a chosen photo and lets the assignee be cleared', async () => {
+    it('lets the assignee be cleared', async () => {
         const user = userEvent.setup();
         renderForm();
         const dialog = within(
             screen.getByRole('form', { name: 'Planifier une visite' }),
         );
 
-        await user.upload(
-            dialog.getByLabelText('Photos'),
-            new File(['x'], 'cuisine.png', { type: 'image/png' }),
-        );
-        await user.click(
-            dialog.getByRole('button', { name: 'Retirer cuisine.png' }),
-        );
-        expect(dialog.queryByText('cuisine.png')).not.toBeInTheDocument();
-
-        await user.click(dialog.getByLabelText('Visite assignée à'));
+        await user.click(dialog.getByLabelText('Visite accompagnée par'));
         await user.click(
             await screen.findByRole('option', {
                 name: 'Personne pour l’instant',
@@ -202,7 +267,53 @@ describe('VisitForm', () => {
                 assigned_to: null,
                 property: expect.objectContaining({ photos: [] }),
             }),
-            expect.objectContaining({ forceFormData: false }),
+            expect.anything(),
         );
+    });
+
+    it('offers the autonomous visit only to an Accompagné client', async () => {
+        const user = userEvent.setup();
+        render(
+            <VisitForm
+                clients={[
+                    makeVisitClient({
+                        offer: 'accompagne',
+                        offer_label: 'Accompagné',
+                    }),
+                    makeVisitClient({
+                        id: 2,
+                        uuid: 'client-2',
+                        name: 'Bruno Petit',
+                        reference: 'LD-9002',
+                        offer: 'confie',
+                        offer_label: 'Confié',
+                    }),
+                ]}
+                visitModes={visitModes}
+                properties={[]}
+                options={propertyFormOptions}
+                defaultClientId={1}
+            />,
+        );
+
+        const modes = within(
+            screen.getByRole('radiogroup', { name: 'Type de visite' }),
+        );
+        expect(
+            modes.getByRole('radio', { name: /Visite réalisée par l’équipe/ }),
+        ).toBeEnabled();
+        expect(
+            modes.getByRole('radio', { name: /Visite autonome du client/ }),
+        ).toBeEnabled();
+
+        // Un client « Confié » ne peut pas visiter seul.
+        await user.click(screen.getByRole('combobox', { name: /Client/ }));
+        await user.click(
+            await screen.findByRole('option', { name: /Bruno Petit/ }),
+        );
+
+        expect(
+            modes.getByRole('radio', { name: /Visite autonome du client/ }),
+        ).toBeDisabled();
     });
 });

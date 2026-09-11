@@ -1,13 +1,5 @@
 import { useForm, usePage } from '@inertiajs/react';
-import {
-    CalendarClock,
-    House,
-    ImagePlus,
-    Mail,
-    MessageSquareText,
-    X,
-} from 'lucide-react';
-import { useRef } from 'react';
+import { CalendarClock, House, Mail, MessageSquareText } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SearchSelect } from '@/components/search-select';
@@ -23,6 +15,7 @@ import { PropertyPicker } from '@/components/visits/property-picker';
 import { Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
     Select,
     SelectContent,
@@ -38,11 +31,14 @@ import {
 } from '@/lib/property-form';
 import { cn } from '@/lib/utils';
 import { visits as clientsVisits } from '@/routes/clients';
-import { store } from '@/routes/clients/visits';
+import { show as visitShow, store, update } from '@/routes/clients/visits';
 import type {
     PropertyForm,
     PropertyFormOptions,
+    Visit,
     VisitClientOption,
+    VisitModeOption,
+    VisitModeValue,
     VisitPropertyOption,
 } from '@/types';
 
@@ -54,6 +50,8 @@ type VisitForm = {
     property_id: string;
     property: PropertyForm;
     agent_id: string;
+    /** Visite réalisée par l'équipe, ou visite autonome du client (Accompagné). */
+    visit_mode: VisitModeValue;
     /** Membre de l'équipe qui réalise la visite. */
     assigned_to: string;
     scheduled_at: string;
@@ -68,12 +66,16 @@ export const MAX_PHOTOS = 10;
 
 type Props = {
     clients: VisitClientOption[];
+    /** Les deux façons de visiter (`VisitMode::options()`). */
+    visitModes: VisitModeOption[];
     properties: VisitPropertyOption[];
     options: PropertyFormOptions;
     /** Client présélectionné (ex. depuis un dossier). */
     defaultClientId?: number | null;
     /** Bien de l'annuaire présélectionné (ex. depuis un dossier). */
     defaultPropertyId?: number | null;
+    /** Visite à modifier ; absent, le formulaire en planifie une nouvelle. */
+    visit?: Visit | null;
 };
 
 function initial(
@@ -81,6 +83,8 @@ function initial(
     hasProperties: boolean,
     assignedTo: number | null,
     defaultPropertyId: number | null = null,
+    /** Le client vient (formule « Accompagné ») : la confirmation part par défaut. */
+    notifyClient = false,
 ): VisitForm {
     return {
         lead_id: defaultClientId ? String(defaultClientId) : '',
@@ -88,11 +92,12 @@ function initial(
         property_id: defaultPropertyId ? String(defaultPropertyId) : '',
         property: initialPropertyForm(),
         agent_id: '',
+        visit_mode: 'for_client',
         assigned_to: assignedTo === null ? '' : String(assignedTo),
         scheduled_at: defaultSlot(),
         photos: [],
         notes: '',
-        notify_client: false,
+        notify_client: notifyClient,
     };
 }
 
@@ -103,23 +108,36 @@ function initial(
  */
 export function VisitForm({
     clients,
+    visitModes,
     properties,
     options,
     defaultClientId = null,
     defaultPropertyId = null,
+    visit = null,
 }: Props) {
+    const editing = visit !== null;
     const { auth, staff } = usePage().props;
     const currentUserId = auth.user?.id ?? null;
     const initials = useInitials();
     const form = useForm<VisitForm>(
-        initial(
-            defaultClientId,
-            properties.length > 0,
-            currentUserId,
-            defaultPropertyId,
-        ),
+        editing
+            ? {
+                  ...initial(visit.client.id, true, null, visit.property.id),
+                  agent_id: visit.agent ? String(visit.agent.id) : '',
+                  assigned_to: visit.assignee ? String(visit.assignee.id) : '',
+                  // « AAAA-MM-JJTHH:MM » local, comme le sélecteur l'attend.
+                  scheduled_at: visit.scheduled_at.slice(0, 16),
+                  notes: visit.notes ?? '',
+              }
+            : initial(
+                  defaultClientId,
+                  properties.length > 0,
+                  currentUserId,
+                  defaultPropertyId,
+                  clients.find((option) => option.id === defaultClientId)
+                      ?.offer === 'accompagne',
+              ),
     );
-    const photoInput = useRef<HTMLInputElement>(null);
     const errors = form.errors as Record<string, string | undefined>;
     // « AAAA-MM-JJTHH:MM » découpé pour le sélecteur de date et la liste des heures.
     const [datePart = '', timePart = ''] = form.data.scheduled_at.split('T');
@@ -129,6 +147,26 @@ export function VisitForm({
             .filter(([key]) => key.startsWith('property.'))
             .map(([key, message]) => [key.slice('property.'.length), message]),
     ) as Partial<Record<keyof PropertyForm, string | undefined>>;
+
+    // La formule commande la visite : sur « Confié », l'équipe visite sans le
+    // client — un membre doit s'en charger et le client n'est pas invité.
+    const client = clients.find(
+        (option) => String(option.id) === form.data.lead_id,
+    );
+    const entrusted = client?.offer === 'confie';
+    // Seul un client « Accompagné » peut visiter seul.
+    const accompanied = client?.offer === 'accompagne';
+
+    // Changer de client réaligne la confirmation par e-mail sur sa formule.
+    const chooseClient = (value: string) => {
+        const chosen = clients.find((option) => String(option.id) === value);
+
+        form.setData({
+            ...form.data,
+            lead_id: value,
+            notify_client: chosen?.offer === 'accompagne',
+        });
+    };
 
     const submit = () => {
         form.transform((data) => {
@@ -155,37 +193,44 @@ export function VisitForm({
                 notify_client: visit.notify_client,
             };
         });
-        form.post(store().url, {
-            preserveScroll: true,
-            forceFormData:
-                form.data.mode === 'new' && form.data.photos.length > 0,
-        });
-    };
+        if (editing) {
+            form.transform((data) => {
+                const values = data as VisitForm;
 
-    const addPhotos = (files: FileList | null) => {
-        if (!files) {
+                return {
+                    property_id:
+                        values.property_id === ''
+                            ? null
+                            : Number(values.property_id),
+                    agent_id:
+                        values.agent_id === '' ? null : Number(values.agent_id),
+                    assigned_to:
+                        values.assigned_to === ''
+                            ? null
+                            : Number(values.assigned_to),
+                    scheduled_at: values.scheduled_at,
+                    notes: values.notes,
+                };
+            });
+            form.patch(update({ visit: visit.uuid }).url, {
+                preserveScroll: true,
+            });
+
             return;
         }
 
-        form.setData(
-            'photos',
-            [...form.data.photos, ...Array.from(files)].slice(0, MAX_PHOTOS),
-        );
+        form.post(store().url, {
+            preserveScroll: true,
+        });
     };
-
-    const removePhoto = (index: number) =>
-        form.setData(
-            'photos',
-            form.data.photos.filter((_, position) => position !== index),
-        );
-
-    const photoError = Object.entries(errors).find(([key]) =>
-        key.startsWith('property.photos'),
-    )?.[1];
 
     return (
         <form
-            aria-label="Planifier une visite"
+            aria-label={
+                editing
+                    ? `Modifier la visite de ${visit.client.name}`
+                    : 'Planifier une visite'
+            }
             className="grid gap-4"
             onSubmit={(event) => {
                 event.preventDefault();
@@ -194,7 +239,7 @@ export function VisitForm({
         >
             <div className="bg-background grid gap-4 rounded-lg border p-4">
                 <div className="flex items-start gap-3 border-b pb-3">
-                    <span className="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-lg">
+                    <span className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
                         <CalendarClock className="size-4" aria-hidden />
                     </span>
                     <div className="grid gap-0.5">
@@ -212,7 +257,8 @@ export function VisitForm({
                         <SearchSelect
                             id="visit-client"
                             value={form.data.lead_id}
-                            onChange={(value) => form.setData('lead_id', value)}
+                            disabled={editing}
+                            onChange={chooseClient}
                             placeholder="Choisir un client"
                             searchPlaceholder="Rechercher un client (nom, référence)…"
                             noResults="Aucun client ne correspond."
@@ -223,6 +269,14 @@ export function VisitForm({
                             }))}
                         />
                         <InputError message={errors.lead_id} />
+                        {client?.offer_label && (
+                            <p className="text-muted-foreground text-xs">
+                                Formule {client.offer_label} ·{' '}
+                                {entrusted
+                                    ? 'l’équipe visite sans le client.'
+                                    : 'le client visite avec nous.'}
+                            </p>
+                        )}
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="visit-date">Date et heure</Label>
@@ -268,14 +322,72 @@ export function VisitForm({
                     </div>
                 </div>
 
+                {/* Type de visite : la visite autonome suppose un client sur place. */}
+                <fieldset className="grid gap-2">
+                    <legend className="mb-2 text-sm font-medium">
+                        Type de visite
+                    </legend>
+                    <RadioGroup
+                        aria-label="Type de visite"
+                        value={form.data.visit_mode}
+                        onValueChange={(value) =>
+                            form.setData('visit_mode', value as VisitModeValue)
+                        }
+                        className="grid gap-2 sm:grid-cols-2"
+                    >
+                        {visitModes.map((option) => {
+                            const allowed =
+                                option.value === 'for_client' || accompanied;
+
+                            return (
+                                <Label
+                                    key={option.value}
+                                    htmlFor={`visit-mode-${option.value}`}
+                                    className={cn(
+                                        'bg-background has-data-[state=checked]:border-primary has-data-[state=checked]:ring-primary/20 flex cursor-pointer items-start gap-2 rounded-lg border p-3 font-normal has-data-[state=checked]:ring-2',
+                                        !allowed &&
+                                            'cursor-not-allowed opacity-60',
+                                    )}
+                                >
+                                    <RadioGroupItem
+                                        id={`visit-mode-${option.value}`}
+                                        value={option.value}
+                                        disabled={!allowed}
+                                        className="mt-0.5"
+                                    />
+                                    <span className="grid gap-0.5">
+                                        <span className="text-sm font-medium">
+                                            {option.label}
+                                        </span>
+                                        <span className="text-muted-foreground text-xs">
+                                            {option.hint}
+                                        </span>
+                                    </span>
+                                </Label>
+                            );
+                        })}
+                    </RadioGroup>
+                    <InputError message={errors.mode} />
+                </fieldset>
+
                 <div className="grid gap-2">
-                    <Label htmlFor="visit-assigned-to">Visite assignée à</Label>
+                    <Label htmlFor="visit-assigned-to">
+                        {entrusted
+                            ? 'Visite réalisée par'
+                            : 'Visite accompagnée par'}
+                    </Label>
                     <SearchSelect
                         id="visit-assigned-to"
                         value={form.data.assigned_to}
                         onChange={(value) => form.setData('assigned_to', value)}
-                        placeholder="Personne pour l’instant"
-                        emptyLabel="Personne pour l’instant"
+                        placeholder={
+                            entrusted
+                                ? 'Choisir un membre'
+                                : 'Personne pour l’instant'
+                        }
+                        emptyLabel={
+                            entrusted ? undefined : 'Personne pour l’instant'
+                        }
                         searchPlaceholder="Rechercher un membre…"
                         noResults="Aucun membre ne correspond."
                         options={staff.map((member) => ({
@@ -303,39 +415,42 @@ export function VisitForm({
                     <InputError message={errors.assigned_to} />
                 </div>
 
-                <label
-                    htmlFor="visit-notify-client"
-                    className={cn(
-                        'flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors',
-                        form.data.notify_client
-                            ? 'border-primary bg-primary/5'
-                            : 'hover:bg-accent/60',
-                    )}
-                >
-                    <Checkbox
-                        id="visit-notify-client"
-                        checked={form.data.notify_client}
-                        onCheckedChange={(state) =>
-                            form.setData('notify_client', state === true)
-                        }
-                        className="mt-0.5"
-                    />
-                    <span className="grid gap-0.5">
-                        <span className="flex items-center gap-2 text-sm font-medium">
-                            <Mail className="size-4" aria-hidden />
-                            Informer le client par e-mail
+                {!entrusted && !editing && (
+                    <label
+                        htmlFor="visit-notify-client"
+                        className={cn(
+                            'flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors',
+                            form.data.notify_client
+                                ? 'border-primary bg-primary/5'
+                                : 'hover:bg-accent/60',
+                        )}
+                    >
+                        <Checkbox
+                            id="visit-notify-client"
+                            checked={form.data.notify_client}
+                            onCheckedChange={(state) =>
+                                form.setData('notify_client', state === true)
+                            }
+                            className="mt-0.5"
+                        />
+                        <span className="grid gap-0.5">
+                            <span className="flex items-center gap-2 text-sm font-medium">
+                                <Mail className="size-4" aria-hidden />
+                                Informer le client par e-mail
+                            </span>
+                            <span className="text-muted-foreground text-xs">
+                                Envoie la date, l’adresse du bien et une
+                                invitation agenda à l’adresse du client, dans sa
+                                langue.
+                            </span>
                         </span>
-                        <span className="text-muted-foreground text-xs">
-                            Envoie la date, l’adresse du bien et une invitation
-                            agenda à l’adresse du client, dans sa langue.
-                        </span>
-                    </span>
-                </label>
+                    </label>
+                )}
             </div>
 
             <div className="bg-background grid gap-4 rounded-lg border p-4">
                 <div className="flex items-start gap-3 border-b pb-3">
-                    <span className="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-lg">
+                    <span className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
                         <House className="size-4" aria-hidden />
                     </span>
                     <div className="grid gap-0.5">
@@ -347,6 +462,7 @@ export function VisitForm({
                 </div>
                 <PropertyPicker
                     source={form.data.mode}
+                    lockExisting={editing}
                     onSourceChange={(mode) => form.setData('mode', mode)}
                     properties={properties}
                     propertyId={form.data.property_id}
@@ -365,68 +481,13 @@ export function VisitForm({
                                 form.setData('property', property)
                             }
                         />
-                        <div className="border-foreground/10 grid gap-2 border-t pt-5">
-                            <Label htmlFor="visit-photos">Photos</Label>
-                            <input
-                                ref={photoInput}
-                                id="visit-photos"
-                                type="file"
-                                accept="image/jpeg,image/png,image/webp"
-                                multiple
-                                className="sr-only"
-                                onChange={(event) => {
-                                    addPhotos(event.target.files);
-                                    event.target.value = '';
-                                }}
-                            />
-                            <button
-                                type="button"
-                                onClick={() => photoInput.current?.click()}
-                                disabled={form.data.photos.length >= MAX_PHOTOS}
-                                className="text-muted-foreground hover:bg-accent/60 hover:text-foreground flex items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-4 text-sm transition-colors disabled:opacity-50"
-                            >
-                                <ImagePlus className="size-4" aria-hidden />
-                                Ajouter des photos (JPG, PNG ou WebP, 5 Mo max,{' '}
-                                {MAX_PHOTOS} au plus)
-                            </button>
-                            {form.data.photos.length > 0 && (
-                                <ul
-                                    aria-label="Photos à envoyer"
-                                    className="grid gap-1 text-sm"
-                                >
-                                    {form.data.photos.map((photo, index) => (
-                                        <li
-                                            key={`${photo.name}-${index}`}
-                                            className="bg-sidebar flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5"
-                                        >
-                                            <span className="truncate">
-                                                {photo.name}
-                                            </span>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                className="size-7"
-                                                aria-label={`Retirer ${photo.name}`}
-                                                onClick={() =>
-                                                    removePhoto(index)
-                                                }
-                                            >
-                                                <X aria-hidden />
-                                            </Button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                            <InputError message={photoError} />
-                        </div>
                     </div>
                 )}
             </div>
 
             <div className="bg-background grid gap-4 rounded-lg border p-4">
                 <div className="flex items-start gap-3 border-b pb-3">
-                    <span className="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-lg">
+                    <span className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
                         <MessageSquareText className="size-4" aria-hidden />
                     </span>
                     <div className="grid gap-0.5">
@@ -474,11 +535,19 @@ export function VisitForm({
 
             <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-4">
                 <Button type="button" variant="ghost" asChild>
-                    <Link href={clientsVisits()}>Annuler</Link>
+                    <Link
+                        href={
+                            editing
+                                ? visitShow({ visit: visit.uuid })
+                                : clientsVisits()
+                        }
+                    >
+                        Annuler
+                    </Link>
                 </Button>
                 <Button type="submit" disabled={form.processing}>
                     {form.processing && <Spinner />}
-                    Planifier la visite
+                    {editing ? 'Enregistrer' : 'Planifier la visite'}
                 </Button>
             </div>
         </form>

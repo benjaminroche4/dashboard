@@ -14,4 +14,3 @@ export type * from './clients';
 export type * from './properties';
 export type * from './visits';
 export type * from './activity';
-export type * from './dashboard';

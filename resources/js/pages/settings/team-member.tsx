@@ -30,6 +30,7 @@ import {
     customizedSections,
     defaultsFor,
     groupSections,
+    levelsFor,
     setEveryLevel,
     summarize,
 } from '@/lib/team-access';
@@ -256,6 +257,7 @@ export default function TeamMemberPage({
                                             setEveryLevel(
                                                 form.data.permissions,
                                                 'read',
+                                                sections,
                                             ),
                                         )
                                     }
@@ -273,6 +275,7 @@ export default function TeamMemberPage({
                                             setEveryLevel(
                                                 form.data.permissions,
                                                 'write',
+                                                sections,
                                             ),
                                         )
                                     }
@@ -381,7 +384,10 @@ export default function TeamMemberPage({
                                                     aria-label={`Niveau pour ${section.label}`}
                                                     className="gap-1"
                                                 >
-                                                    {levels.map((option) => {
+                                                    {levelsFor(
+                                                        levels,
+                                                        section,
+                                                    ).map((option) => {
                                                         const Icon =
                                                             levelIcons[
                                                                 option.value

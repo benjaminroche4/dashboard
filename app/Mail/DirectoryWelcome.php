@@ -6,6 +6,7 @@ namespace App\Mail;
 
 use App\Models\User;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -15,7 +16,7 @@ use Illuminate\Queue\SerializesModels;
  * Un contact (partenaire, agence ou agent immobilier) vient d'être ajouté à
  * l'annuaire de l'équipe : on l'en informe et on lui donne son contact.
  */
-final class DirectoryWelcome extends Mailable
+final class DirectoryWelcome extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

@@ -25,6 +25,16 @@ class StoreInvoiceRequest extends FormRequest
      */
     public function rules(): array
     {
+        return self::invoiceRules();
+    }
+
+    /**
+     * Règles d'une facture, partagées avec la modification.
+     *
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
+    public static function invoiceRules(): array
+    {
         return [
             'lead_id' => ['nullable', 'integer', 'exists:leads,id'],
             'client_name' => ['required', 'string', 'max:255'],
@@ -40,6 +50,9 @@ class StoreInvoiceRequest extends FormRequest
             'issued_at' => ['required', 'date'],
             'due_at' => ['required', 'date', 'after_or_equal:issued_at'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            // Compte d'encaissement : laissé vide, le compte par défaut de la devise s'applique.
+            'bank_name' => ['nullable', 'string', 'max:255'],
+            'bank_iban' => ['nullable', 'string', 'max:60'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
             'items.*.offer' => ['nullable', 'required_without:items.*.description', Rule::enum(Offer::class)],
             'items.*.description' => ['nullable', 'required_without:items.*.offer', 'string', 'max:255'],
@@ -54,6 +67,14 @@ class StoreInvoiceRequest extends FormRequest
      * @return list<callable>
      */
     public function after(): array
+    {
+        return self::depositCheck();
+    }
+
+    /**
+     * @return list<callable>
+     */
+    public static function depositCheck(): array
     {
         return [function (Validator $validator): void {
             if ($validator->errors()->isNotEmpty()) {
@@ -74,6 +95,14 @@ class StoreInvoiceRequest extends FormRequest
      * @return array<string, string>
      */
     public function attributes(): array
+    {
+        return self::invoiceAttributes();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function invoiceAttributes(): array
     {
         return [
             'client_name' => 'nom du client',

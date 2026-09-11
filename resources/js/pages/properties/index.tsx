@@ -1,11 +1,20 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { Home, Plus } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import { DataTable } from '@/components/data-table';
 import { FilterMenu } from '@/components/filter-menu';
-import { PropertyCard } from '@/components/properties/property-card';
-import { formatAddress } from '@/components/real-estate/columns';
+import {
+    propertyColumnLabels,
+    propertyColumns,
+} from '@/components/properties/columns';
+import { PropertyBulkActions } from '@/components/properties/property-bulk-actions';
+import { PropertiesMapButton } from '@/components/properties/properties-map-dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import {
+    useServerTable,
+    type ServerPagination,
+    type ServerTableFilters,
+} from '@/hooks/use-server-table';
 import {
     create as propertyCreate,
     index as propertiesIndex,
@@ -14,39 +23,38 @@ import type { Property, PropertyFormOptions, PropertyStatus } from '@/types';
 
 type Props = PropertyFormOptions & {
     properties: Property[];
+    pagination: ServerPagination;
+    filters: ServerTableFilters & { status: PropertyStatus[] };
+    /** Comptés sur tout l'annuaire, pas seulement la page affichée. */
+    visitedCount: number;
+    statusCounts: Partial<Record<PropertyStatus, number>>;
 };
 
 export default function PropertiesIndex({
     properties,
     propertyStatuses,
+    pagination,
+    filters,
+    visitedCount,
+    statusCounts,
 }: Props) {
-    const [filter, setFilter] = useState('');
-    const [statusFilter, setStatusFilter] = useState<PropertyStatus[]>([]);
-    const needle = filter.trim().toLocaleLowerCase('fr');
-    const statusCounts = useMemo(
-        () =>
-            properties.reduce<Partial<Record<PropertyStatus, number>>>(
-                (acc, property) => ({
-                    ...acc,
-                    [property.status]: (acc[property.status] ?? 0) + 1,
-                }),
-                {},
-            ),
-        [properties],
-    );
-    const visible = properties.filter(
-        (property) =>
-            (statusFilter.length === 0 ||
-                statusFilter.includes(property.status)) &&
-            (needle === '' ||
-                [property.label, formatAddress(property) ?? '']
-                    .join(' ')
-                    .toLocaleLowerCase('fr')
-                    .includes(needle)),
-    );
-    const visited = properties.filter(
-        (property) => property.visits_count > 0,
-    ).length;
+    const { auth } = usePage().props;
+    const canDelete = auth.user.role === 'admin';
+    const columns = useMemo(() => propertyColumns(canDelete), [canDelete]);
+    // L'annuaire peut compter des milliers de biens : recherche, filtre, tri et
+    // pagination se font côté serveur.
+    const server = useServerTable({
+        url: propertiesIndex().url,
+        pagination,
+        filters,
+        only: [
+            'properties',
+            'pagination',
+            'filters',
+            'visitedCount',
+            'statusCounts',
+        ],
+    });
 
     return (
         <>
@@ -56,18 +64,23 @@ export default function PropertiesIndex({
                     <div>
                         <h1 className="text-lg font-medium">Biens</h1>
                         <p className="text-muted-foreground text-sm">
-                            {properties.length} bien(s)
-                            {visited > 0 && ` · ${visited} déjà visité(s)`}
+                            {pagination.total} bien(s)
+                            {visitedCount > 0 &&
+                                ` · ${visitedCount} déjà visité(s)`}
                         </p>
                     </div>
-                    <Button asChild>
-                        <Link href={propertyCreate()}>
-                            <Plus />
-                            Nouveau bien
-                        </Link>
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {/* La carte charge les biens elle-même, à l'ouverture. */}
+                        <PropertiesMapButton />
+                        <Button asChild>
+                            <Link href={propertyCreate()}>
+                                <Plus />
+                                Nouveau bien
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
-                {properties.length === 0 ? (
+                {pagination.total === 0 && filters.q === '' ? (
                     <section
                         aria-label="Aucun bien"
                         className="bg-sidebar text-muted-foreground grid place-items-center gap-2 rounded-xl border px-4 py-16 text-center text-sm"
@@ -77,48 +90,40 @@ export default function PropertiesIndex({
                             Aucun bien dans l’annuaire pour le moment
                         </p>
                         <p className="max-w-md text-pretty">
-                            Ajoutez un bien avec ses photos : il apparaîtra ici
-                            en carte, prêt à être proposé et visité.
+                            Ajoutez un bien : il apparaîtra ici dans le tableau,
+                            prêt à être proposé et visité.
                         </p>
                     </section>
                 ) : (
-                    <div className="grid gap-4">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <Input
-                                value={filter}
-                                onChange={(event) =>
-                                    setFilter(event.target.value)
-                                }
-                                placeholder="Filtrer par bien ou adresse…"
-                                aria-label="Filtrer par bien ou adresse"
-                                className="max-w-sm"
-                            />
+                    <DataTable
+                        columns={columns}
+                        data={properties}
+                        server={server}
+                        filterPlaceholder="Rechercher un bien ou une adresse…"
+                        columnLabels={propertyColumnLabels}
+                        frame="panel"
+                        actions={
                             <FilterMenu
                                 title="Disponibilité"
                                 options={propertyStatuses}
                                 counts={statusCounts}
-                                value={statusFilter}
-                                onChange={setStatusFilter}
+                                value={filters.status}
+                                onChange={(status) =>
+                                    server.setFilter('status', status)
+                                }
                             />
-                        </div>
-                        {visible.length === 0 ? (
-                            <p className="text-muted-foreground text-sm">
-                                Aucun bien ne correspond à ce filtre.
-                            </p>
-                        ) : (
-                            <div
-                                role="list"
-                                aria-label="Biens"
-                                className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-                            >
-                                {visible.map((property) => (
-                                    <div role="listitem" key={property.id}>
-                                        <PropertyCard property={property} />
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                        }
+                        bulkActions={
+                            canDelete
+                                ? (rows, clear) => (
+                                      <PropertyBulkActions
+                                          properties={rows}
+                                          onDone={clear}
+                                      />
+                                  )
+                                : undefined
+                        }
+                    />
                 )}
             </div>
         </>

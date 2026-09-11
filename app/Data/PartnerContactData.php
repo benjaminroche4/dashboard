@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Data;
 
+use App\Enums\ContactFunction;
 use App\Support\PersonName;
 
 /**
@@ -14,9 +15,11 @@ final readonly class PartnerContactData
     public function __construct(
         public string $firstName,
         public string $lastName,
-        public ?string $position,
+        public ?ContactFunction $position,
         public ?string $email,
         public ?string $phone,
+        /** Celui que l'équipe joint d'abord chez ce partenaire. */
+        public bool $isPrimary = false,
     ) {}
 
     /**
@@ -27,14 +30,15 @@ final readonly class PartnerContactData
         return new self(
             firstName: PersonName::capitalize((string) $data['first_name']),
             lastName: PersonName::capitalize((string) $data['last_name']),
-            position: self::blankToNull($data['position'] ?? null),
+            position: ContactFunction::parse(is_string($data['position'] ?? null) ? $data['position'] : null),
             email: self::blankToNull($data['email'] ?? null),
             phone: self::blankToNull($data['phone'] ?? null),
+            isPrimary: (bool) ($data['is_primary'] ?? false),
         );
     }
 
     /**
-     * @return array{first_name: string, last_name: string, position: string|null, email: string|null, phone: string|null}
+     * @return array{first_name: string, last_name: string, position: ContactFunction|null, email: string|null, phone: string|null, is_primary: bool}
      */
     public function toArray(): array
     {
@@ -44,6 +48,7 @@ final readonly class PartnerContactData
             'position' => $this->position,
             'email' => $this->email,
             'phone' => $this->phone,
+            'is_primary' => $this->isPrimary,
         ];
     }
 

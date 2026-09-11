@@ -43,7 +43,14 @@ export type ActivityResourceOption = {
     label: string;
 };
 
+/** Fenêtre de temps du journal (miroir de App\Enums\ActivityPeriod). */
+export type ActivityPeriodOption = {
+    value: string;
+    label: string;
+};
+
 export type ActivityFilters = {
+    period: string;
     member: number | null;
     resource: string | null;
     lead: string | null;

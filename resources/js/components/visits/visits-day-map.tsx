@@ -17,7 +17,6 @@ import { cn } from '@/lib/utils';
 import {
     chronologicalDays,
     dayKey,
-    directionsUrl,
     timeFormat,
     visitAddress,
     type VisitDay,
@@ -86,17 +85,25 @@ function located(visits: Visit[]): Stop[] {
 function GoogleVisitsMap({
     apiKey,
     visits,
+    showRoute,
     onError,
+    onRouteError,
 }: {
     apiKey: string;
     visits: Visit[];
+    /** Tracer la tournée d'une étape à l'autre, sur la carte. */
+    showRoute: boolean;
     onError: () => void;
+    onRouteError: (failed: boolean) => void;
 }) {
     const container = useRef<HTMLDivElement>(null);
     const map = useRef<google.maps.Map | null>(null);
     const markers = useRef<google.maps.Marker[]>([]);
+    const directions = useRef<google.maps.DirectionsRenderer | null>(null);
     const errorRef = useRef(onError);
     errorRef.current = onError;
+    const routeErrorRef = useRef(onRouteError);
+    routeErrorRef.current = onRouteError;
 
     useEffect(() => {
         let cancelled = false;
@@ -142,6 +149,60 @@ function GoogleVisitsMap({
                 } else if (markers.current.length > 1) {
                     map.current.fitBounds(bounds, 48);
                 }
+
+                // Tournée tracée sur la carte, pastilles numérotées conservées.
+                // Un itinéraire indisponible ne doit jamais emporter la carte.
+                const stops = located(visits);
+
+                if (!showRoute || stops.length < 2) {
+                    directions.current?.setMap(null);
+                    routeErrorRef.current(false);
+
+                    return;
+                }
+
+                const point = (stop: Stop) => ({
+                    lat: stop.position.lat,
+                    lng: stop.position.lng,
+                });
+
+                try {
+                    directions.current ??= new maps.DirectionsRenderer({
+                        suppressMarkers: true,
+                        preserveViewport: true,
+                        polylineOptions: {
+                            strokeColor: BLUE,
+                            strokeOpacity: 0.85,
+                            strokeWeight: 5,
+                        },
+                    });
+
+                    return new maps.DirectionsService()
+                        .route({
+                            origin: point(stops[0]!),
+                            destination: point(stops[stops.length - 1]!),
+                            waypoints: stops
+                                .slice(1, -1)
+                                .map((stop) => ({ location: point(stop) })),
+                            travelMode: maps.TravelMode.DRIVING,
+                        })
+                        .then((result) => {
+                            if (cancelled || !directions.current) {
+                                return;
+                            }
+                            directions.current.setDirections(result);
+                            directions.current.setMap(map.current);
+                            routeErrorRef.current(false);
+                        })
+                        .catch((error: unknown) => {
+                            console.error('Itinéraire indisponible :', error);
+                            directions.current?.setMap(null);
+                            routeErrorRef.current(true);
+                        });
+                } catch (error) {
+                    console.error('Itinéraire indisponible :', error);
+                    routeErrorRef.current(true);
+                }
             })
             .catch((error: unknown) => {
                 console.error('Carte des visites indisponible :', error);
@@ -151,7 +212,7 @@ function GoogleVisitsMap({
         return () => {
             cancelled = true;
         };
-    }, [apiKey, visits]);
+    }, [apiKey, visits, showRoute]);
 
     return (
         <div
@@ -180,6 +241,9 @@ export function VisitsDayMap({
     const ordered = chronologicalDays(days);
     const [key, setKey] = useState(initialDay.key);
     const [mapFailed, setMapFailed] = useState(false);
+    // Itinéraire tracé sur la carte, jamais dans un onglet Google Maps.
+    const [showRoute, setShowRoute] = useState(false);
+    const [routeFailed, setRouteFailed] = useState(false);
     const index = ordered.findIndex((day) => day.key === key);
     const day = ordered[index] ?? initialDay;
     const previous = ordered[index - 1];
@@ -191,7 +255,7 @@ export function VisitsDayMap({
     const approximate = stops.filter(
         (stop) => stop.position.approximate,
     ).length;
-    const route = directionsUrl(day.visits);
+    const routable = stops.length >= 2;
     const title = day.relative ? `${day.relative} · ${day.label}` : day.label;
 
     return (
@@ -252,7 +316,9 @@ export function VisitsDayMap({
                     <GoogleVisitsMap
                         apiKey={features.googleMapsKey}
                         visits={day.visits}
+                        showRoute={showRoute}
                         onError={() => setMapFailed(true)}
+                        onRouteError={setRouteFailed}
                     />
                 ) : (
                     <div
@@ -352,18 +418,29 @@ export function VisitsDayMap({
                             {unlocated > 1 ? 's' : ''} de la carte.
                         </li>
                     )}
-                    {route && (
-                        <li className="pt-1">
-                            <Button variant="outline" size="sm" asChild>
-                                <a
-                                    href={route}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                >
-                                    <Route aria-hidden />
-                                    Itinéraire de la tournée
-                                </a>
+                    {routable && features.googleMapsKey && !mapFailed && (
+                        <li className="grid gap-1 pt-1">
+                            <Button
+                                type="button"
+                                variant={showRoute ? 'default' : 'outline'}
+                                size="sm"
+                                aria-pressed={showRoute}
+                                className="justify-self-start"
+                                onClick={() => setShowRoute((on) => !on)}
+                            >
+                                <Route aria-hidden />
+                                {showRoute
+                                    ? 'Masquer l’itinéraire'
+                                    : 'Itinéraire de la tournée'}
                             </Button>
+                            {showRoute && routeFailed && (
+                                <p
+                                    role="note"
+                                    className="text-muted-foreground text-xs"
+                                >
+                                    Itinéraire indisponible pour cette tournée.
+                                </p>
+                            )}
                         </li>
                     )}
                 </ol>
