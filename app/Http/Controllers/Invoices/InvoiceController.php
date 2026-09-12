@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Invoices;
 
 use App\Actions\Invoices\CreateInvoice;
 use App\Actions\Invoices\LinkInvoiceToLead;
+use App\Actions\Invoices\LinkInvoiceToPartner;
 use App\Actions\Invoices\MarkInvoicePaid;
 use App\Actions\Invoices\MarkInvoicesPaid;
 use App\Actions\Invoices\SendInvoice;
@@ -17,6 +18,7 @@ use App\Enums\InvoiceStatus;
 use App\Enums\Offer;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Leads\LeadController;
+use App\Http\Controllers\Partners\PartnerController;
 use App\Http\Requests\Invoices\BulkPayInvoicesRequest;
 use App\Http\Requests\Invoices\BulkSendInvoicesRequest;
 use App\Http\Requests\Invoices\IndexInvoicesRequest;
@@ -27,8 +29,10 @@ use App\Http\Requests\Invoices\UpdateInvoiceRequest;
 use App\Models\Invoice;
 use App\Models\InvoiceStatusChange;
 use App\Models\Lead;
+use App\Models\Partner;
 use App\Services\DocRaptor;
 use App\Support\BankAccounts;
+use App\Support\DocumentPrefill;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
@@ -52,7 +56,7 @@ class InvoiceController extends Controller
         $status = $request->status();
 
         $paginator = Invoice::query()
-            ->with('lead')
+            ->with(['lead', 'partner'])
             ->when($search !== '', fn (Builder $query): Builder => $query->where(fn (Builder $where): Builder => $where
                 ->where('number', 'like', "%{$search}%")
                 ->orWhere('client_name', 'like', "%{$search}%")))
@@ -70,6 +74,7 @@ class InvoiceController extends Controller
                 'client_name' => $invoice->client_name,
                 'client_email' => $invoice->client_email,
                 'lead' => $this->leadSummary($invoice),
+                'partner' => PartnerController::linkSummary($invoice->partner),
                 'amount_cents' => $invoice->amount_cents,
                 'deposit_cents' => $invoice->deposit_cents,
                 'due_cents' => $invoice->dueCents(),
@@ -111,21 +116,18 @@ class InvoiceController extends Controller
     {
         $this->authorize('create', Invoice::class);
 
-        // ?lead=UUID : facture créée depuis la fiche d'un lead, client prérempli et facture rattachée.
+        // ?lead=UUID ou ?partner=UUID : le document est ouvert depuis une fiche,
+        // client prérempli et rattachement posé à l'enregistrement.
         $lead = $request->filled('lead') ? Lead::query()->where('uuid', (string) $request->query('lead'))->first() : null;
+        $partner = $request->filled('partner') ? Partner::query()->where('uuid', (string) $request->query('partner'))->first() : null;
 
         return Inertia::render('invoices/create', [
             ...$this->formOptions(),
-            'prefill' => $lead === null ? null : [
-                'lead_id' => $lead->id,
-                'lead_uuid' => $lead->uuid,
-                'lead_name' => $lead->fullName(),
-                // La société d'abord ; sinon le foyer (« Bruno & Charles » à deux locataires).
-                'client_name' => $lead->company !== null && $lead->company !== '' ? $lead->company : $lead->householdName(),
-                'client_email' => $lead->email ?? '',
-                'currency' => $lead->currency->value,
-                'offer' => $lead->offer?->value,
-            ],
+            'prefill' => match (true) {
+                $lead !== null => DocumentPrefill::fromLead($lead),
+                $partner !== null => DocumentPrefill::fromPartner($partner),
+                default => null,
+            },
             'nextNumber' => CreateInvoice::nextNumber(),
         ]);
     }
@@ -180,7 +182,7 @@ class InvoiceController extends Controller
 
         abort_unless($invoice->status === InvoiceStatus::Draft, 403, __('Seule une facture en brouillon peut être modifiée.'));
 
-        $invoice->load('lead');
+        $invoice->load(['lead', 'partner']);
 
         return Inertia::render('invoices/create', [
             ...$this->formOptions(),
@@ -205,7 +207,9 @@ class InvoiceController extends Controller
                 'notes' => $invoice->notes,
                 'bank_name' => $invoice->bank_name,
                 'bank_iban' => $invoice->bank_iban,
+                'bank_reference' => $invoice->bank_reference,
                 'lead' => $this->leadSummary($invoice),
+                'partner' => PartnerController::linkSummary($invoice->partner),
             ],
         ]);
     }
@@ -220,9 +224,23 @@ class InvoiceController extends Controller
     }
 
     /** Rattache (ou détache avec lead_id null) la facture à un lead. */
-    public function link(LinkInvoiceLeadRequest $request, Invoice $invoice, LinkInvoiceToLead $linkInvoiceToLead): RedirectResponse
+    public function link(LinkInvoiceLeadRequest $request, Invoice $invoice, LinkInvoiceToLead $linkInvoiceToLead, LinkInvoiceToPartner $linkInvoiceToPartner): RedirectResponse
     {
         $this->authorize('update', $invoice);
+
+        // Le formulaire envoie l'une ou l'autre clé : la facture est adressée
+        // à un lead (ou son dossier client) ou à un partenaire.
+        if ($request->has('partner_id')) {
+            $partnerId = $request->validated('partner_id');
+            $partner = $partnerId === null ? null : Partner::query()->findOrFail((int) $partnerId);
+            $linkInvoiceToPartner->handle($invoice, $partner, $request->user());
+
+            Inertia::flash('toast', ['type' => 'success', 'message' => $partner instanceof Partner
+                ? __('Facture :number rattachée à :name.', ['number' => $invoice->number, 'name' => $partner->name])
+                : __('Facture :number détachée du partenaire.', ['number' => $invoice->number])]);
+
+            return back();
+        }
 
         $leadId = $request->validated('lead_id');
         $lead = $leadId === null ? null : Lead::query()->findOrFail((int) $leadId);
@@ -247,7 +265,7 @@ class InvoiceController extends Controller
         }
 
         $invoices = Invoice::query()
-            ->with('lead')
+            ->with(['lead', 'partner'])
             ->where(function ($builder) use ($query): void {
                 $builder->where('number', 'like', "%{$query}%")
                     ->orWhere('client_name', 'like', "%{$query}%")
@@ -266,6 +284,7 @@ class InvoiceController extends Controller
                 'currency' => $invoice->currency->value,
                 'status_label' => $invoice->status->label(),
                 'lead' => $this->leadSummary($invoice),
+                'partner' => PartnerController::linkSummary($invoice->partner),
                 'url' => route('invoices.show', $invoice),
             ])
             ->all();
@@ -351,7 +370,7 @@ class InvoiceController extends Controller
     {
         $this->authorize('view', $invoice);
 
-        $invoice->load(['statusChanges.author', 'creator', 'lead']);
+        $invoice->load(['statusChanges.author', 'creator', 'lead', 'partner']);
 
         return Inertia::render('invoices/show', [
             'invoice' => [
@@ -384,6 +403,7 @@ class InvoiceController extends Controller
                 'created_by' => $invoice->creator?->name,
                 'created_by_avatar' => $invoice->creator?->avatar,
                 'lead' => $this->leadSummary($invoice),
+                'partner' => PartnerController::linkSummary($invoice->partner),
                 'can_send' => $invoice->status->canTransitionTo(InvoiceStatus::Sent) && $invoice->client_email !== null,
                 'can_pay' => $invoice->status->canTransitionTo(InvoiceStatus::Paid),
                 'can_edit' => $invoice->status === InvoiceStatus::Draft,

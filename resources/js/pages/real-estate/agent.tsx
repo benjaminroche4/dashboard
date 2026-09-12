@@ -1,3 +1,4 @@
+import { AgentLeadLink } from '@/components/real-estate/agent-lead-link';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowRight, Building2, Globe, Mail, Phone } from 'lucide-react';
 import { useState } from 'react';
@@ -24,7 +25,6 @@ import {
     index as agentsIndex,
     touch as agentTouch,
 } from '@/routes/agents';
-import { show as leadShow } from '@/routes/leads';
 import type { Activity, AgencyOption, Agent, AgentAgencyCard } from '@/types';
 
 type Props = {
@@ -306,11 +306,11 @@ export default function AgentShow({
                             </section>
                         )}
                         <section
-                            aria-label="Leads en contact"
+                            aria-label="Leads et clients"
                             className="bg-sidebar grid gap-3 rounded-xl border p-4"
                         >
                             <h2 className="flex items-center gap-2 text-base font-medium">
-                                Leads en contact
+                                Leads et clients
                                 <Badge
                                     variant="secondary"
                                     className="font-medium tabular-nums"
@@ -320,9 +320,9 @@ export default function AgentShow({
                             </h2>
                             {agent.leads.length === 0 ? (
                                 <p className="text-muted-foreground text-sm">
-                                    Aucun lead ne lui est rattaché.
-                                    Choisissez-le dans la carte « Agent en
-                                    contact » d’une fiche lead.
+                                    Aucun lead ni dossier client ne lui est
+                                    rattaché. Choisissez-le dans la carte «
+                                    Agent en contact » d’une fiche lead.
                                 </p>
                             ) : (
                                 <ul role="list" className="grid gap-1">
@@ -331,17 +331,7 @@ export default function AgentShow({
                                             key={lead.uuid}
                                             className="flex items-baseline justify-between gap-2 text-sm"
                                         >
-                                            <Link
-                                                href={leadShow({
-                                                    lead: lead.uuid,
-                                                })}
-                                                className="truncate font-medium underline-offset-4 hover:underline"
-                                            >
-                                                {lead.name}
-                                            </Link>
-                                            <span className="text-muted-foreground shrink-0 text-xs">
-                                                {lead.status_label}
-                                            </span>
+                                            <AgentLeadLink lead={lead} />
                                         </li>
                                     ))}
                                 </ul>

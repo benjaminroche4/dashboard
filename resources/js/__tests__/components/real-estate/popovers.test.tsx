@@ -66,6 +66,7 @@ describe('AgentLeadsPopover', () => {
                             uuid: 'abc',
                             name: 'Léa Durand',
                             status_label: 'En cours',
+                            is_client: false,
                         },
                     ],
                 })}
@@ -73,7 +74,7 @@ describe('AgentLeadsPopover', () => {
         );
         await user.click(
             screen.getByRole('button', {
-                name: '1 lead(s) suivi(s) par Zoé Martin',
+                name: '1 lead(s) ou client(s) suivi(s) par Zoé Martin',
             }),
         );
         expect(

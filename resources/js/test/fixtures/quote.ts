@@ -29,6 +29,7 @@ export function makeQuoteDetail(
 ): QuoteDetail {
     return {
         ...makeQuote(),
+        partner: null,
         client_street: 'Rue des Alpes 5',
         client_postal_code: '1201',
         client_city: 'Genève',
@@ -52,6 +53,7 @@ export function makeQuoteDetail(
         notes: null,
         bank_name: null,
         bank_iban: null,
+        bank_reference: null,
         created_by: 'Admin',
         created_by_avatar: null,
         ...overrides,

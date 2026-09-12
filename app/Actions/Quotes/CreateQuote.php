@@ -38,7 +38,8 @@ final class CreateQuote
             return $quote;
         });
 
-        event(new DashboardUpdated('quotes', ['id' => $quote->id], "a créé le devis {$quote->number}"));
+        // `partner_id` rattache l'entrée au journal de la fiche partenaire.
+        event(new DashboardUpdated('quotes', ['id' => $quote->id, 'partner_id' => $quote->partner_id], "a créé le devis {$quote->number}"));
 
         return $quote;
     }

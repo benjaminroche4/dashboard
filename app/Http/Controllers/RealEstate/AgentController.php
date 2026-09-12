@@ -13,6 +13,7 @@ use App\Actions\RealEstate\ImportAgents;
 use App\Actions\RealEstate\UpdateAgent;
 use App\Data\AgentData;
 use App\Data\AgentImportRowData;
+use App\Enums\LeadStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Tools\ActivityController;
 use App\Http\Requests\RealEstate\BulkAgentsRequest;
@@ -177,11 +178,14 @@ class AgentController extends Controller
             'notes' => $agent->notes,
             'is_favorite' => (bool) $agent->is_favorite,
             'agency' => $agent->agency === null ? null : ['id' => $agent->agency->id, 'uuid' => $agent->agency->uuid, 'name' => $agent->agency->name],
-            // Leads dont il est le contact, du plus récent au plus ancien.
+            // Leads dont il est le contact, du plus récent au plus ancien. Un lead
+            // converti est un dossier client : il se lit sous le nom du foyer et son
+            // lien mène au dossier, pas à la fiche lead.
             'leads' => $agent->leads->map(fn (Lead $lead): array => [
                 'uuid' => $lead->uuid,
-                'name' => $lead->fullName(),
+                'name' => $lead->status === LeadStatus::Converted ? $lead->householdName() : $lead->fullName(),
                 'status_label' => $lead->status->label(),
+                'is_client' => $lead->status === LeadStatus::Converted,
             ])->all(),
             'creator' => $agent->creator?->name,
             'creator_avatar' => $agent->creator?->avatar,

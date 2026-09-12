@@ -47,8 +47,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $notes
  * @property string|null $bank_name
  * @property string|null $bank_iban
+ * @property string|null $bank_reference
  * @property int|null $created_by
  * @property int|null $lead_id
+ * @property int|null $partner_id
  * @property int|null $invoice_id
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
@@ -57,7 +59,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'number', 'client_name', 'client_email', 'client_street', 'client_postal_code', 'client_city', 'client_country',
     'client_address', 'items', 'vat_rate', 'discount_percent', 'discount_cents',
     'subtotal_cents', 'vat_cents', 'amount_cents', 'currency', 'status',
-    'issued_at', 'valid_until', 'sent_at', 'accepted_at', 'declined_at', 'notes', 'created_by', 'lead_id', 'invoice_id', 'bank_name', 'bank_iban',
+    'issued_at', 'valid_until', 'sent_at', 'accepted_at', 'declined_at', 'notes', 'created_by', 'lead_id', 'partner_id', 'invoice_id', 'bank_name', 'bank_iban', 'bank_reference',
 ])]
 class Quote extends Model
 {
@@ -117,6 +119,16 @@ class Quote extends Model
     }
 
     /**
+     * Partenaire à qui le document est adressé, s'il l'est.
+     *
+     * @return BelongsTo<Partner, $this>
+     */
+    public function partner(): BelongsTo
+    {
+        return $this->belongsTo(Partner::class);
+    }
+
+    /**
      * Facture créée à partir de ce devis, une fois accepté.
      *
      * @return BelongsTo<Invoice, $this>
@@ -130,11 +142,11 @@ class Quote extends Model
      * Coordonnées bancaires à imprimer : celles figées sur le document, sinon
      * le compte par défaut de sa devise.
      *
-     * @return array{bank: string, iban: string}
+     * @return array{bank: string, iban: string, reference: string}
      */
     public function bankAccount(): array
     {
-        return BankAccounts::resolve($this->bank_name, $this->bank_iban, $this->currency);
+        return BankAccounts::resolve($this->bank_name, $this->bank_iban, $this->bank_reference, $this->currency);
     }
 
     /**

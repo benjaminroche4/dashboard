@@ -20,7 +20,8 @@ return [
     /*
      * Comptes bancaires proposés sur une facture ou un devis : le compte servi
      * par défaut est le premier de la devise du document. `COMPANY_ACCOUNTS`
-     * accepte un JSON `[{"label":…,"bank":…,"iban":…,"currency":"EUR"}]` ;
+     * accepte un JSON `[{"label":…,"bank":…,"iban":…,"reference":…,"currency":"EUR"}]`
+     * (« reference » = communication à rappeler sur le virement, facultative) ;
      * sans lui, le compte historique COMPANY_BANK / COMPANY_IBAN sert seul.
      */
     'accounts' => env('COMPANY_ACCOUNTS'),

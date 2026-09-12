@@ -36,11 +36,13 @@ export type AgencyAgent = {
     email: string | null;
 };
 
-/** Lead dont un agent est le contact. */
+/** Lead — ou dossier client, quand il est converti — dont un agent est le contact. */
 export type AgentLead = {
     uuid: string;
     name: string;
     status_label: string;
+    /** Lead converti : le lien mène au dossier client, pas à la fiche lead. */
+    is_client: boolean;
 };
 
 /** Agence d'un agent, telle qu'affichée en carte sur sa fiche. */

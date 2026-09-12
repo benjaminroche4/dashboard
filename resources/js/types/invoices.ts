@@ -1,3 +1,4 @@
+import type { LinkedPartner } from './partners';
 import type { LinkedLead } from '@/components/leads/lead-link-card';
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
 
@@ -71,21 +72,38 @@ export type InvoiceSearchHit = {
 };
 
 /** Préremplissage de la création depuis une fiche lead (?lead=UUID). */
+/**
+ * À qui le document sera rattaché quand il est ouvert depuis une fiche : un
+ * lead (ou un dossier client) ou un partenaire.
+ */
+export type DocumentSubject = {
+    kind: 'lead' | 'partner';
+    id: number;
+    uuid: string;
+    name: string;
+    /** Lien vers la fiche d'origine. */
+    url: string;
+};
+
 export type InvoicePrefill = {
-    lead_id: number;
-    lead_uuid: string;
-    lead_name: string;
+    subject: DocumentSubject;
     client_name: string;
     client_email: string;
+    client_street: string;
+    client_postal_code: string;
+    client_city: string;
     currency: Currency;
     offer: OfferValue | null;
 };
 
 /** Facture complète (page de détail). */
 export type InvoiceDetail = Invoice & {
+    /** Partenaire à qui la facture est adressée, s'il y en a un. */
+    partner: LinkedPartner | null;
     /** Compte d'encaissement figé sur la facture ; null = compte par défaut. */
     bank_name: string | null;
     bank_iban: string | null;
+    bank_reference: string | null;
     client_street: string | null;
     client_postal_code: string | null;
     client_city: string | null;
@@ -155,6 +173,7 @@ export type InvoiceForm = {
     /** Compte d'encaissement : vide = compte par défaut de la devise. */
     bank_name: string;
     bank_iban: string;
+    bank_reference: string;
     items: InvoiceLineForm[];
 };
 
@@ -163,6 +182,8 @@ export type BankAccountOption = {
     label: string;
     bank: string;
     iban: string;
+    /** Communication à rappeler sur le virement, vide s'il n'y en a pas. */
+    reference: string;
     /** Devise du compte, null s'il sert pour toutes. */
     currency: Currency | null;
 };

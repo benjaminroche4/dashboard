@@ -118,6 +118,24 @@ test('an agent has a detail page with its agency, leads and the agencies for the
     $this->actingAs(User::factory()->create())->get('/real-estate/agents/999')->assertNotFound();
 });
 
+test('a converted lead is listed as a client, under its household name', function (): void {
+    $agent = Agent::factory()->create();
+    Lead::factory()->converted()->create([
+        'agent_id' => $agent->id,
+        'first_name' => 'Bruno',
+        'last_name' => 'Mata',
+        'co_first_name' => 'Charles',
+        'co_last_name' => 'Mata',
+    ]);
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('agents.show', $agent))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('agent.leads.0.name', 'Bruno & Charles')
+            ->where('agent.leads.0.is_client', true));
+});
+
 test('a new agent is e-mailed only when asked, and only if it has an address', function (): void {
     Mail::fake();
     $member = User::factory()->create(['email' => 'charles@relocation-in-paris.fr']);

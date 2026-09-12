@@ -10,6 +10,7 @@ use App\Actions\Quotes\ConvertQuoteToInvoice;
 use App\Actions\Quotes\CreateQuote;
 use App\Actions\Quotes\DeclineQuote;
 use App\Actions\Quotes\LinkQuoteToLead;
+use App\Actions\Quotes\LinkQuoteToPartner;
 use App\Actions\Quotes\RenderQuotePdf;
 use App\Actions\Quotes\SendQuote;
 use App\Actions\Quotes\SendQuotes;
@@ -20,16 +21,19 @@ use App\Enums\Offer;
 use App\Enums\QuoteStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Leads\LeadController;
+use App\Http\Controllers\Partners\PartnerController;
 use App\Http\Requests\Quotes\BulkQuotesRequest;
 use App\Http\Requests\Quotes\DeclineQuoteRequest;
 use App\Http\Requests\Quotes\LinkQuoteLeadRequest;
 use App\Http\Requests\Quotes\StoreQuoteRequest;
 use App\Http\Requests\Quotes\UpdateQuoteRequest;
 use App\Models\Lead;
+use App\Models\Partner;
 use App\Models\Quote;
 use App\Models\QuoteStatusChange;
 use App\Services\DocRaptor;
 use App\Support\BankAccounts;
+use App\Support\DocumentPrefill;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -101,22 +105,19 @@ class QuoteController extends Controller
     {
         $this->authorize('create', Quote::class);
 
-        // ?lead=UUID : devis créé depuis la fiche d'un lead, client prérempli et devis rattaché.
+        // ?lead=UUID ou ?partner=UUID : le document est ouvert depuis une fiche,
+        // client prérempli et rattachement posé à l'enregistrement.
         $lead = $request->filled('lead') ? Lead::query()->where('uuid', (string) $request->query('lead'))->first() : null;
+        $partner = $request->filled('partner') ? Partner::query()->where('uuid', (string) $request->query('partner'))->first() : null;
 
         return Inertia::render('quotes/create', [
             ...$this->formOptions(),
             'nextNumber' => CreateQuote::nextNumber(),
-            'prefill' => $lead === null ? null : [
-                'lead_id' => $lead->id,
-                'lead_uuid' => $lead->uuid,
-                'lead_name' => $lead->fullName(),
-                // La société d'abord ; sinon le foyer (« Bruno & Charles » à deux locataires).
-                'client_name' => $lead->company !== null && $lead->company !== '' ? $lead->company : $lead->householdName(),
-                'client_email' => $lead->email ?? '',
-                'currency' => $lead->currency->value,
-                'offer' => $lead->offer?->value,
-            ],
+            'prefill' => match (true) {
+                $lead !== null => DocumentPrefill::fromLead($lead),
+                $partner !== null => DocumentPrefill::fromPartner($partner),
+                default => null,
+            },
         ]);
     }
 
@@ -161,7 +162,7 @@ class QuoteController extends Controller
 
         abort_unless(UpdateQuote::isEditable($quote), 403, __('Ce devis ne peut plus être modifié.'));
 
-        $quote->load('lead');
+        $quote->load(['lead', 'partner']);
 
         return Inertia::render('quotes/create', [
             ...$this->formOptions(),
@@ -185,7 +186,9 @@ class QuoteController extends Controller
                 'notes' => $quote->notes,
                 'bank_name' => $quote->bank_name,
                 'bank_iban' => $quote->bank_iban,
+                'bank_reference' => $quote->bank_reference,
                 'lead' => LeadController::linkSummary($quote->lead),
+                'partner' => PartnerController::linkSummary($quote->partner),
             ],
         ]);
     }
@@ -212,7 +215,7 @@ class QuoteController extends Controller
     {
         $this->authorize('view', $quote);
 
-        $quote->load(['statusChanges.author', 'creator', 'lead', 'invoice']);
+        $quote->load(['statusChanges.author', 'creator', 'lead', 'invoice', 'partner']);
 
         return Inertia::render('quotes/show', [
             'quote' => [
@@ -321,9 +324,23 @@ class QuoteController extends Controller
      * @return array<string, mixed>
      */
     /** Rattache le devis à un lead ou à un dossier client (null détache). */
-    public function link(LinkQuoteLeadRequest $request, Quote $quote, LinkQuoteToLead $linkQuoteToLead): RedirectResponse
+    public function link(LinkQuoteLeadRequest $request, Quote $quote, LinkQuoteToLead $linkQuoteToLead, LinkQuoteToPartner $linkQuoteToPartner): RedirectResponse
     {
         $this->authorize('update', $quote);
+
+        // Le formulaire envoie l'une ou l'autre clé : le devis est adressé à
+        // un lead (ou son dossier client) ou à un partenaire.
+        if ($request->has('partner_id')) {
+            $partnerId = $request->validated('partner_id');
+            $partner = $partnerId === null ? null : Partner::query()->findOrFail((int) $partnerId);
+            $linkQuoteToPartner->handle($quote, $partner, $request->user());
+
+            Inertia::flash('toast', ['type' => 'success', 'message' => $partner instanceof Partner
+                ? __('Devis :number rattaché à :name.', ['number' => $quote->number, 'name' => $partner->name])
+                : __('Devis :number détaché du partenaire.', ['number' => $quote->number])]);
+
+            return back();
+        }
 
         $leadId = $request->validated('lead_id');
         $lead = $leadId === null ? null : Lead::query()->findOrFail((int) $leadId);
@@ -389,6 +406,7 @@ class QuoteController extends Controller
             'client_name' => $quote->client_name,
             'client_email' => $quote->client_email,
             'lead' => LeadController::linkSummary($quote->lead),
+            'partner' => PartnerController::linkSummary($quote->partner),
             'invoice' => $quote->invoice === null ? null : ['id' => $quote->invoice->id, 'uuid' => $quote->invoice->uuid, 'number' => $quote->invoice->number],
             'amount_cents' => $quote->amount_cents,
             'currency' => $quote->currency->value,

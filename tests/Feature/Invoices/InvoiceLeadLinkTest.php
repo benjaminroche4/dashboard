@@ -6,6 +6,7 @@ use App\Enums\Offer;
 use App\Events\DashboardUpdated;
 use App\Models\Invoice;
 use App\Models\Lead;
+use App\Models\Partner;
 use App\Models\User;
 use Illuminate\Support\Facades\Event;
 use Inertia\Testing\AssertableInertia;
@@ -80,8 +81,9 @@ test('creating an invoice from a lead prefills the client and links it', functio
 
     $this->actingAs($manager)->get(route('invoices.create', ['lead' => $lead->uuid]))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
-            ->where('prefill.lead_id', $lead->id)
-            ->where('prefill.lead_name', 'Léa Durand')
+            ->where('prefill.subject.kind', 'lead')
+            ->where('prefill.subject.id', $lead->id)
+            ->where('prefill.subject.name', 'Léa Durand')
             ->where('prefill.client_name', 'Nestlé')
             ->where('prefill.client_email', 'lea@example.com')
             ->where('prefill.offer', 'confie'));
@@ -100,4 +102,47 @@ test('creating an invoice from a lead prefills the client and links it', functio
     ])->assertSessionHasNoErrors();
 
     expect(Invoice::query()->latest('id')->first()?->lead_id)->toBe($lead->id);
+});
+
+test('a manager links an invoice to a partner, which detaches the lead', function (): void {
+    $manager = User::factory()->manager()->create();
+    $lead = Lead::factory()->create();
+    $partner = Partner::factory()->create(['name' => 'Allianz Paris']);
+    $invoice = Invoice::factory()->create(['number' => 'RP-27043', 'lead_id' => $lead->id]);
+
+    $this->actingAs($manager)
+        ->from(route('invoices.show', $invoice))
+        ->patch(route('invoices.link', $invoice), ['partner_id' => $partner->id])
+        ->assertRedirect(route('invoices.show', $invoice))
+        ->assertSessionHasNoErrors();
+
+    // Une facture est adressée à un lead ou à un partenaire, jamais aux deux.
+    expect($invoice->refresh()->partner_id)->toBe($partner->id)
+        ->and($invoice->lead_id)->toBeNull();
+    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => str_contains((string) $event->message, 'a rattaché la facture RP-27043 au partenaire Allianz Paris'));
+
+    $this->actingAs($manager)->get(route('invoices.show', $invoice))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('invoice.partner.id', $partner->id)
+            ->where('invoice.partner.name', 'Allianz Paris'));
+
+    // Détacher, puis rattacher un lead, retire le partenaire à son tour.
+    $this->actingAs($manager)->patch(route('invoices.link', $invoice), ['partner_id' => null])
+        ->assertSessionHasNoErrors();
+    expect($invoice->refresh()->partner_id)->toBeNull();
+
+    $this->actingAs($manager)->patch(route('invoices.link', $invoice), ['partner_id' => $partner->id]);
+    $this->actingAs($manager)->patch(route('invoices.link', $invoice), ['lead_id' => $lead->id]);
+
+    expect($invoice->refresh()->lead_id)->toBe($lead->id)
+        ->and($invoice->partner_id)->toBeNull();
+});
+
+test('an unknown partner is refused', function (): void {
+    $manager = User::factory()->manager()->create();
+    $invoice = Invoice::factory()->create();
+
+    $this->actingAs($manager)
+        ->patch(route('invoices.link', $invoice), ['partner_id' => 999])
+        ->assertSessionHasErrors('partner_id');
 });

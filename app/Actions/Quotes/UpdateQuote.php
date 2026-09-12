@@ -53,15 +53,23 @@ final class UpdateQuote
             'issued_at' => $data->issuedAt,
             'valid_until' => $data->validUntil,
             'notes' => $data->notes,
+            'bank_name' => $data->bankName,
+            'bank_iban' => $data->bankIban,
+            'bank_reference' => $data->bankReference,
         ]);
 
+        // Un rattachement absent du formulaire laisse celui du document en place.
         if ($data->leadId !== null) {
             $quote->lead_id = $data->leadId;
         }
 
+        if ($data->partnerId !== null) {
+            $quote->partner_id = $data->partnerId;
+        }
+
         $quote->save();
 
-        event(new DashboardUpdated('quotes', ['id' => $quote->id], "a modifié le devis {$quote->number}", $by));
+        event(new DashboardUpdated('quotes', ['id' => $quote->id, 'partner_id' => $quote->partner_id], "a modifié le devis {$quote->number}", $by));
 
         return $quote;
     }

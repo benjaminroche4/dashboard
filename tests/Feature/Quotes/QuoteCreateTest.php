@@ -103,9 +103,10 @@ test('creating a quote from a lead prefills the client and links it, and the lea
 
     $this->actingAs($manager)->get(route('tools.quotes.create', ['lead' => $lead->uuid]))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
-            ->where('prefill.lead_id', $lead->id)
-            ->where('prefill.lead_uuid', $lead->uuid)
-            ->where('prefill.lead_name', 'Léa Durand')
+            ->where('prefill.subject.kind', 'lead')
+            ->where('prefill.subject.id', $lead->id)
+            ->where('prefill.subject.uuid', $lead->uuid)
+            ->where('prefill.subject.name', 'Léa Durand')
             ->where('prefill.client_name', 'Nestlé')
             ->where('prefill.client_email', 'lea@example.com')
             ->where('prefill.offer', 'confie'));

@@ -23,6 +23,7 @@ const form: QuoteForm = {
     notes: '',
     bank_name: '',
     bank_iban: '',
+    bank_reference: '',
     items: [
         {
             offer: 'accompagne',
@@ -119,10 +120,14 @@ describe('validateQuoteForm', () => {
 });
 
 describe('quoteFormToPayload', () => {
-    it('sends numbers, cents, the lead and null labels for offer lines', () => {
-        const payload = quoteFormToPayload(form, 4);
+    it('sends numbers, cents, the link and null labels for offer lines', () => {
+        const payload = quoteFormToPayload(form, {
+            lead_id: 4,
+            partner_id: null,
+        });
 
         expect(payload.lead_id).toBe(4);
+        expect(payload.partner_id).toBeNull();
         expect(payload.vat_rate).toBe(8.1);
         expect(payload.discount_percent).toBe(10);
         expect(payload.valid_until).toBe('2026-10-07');
@@ -141,8 +146,18 @@ describe('quoteFormToPayload', () => {
             },
         ]);
         expect(
-            quoteFormToPayload({ ...form, discount_percent: '' }, null)
-                .discount_percent,
+            quoteFormToPayload(
+                { ...form, discount_percent: '' },
+                { lead_id: null, partner_id: null },
+            ).discount_percent,
         ).toBe(0);
+
+        // Un devis adressé à un partenaire part avec l'autre identifiant.
+        const forPartner = quoteFormToPayload(form, {
+            lead_id: null,
+            partner_id: 9,
+        });
+        expect(forPartner.lead_id).toBeNull();
+        expect(forPartner.partner_id).toBe(9);
     });
 });

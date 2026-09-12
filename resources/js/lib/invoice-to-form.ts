@@ -18,6 +18,7 @@ export function invoiceToForm(invoice: InvoiceDetail): InvoiceForm {
         notes: invoice.notes ?? '',
         bank_name: invoice.bank_name ?? '',
         bank_iban: invoice.bank_iban ?? '',
+        bank_reference: invoice.bank_reference ?? '',
         items: invoice.items.map((line) => ({
             offer: line.offer,
             description: line.offer === null ? line.description : '',

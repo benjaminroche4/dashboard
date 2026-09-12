@@ -48,15 +48,23 @@ final class UpdateInvoice
             'issued_at' => $data->issuedAt,
             'due_at' => $data->dueAt,
             'notes' => $data->notes,
+            'bank_name' => $data->bankName,
+            'bank_iban' => $data->bankIban,
+            'bank_reference' => $data->bankReference,
         ]);
 
+        // Un rattachement absent du formulaire laisse celui du document en place.
         if ($data->leadId !== null) {
             $invoice->lead_id = $data->leadId;
         }
 
+        if ($data->partnerId !== null) {
+            $invoice->partner_id = $data->partnerId;
+        }
+
         $invoice->save();
 
-        event(new DashboardUpdated('invoices', ['id' => $invoice->id], "a modifié la facture {$invoice->number}", $by));
+        event(new DashboardUpdated('invoices', ['id' => $invoice->id, 'partner_id' => $invoice->partner_id], "a modifié la facture {$invoice->number}", $by));
 
         return $invoice;
     }

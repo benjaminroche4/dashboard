@@ -9,7 +9,7 @@
     <p>Veuillez trouver ci-joint votre facture <strong>{{ $invoice->number }}</strong> d'un montant de <strong>{{ $money($invoice->amount_cents) }}</strong>@if ($invoice->deposit_cents > 0), dont {{ $money($invoice->deposit_cents) }} déjà versés (reste à payer : {{ $money($invoice->dueCents()) }})@endif.</p>
     <p>Échéance : <strong>{{ $invoice->due_at->translatedFormat('j F Y') }}</strong>.<br>
     @php($account = $invoice->bankAccount())
-    Paiement par virement sur {{ $account['bank'] }}, IBAN {{ $account['iban'] }}, en {{ $invoice->currency->value }}.</p>
+    Paiement par virement sur {{ $account['bank'] }}, IBAN {{ $account['iban'] }}, en {{ $invoice->currency->value }}.@if ($account['reference'] !== '')<br>Référence à indiquer : <strong>{{ $account['reference'] }}</strong>.@endif</p>
     @if ($invoice->notes)
         <p style="white-space: pre-line">{{ $invoice->notes }}</p>
     @endif

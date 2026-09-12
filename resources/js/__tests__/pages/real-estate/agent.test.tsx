@@ -71,6 +71,13 @@ describe('Agent detail page', () => {
                             uuid: 'abc',
                             name: 'Léa Durand',
                             status_label: 'En cours',
+                            is_client: false,
+                        },
+                        {
+                            uuid: 'def',
+                            name: 'Bruno & Charles',
+                            status_label: 'Converti',
+                            is_client: true,
                         },
                     ],
                 })}
@@ -124,12 +131,17 @@ describe('Agent detail page', () => {
         expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();
         expect(screen.getByText('Très réactive.')).toBeInTheDocument();
         const leads = within(
-            screen.getByRole('region', { name: 'Leads en contact' }),
+            screen.getByRole('region', { name: 'Leads et clients' }),
         );
         expect(leads.getByRole('link', { name: 'Léa Durand' })).toHaveAttribute(
             'href',
             '/locataires/abc',
         );
+        // Un lead converti est un dossier client : badge « Client » et lien vers le dossier.
+        expect(
+            leads.getByRole('link', { name: 'Bruno & Charles' }),
+        ).toHaveAttribute('href', '/clients/def');
+        expect(leads.getByText('Client')).toBeInTheDocument();
         // Le retour se fait par le fil d'Ariane : plus de lien dans l'en-tête.
         expect(
             screen.queryByRole('link', { name: 'Tous les agents' }),
@@ -168,7 +180,9 @@ describe('Agent detail page', () => {
         expect(screen.getByText('Indépendant')).toBeInTheDocument();
         expect(screen.getByText('Aucune note.')).toBeInTheDocument();
         expect(
-            screen.getByText(/Aucun lead ne lui est rattaché/),
+            screen.getByText(
+                /Aucun lead ni dossier client ne lui est rattaché/,
+            ),
         ).toBeInTheDocument();
         // Adresse, fonction, qualité de la relation et visites : rien de renseigné.
         expect(screen.getAllByText('Non renseigné')).toHaveLength(4);

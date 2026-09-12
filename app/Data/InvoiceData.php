@@ -34,9 +34,13 @@ final readonly class InvoiceData
         public float $discountPercent = 0,
         public int $depositCents = 0,
         public ?int $leadId = null,
+        /** Partenaire à qui le document est adressé, quand il ne l'est pas à un lead. */
+        public ?int $partnerId = null,
         /** Compte d'encaissement figé sur le document ; null = compte par défaut de la devise. */
         public ?string $bankName = null,
         public ?string $bankIban = null,
+        /** Communication à rappeler sur le virement. */
+        public ?string $bankReference = null,
     ) {}
 
     /**
@@ -61,8 +65,10 @@ final readonly class InvoiceData
             discountPercent: (float) ($data['discount_percent'] ?? 0),
             depositCents: (int) ($data['deposit_cents'] ?? 0),
             leadId: isset($data['lead_id']) ? (int) $data['lead_id'] : null,
+            partnerId: isset($data['partner_id']) ? (int) $data['partner_id'] : null,
             bankName: self::blank($data['bank_name'] ?? null),
             bankIban: self::blank($data['bank_iban'] ?? null),
+            bankReference: self::blank($data['bank_reference'] ?? null),
         );
     }
 

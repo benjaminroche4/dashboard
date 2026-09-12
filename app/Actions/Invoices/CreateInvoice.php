@@ -44,8 +44,10 @@ final class CreateInvoice
                 'notes' => $data->notes,
                 'bank_name' => $data->bankName,
                 'bank_iban' => $data->bankIban,
+                'bank_reference' => $data->bankReference,
                 'created_by' => $creator?->id,
                 'lead_id' => $data->leadId,
+                'partner_id' => $data->partnerId,
             ]);
 
             // Première entrée de l'historique : la création.
@@ -60,7 +62,8 @@ final class CreateInvoice
             return $invoice;
         });
 
-        event(new DashboardUpdated('invoices', ['id' => $invoice->id], "a créé la facture {$invoice->number}"));
+        // `partner_id` rattache l'entrée au journal de la fiche partenaire.
+        event(new DashboardUpdated('invoices', ['id' => $invoice->id, 'partner_id' => $invoice->partner_id], "a créé la facture {$invoice->number}"));
 
         return $invoice;
     }

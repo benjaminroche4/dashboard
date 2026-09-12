@@ -1,6 +1,8 @@
 import type { LinkedLead } from '@/components/leads/lead-link-card';
+import type { LinkedPartner } from './partners';
 import type {
     Currency,
+    DocumentSubject,
     InvoiceLine,
     InvoiceLineForm,
     OfferValue,
@@ -41,9 +43,12 @@ export type Quote = {
 
 /** Devis complet (page de détail). */
 export type QuoteDetail = Quote & {
+    /** Partenaire à qui le devis est adressé, s'il y en a un. */
+    partner: LinkedPartner | null;
     /** Compte d'encaissement figé sur le devis ; null = compte par défaut. */
     bank_name: string | null;
     bank_iban: string | null;
+    bank_reference: string | null;
     client_street: string | null;
     client_postal_code: string | null;
     client_city: string | null;
@@ -88,11 +93,12 @@ export type LeadQuote = {
 
 /** Préremplissage de la création depuis une fiche lead (?lead=UUID). */
 export type QuotePrefill = {
-    lead_id: number;
-    lead_uuid: string;
-    lead_name: string;
+    subject: DocumentSubject;
     client_name: string;
     client_email: string;
+    client_street: string;
+    client_postal_code: string;
+    client_city: string;
     currency: Currency;
     offer: OfferValue | null;
 };
@@ -102,6 +108,7 @@ export type QuoteForm = {
     /** Compte d'encaissement : vide = compte par défaut de la devise. */
     bank_name: string;
     bank_iban: string;
+    bank_reference: string;
     client_name: string;
     client_email: string;
     client_street: string;

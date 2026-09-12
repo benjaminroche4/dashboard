@@ -51,6 +51,12 @@ final readonly class ConvertQuoteToInvoice
                 status: InvoiceStatus::Draft,
                 discountPercent: $quote->discount_percent,
                 leadId: $quote->lead_id,
+                partnerId: $quote->partner_id,
+                // La facture reprend le compte d'encaissement du devis : le
+                // client a déjà lu ces coordonnées.
+                bankName: $quote->bank_name,
+                bankIban: $quote->bank_iban,
+                bankReference: $quote->bank_reference,
             ), $by);
 
             $quote->invoice()->associate($invoice);

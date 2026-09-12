@@ -119,6 +119,26 @@ class Partner extends Model
     }
 
     /**
+     * Devis adressés au partenaire, du plus récent au plus ancien.
+     *
+     * @return HasMany<Quote, $this>
+     */
+    public function quotes(): HasMany
+    {
+        return $this->hasMany(Quote::class)->latest('issued_at')->orderByDesc('id');
+    }
+
+    /**
+     * Factures adressées au partenaire, de la plus récente à la plus ancienne.
+     *
+     * @return HasMany<Invoice, $this>
+     */
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class)->latest('issued_at')->orderByDesc('id');
+    }
+
+    /**
      * Partenaires portant exactement ce nom (insensible à la casse).
      *
      * @param  Builder<Partner>  $query

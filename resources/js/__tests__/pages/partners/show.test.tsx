@@ -58,6 +58,8 @@ function useFormStub(initial: Record<string, string>) {
 
 import PartnerShow from '@/pages/partners/show';
 import { makePartnerDetail, partnerTypes } from '@/test/fixtures/partner';
+import { makeInvoice } from '@/test/fixtures/invoice';
+import { makeQuote } from '@/test/fixtures/quote';
 
 describe('Partner detail page', () => {
     it('shows the type, coordinates, contact actions and opens the edit dialog', async () => {
@@ -224,5 +226,52 @@ describe('Partner detail page', () => {
             '/partners/0199a9a0-0000-7000-8000-0000000000c1/contacts/1',
             expect.objectContaining({ preserveScroll: true }),
         );
+    });
+
+    it('lists the quotes and invoices of the partner and offers to create one', () => {
+        render(
+            <PartnerShow
+                partner={makePartnerDetail()}
+                types={partnerTypes}
+                quotes={[makeQuote({ number: 'DV-27042' })]}
+                invoices={[makeInvoice({ number: 'RP-27042' })]}
+                can={{ quotes: true, invoices: true }}
+            />,
+        );
+
+        const billing = within(
+            screen.getByRole('region', { name: 'Devis et factures' }),
+        );
+        expect(billing.getByRole('link', { name: /DV-27042/ })).toHaveAttribute(
+            'href',
+            '/tools/quotes/0199a9a0-0000-7000-8000-00000000d001',
+        );
+        expect(billing.getByRole('link', { name: /RP-27042/ })).toHaveAttribute(
+            'href',
+            '/invoices/0199a9a0-0000-7000-8000-000000000101',
+        );
+        // La création part de la fiche, le partenaire est prérempli.
+        expect(
+            billing.getByRole('link', { name: 'Nouveau devis' }),
+        ).toHaveAttribute(
+            'href',
+            '/tools/quotes/create?partner=0199a9a0-0000-7000-8000-0000000000c1',
+        );
+        expect(
+            billing.getByRole('link', { name: 'Nouvelle facture' }),
+        ).toHaveAttribute(
+            'href',
+            '/invoices/create?partner=0199a9a0-0000-7000-8000-0000000000c1',
+        );
+    });
+
+    it('hides the billing section from a member who may not create either', () => {
+        render(
+            <PartnerShow partner={makePartnerDetail()} types={partnerTypes} />,
+        );
+
+        expect(
+            screen.queryByRole('region', { name: 'Devis et factures' }),
+        ).not.toBeInTheDocument();
     });
 });

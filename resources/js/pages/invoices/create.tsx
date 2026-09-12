@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
+import { subjectLabel, subjectLinks } from '@/lib/document-subject';
 import { formatMoney } from '@/lib/format';
 import { invoiceToForm } from '@/lib/invoice-to-form';
 import { notify } from '@/lib/toast';
@@ -53,10 +54,10 @@ import {
 import {
     create as invoicesCreate,
     index as invoicesIndex,
+    show as invoiceShow,
     store,
     update,
 } from '@/routes/invoices';
-import { show as leadShow } from '@/routes/leads';
 import { index as toolsIndex } from '@/routes/tools';
 import type {
     BankAccountOption,
@@ -159,9 +160,9 @@ export default function InvoicesCreate({
             : {
                   client_name: prefill?.client_name ?? '',
                   client_email: prefill?.client_email ?? '',
-                  client_street: '',
-                  client_postal_code: '',
-                  client_city: '',
+                  client_street: prefill?.client_street ?? '',
+                  client_postal_code: prefill?.client_postal_code ?? '',
+                  client_city: prefill?.client_city ?? '',
                   client_country: countries[0]?.name ?? '',
                   currency: initialCurrency,
                   vat_rate: String(defaults.vat_rate),
@@ -172,6 +173,7 @@ export default function InvoicesCreate({
                   notes: '',
                   bank_name: '',
                   bank_iban: '',
+                  bank_reference: '',
                   items: [
                       {
                           offer: initialOffer,
@@ -260,7 +262,11 @@ export default function InvoicesCreate({
         // Le backend attend des centimes et des nombres.
         form.transform((data) => ({
             ...data,
-            lead_id: editing?.lead?.id ?? prefill?.lead_id ?? null,
+            // Un document en modification garde son rattachement ; à la
+            // création, il prend celui de la fiche d'origine.
+            ...(editing
+                ? { lead_id: editing.lead?.id ?? null }
+                : subjectLinks(prefill?.subject ?? null)),
             vat_rate: toNumber(data.vat_rate),
             discount_percent: toNumber(data.discount_percent || 0),
             deposit_cents: toCents(data.deposit || 0),
@@ -291,24 +297,30 @@ export default function InvoicesCreate({
 
     return (
         <>
-            <Head title="Nouvelle facture" />
+            <Head
+                title={
+                    editing
+                        ? `Modifier la facture ${editing.number}`
+                        : 'Nouvelle facture'
+                }
+            />
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4">
                 <div className="flex flex-wrap items-end justify-between gap-4 pt-8 pb-6">
                     <div>
                         <h1 className="text-lg font-medium">
-                            Nouvelle facture
+                            {editing
+                                ? `Modifier la facture ${editing.number}`
+                                : 'Nouvelle facture'}
                         </h1>
                         <p className="text-muted-foreground text-sm">
                             {prefill ? (
                                 <>
-                                    Pour le lead{' '}
+                                    Pour {subjectLabel(prefill.subject)}{' '}
                                     <Link
-                                        href={leadShow({
-                                            lead: prefill.lead_uuid,
-                                        })}
+                                        href={prefill.subject.url}
                                         className="text-foreground font-medium underline-offset-4 hover:underline"
                                     >
-                                        {prefill.lead_name}
+                                        {prefill.subject.name}
                                     </Link>
                                     , la facture lui sera rattachée.
                                 </>
@@ -863,9 +875,11 @@ export default function InvoicesCreate({
                                 currency={form.data.currency}
                                 bankName={form.data.bank_name}
                                 bankIban={form.data.bank_iban}
+                                bankReference={form.data.bank_reference}
                                 errors={{
                                     bank_name: errors.bank_name,
                                     bank_iban: errors.bank_iban,
+                                    bank_reference: errors.bank_reference,
                                 }}
                                 onChange={(values) => form.setData(values)}
                             />
@@ -905,7 +919,15 @@ export default function InvoicesCreate({
             </div>
             <FormActionBar>
                 <Button type="button" variant="ghost" asChild>
-                    <Link href={invoicesIndex()}>Annuler</Link>
+                    <Link
+                        href={
+                            editing
+                                ? invoiceShow({ invoice: editing.uuid })
+                                : invoicesIndex()
+                        }
+                    >
+                        Annuler
+                    </Link>
                 </Button>
                 <Button
                     type="submit"
@@ -914,7 +936,7 @@ export default function InvoicesCreate({
                     data-test="invoice-submit"
                 >
                     {form.processing && <Spinner />}
-                    Créer la facture
+                    {editing ? 'Modifier la facture' : 'Créer la facture'}
                 </Button>
             </FormActionBar>
         </>

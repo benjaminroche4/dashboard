@@ -154,6 +154,7 @@ export default function InvoicesShow({
                         <InvoiceLeadLink
                             invoiceUuid={invoice.uuid}
                             lead={invoice.lead}
+                            partner={invoice.partner}
                             canEdit={canManage}
                         />
                         <section className="grid gap-3">

@@ -108,7 +108,7 @@
         @endif
         Devis valable jusqu'au {{ $quote->valid_until->translatedFormat('j F Y') }}. Bon pour accord : date et signature du client.<br>
         @php($account = $quote->bankAccount())
-        Règlement par virement sur {{ $account['bank'] }}, IBAN {{ $account['iban'] }}, en {{ $quote->currency->value }}.
+        Règlement par virement sur {{ $account['bank'] }}, IBAN {{ $account['iban'] }}, en {{ $quote->currency->value }}.@if ($account['reference'] !== '') Référence à indiquer : {{ $account['reference'] }}.@endif
     </div>
 </body>
 </html>

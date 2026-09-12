@@ -79,6 +79,7 @@ const props = {
             label: 'Banque',
             bank: 'Banque',
             iban: 'CH00',
+            reference: '',
             currency: null,
         },
     ],

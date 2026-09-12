@@ -47,6 +47,7 @@ const form: InvoiceForm = {
     notes: 'Merci.',
     bank_name: '',
     bank_iban: '',
+    bank_reference: '',
     items: [
         {
             offer: 'accompagne',

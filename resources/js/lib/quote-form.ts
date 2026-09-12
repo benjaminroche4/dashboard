@@ -22,6 +22,7 @@ export function quoteFormToInvoiceForm(form: QuoteForm): InvoiceForm {
         notes: form.notes,
         bank_name: form.bank_name,
         bank_iban: form.bank_iban,
+        bank_reference: form.bank_reference,
         items: form.items,
     };
 }
@@ -43,6 +44,7 @@ export function quoteToForm(quote: QuoteDetail): QuoteForm {
         notes: quote.notes ?? '',
         bank_name: quote.bank_name ?? '',
         bank_iban: quote.bank_iban ?? '',
+        bank_reference: quote.bank_reference ?? '',
         items: quote.items.map((line) => ({
             offer: line.offer,
             description: line.offer === null ? line.description : '',
@@ -77,10 +79,14 @@ export function validateQuoteForm(form: QuoteForm): QuoteFormErrors {
 }
 
 /** Charge utile attendue par le backend : centimes et nombres. */
-export function quoteFormToPayload(form: QuoteForm, leadId: number | null) {
+export function quoteFormToPayload(
+    form: QuoteForm,
+    /** Rattachement du devis : un lead, un partenaire, ou rien. */
+    links: { lead_id: number | null; partner_id: number | null },
+) {
     return {
         ...form,
-        lead_id: leadId,
+        ...links,
         vat_rate: toNumber(form.vat_rate),
         discount_percent: toNumber(form.discount_percent || 0),
         items: form.items.map((line) => ({

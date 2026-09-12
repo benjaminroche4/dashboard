@@ -208,6 +208,12 @@ export function InvoicePreview({
                     {kind === 'quote' ? 'Règlement' : 'Paiement'} par virement
                     sur {form.bank_name.trim() || company.bank}, IBAN{' '}
                     {form.bank_iban.trim() || company.iban}, en {form.currency}.
+                    {form.bank_reference.trim() !== '' && (
+                        <>
+                            {' '}
+                            Référence à indiquer : {form.bank_reference.trim()}.
+                        </>
+                    )}
                 </p>
             </footer>
         </article>

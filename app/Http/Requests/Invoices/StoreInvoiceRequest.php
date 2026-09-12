@@ -37,6 +37,7 @@ class StoreInvoiceRequest extends FormRequest
     {
         return [
             'lead_id' => ['nullable', 'integer', 'exists:leads,id'],
+            'partner_id' => ['nullable', 'integer', 'exists:partners,id'],
             'client_name' => ['required', 'string', 'max:255'],
             'client_email' => ['nullable', 'email', 'max:255'],
             'client_street' => ['nullable', 'string', 'max:255'],
@@ -53,6 +54,7 @@ class StoreInvoiceRequest extends FormRequest
             // Compte d'encaissement : laissé vide, le compte par défaut de la devise s'applique.
             'bank_name' => ['nullable', 'string', 'max:255'],
             'bank_iban' => ['nullable', 'string', 'max:60'],
+            'bank_reference' => ['nullable', 'string', 'max:120'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
             'items.*.offer' => ['nullable', 'required_without:items.*.description', Rule::enum(Offer::class)],
             'items.*.description' => ['nullable', 'required_without:items.*.offer', 'string', 'max:255'],

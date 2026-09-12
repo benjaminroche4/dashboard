@@ -25,9 +25,11 @@ use App\Http\Requests\Partners\StorePartnerRequest;
 use App\Http\Requests\Partners\TouchPartnerRequest;
 use App\Http\Requests\Partners\UpdatePartnerRequest;
 use App\Models\Activity;
+use App\Models\Invoice;
 use App\Models\LeadPartner;
 use App\Models\Partner;
 use App\Models\PartnerContact;
+use App\Models\Quote;
 use App\Services\DistrictStaticMap;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -82,7 +84,7 @@ class PartnerController extends Controller
     {
         $this->authorize('view', $partner);
 
-        $partner->load(['creator', 'contacts', 'leadLinks.lead']);
+        $partner->load(['creator', 'contacts', 'leadLinks.lead', 'quotes', 'invoices']);
         $partner->loadCount('leadLinks');
         $partner->loadFavoriteOf($request->user());
 
@@ -115,6 +117,36 @@ class PartnerController extends Controller
                     'role_label' => $link->role->label(),
                     'at' => $link->created_at?->toIso8601String(),
                 ])->all(),
+            ],
+            // Historique commercial avec ce partenaire : ce qu'on lui a devisé
+            // et facturé, du plus récent au plus ancien.
+            'quotes' => $partner->quotes->map(fn (Quote $quote): array => [
+                'id' => $quote->id,
+                'uuid' => $quote->uuid,
+                'number' => $quote->number,
+                'client_name' => $quote->client_name,
+                'amount_cents' => $quote->amount_cents,
+                'currency' => $quote->currency->value,
+                'status' => $quote->status->value,
+                'status_label' => $quote->status->label(),
+                'issued_at' => $quote->issued_at->toDateString(),
+                'valid_until' => $quote->valid_until->toDateString(),
+            ])->all(),
+            'invoices' => $partner->invoices->map(fn (Invoice $invoice): array => [
+                'id' => $invoice->id,
+                'uuid' => $invoice->uuid,
+                'number' => $invoice->number,
+                'client_name' => $invoice->client_name,
+                'amount_cents' => $invoice->amount_cents,
+                'currency' => $invoice->currency->value,
+                'status' => $invoice->status->value,
+                'status_label' => $invoice->status->label(),
+                'issued_at' => $invoice->issued_at->toDateString(),
+            ])->all(),
+            // Devis et factures ne sont visibles et créables que par qui en a le droit.
+            'can' => [
+                'quotes' => $request->user()?->can('create', Quote::class) ?? false,
+                'invoices' => $request->user()?->can('create', Invoice::class) ?? false,
             ],
             'types' => PartnerType::options(),
             'qualities' => RelationshipQuality::options(),
@@ -310,6 +342,21 @@ class PartnerController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Partenaire :name supprimé.', ['name' => $name])]);
 
         return to_route('partners.index');
+    }
+
+    /**
+     * Partenaire rattaché à un devis ou à une facture, pour la carte du document.
+     *
+     * @return array{id: int, uuid: string, name: string, type_label: string}|null
+     */
+    public static function linkSummary(?Partner $partner): ?array
+    {
+        return $partner instanceof Partner ? [
+            'id' => $partner->id,
+            'uuid' => $partner->uuid,
+            'name' => $partner->name,
+            'type_label' => $partner->type->label(),
+        ] : null;
     }
 
     /**

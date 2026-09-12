@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\LeadStatus;
 use App\Models\Invoice;
 use App\Models\Lead;
+use App\Models\Partner;
 use App\Models\Quote;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia;
@@ -59,4 +60,24 @@ test('a member cannot link a quote to a lead', function (): void {
     $this->actingAs($member)
         ->patch(route('tools.quotes.link', $quote), ['lead_id' => $lead->id])
         ->assertForbidden();
+});
+
+test('a quote is linked to a partner too, which detaches the lead', function (): void {
+    $manager = User::factory()->manager()->create();
+    $lead = Lead::factory()->create();
+    $partner = Partner::factory()->create(['name' => 'Allianz Paris']);
+    $quote = Quote::factory()->create(['number' => 'DV-27043', 'lead_id' => $lead->id]);
+
+    $this->actingAs($manager)
+        ->from(route('tools.quotes.show', $quote))
+        ->patch(route('tools.quotes.link', $quote), ['partner_id' => $partner->id])
+        ->assertRedirect(route('tools.quotes.show', $quote))
+        ->assertSessionHasNoErrors();
+
+    expect($quote->refresh()->partner_id)->toBe($partner->id)
+        ->and($quote->lead_id)->toBeNull();
+
+    $this->actingAs($manager)->get(route('tools.quotes.show', $quote))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('quote.partner.name', 'Allianz Paris'));
 });

@@ -44,8 +44,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $notes
  * @property string|null $bank_name
  * @property string|null $bank_iban
+ * @property string|null $bank_reference
  * @property int|null $created_by
  * @property int|null $lead_id
+ * @property int|null $partner_id
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  */
@@ -53,7 +55,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'number', 'client_name', 'client_email', 'client_street', 'client_postal_code', 'client_city', 'client_country',
     'client_address', 'items', 'vat_rate', 'discount_percent', 'discount_cents',
     'subtotal_cents', 'vat_cents', 'amount_cents', 'deposit_cents', 'currency', 'status',
-    'issued_at', 'due_at', 'sent_at', 'paid_at', 'notes', 'created_by', 'lead_id', 'bank_name', 'bank_iban',
+    'issued_at', 'due_at', 'sent_at', 'paid_at', 'notes', 'created_by', 'lead_id', 'partner_id', 'bank_name', 'bank_iban', 'bank_reference',
 ])]
 class Invoice extends Model
 {
@@ -114,6 +116,16 @@ class Invoice extends Model
     }
 
     /**
+     * Partenaire à qui le document est adressé, s'il l'est.
+     *
+     * @return BelongsTo<Partner, $this>
+     */
+    public function partner(): BelongsTo
+    {
+        return $this->belongsTo(Partner::class);
+    }
+
+    /**
      * @return HasMany<InvoiceStatusChange, $this>
      */
     public function statusChanges(): HasMany
@@ -125,11 +137,11 @@ class Invoice extends Model
      * Coordonnées bancaires à imprimer : celles figées sur le document, sinon
      * le compte par défaut de sa devise.
      *
-     * @return array{bank: string, iban: string}
+     * @return array{bank: string, iban: string, reference: string}
      */
     public function bankAccount(): array
     {
-        return BankAccounts::resolve($this->bank_name, $this->bank_iban, $this->currency);
+        return BankAccounts::resolve($this->bank_name, $this->bank_iban, $this->bank_reference, $this->currency);
     }
 
     /** Reste à payer : total TTC moins l'acompte déjà versé. */

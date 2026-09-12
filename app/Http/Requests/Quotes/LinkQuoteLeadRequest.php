@@ -15,8 +15,10 @@ class LinkQuoteLeadRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // null détache le devis du lead.
+            // null détache le devis. Un seul des deux est envoyé : le
+            // document est adressé à un lead ou à un partenaire.
             'lead_id' => ['nullable', 'integer', 'exists:leads,id'],
+            'partner_id' => ['nullable', 'integer', 'exists:partners,id'],
         ];
     }
 
@@ -25,6 +27,6 @@ class LinkQuoteLeadRequest extends FormRequest
      */
     public function attributes(): array
     {
-        return ['lead_id' => 'lead'];
+        return ['lead_id' => 'lead', 'partner_id' => 'partenaire'];
     }
 }

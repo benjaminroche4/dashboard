@@ -26,20 +26,33 @@ import { InvoiceLeadLink } from '@/components/invoices/invoice-lead-link';
 describe('InvoiceLeadLink', () => {
     beforeEach(() => {
         patch.mockReset();
+        // Deux annuaires sont interrogés : les leads et les partenaires.
         vi.stubGlobal(
             'fetch',
-            vi.fn(() =>
+            vi.fn((url: string) =>
                 Promise.resolve({
                     ok: true,
                     json: () =>
-                        Promise.resolve([
-                            {
-                                id: 7,
-                                uuid: '0199a9a0-0000-7000-8000-000000000007',
-                                name: 'Léa Durand',
-                                email: 'lea@example.com',
-                            },
-                        ]),
+                        Promise.resolve(
+                            url.includes('/partners/search')
+                                ? [
+                                      {
+                                          id: 3,
+                                          uuid: '0199a9a0-0000-7000-8000-000000000003',
+                                          name: 'Allianz Paris',
+                                          type_label: 'Assurance',
+                                          contact: null,
+                                      },
+                                  ]
+                                : [
+                                      {
+                                          id: 7,
+                                          uuid: '0199a9a0-0000-7000-8000-000000000007',
+                                          name: 'Léa Durand',
+                                          email: 'lea@example.com',
+                                      },
+                                  ],
+                        ),
                 }),
             ),
         );
@@ -56,6 +69,7 @@ describe('InvoiceLeadLink', () => {
                     name: 'Léa Durand',
                     is_client: false,
                 }}
+                partner={null}
                 canEdit
             />,
         );
@@ -81,15 +95,20 @@ describe('InvoiceLeadLink', () => {
             <InvoiceLeadLink
                 invoiceUuid="0199a9a0-0000-7000-8000-000000000103"
                 lead={null}
+                partner={null}
                 canEdit
             />,
         );
 
         expect(
-            screen.getByText('Aucun lead ni dossier client rattaché.'),
+            screen.getByText(
+                'Aucun lead, dossier client ni partenaire rattaché.',
+            ),
         ).toBeInTheDocument();
         await user.click(
-            screen.getByRole('button', { name: 'Lier à un lead ou un client' }),
+            screen.getByRole('button', {
+                name: 'Lier à un lead, un client ou un partenaire',
+            }),
         );
         await user.type(
             await screen.findByPlaceholderText('Nom, e-mail ou téléphone…'),
@@ -110,18 +129,76 @@ describe('InvoiceLeadLink', () => {
         );
     });
 
+    it('links a partner found in the same search', async () => {
+        const user = userEvent.setup();
+        render(
+            <InvoiceLeadLink
+                invoiceUuid="0199a9a0-0000-7000-8000-000000000103"
+                lead={null}
+                partner={null}
+                canEdit
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', {
+                name: 'Lier à un lead, un client ou un partenaire',
+            }),
+        );
+        await user.type(
+            await screen.findByPlaceholderText('Nom, e-mail ou téléphone…'),
+            'all',
+        );
+
+        await user.click(await screen.findByText('Allianz Paris'));
+        await waitFor(() =>
+            expect(patch).toHaveBeenCalledWith(
+                '/invoices/0199a9a0-0000-7000-8000-000000000103/lead',
+                { partner_id: 3 },
+                expect.anything(),
+            ),
+        );
+    });
+
+    it('shows the linked partner and detaches it', async () => {
+        const user = userEvent.setup();
+        render(
+            <InvoiceLeadLink
+                invoiceUuid="0199a9a0-0000-7000-8000-000000000103"
+                lead={null}
+                partner={{
+                    id: 3,
+                    uuid: '0199a9a0-0000-7000-8000-000000000003',
+                    name: 'Allianz Paris',
+                    type_label: 'Assurance',
+                }}
+                canEdit
+            />,
+        );
+
+        expect(screen.getByText('Allianz Paris')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Détacher' }));
+
+        expect(patch).toHaveBeenCalledWith(
+            '/invoices/0199a9a0-0000-7000-8000-000000000103/lead',
+            { partner_id: null },
+            expect.objectContaining({ preserveScroll: true }),
+        );
+    });
+
     it('hides the actions for members', () => {
         render(
             <InvoiceLeadLink
                 invoiceUuid="0199a9a0-0000-7000-8000-000000000103"
                 lead={null}
+                partner={null}
                 canEdit={false}
             />,
         );
 
         expect(
             screen.queryByRole('button', {
-                name: 'Lier à un lead ou un client',
+                name: 'Lier à un lead, un client ou un partenaire',
             }),
         ).not.toBeInTheDocument();
     });

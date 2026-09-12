@@ -90,6 +90,20 @@ export type PartnerDetail = Partner & {
     roles: string[];
 };
 
+/** Partenaire rattaché à un devis ou à une facture. */
+export type LinkedPartner = {
+    id: number;
+    uuid: string;
+    name: string;
+    type_label: string;
+};
+
+/** Ce qu'on peut faire depuis la fiche, selon les droits du membre. */
+export type PartnerAbilities = {
+    quotes: boolean;
+    invoices: boolean;
+};
+
 /** Partenaire qui partage l'e-mail ou le téléphone : doublon probable. */
 export type PartnerDuplicate = {
     uuid: string;

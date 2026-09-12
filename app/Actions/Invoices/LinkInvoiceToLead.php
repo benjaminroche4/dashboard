@@ -19,6 +19,12 @@ final class LinkInvoiceToLead
     {
         $previous = $invoice->lead;
         $invoice->lead()->associate($lead);
+
+        // Un document est adressé à un lead ou à un partenaire, pas aux deux.
+        if ($lead instanceof Lead) {
+            $invoice->partner()->disassociate();
+        }
+
         $invoice->save();
 
         if ($lead instanceof Lead) {

@@ -3,6 +3,7 @@ import { CalendarCheck, Globe, Send, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { ActivityFeed } from '@/components/activity/activity-feed';
 import { AddressMapButton } from '@/components/address-map-dialog';
+import { PartnerBilling } from '@/components/partners/partner-billing';
 import { PartnerTypeBadge } from '@/components/partners/columns';
 import {
     PartnerContacts,
@@ -35,6 +36,9 @@ import {
 } from '@/routes/partners';
 import type {
     Activity,
+    LeadInvoice,
+    LeadQuote,
+    PartnerAbilities,
     PartnerDetail,
     PartnerDuplicate,
     PartnerTypeOption,
@@ -49,6 +53,11 @@ const contactDate = new Intl.DateTimeFormat('fr-FR', {
 type Props = {
     partner: PartnerDetail;
     types: PartnerTypeOption[];
+    /** Historique commercial : ce qu'on a devisé et facturé au partenaire. */
+    quotes?: LeadQuote[];
+    invoices?: LeadInvoice[];
+    /** Droits du membre sur les devis et les factures. */
+    can?: PartnerAbilities;
     /** Carte statique de l'adresse, null sans clé Maps Static dédiée. */
     mapUrl?: string | null;
     /** Partenaires qui partagent l'e-mail ou le téléphone. */
@@ -60,6 +69,9 @@ type Props = {
 export default function PartnerShow({
     partner,
     types,
+    quotes = [],
+    invoices = [],
+    can = { quotes: false, invoices: false },
     mapUrl = null,
     duplicates = [],
     activities = [],
@@ -330,6 +342,12 @@ export default function PartnerShow({
                             leads={partner.leads}
                             partner={partner}
                             roles={partner.roles}
+                        />
+                        <PartnerBilling
+                            partnerUuid={partner.uuid}
+                            quotes={quotes}
+                            invoices={invoices}
+                            can={can}
                         />
                         {activities.length > 0 && (
                             <ActivityFeed

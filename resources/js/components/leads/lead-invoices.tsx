@@ -157,7 +157,7 @@ export function LeadInvoices({
                                                 onSelect={() =>
                                                     linkInvoice(
                                                         hit.uuid,
-                                                        leadId,
+                                                        { lead_id: leadId },
                                                         () => {
                                                             setOpen(false);
                                                             setQuery('');

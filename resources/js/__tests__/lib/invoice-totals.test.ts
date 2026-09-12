@@ -125,6 +125,7 @@ describe('discount, deposit and local validation', () => {
         notes: '',
         bank_name: '',
         bank_iban: '',
+        bank_reference: '',
         items: [
             {
                 offer: 'accompagne' as const,

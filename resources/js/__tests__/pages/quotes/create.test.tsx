@@ -79,6 +79,7 @@ const props = {
             label: 'Banque',
             bank: 'Banque',
             iban: 'CH00',
+            reference: '',
             currency: null,
         },
     ],
@@ -156,11 +157,18 @@ describe('Quote creation page', () => {
             <QuotesCreate
                 {...props}
                 prefill={{
-                    lead_id: 4,
-                    lead_uuid: 'abc',
-                    lead_name: 'Léa Durand',
+                    subject: {
+                        kind: 'lead',
+                        id: 4,
+                        uuid: 'abc',
+                        name: 'Léa Durand',
+                        url: '/locataires/abc',
+                    },
                     client_name: 'Nestlé',
                     client_email: 'lea@example.com',
+                    client_street: '',
+                    client_postal_code: '',
+                    client_city: '',
                     currency: 'EUR',
                     offer: 'confie',
                 }}

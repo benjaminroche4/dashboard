@@ -19,6 +19,12 @@ final class LinkQuoteToLead
     {
         $previous = $quote->lead;
         $quote->lead()->associate($lead);
+
+        // Un document est adressé à un lead ou à un partenaire, pas aux deux.
+        if ($lead instanceof Lead) {
+            $quote->partner()->disassociate();
+        }
+
         $quote->save();
 
         if ($lead instanceof Lead) {

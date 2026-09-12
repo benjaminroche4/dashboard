@@ -174,6 +174,7 @@ export default function QuotesShow({ quote, history, company, offers }: Props) {
                         <QuoteLeadLink
                             quoteUuid={quote.uuid}
                             lead={quote.lead}
+                            partner={quote.partner}
                             canEdit={canManage}
                         />
                         {quote.invoice && (

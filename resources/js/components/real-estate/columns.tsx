@@ -254,7 +254,7 @@ export const agentColumnLabels: Record<string, string> = {
     agency: 'Agence',
     address: 'Adresse',
     contact: 'Contact',
-    leads: 'Leads',
+    leads: 'Leads et clients',
     visits_count: 'Visites',
     last_contacted_at: 'Dernier échange',
     creator: 'Ajouté par',
@@ -356,7 +356,7 @@ export function agentColumns(
             header: ({ column }) => (
                 <div className="text-right">
                     <SortableHeader
-                        label="Leads"
+                        label="Leads et clients"
                         onClick={() =>
                             column.toggleSorting(column.getIsSorted() === 'asc')
                         }

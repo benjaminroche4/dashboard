@@ -111,7 +111,7 @@
             <div class="notes">{{ $invoice->notes }}</div>
         @endif
         @php($account = $invoice->bankAccount())
-        Paiement par virement sur {{ $account['bank'] }}, IBAN {{ $account['iban'] }}, en {{ $invoice->currency->value }}.
+        Paiement par virement sur {{ $account['bank'] }}, IBAN {{ $account['iban'] }}, en {{ $invoice->currency->value }}.@if ($account['reference'] !== '') Référence à indiquer : {{ $account['reference'] }}.@endif
     </div>
 </body>
 </html>
