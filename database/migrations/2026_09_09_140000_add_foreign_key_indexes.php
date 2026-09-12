@@ -31,22 +31,52 @@ return new class extends Migration
     public function up(): void
     {
         foreach ($this->indexes as $table => $columns) {
-            Schema::table($table, function (Blueprint $blueprint) use ($columns): void {
-                foreach ($columns as $column) {
-                    $blueprint->index($column);
+            foreach ($columns as $column) {
+                $name = $table.'_'.implode('_', (array) $column).'_index';
+
+                // Un déploiement interrompu rejoue la migration : un index déjà
+                // posé ne doit pas la faire échouer.
+                if ($this->hasIndex($table, $name)) {
+                    continue;
                 }
-            });
+
+                Schema::table($table, fn (Blueprint $blueprint) => $blueprint->index($column));
+            }
         }
     }
 
     public function down(): void
     {
         foreach ($this->indexes as $table => $columns) {
-            Schema::table($table, function (Blueprint $blueprint) use ($columns): void {
-                foreach ($columns as $column) {
-                    $blueprint->dropIndex($column);
+            foreach ($columns as $column) {
+                // MySQL refuse de supprimer l'index qui tient une clé étrangère
+                // (erreur 1553) : sur ces colonnes-là, l'index doit rester.
+                if (is_string($column) && $this->backsForeignKey($table, $column)) {
+                    continue;
                 }
-            });
+
+                $name = $table.'_'.implode('_', (array) $column).'_index';
+
+                // Un retour en arrière rejoué ne doit pas échouer sur un index
+                // déjà tombé.
+                if (! $this->hasIndex($table, $name)) {
+                    continue;
+                }
+
+                Schema::table($table, fn (Blueprint $blueprint) => $blueprint->dropIndex($name));
+            }
         }
+    }
+
+    private function hasIndex(string $table, string $name): bool
+    {
+        return collect(Schema::getIndexes($table))->contains(fn (array $index): bool => $index['name'] === $name);
+    }
+
+    /** Vrai si une clé étrangère de la table porte sur cette seule colonne. */
+    private function backsForeignKey(string $table, string $column): bool
+    {
+        return collect(Schema::getForeignKeys($table))
+            ->contains(fn (array $key): bool => $key['columns'] === [$column]);
     }
 };

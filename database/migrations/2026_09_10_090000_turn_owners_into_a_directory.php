@@ -27,16 +27,18 @@ return new class extends Migration
             DB::table('owners')->whereNotNull('company')->where('company', '!=', '')->update(['kind' => OwnerKind::Company->value]);
         }
 
-        // SQLite refuse de supprimer une colonne encore indexée : l'index d'abord.
+        // La clé étrangère d'abord : MySQL s'appuie sur un index de `lead_id`
+        // pour la tenir et refuse qu'on le supprime tant qu'elle existe
+        // (erreur 1553). Ensuite seulement les index, SQLite refusant de son
+        // côté de supprimer une colonne encore indexée.
+        if (Schema::hasColumn('owners', 'lead_id') && $this->hasForeignKey('lead_id')) {
+            Schema::table('owners', fn (Blueprint $table) => $table->dropForeign(['lead_id']));
+        }
+
         foreach (['owners_lead_id_index' => 'lead_id', 'owners_status_index' => 'status'] as $index => $column) {
             if (Schema::hasColumn('owners', $column) && $this->hasIndex($index)) {
                 Schema::table('owners', fn (Blueprint $table) => $table->dropIndex($index));
             }
-        }
-
-        // SQLite refuse aussi de supprimer une colonne portant une clé étrangère.
-        if (Schema::hasColumn('owners', 'lead_id')) {
-            Schema::table('owners', fn (Blueprint $table) => $table->dropForeign(['lead_id']));
         }
 
         foreach (['lead_id', 'status', 'last_contacted_at', 'property_count'] as $column) {
@@ -49,6 +51,13 @@ return new class extends Migration
     private function hasIndex(string $name): bool
     {
         return collect(Schema::getIndexes('owners'))->contains(fn (array $index): bool => $index['name'] === $name);
+    }
+
+    /** Vrai si une clé étrangère porte sur cette colonne. */
+    private function hasForeignKey(string $column): bool
+    {
+        return collect(Schema::getForeignKeys('owners'))
+            ->contains(fn (array $key): bool => in_array($column, $key['columns'], true));
     }
 
     public function down(): void
