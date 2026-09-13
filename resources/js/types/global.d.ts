@@ -22,7 +22,12 @@ declare module '@inertiajs/core' {
                 googleLogin?: boolean;
             };
             /** Compteurs affichés dans le menu. */
-            counts: { leadsTodo: number; ownerLeadsTodo: number };
+            counts: {
+                leadsTodo: number;
+                ownerLeadsTodo: number;
+                /** Dossiers clients suivis (leads convertis). */
+                clients: number;
+            };
             sidebarOpen: boolean;
             /** Props à recharger sur un événement temps réel (vide = toute la page). */
             realtimeOnly?: string[];

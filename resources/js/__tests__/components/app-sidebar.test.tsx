@@ -24,7 +24,7 @@ vi.mock('@inertiajs/react', () => ({
         props: {
             name: 'Dashboard',
             auth: { user: { id: 1, name: 'Admin', role: 'admin' }, access },
-            counts: { leadsTodo: 7, ownerLeadsTodo: 2 },
+            counts: { leadsTodo: 7, ownerLeadsTodo: 2, clients: 5 },
         },
     }),
     router: { visit: vi.fn() },
@@ -204,5 +204,20 @@ describe('AppSidebar', () => {
                 .querySelector('[data-sidebar="group"]')
                 ?.querySelector('[data-sidebar="group-label"]'),
         ).toBeNull();
+    });
+
+    it('counts the dossiers next to « Dossiers clients », like the leads', () => {
+        render(
+            <TooltipProvider>
+                <SidebarProvider>
+                    <AppSidebar />
+                </SidebarProvider>
+            </TooltipProvider>,
+        );
+
+        const dossiers = screen
+            .getByRole('link', { name: 'Dossiers clients' })
+            .closest('li');
+        expect(dossiers).toHaveTextContent('5');
     });
 });

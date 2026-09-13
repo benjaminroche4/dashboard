@@ -46,6 +46,30 @@ export function accountsFor(
 }
 
 /**
+ * Compte servi par défaut pour une devise : le premier de sa devise, sinon le
+ * premier des comptes valables pour toutes. Miroir de
+ * `BankAccounts::default()` — le formulaire l'inscrit dès l'ouverture, pour
+ * que le sélecteur, l'aperçu et le document enregistré disent la même chose.
+ */
+export function defaultAccountFor(
+    accounts: BankAccountOption[],
+    currency: Currency,
+): BankAccountOption | null {
+    return accountsFor(accounts, currency)[0] ?? null;
+}
+
+/** Les coordonnées d'un compte, prêtes pour le formulaire. */
+export function accountValues(
+    account: BankAccountOption | null,
+): BankAccountValues {
+    return {
+        bank_name: account?.bank ?? '',
+        bank_iban: account?.iban ?? '',
+        bank_reference: account?.reference ?? '',
+    };
+}
+
+/**
  * Liste du sélecteur : les comptes connus, plus celui saisi à la main sur ce
  * document quand il n'en fait pas partie.
  */

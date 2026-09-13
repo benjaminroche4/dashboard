@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Leads;
 
+use App\Enums\LeadNoteKind;
 use App\Events\DashboardUpdated;
 use App\Models\Lead;
 use App\Models\LeadNote;
@@ -16,7 +17,7 @@ final class AddLeadNote
 {
     public function handle(Lead $lead, string $body, ?User $by = null): LeadNote
     {
-        $note = $lead->notes()->create(['body' => $body, 'user_id' => $by?->id]);
+        $note = $lead->notes()->create(['body' => $body, 'user_id' => $by?->id, 'kind' => LeadNoteKind::Team]);
         $mentions = self::mentionedUserIds($body, $by);
 
         event(new DashboardUpdated(

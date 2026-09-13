@@ -105,7 +105,7 @@ export default function OwnersIndex({
                     filterPlaceholder="Rechercher un propriétaire (nom, société, ville)…"
                     columnLabels={ownerColumnLabels}
                     frame="panel"
-                    actions={
+                    filters={
                         <FilterMenu
                             groups={[
                                 {

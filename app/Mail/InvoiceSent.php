@@ -20,10 +20,19 @@ final class InvoiceSent extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
+    /** PDF encodé en base64, pour traverser la file sans casser son payload. */
+    private readonly ?string $pdf;
+
     public function __construct(
         public readonly Invoice $invoice,
-        private readonly ?string $pdf = null,
-    ) {}
+        ?string $pdf = null,
+    ) {
+        // Le mailable part en file (`ShouldQueue`) et son payload est encodé
+        // en JSON, qui refuse les octets bruts d'un PDF (« Malformed UTF-8
+        // characters » à la mise en file, donc une 500 à l'envoi). On garde
+        // donc le fichier en base64 et on le décode au moment de le joindre.
+        $this->pdf = $pdf === null ? null : base64_encode($pdf);
+    }
 
     public function envelope(): Envelope
     {
@@ -48,7 +57,7 @@ final class InvoiceSent extends Mailable implements ShouldQueue
         }
 
         return [
-            Attachment::fromData(fn (): string => $this->pdf, "facture-{$this->invoice->number}.pdf")
+            Attachment::fromData(fn (): string => base64_decode($this->pdf, true) ?: '', "facture-{$this->invoice->number}.pdf")
                 ->withMime('application/pdf'),
         ];
     }

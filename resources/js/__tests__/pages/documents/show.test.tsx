@@ -174,8 +174,12 @@ describe('Documents show page', () => {
         render(<DocumentsShow request={detail} pdfAvailable />);
 
         expect(screen.getByText('1 fichier reçu.')).toBeInTheDocument();
+        // Le nom ouvre l'aperçu dans la page ; le téléchargement a son bouton.
         expect(
-            screen.getByRole('link', { name: 'passeport.pdf' }),
+            screen.getByRole('button', { name: 'passeport.pdf' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'Télécharger passeport.pdf' }),
         ).toHaveAttribute(
             'href',
             '/tools/documents/0199b0c0-0000-7000-8000-000000000001/uploads/0199b0c0-0000-7000-8000-0000000000aa',

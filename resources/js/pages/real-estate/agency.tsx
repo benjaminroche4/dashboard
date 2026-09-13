@@ -1,7 +1,12 @@
 import { Head, Link } from '@inertiajs/react';
-import { Globe, Mail, Phone, Plus } from 'lucide-react';
+import { Globe, Mail, Phone, Plus, Search } from 'lucide-react';
 import { useState } from 'react';
+
+/** Au-delà de ce nombre d'agents, la carte propose une recherche. */
+const AGENT_SEARCH_FROM = 6;
 import { AddressMapButton } from '@/components/address-map-dialog';
+import { FavoriteMenu } from '@/components/favorite-menu';
+import { FavoriteStar } from '@/components/favorite-star';
 import { AgencyDialog } from '@/components/real-estate/agency-dialog';
 import { AgentDialog } from '@/components/real-estate/agent-dialog';
 import { ActivityFeed } from '@/components/activity/activity-feed';
@@ -14,6 +19,7 @@ import {
 } from '@/components/real-estate/detail-header';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useInitials } from '@/hooks/use-initials';
 import {
@@ -22,7 +28,11 @@ import {
     index as agenciesIndex,
     touch as agencyTouch,
 } from '@/routes/agencies';
-import { index as agentsIndex, show as agentShow } from '@/routes/agents';
+import {
+    favorite as agentFavorite,
+    index as agentsIndex,
+    show as agentShow,
+} from '@/routes/agents';
 import { show as propertyShow } from '@/routes/properties';
 import type { Activity, AgencyDetail } from '@/types';
 import { parisFormat } from '@/lib/datetime';
@@ -48,6 +58,18 @@ export default function AgencyShow({
 }: Props) {
     const [editing, setEditing] = useState(false);
     const [addingAgent, setAddingAgent] = useState(false);
+    const [agentQuery, setAgentQuery] = useState('');
+    const needle = agentQuery.trim().toLowerCase();
+    const shownAgents =
+        needle === ''
+            ? agency.agents
+            : agency.agents.filter((agent) =>
+                  [agent.name, agent.position]
+                      .filter(Boolean)
+                      .some((field) =>
+                          String(field).toLowerCase().includes(needle),
+                      ),
+              );
     const initials = useInitials();
     const address = formatAddress(agency);
 
@@ -184,16 +206,41 @@ export default function AgencyShow({
                                 </Button>
                             }
                         >
+                            {/* Une agence peut aligner cent agents : au-delà
+                                d'une poignée, on cherche plutôt qu'on déroule. */}
+                            {agency.agents.length > AGENT_SEARCH_FROM && (
+                                <div className="relative">
+                                    <Search
+                                        aria-hidden
+                                        className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+                                    />
+                                    <Input
+                                        type="search"
+                                        value={agentQuery}
+                                        onChange={(event) =>
+                                            setAgentQuery(event.target.value)
+                                        }
+                                        placeholder="Rechercher un agent (nom, fonction)…"
+                                        aria-label="Rechercher un agent"
+                                        className="pl-9"
+                                    />
+                                </div>
+                            )}
                             {agency.agents.length === 0 ? (
                                 <p className="text-muted-foreground text-sm">
                                     Aucun agent rattaché pour le moment.
+                                </p>
+                            ) : shownAgents.length === 0 ? (
+                                <p className="text-muted-foreground text-sm">
+                                    Aucun agent ne correspond à « {agentQuery}
+                                    ».
                                 </p>
                             ) : (
                                 <ul
                                     role="list"
                                     className="divide-border grid divide-y"
                                 >
-                                    {agency.agents.map((agent) => (
+                                    {shownAgents.map((agent) => (
                                         <li
                                             key={agent.id}
                                             className="grid gap-2 py-3 text-sm first:pt-0 last:pb-0"
@@ -216,6 +263,11 @@ export default function AgencyShow({
                                                         >
                                                             {agent.name}
                                                         </Link>
+                                                        <FavoriteStar
+                                                            favorite={
+                                                                agent.is_favorite
+                                                            }
+                                                        />
                                                         {/* L'agent principal, celui qu'on appelle en premier. */}
                                                         {agent.is_primary && (
                                                             <Badge
@@ -232,13 +284,18 @@ export default function AgencyShow({
                                                         </span>
                                                     )}
                                                 </div>
-                                                <Badge
-                                                    variant="secondary"
-                                                    className="shrink-0 font-medium tabular-nums"
-                                                    aria-label={`${agent.leads_count} lead(s)`}
-                                                >
-                                                    {agent.leads_count} lead(s)
-                                                </Badge>
+                                                {/* Un favori par agent : la
+                                                    bascule vit dans le menu,
+                                                    l'étoile signale l'état. */}
+                                                <FavoriteMenu
+                                                    name={agent.name}
+                                                    favorite={{
+                                                        active: agent.is_favorite,
+                                                        url: agentFavorite({
+                                                            agent: agent.uuid,
+                                                        }).url,
+                                                    }}
+                                                />
                                             </div>
                                             {(agent.phone || agent.email) && (
                                                 <div className="grid gap-1.5 border-t pt-2 sm:grid-cols-2">

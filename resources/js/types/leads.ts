@@ -179,10 +179,18 @@ export type LeadAgent = {
     email: string | null;
 };
 
+/**
+ * Deux natures de notes : le **suivi** que l'application écrit au fil des
+ * actions, et les **notes de l'équipe**, écrites par un membre pour ses
+ * collègues. Miroir de `App\Enums\LeadNoteKind`.
+ */
+export type LeadNoteKind = 'tracking' | 'team';
+
 export type LeadNote = {
     id: number;
     uuid: string;
     body: string;
+    kind: LeadNoteKind;
     by: string | null;
     /** URL de l'avatar de l'auteur, si renseigné. */
     avatar: string | null;
@@ -205,6 +213,8 @@ export type LeadInboundMessage = {
     /** Contexte court : formulaire et référence, ou durée et issue de l'appel. */
     meta: string;
     at: string | null;
+    /** Note d'où vient un résumé d'appel ou de SMS, pour ne pas l'afficher deux fois. */
+    note_id?: number | null;
 };
 
 /** Autre lead partageant l'e-mail ou le téléphone. */

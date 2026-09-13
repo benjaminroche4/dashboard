@@ -67,7 +67,15 @@ export default function Agents({
                             {pagination.total} agent(s) immobilier(s)
                         </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <Button onClick={add}>
+                        <Plus />
+                        Nouvel agent
+                    </Button>
+                </div>
+                <DataTable
+                    columns={columns}
+                    data={agents}
+                    filters={
                         <FavoritesFilter
                             active={favoritesOnly}
                             onChange={(active) =>
@@ -78,15 +86,7 @@ export default function Agents({
                             }
                             count={favoritesCount}
                         />
-                        <Button onClick={add}>
-                            <Plus />
-                            Nouvel agent
-                        </Button>
-                    </div>
-                </div>
-                <DataTable
-                    columns={columns}
-                    data={agents}
+                    }
                     server={server}
                     filterColumn="name"
                     filterPlaceholder="Rechercher un agent (nom, agence, ville)…"

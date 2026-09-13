@@ -1,15 +1,11 @@
-import { DocumentUploadList } from '@/components/documents/document-upload-list';
-import { Badge } from '@/components/ui/badge';
+import { DataTable } from '@/components/data-table';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+    personDocumentColumnLabels,
+    personDocumentColumns,
+    personDocumentRows,
+} from '@/components/documents/person-document-columns';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { categoryIcon } from '@/lib/document-category-icons';
 import type { HouseholdPersonDetail } from '@/types';
 
 /** « Personne 2 » tant que le nom n'est pas saisi. */
@@ -24,7 +20,7 @@ function pieces(person: HouseholdPersonDetail) {
     );
 }
 
-/** Les pièces demandées à une personne : un tableau, groupé par catégorie. */
+/** Les pièces demandées à une personne : la Data Table du backoffice. */
 function PersonDocuments({
     person,
     requestUuid,
@@ -36,83 +32,14 @@ function PersonDocuments({
     canReview?: boolean;
 }) {
     return (
-        // Même cadre que les autres tableaux du backoffice : panneau gris,
-        // tableau blanc à l'intérieur — les cartes blanches sur fond blanc ne
-        // se voyaient pas.
-        <div className="bg-sidebar grid gap-3 rounded-xl border p-3">
-            <div className="bg-background overflow-hidden rounded-lg border">
-                <Table className="table-fixed">
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-[22%]">Catégorie</TableHead>
-                            <TableHead className="w-[34%]">Pièce</TableHead>
-                            <TableHead>Fichiers reçus</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {person.categories.map((category) => {
-                            const Icon = categoryIcon(category.value);
-
-                            return category.documents.map((document, index) => (
-                                <TableRow
-                                    key={`${category.value}-${document.label}`}
-                                    className="align-top"
-                                >
-                                    {/* La catégorie ne se répète pas : elle
-                                            coiffe ses pièces. */}
-                                    <TableCell>
-                                        {index === 0 && (
-                                            <span className="flex items-center gap-2 text-sm font-medium">
-                                                <Icon
-                                                    aria-hidden="true"
-                                                    className="text-muted-foreground size-4 shrink-0"
-                                                />
-                                                <span className="truncate">
-                                                    {category.label}
-                                                </span>
-                                                <Badge
-                                                    variant="secondary"
-                                                    className="tabular-nums"
-                                                >
-                                                    {category.documents.length}
-                                                </Badge>
-                                            </span>
-                                        )}
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="grid gap-0.5">
-                                            <span className="text-sm">
-                                                {document.label}
-                                            </span>
-                                            {document.hint && (
-                                                <span className="text-muted-foreground text-xs">
-                                                    {document.hint}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        {requestUuid &&
-                                        document.uploads &&
-                                        document.uploads.length > 0 ? (
-                                            <DocumentUploadList
-                                                requestUuid={requestUuid}
-                                                uploads={document.uploads}
-                                                canReview={canReview}
-                                            />
-                                        ) : (
-                                            <span className="text-muted-foreground text-sm">
-                                                Rien de déposé
-                                            </span>
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            ));
-                        })}
-                    </TableBody>
-                </Table>
-            </div>
-        </div>
+        <DataTable
+            columns={personDocumentColumns(requestUuid, canReview)}
+            data={personDocumentRows(person)}
+            filterColumn="label"
+            filterPlaceholder="Filtrer par pièce…"
+            columnLabels={personDocumentColumnLabels}
+            frame="panel"
+        />
     );
 }
 

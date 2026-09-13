@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\EmploymentStatus;
 use App\Enums\ResidencyStatus;
+use App\Enums\TenantSlot;
 use App\Events\DashboardUpdated;
 use App\Models\Lead;
 use App\Models\User;
@@ -120,4 +121,29 @@ test('the second tenant has his own details', function (): void {
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->where('tenantProfiles.co.role', 'Second locataire')
             ->where('tenantProfiles.co.employment_label', 'Étudiant'));
+});
+
+test('the income of a tenant lives on their file, next to what they do for a living', function (): void {
+    $member = User::factory()->create();
+    $lead = Lead::factory()->converted()->create();
+
+    $this->actingAs($member)
+        ->patch(route('clients.tenant-profile', [$lead, TenantSlot::Primary->value]), [
+            'employment_status' => EmploymentStatus::Permanent->value,
+            'employer' => 'Nestlé',
+            'income' => 4500,
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($lead->fresh()->tenantIncomeCents(TenantSlot::Primary))->toBe(450_000);
+
+    // Le dossier sert le revenu du foyer et celui de chaque locataire depuis les fiches.
+    $this->actingAs($member)
+        ->get(route('clients.show', $lead))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('client.income_cents', 450_000)
+            ->where('client.household_income_cents', 450_000)
+            ->where('tenantProfiles.primary.employment_label', 'CDI')
+            // Plus de second champ de revenu sur le dossier : il ferait doublon.
+            ->missing('client.co_income_cents'));
 });

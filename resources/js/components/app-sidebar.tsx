@@ -42,7 +42,11 @@ import { filterNavGroups } from '@/lib/nav-access';
 import type { NavGroup } from '@/types';
 
 /** Groupes du menu ; `leadsTodo` et `ownerLeadsTodo` = leads « À traiter », affichés sur « Leads locataires » et « Leads propriétaires ». */
-function buildNavGroups(leadsTodo: number, ownerLeadsTodo: number): NavGroup[] {
+function buildNavGroups(
+    leadsTodo: number,
+    ownerLeadsTodo: number,
+    clients: number,
+): NavGroup[] {
     return [
         // Tableau de bord seul en tête, sans libellé de groupe.
         {
@@ -106,6 +110,7 @@ function buildNavGroups(leadsTodo: number, ownerLeadsTodo: number): NavGroup[] {
                     title: 'Dossiers clients',
                     href: clientsIndex(),
                     icon: Users,
+                    badge: clients,
                     section: 'clients',
                 },
                 {
@@ -209,7 +214,11 @@ function buildNavGroups(leadsTodo: number, ownerLeadsTodo: number): NavGroup[] {
 export function AppSidebar() {
     const { counts, auth } = usePage().props;
     const navGroups = filterNavGroups(
-        buildNavGroups(counts?.leadsTodo ?? 0, counts?.ownerLeadsTodo ?? 0),
+        buildNavGroups(
+            counts?.leadsTodo ?? 0,
+            counts?.ownerLeadsTodo ?? 0,
+            counts?.clients ?? 0,
+        ),
         auth?.access ?? null,
     );
 

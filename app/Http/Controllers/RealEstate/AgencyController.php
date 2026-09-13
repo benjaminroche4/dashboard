@@ -69,8 +69,8 @@ class AgencyController extends Controller
             ],
             'filters' => $request->filters(),
             // Sélecteur d'agence du dialogue « Nouvel agent » : toutes les agences, pas seulement la page.
-            'agencyOptions' => Agency::query()->orderBy('name')->get(['id', 'uuid', 'name'])
-                ->map(fn (Agency $agency): array => ['id' => $agency->id, 'uuid' => $agency->uuid, 'name' => $agency->name])
+            'agencyOptions' => Agency::query()->orderBy('name')->get()
+                ->map(fn (Agency $agency): array => self::option($agency))
                 ->all(),
             'favoritesCount' => $user === null ? 0 : Agency::query()->whereHas('favorites', fn (Builder $favorites): Builder => $favorites->where('user_id', $user->id))->count(),
         ]);
@@ -98,6 +98,8 @@ class AgencyController extends Controller
         $this->authorize('view', $agency);
 
         $agency->load(['creator', 'agents.leads', 'visits.property', 'visits.agent'])->loadFavoriteOf($request->user());
+        // Les agents de la carte portent l'étoile du membre, comme dans la liste.
+        $agency->agents->each(fn (Agent $agent): Agent => $agent->loadFavoriteOf($request->user()));
         $agency->loadCount('agents');
 
         return Inertia::render('real-estate/agency', [
@@ -110,6 +112,7 @@ class AgencyController extends Controller
                     'uuid' => $agent->uuid,
                     'name' => $agent->fullName(),
                     'is_primary' => $agent->is_primary,
+                    'is_favorite' => (bool) $agent->is_favorite,
                     'position' => $agent->position?->label(),
                     'phone' => $agent->phone,
                     'email' => $agent->email,
@@ -281,6 +284,27 @@ class AgencyController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Agence :name supprimée.', ['name' => $name])]);
 
         return back();
+    }
+
+    /**
+     * Agence dans un sélecteur (dialogue « Nouvel agent », formulaire d'un
+     * bien) : son nom et son adresse — c'est celle d'un agent rattaché.
+     *
+     * @return array{id: int, uuid: string, name: string, address: string|null}
+     */
+    public static function option(Agency $agency): array
+    {
+        $address = trim(implode(', ', array_filter([
+            $agency->street,
+            trim(($agency->postal_code ?? '').' '.($agency->city ?? '')),
+        ])));
+
+        return [
+            'id' => $agency->id,
+            'uuid' => $agency->uuid,
+            'name' => $agency->name,
+            'address' => $address === '' ? null : $address,
+        ];
     }
 
     /**

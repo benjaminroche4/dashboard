@@ -1,5 +1,13 @@
 import { useForm, usePage } from '@inertiajs/react';
-import { CalendarClock, House, Mail, MessageSquareText } from 'lucide-react';
+import { useState } from 'react';
+import { useCreatedOption } from '@/hooks/use-created-option';
+import {
+    CalendarClock,
+    House,
+    Mail,
+    MessageSquareText,
+    Plus,
+} from 'lucide-react';
 import InputError from '@/components/input-error';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SearchSelect } from '@/components/search-select';
@@ -12,6 +20,9 @@ import {
 } from '@/components/leads/lead-visio-dialog';
 import { FormSection } from '@/components/form-section';
 import { PropertyFields } from '@/components/properties/property-fields';
+import { PropertyPhotos } from '@/components/properties/property-photos';
+import { AgencyDialog } from '@/components/real-estate/agency-dialog';
+import { AgentDialog } from '@/components/real-estate/agent-dialog';
 import { PropertyPicker } from '@/components/visits/property-picker';
 import { VisitModeBadge } from '@/components/visits/visit-mode-badge';
 import { Link } from '@inertiajs/react';
@@ -134,6 +145,13 @@ export function VisitForm({
               ),
     );
     const errors = form.errors as Record<string, string | undefined>;
+    const [agentOpen, setAgentOpen] = useState(false);
+    const [agencyOpen, setAgencyOpen] = useState(false);
+    // Le dialogue recharge les props sans dire ce qu'il a créé :
+    // le nouvel agent est celui qui manquait à la liste d'avant.
+    const snapshotAgents = useCreatedOption(options.agents, (id) =>
+        form.setData('agent_id', String(id)),
+    );
     // Borne basse du créneau : aujourd'hui, ou le jour d'une visite déjà passée.
     const today = parisDayKey(new Date());
     const visitDay =
@@ -215,6 +233,8 @@ export function VisitForm({
                             : Number(values.assigned_to),
                     scheduled_at: values.scheduled_at,
                     notes: values.notes,
+                    // Une fois modifiée, on revient sur la visite, pas sur la liste.
+                    return_to: 'show',
                 };
             });
             form.patch(update({ visit: visit.uuid }).url, {
@@ -225,6 +245,8 @@ export function VisitForm({
         }
 
         form.post(store().url, {
+            // Des photos peuvent accompagner un bien saisi ici.
+            forceFormData: true,
             preserveScroll: true,
         });
     };
@@ -448,6 +470,32 @@ export function VisitForm({
                                 form.setData('property', property)
                             }
                         />
+
+                        {/* Les photos prises en visitant rejoignent la fiche du
+                            bien : c'est le moment où on les a sous la main. */}
+                        <div className="grid gap-2">
+                            <Label>
+                                Photos du bien{' '}
+                                <span className="text-muted-foreground font-normal">
+                                    (facultatif)
+                                </span>
+                            </Label>
+                            <PropertyPhotos
+                                saved={[]}
+                                files={form.data.photos}
+                                onSavedChange={() => undefined}
+                                onFilesChange={(photos) =>
+                                    form.setData('photos', photos)
+                                }
+                                disabled={form.processing}
+                            />
+                            <InputError
+                                message={
+                                    errors['property.photos'] ??
+                                    errors['property.photos.0']
+                                }
+                            />
+                        </div>
                     </div>
                 )}
             </FormSection>
@@ -473,8 +521,44 @@ export function VisitForm({
                             hint: agent.agency,
                         }))}
                     />
+                    {/* L'agent rencontré n'est pas toujours dans l'annuaire :
+                        il s'ajoute ici, sans perdre la visite en cours de saisie. */}
+                    <div className="flex flex-wrap items-center gap-1">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs [&_svg]:size-3.5"
+                            onClick={() => {
+                                snapshotAgents();
+                                setAgentOpen(true);
+                            }}
+                        >
+                            <Plus aria-hidden />
+                            Nouvel agent
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs [&_svg]:size-3.5"
+                            onClick={() => setAgencyOpen(true)}
+                        >
+                            <Plus aria-hidden />
+                            Nouvelle agence
+                        </Button>
+                    </div>
                     <InputError message={errors.agent_id} />
                 </div>
+
+                {/* Créés sans quitter le formulaire : l'agent qui vient
+                    d'apparaître dans la liste est aussitôt sélectionné. */}
+                <AgentDialog
+                    open={agentOpen}
+                    onOpenChange={setAgentOpen}
+                    agencies={options.agencies}
+                />
+                <AgencyDialog open={agencyOpen} onOpenChange={setAgencyOpen} />
 
                 <div className="grid gap-2">
                     <Label htmlFor="visit-notes">Commentaires internes</Label>

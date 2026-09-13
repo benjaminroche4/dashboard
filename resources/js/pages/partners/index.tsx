@@ -75,19 +75,6 @@ export default function PartnersIndex({
                         Nouveau partenaire
                     </Button>
                 </div>
-                <div className="mb-4 flex items-center gap-2">
-                    <PartnerTypeFilter
-                        types={types}
-                        counts={counts}
-                        value={typeFilter}
-                        onChange={setTypeFilter}
-                    />
-                    <FavoritesFilter
-                        active={favoritesOnly}
-                        onChange={setFavoritesOnly}
-                        count={favoritesCount}
-                    />
-                </div>
                 <DataTable
                     columns={columns}
                     data={visible}
@@ -95,6 +82,21 @@ export default function PartnersIndex({
                     filterPlaceholder="Filtrer par nom…"
                     columnLabels={partnerColumnLabels}
                     frame="panel"
+                    filters={
+                        <>
+                            <PartnerTypeFilter
+                                types={types}
+                                counts={counts}
+                                value={typeFilter}
+                                onChange={setTypeFilter}
+                            />
+                            <FavoritesFilter
+                                active={favoritesOnly}
+                                onChange={setFavoritesOnly}
+                                count={favoritesCount}
+                            />
+                        </>
+                    }
                     bulkActions={(rows, clear) => (
                         <DirectoryBulkActions
                             ids={rows.map((row) => row.id)}

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\LeadNoteKind;
 use Carbon\CarbonInterface;
 use Database\Factories\LeadNoteFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -18,10 +19,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $lead_id
  * @property int|null $user_id
  * @property string $body
+ * @property LeadNoteKind $kind
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  */
-#[Fillable(['lead_id', 'user_id', 'body'])]
+#[Fillable(['lead_id', 'user_id', 'body', 'kind'])]
 class LeadNote extends Model
 {
     /** @use HasFactory<LeadNoteFactory> */
@@ -42,6 +44,14 @@ class LeadNote extends Model
     public function getRouteKeyName(): string
     {
         return 'uuid';
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return ['kind' => LeadNoteKind::class];
     }
 
     /**

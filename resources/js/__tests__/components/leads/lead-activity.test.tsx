@@ -19,6 +19,7 @@ const note = (overrides: Partial<LeadNote>): LeadNote => ({
     id: 1,
     uuid: '0199a9a0-0000-7000-8000-0000000000c1',
     body: 'Rappeler mardi.',
+    kind: 'team',
     by: 'Admin 2',
     avatar: null,
     mine: false,
@@ -49,8 +50,10 @@ const mine = note({
 describe('buildActivity', () => {
     it('merges notes, sends and statuses in chronological order and filters them', () => {
         const notes = [
+            // Un envoi est posé par l'application : c'est du suivi.
             note({
                 id: 2,
+                kind: 'tracking',
                 body: 'Envoi au lead (x@y.z) : récapitulatif.',
                 at: '2026-09-05T10:00:00+00:00',
             }),
@@ -60,9 +63,18 @@ describe('buildActivity', () => {
         expect(buildActivity(notes, [change]).map((item) => item.kind)).toEqual(
             ['note', 'status', 'note'],
         );
-        expect(buildActivity(notes, [change], 'notes')).toHaveLength(1);
+        expect(buildActivity(notes, [change], 'team')).toHaveLength(1);
         expect(buildActivity(notes, [change], 'sends')).toHaveLength(1);
         expect(buildActivity(notes, [change], 'statuses')).toHaveLength(1);
+        // Le suivi ne garde que les notes de l'application, envois exclus.
+        expect(buildActivity(notes, [change], 'tracking')).toHaveLength(0);
+        expect(
+            buildActivity(
+                [note({ id: 9, kind: 'tracking', body: 'Visite planifiée.' })],
+                [],
+                'tracking',
+            ),
+        ).toHaveLength(1);
     });
 });
 

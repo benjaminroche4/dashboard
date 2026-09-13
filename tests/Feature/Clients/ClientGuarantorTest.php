@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\EmploymentStatus;
+use App\Enums\TenantSlot;
 use App\Models\Lead;
 use App\Models\LeadGuarantor;
 use App\Models\User;
@@ -61,11 +62,16 @@ test('a guarantor of another dossier is out of reach', function (): void {
         ->assertNotFound();
 });
 
-test('the household income adds up both tenants', function (): void {
-    $lead = Lead::factory()->converted()->create(['income_cents' => 300_000, 'co_income_cents' => 250_000]);
+test('the household income adds up what both tenant files declare', function (): void {
+    // Le revenu d'un locataire vit sur sa fiche, avec son statut professionnel.
+    $lead = Lead::factory()->converted()->create(['tenant_profiles' => [
+        'primary' => ['income_cents' => 300_000],
+        'co' => ['income_cents' => 250_000],
+    ]]);
 
-    expect($lead->householdIncomeCents())->toBe(550_000);
-    expect(Lead::factory()->converted()->create()->householdIncomeCents())->toBeNull();
+    expect($lead->householdIncomeCents())->toBe(550_000)
+        ->and($lead->tenantIncomeCents(TenantSlot::Primary))->toBe(300_000)
+        ->and(Lead::factory()->converted()->create()->householdIncomeCents())->toBeNull();
 });
 
 test('a guarantor says what they do for a living, not only what they earn', function (): void {

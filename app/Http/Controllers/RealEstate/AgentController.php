@@ -94,12 +94,18 @@ class AgentController extends Controller
         $query->orderBy('id');
     }
 
-    /** Adresse de l'agent sur une ligne, pour la carte statique. */
+    /**
+     * Adresse de l'agent sur une ligne, pour la carte statique : la sienne
+     * s'il est indépendant, celle de son agence sinon — un agent rattaché
+     * travaille à l'adresse de son agence et n'en porte pas d'autre.
+     */
     private function addressLine(Agent $agent): ?string
     {
+        $place = $agent->agency ?? $agent;
+
         $line = trim(implode(', ', array_filter([
-            $agent->street,
-            trim(($agent->postal_code ?? '').' '.($agent->city ?? '')),
+            $place->street,
+            trim(($place->postal_code ?? '').' '.($place->city ?? '')),
         ])));
 
         return $line === '' ? null : $line;
@@ -114,10 +120,18 @@ class AgentController extends Controller
             ->loadMax('visits', 'scheduled_at')
             ->loadFavoriteOf($request->user());
 
+        // L'adresse d'un agent rattaché est celle de son agence ; seul un
+        // indépendant a la sienne.
+        $place = $agent->agency ?? $agent;
+
         return Inertia::render('real-estate/agent', [
             // Carte statique de l'adresse, comme sur les fiches partenaire,
             // agence et propriétaire (clé Maps Static dédiée).
-            'mapUrl' => resolve(DistrictStaticMap::class)->place($agent->latitude, $agent->longitude, $this->addressLine($agent)),
+            'mapUrl' => resolve(DistrictStaticMap::class)->place(
+                $place->latitude,
+                $place->longitude,
+                $this->addressLine($agent),
+            ),
             'agent' => self::summary($agent),
             // Fiche de son agence, pour la carte « Agence » de la page.
             'agency' => $agent->agency === null ? null : [
@@ -127,6 +141,10 @@ class AgentController extends Controller
                 'street' => $agent->agency->street,
                 'postal_code' => $agent->agency->postal_code,
                 'city' => $agent->agency->city,
+                // Position de l'agence : c'est l'adresse de ses agents rattachés,
+                // donc celle que montre la carte de leur fiche.
+                'latitude' => $agent->agency->latitude,
+                'longitude' => $agent->agency->longitude,
                 'phone' => $agent->agency->phone,
                 'email' => $agent->agency->email,
                 'website' => $agent->agency->website,
@@ -147,14 +165,14 @@ class AgentController extends Controller
     }
 
     /**
-     * @return array<int, array{id: int, uuid: string, name: string}>
+     * @return array<int, array{id: int, uuid: string, name: string, address: string|null}>
      */
     private function agencyOptions(): array
     {
         return Agency::query()
             ->orderBy('name')
             ->get()
-            ->map(fn (Agency $agency): array => ['id' => $agency->id, 'uuid' => $agency->uuid, 'name' => $agency->name])
+            ->map(fn (Agency $agency): array => AgencyController::option($agency))
             ->all();
     }
 
@@ -189,7 +207,9 @@ class AgentController extends Controller
             'phone' => $agent->phone,
             'notes' => $agent->notes,
             'is_favorite' => (bool) $agent->is_favorite,
-            'agency' => $agent->agency === null ? null : ['id' => $agent->agency->id, 'uuid' => $agent->agency->uuid, 'name' => $agent->agency->name],
+            // L'agence porte son adresse : c'est celle d'un agent rattaché,
+            // que la liste et la fiche affichent à la place de la sienne.
+            'agency' => $agent->agency === null ? null : AgencyController::option($agent->agency),
             // Leads dont il est le contact, du plus récent au plus ancien. Un lead
             // converti est un dossier client : il se lit sous le nom du foyer et son
             // lien mène au dossier, pas à la fiche lead.

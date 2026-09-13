@@ -10,6 +10,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Spinner } from '@/components/ui/spinner';
+import { parisFormat } from '@/lib/datetime';
 import { cn } from '@/lib/utils';
 import { status as propertyStatus } from '@/routes/clients/properties';
 import type { PropertyApplicationStatus, PropertyStatusOption } from '@/types';
@@ -162,5 +163,126 @@ export function PropertyOutcomeMenu({
                 ))}
             </DropdownMenuContent>
         </DropdownMenu>
+    );
+}
+
+/** Date courte et lisible, heure de Paris : « 14 sept. à 09:00 ». */
+function moment(iso: string): string {
+    const date = new Date(iso);
+
+    return `${day(iso)} à ${parisFormat({ hour: '2-digit', minute: '2-digit' }).format(date)}`;
+}
+
+/** Date seule, heure de Paris : « 14 sept. ». */
+function day(iso: string): string {
+    return parisFormat({ day: 'numeric', month: 'short' }).format(
+        new Date(iso),
+    );
+}
+
+/**
+ * Ce que le suivi raconte à cette étape, en une ou deux phrases : depuis quand
+ * le bien en est là, et ce que l'équipe fait ensuite. Calcul pur, testé.
+ *
+ * La relance est un e-mail **aux personnes de suivi du dossier**, pas au
+ * client : c'est l'équipe qui rappelle le client, jamais le robot.
+ */
+export function followUpLines(outcome: {
+    status: PropertyApplicationStatus;
+    status_at?: string | null;
+    visited_at?: string | null;
+    reminded_at?: string | null;
+    reminder_at?: string | null;
+}): string[] {
+    const lines: string[] = [];
+
+    if (outcome.status === 'pending') {
+        if (outcome.visited_at) {
+            lines.push(`Visité le ${day(outcome.visited_at)}`);
+        }
+
+        if (outcome.reminded_at) {
+            lines.push(`Équipe relancée le ${moment(outcome.reminded_at)}`);
+        }
+
+        if (outcome.reminder_at) {
+            const future = new Date(outcome.reminder_at).getTime() > Date.now();
+
+            lines.push(
+                future
+                    ? `Prochaine relance le ${moment(outcome.reminder_at)}`
+                    : 'Relance en partance',
+            );
+        }
+
+        return lines;
+    }
+
+    if (outcome.status_at) {
+        const since = day(outcome.status_at);
+
+        lines.push(
+            outcome.status === 'applied'
+                ? `Dossier déposé le ${since}, en attente de réponse`
+                : `Tranché le ${since}`,
+        );
+    }
+
+    return lines;
+}
+
+/**
+ * Suivi d'un bien visité : l'étape, sa phrase d'explication, puis les dates
+ * qui disent où l'on en est et quand l'équipe est relancée.
+ */
+export function PropertyFollowUp({
+    outcome,
+    className,
+}: {
+    outcome: {
+        status: PropertyApplicationStatus;
+        status_label: string;
+        options: PropertyStatusOption[];
+        status_at?: string | null;
+        visited_at?: string | null;
+        reminded_at?: string | null;
+        reminder_at?: string | null;
+        decision_due?: boolean;
+    };
+    className?: string;
+}) {
+    const hint = outcome.options.find(
+        (option) => option.value === outcome.status,
+    )?.hint;
+    const lines = followUpLines(outcome);
+
+    return (
+        <div className={cn('grid gap-2', className)}>
+            <div className="flex flex-wrap items-center gap-2">
+                <PropertyOutcomeBadge
+                    status={outcome.status}
+                    label={outcome.status_label}
+                    visitedAt={outcome.visited_at ?? null}
+                    due={outcome.decision_due ?? false}
+                />
+                {hint && (
+                    <p className="text-muted-foreground text-sm">{hint}</p>
+                )}
+            </div>
+            {lines.length > 0 && (
+                <ul
+                    role="list"
+                    aria-label="Suivi de la décision"
+                    className="text-muted-foreground grid gap-1 text-xs"
+                >
+                    {lines.map((line) => (
+                        <li key={line} className="flex items-center gap-1.5">
+                            <Clock className="size-3 shrink-0" aria-hidden />
+                            {line}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
     );
 }

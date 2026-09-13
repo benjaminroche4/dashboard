@@ -339,9 +339,13 @@ export function agentColumns(
         {
             id: 'address',
             header: 'Adresse',
+            // Un agent rattaché n'a pas d'adresse propre : c'est celle de son
+            // agence qu'on lit ici.
             cell: ({ row }) => (
                 <span className="text-muted-foreground">
-                    {formatAddress(row.original) ?? '—'}
+                    {row.original.agency?.address ??
+                        formatAddress(row.original) ??
+                        '—'}
                 </span>
             ),
         },

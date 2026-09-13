@@ -82,6 +82,16 @@ test('a client file shows the converted lead with its invoices, quotes, document
             ->has('partners', 0)
             ->has('notes', 1)
             ->where('notes.0.by', 'Camille')
+            // Notes à la forme de la fiche lead : le dossier partage ses
+            // bulles, son compositeur et ses droits d'édition.
+            ->has('notes.0.uuid')
+            ->where('notes.0.mine', true)
+            ->where('notes.0.can_edit', true)
+            // Le dossier se gère sans repasser par la fiche lead : annuaires
+            // des agents et des partenaires, et rôles possibles.
+            ->has('agents')
+            ->has('partnerOptions')
+            ->has('partnerRoles')
             ->has('visits', 1)
             ->where('visits.0.property.label', 'T2 lumineux · 11e')
             ->where('visits.0.client.name', 'Léa Durand'));

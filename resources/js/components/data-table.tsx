@@ -79,6 +79,8 @@ type DataTableProps<TData, TValue> = {
     title?: ReactNode;
     /** Actions affichées à droite de la barre d'outils (ex. bouton Nouvelle facture). */
     actions?: ReactNode;
+    /** Boutons de filtre, posés à droite de la barre, avant « Colonnes ». */
+    filters?: ReactNode;
     frame?: DataTableFrame;
     className?: string;
     /**
@@ -103,6 +105,7 @@ export function DataTable<TData, TValue>({
     pageSize = 50,
     title,
     actions,
+    filters,
     frame = 'bordered',
     className,
     bulkActions,
@@ -211,34 +214,36 @@ export function DataTable<TData, TValue>({
                         />
                     )
                 )}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            variant="outline"
-                            className={cn(!title && 'ml-auto')}
-                        >
-                            Colonnes <ChevronDown />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        {table
-                            .getAllColumns()
-                            .filter((column) => column.getCanHide())
-                            .map((column) => (
-                                <DropdownMenuCheckboxItem
-                                    key={column.id}
-                                    className="capitalize"
-                                    checked={column.getIsVisible()}
-                                    onCheckedChange={(value) =>
-                                        column.toggleVisibility(!!value)
-                                    }
-                                >
-                                    {columnLabels[column.id] ?? column.id}
-                                </DropdownMenuCheckboxItem>
-                            ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-                {actions}
+                {/* Filtres, colonnes et actions vivent ensemble à droite :
+                    la recherche tient la gauche. */}
+                <div className="ml-auto flex flex-wrap items-center gap-2">
+                    {filters}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline">
+                                Colonnes <ChevronDown />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            {table
+                                .getAllColumns()
+                                .filter((column) => column.getCanHide())
+                                .map((column) => (
+                                    <DropdownMenuCheckboxItem
+                                        key={column.id}
+                                        className="capitalize"
+                                        checked={column.getIsVisible()}
+                                        onCheckedChange={(value) =>
+                                            column.toggleVisibility(!!value)
+                                        }
+                                    >
+                                        {columnLabels[column.id] ?? column.id}
+                                    </DropdownMenuCheckboxItem>
+                                ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    {actions}
+                </div>
             </div>
             <div className={styles.table}>
                 <Table>

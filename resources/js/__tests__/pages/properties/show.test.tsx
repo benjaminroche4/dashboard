@@ -155,7 +155,11 @@ describe('Property detail page', () => {
         const user = userEvent.setup();
         render(
             <PropertyShow
-                property={makeProperty({ notes: 'Digicode 1234.' })}
+                property={makeProperty({
+                    notes: 'Digicode 1234.',
+                    // Attribué : c'est son locataire définitif.
+                    assigned_lead: { uuid: 'lead-1', name: 'Léa Durand' },
+                })}
                 owner={makeOwner({ name: 'Ali Bensaïd', uuid: 'owner-1' })}
                 clients={clients}
                 visits={visits}
@@ -198,14 +202,14 @@ describe('Property detail page', () => {
         ).toHaveAttribute('href', '/clients/lead-1');
         expect(visitsRegion.getByText('Planifiée')).toBeInTheDocument();
 
-        // Le bien attribué à un dossier le dit, avec la date du rattachement.
-        const clientsRegion = within(
-            screen.getByRole('region', { name: 'Dossiers clients' }),
+        // Un bien n'a qu'un locataire à la fin : celui à qui il est attribué.
+        const tenant = within(
+            screen.getByRole('region', { name: 'Locataire définitif' }),
         );
         expect(
-            clientsRegion.getByRole('link', { name: 'Léa Durand' }),
+            tenant.getByRole('link', { name: 'Léa Durand' }),
         ).toHaveAttribute('href', '/clients/lead-1');
-        expect(clientsRegion.getByText('LD-0042')).toBeInTheDocument();
+        expect(tenant.getByText('LD-0042')).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Modifier' }));
         expect(visit).toHaveBeenCalledWith(
@@ -229,11 +233,50 @@ describe('Property detail page', () => {
         ).toBeInTheDocument();
         expect(screen.getByText('Aucun agent rattaché.')).toBeInTheDocument();
         expect(
-            screen.getByText(/n'est attribué à aucun dossier client/),
+            screen.getByText(/Aucun locataire pour ce bien/),
         ).toBeInTheDocument();
         expect(
             screen.getByText('Aucune visite pour ce bien.'),
         ).toBeInTheDocument();
         expect(screen.getByText('Aucune photo.')).toBeInTheDocument();
+    });
+
+    it('offers the map only once the address has been located', async () => {
+        const user = userEvent.setup();
+        const { unmount } = render(
+            <PropertyShow
+                property={makeProperty({ latitude: null, longitude: null })}
+                owner={null}
+                clients={[]}
+                visits={[]}
+                {...propertyFormOptions}
+            />,
+        );
+
+        // Sans position, le bouton promettrait une carte qu'on ne sait pas
+        // dessiner : il ne s'affiche pas.
+        expect(
+            screen.queryByRole('button', { name: 'Voir sur la carte' }),
+        ).toBeNull();
+        unmount();
+
+        render(
+            <PropertyShow
+                property={makeProperty({
+                    latitude: 48.8566,
+                    longitude: 2.3522,
+                })}
+                owner={null}
+                clients={[]}
+                visits={[]}
+                {...propertyFormOptions}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Voir sur la carte' }),
+        );
+
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
 });

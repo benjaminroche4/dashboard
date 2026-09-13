@@ -29,6 +29,8 @@ final readonly class LeadInboundMessageData
         public string $body,
         public string $meta,
         public ?CarbonInterface $at,
+        /** Note d'où vient un résumé d'appel ou de SMS : deux cartes ne montrent jamais la même. */
+        public ?int $noteId = null,
     ) {}
 
     public static function fromLead(Lead $lead): ?self
@@ -41,7 +43,7 @@ final readonly class LeadInboundMessageData
     }
 
     /**
-     * @param  array{kind: 'website'|'call'|'sms', body: string, meta: string, at: ?string}  $data
+     * @param  array{kind: 'website'|'call'|'sms', body: string, meta: string, at: ?string, note_id?: int|null}  $data
      */
     public static function from(array $data): self
     {
@@ -50,11 +52,12 @@ final readonly class LeadInboundMessageData
             body: $data['body'],
             meta: $data['meta'],
             at: $data['at'] === null ? null : Date::parse($data['at']),
+            noteId: $data['note_id'] ?? null,
         );
     }
 
     /**
-     * @return array{kind: string, body: string, meta: string, at: ?string}
+     * @return array{kind: string, body: string, meta: string, at: ?string, note_id: int|null}
      */
     public function toArray(): array
     {
@@ -63,7 +66,25 @@ final readonly class LeadInboundMessageData
             'body' => $this->body,
             'meta' => $this->meta,
             'at' => $this->at?->toIso8601String(),
+            'note_id' => $this->noteId,
         ];
+    }
+
+    /**
+     * Dernier échange téléphonique noté sur le lead, **quelle que soit sa
+     * source** : un lead venu du site ou saisi à la main reçoit aussi des
+     * appels, et leur résumé ne doit pas rester enfoui dans les notes.
+     */
+    public static function lastPhone(Lead $lead): ?self
+    {
+        $lead->loadMissing('notes');
+
+        /** @var LeadNote|null $note */
+        $note = $lead->notes
+            ->sortByDesc(fn (LeadNote $note): int => $note->id)
+            ->first(fn (LeadNote $note): bool => self::phoneKind($note->body) !== null);
+
+        return $note === null ? null : self::fromNote($note);
     }
 
     private static function fromWebsite(Lead $lead): ?self
@@ -88,9 +109,15 @@ final readonly class LeadInboundMessageData
             ->sortBy(fn (LeadNote $note): int => $note->id)
             ->first(fn (LeadNote $note): bool => self::phoneKind($note->body) !== null);
 
-        $kind = $note === null ? null : self::phoneKind($note->body);
+        return $note === null ? null : self::fromNote($note);
+    }
 
-        if ($note === null || $kind === null) {
+    /** Une note « Appel entrant (…) : résumé » ou « SMS reçu : texte » découpée pour l'affichage. */
+    private static function fromNote(LeadNote $note): ?self
+    {
+        $kind = self::phoneKind($note->body);
+
+        if ($kind === null) {
             return null;
         }
 
@@ -101,7 +128,7 @@ final readonly class LeadInboundMessageData
             return null;
         }
 
-        return new self($kind, $body, trim($meta), $note->created_at);
+        return new self($kind, $body, trim($meta), $note->created_at, $note->id);
     }
 
     /**

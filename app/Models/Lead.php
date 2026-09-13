@@ -16,6 +16,7 @@ use App\Enums\LeadStatus;
 use App\Enums\Offer;
 use App\Enums\PropertyType;
 use App\Enums\RecontactChannel;
+use App\Enums\TenantSlot;
 use App\Enums\WebsiteHelpType;
 use Carbon\CarbonInterface;
 use Database\Factories\LeadFactory;
@@ -83,8 +84,6 @@ use Illuminate\Support\Collection;
  * @property string|null $co_last_name
  * @property string|null $co_email
  * @property string|null $co_phone
- * @property int|null $income_cents
- * @property int|null $co_income_cents
  * @property int|null $assigned_to
  * @property int|null $co_assigned_to
  * @property-read User|null $assignee
@@ -98,7 +97,7 @@ use Illuminate\Support\Collection;
  */
 #[Fillable([
     'reference', 'external_reference',
-    'first_name', 'last_name', 'email', 'phone', 'co_first_name', 'co_last_name', 'co_email', 'co_phone', 'tenant_profiles', 'company', 'language', 'offer', 'arrival_at', 'budget_cents', 'income_cents', 'co_income_cents', 'currency',
+    'first_name', 'last_name', 'email', 'phone', 'co_first_name', 'co_last_name', 'co_email', 'co_phone', 'tenant_profiles', 'company', 'language', 'offer', 'arrival_at', 'budget_cents', 'currency',
     'origin_city', 'districts', 'property_types', 'duration', 'guarantors', 'furnished', 'source', 'source_note', 'help_type', 'message', 'ai_qualification', 'ai_qualified_at',
     'score', 'priority', 'recontact_channel', 'recontact_at', 'visio_at', 'visio_event_id', 'visio_meet_link', 'visio_report', 'visio_report_submitted_at', 'visio_report_submitted_by', 'visio_report_reminded_at', 'qualification_note', 'status', 'loss_reason', 'loss_note', 'position', 'last_contacted_at', 'first_contact_alerted_at', 'created_by', 'assigned_to', 'co_assigned_to',
     'agent_id',
@@ -308,7 +307,7 @@ class Lead extends Model
     public function properties(): BelongsToMany
     {
         // `LeadPropertyLink` porte le cast de `refused_at` : le pivot brut rendrait une chaîne.
-        return $this->belongsToMany(Property::class)->using(LeadPropertyLink::class)->withPivot(['created_by', 'status', 'status_at'])->withTimestamps();
+        return $this->belongsToMany(Property::class)->using(LeadPropertyLink::class)->withPivot(['created_by', 'status', 'status_at', 'decision_reminded_at'])->withTimestamps();
     }
 
     /**
@@ -353,16 +352,25 @@ class Lead extends Model
     }
 
     /**
-     * Revenu mensuel net du foyer (les deux locataires), null si aucun n'est
-     * renseigné.
+     * Revenu mensuel net du foyer : la somme de ce que déclarent les fiches des
+     * deux locataires (`tenant_profiles`), null si aucune ne le dit.
      */
     public function householdIncomeCents(): ?int
     {
-        if ($this->income_cents === null && $this->co_income_cents === null) {
-            return null;
-        }
+        $incomes = array_filter(array_map(
+            $this->tenantIncomeCents(...),
+            TenantSlot::cases(),
+        ), fn (?int $income): bool => $income !== null);
 
-        return ($this->income_cents ?? 0) + ($this->co_income_cents ?? 0);
+        return $incomes === [] ? null : array_sum($incomes);
+    }
+
+    /** Revenu mensuel net déclaré sur la fiche d'un locataire. */
+    public function tenantIncomeCents(TenantSlot $slot): ?int
+    {
+        $income = $this->tenant_profiles[$slot->value]['income_cents'] ?? null;
+
+        return $income === null ? null : (int) $income;
     }
 
     /**

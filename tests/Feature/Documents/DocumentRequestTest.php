@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Actions\Documents\RenderDocumentRequestPdf;
 use App\Enums\GuarantorType;
 use App\Enums\LeadStatus;
 use App\Events\DashboardUpdated;
@@ -289,4 +290,25 @@ test('document request routes use the UUID and refuse the numeric id', function 
         ->get(route('tools.documents.index'))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->where('requests.0.uuid', $request->uuid));
+});
+
+test('the PDF prints one place to deposit, never two', function (): void {
+    $platform = DocumentRequest::factory()->create(['upload_url' => null]);
+    $drive = DocumentRequest::factory()->create([
+        'upload_url' => 'https://drive.google.com/drive/folders/abc',
+    ]);
+
+    $render = resolve(RenderDocumentRequestPdf::class);
+    $onPlatform = $render->html($platform);
+
+    expect($onPlatform)->toContain($platform->publicUrl())
+        ->and($onPlatform)->toContain($platform->access_code);
+
+    // Le dossier partagé remplace le lien : le client n'a pas à choisir, et
+    // l'équipe ne cherche pas ses pièces à deux endroits.
+    $onDrive = $render->html($drive);
+
+    expect($onDrive)->toContain('drive.google.com/drive/folders/abc')
+        ->and($onDrive)->not->toContain($drive->publicUrl())
+        ->and($onDrive)->not->toContain($drive->access_code);
 });

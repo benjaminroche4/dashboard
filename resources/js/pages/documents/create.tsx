@@ -140,6 +140,10 @@ export default function DocumentsCreate({
     );
     /** Personne affichée : une seule à la fois, les autres sont repliées. */
     const [active, setActive] = useState(0);
+    // Où le client dépose : la plateforme, ou un dossier Drive déjà renseigné.
+    const [deposit, setDeposit] = useState<'platform' | 'drive'>(
+        form.data.upload_url.trim() === '' ? 'platform' : 'drive',
+    );
     const errors: Record<string, string | undefined> = {
         ...localErrors,
         ...(form.errors as Record<string, string>),
@@ -212,10 +216,32 @@ export default function DocumentsCreate({
             message: data.message.trim() === '' ? null : data.message.trim(),
         }));
 
+        // Un refus du serveur ne doit pas passer pour un bouton mort : on le
+        // dit, et on ouvre la personne en cause si l'erreur la désigne.
+        const options = {
+            onError: (serverErrors: Record<string, string>) => {
+                const keys = Object.keys(serverErrors);
+                const personIndex =
+                    keys
+                        .map(personIndexFromErrorKey)
+                        .find((index) => index !== null) ?? null;
+
+                if (personIndex !== null) {
+                    setActive(personIndex);
+                }
+
+                notify.error(
+                    'Enregistrement refusé',
+                    serverErrors[keys[0] ?? ''] ??
+                        'Corrigez les champs signalés, puis réessayez.',
+                );
+            },
+        };
+
         if (request) {
-            form.put(update({ documentRequest: request.uuid }).url);
+            form.put(update({ documentRequest: request.uuid }).url, options);
         } else {
-            form.post(store().url);
+            form.post(store().url, options);
         }
     };
 
@@ -419,35 +445,97 @@ export default function DocumentsCreate({
                                     />
                                     <InputError message={errors.message} />
                                 </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="upload_url">
-                                        Dossier Google Drive{' '}
-                                        <span className="text-muted-foreground font-normal">
-                                            (facultatif)
-                                        </span>
-                                    </Label>
-                                    <p className="text-muted-foreground text-xs">
-                                        Le lien de dépôt sécurisé est créé
-                                        automatiquement et imprimé dans le PDF.
-                                        Ajoutez ici un dossier Google Drive si
-                                        vous en utilisez un en plus.
-                                    </p>
-                                    <Input
-                                        id="upload_url"
-                                        type="url"
-                                        inputMode="url"
-                                        value={form.data.upload_url}
-                                        onChange={(event) =>
-                                            form.setData(
-                                                'upload_url',
-                                                event.target.value,
-                                            )
-                                        }
-                                        placeholder="https://drive.google.com/..."
-                                        className="bg-background"
-                                    />
-                                    <InputError message={errors.upload_url} />
-                                </div>
+                                <fieldset className="grid gap-2">
+                                    <legend className="mb-2 text-sm font-medium">
+                                        Où le client dépose ses pièces
+                                    </legend>
+                                    {/* Un seul endroit de dépôt est imprimé
+                                        dans le PDF : deux adresses laisseraient
+                                        le client choisir, et l'équipe chercher. */}
+                                    <RadioGroup
+                                        aria-label="Où le client dépose ses pièces"
+                                        value={deposit}
+                                        onValueChange={(value) => {
+                                            setDeposit(
+                                                value as 'platform' | 'drive',
+                                            );
+
+                                            // Revenir à la plateforme efface le
+                                            // dossier : un seul dépôt à la fois.
+                                            if (value === 'platform') {
+                                                form.setData('upload_url', '');
+                                            }
+                                        }}
+                                        className="grid gap-2 sm:grid-cols-2"
+                                    >
+                                        <Label
+                                            htmlFor="deposit-platform"
+                                            className="bg-background has-data-[state=checked]:border-primary has-data-[state=checked]:ring-primary/20 hover:bg-accent/40 flex cursor-pointer items-start gap-2 rounded-lg border p-3 font-normal transition-colors has-data-[state=checked]:ring-2"
+                                        >
+                                            <RadioGroupItem
+                                                id="deposit-platform"
+                                                value="platform"
+                                                className="mt-0.5"
+                                            />
+                                            <span className="grid gap-0.5">
+                                                <span className="text-sm font-medium">
+                                                    Sur notre plateforme
+                                                </span>
+                                                <span className="text-muted-foreground text-xs">
+                                                    Lien sécurisé et code
+                                                    d’appairage, créés
+                                                    automatiquement. Vous suivez
+                                                    et validez chaque pièce.
+                                                </span>
+                                            </span>
+                                        </Label>
+                                        <Label
+                                            htmlFor="deposit-drive"
+                                            className="bg-background has-data-[state=checked]:border-primary has-data-[state=checked]:ring-primary/20 hover:bg-accent/40 flex cursor-pointer items-start gap-2 rounded-lg border p-3 font-normal transition-colors has-data-[state=checked]:ring-2"
+                                        >
+                                            <RadioGroupItem
+                                                id="deposit-drive"
+                                                value="drive"
+                                                className="mt-0.5"
+                                            />
+                                            <span className="grid gap-0.5">
+                                                <span className="text-sm font-medium">
+                                                    Sur un dossier Google Drive
+                                                </span>
+                                                <span className="text-muted-foreground text-xs">
+                                                    Le client dépose dans votre
+                                                    dossier. Rien n’est suivi
+                                                    dans le backoffice.
+                                                </span>
+                                            </span>
+                                        </Label>
+                                    </RadioGroup>
+                                    {deposit === 'drive' && (
+                                        <div className="grid gap-2 pt-2">
+                                            <Label htmlFor="upload_url">
+                                                Lien du dossier
+                                            </Label>
+                                            <Input
+                                                id="upload_url"
+                                                type="url"
+                                                inputMode="url"
+                                                value={form.data.upload_url}
+                                                onChange={(event) =>
+                                                    form.setData(
+                                                        'upload_url',
+                                                        event.target.value,
+                                                    )
+                                                }
+                                                placeholder="https://drive.google.com/..."
+                                                className="bg-background"
+                                                autoFocus
+                                            />
+                                            <InputError
+                                                message={errors.upload_url}
+                                            />
+                                        </div>
+                                    )}
+                                </fieldset>
                             </div>
                         </FormSection>
                     </div>

@@ -42,7 +42,6 @@ class PublicDocumentUploadController extends Controller
                     'intro' => __('Saisissez le code d’appairage à 6 chiffres qui vous a été communiqué pour ouvrir votre espace de dépôt.'),
                     'code' => __('Code d’appairage'),
                     'submit' => __('Ouvrir mon espace'),
-                    ...$this->trustLabels(),
                 ],
             ]));
         }

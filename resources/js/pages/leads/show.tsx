@@ -18,7 +18,7 @@ import { LeadQualificationCard } from '@/components/leads/lead-qualification-car
 import { LeadInboundMessage as InboundMessage } from '@/components/leads/lead-inbound-message';
 import {
     LeadActivity,
-    activityFilters,
+    ActivityFilterBar,
     buildActivity,
     type ActivityFilter,
 } from '@/components/leads/lead-activity';
@@ -38,7 +38,6 @@ import { LeadStatusMenu } from '@/components/leads/lead-status-menu';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { formatDate, formatMoney } from '@/lib/format';
 import { daysUntil, firstContactTimer, leadUrgency } from '@/lib/lead-urgency';
 import { useNow } from '@/hooks/use-now';
@@ -92,6 +91,8 @@ type Props = {
     duplicates: LeadDuplicate[];
     /** Message d'arrivée du lead (site, appel, SMS), null s'il a été saisi par l'équipe. */
     inbound: LeadInboundMessage | null;
+    /** Dernier appel ou SMS noté par la téléphonie, quelle que soit la source du lead. */
+    lastCall?: LeadInboundMessage | null;
     /** Qualification proposée par l'assistant IA, en attente de relecture. */
     qualification?: LeadQualification | null;
     /** Annuaire des agents immobiliers pour la carte « Agent en contact ». */
@@ -132,6 +133,7 @@ export default function LeadsShow({
     recontactChannels,
     duplicates,
     inbound,
+    lastCall = null,
     qualification: aiQualification = null,
     agents,
     partners,
@@ -381,27 +383,7 @@ export default function LeadsShow({
         />
     );
     const filtersNode = (
-        <ToggleGroup
-            type="single"
-            size="sm"
-            value={filter}
-            onValueChange={(value) =>
-                value && setFilter(value as ActivityFilter)
-            }
-            aria-label="Filtrer l’activité"
-            className="gap-0.5"
-        >
-            {activityFilters.map((option) => (
-                <ToggleGroupItem
-                    key={option.value}
-                    value={option.value}
-                    aria-label={option.label}
-                    className="data-[state=on]:bg-background h-7 rounded-md px-2 text-xs first:rounded-md last:rounded-md data-[state=on]:shadow-xs"
-                >
-                    {option.label}
-                </ToggleGroupItem>
-            ))}
-        </ToggleGroup>
+        <ActivityFilterBar value={filter} onChange={setFilter} />
     );
     const composerNode = (
         <LeadNoteComposer
@@ -589,6 +571,23 @@ export default function LeadsShow({
                     <InboundMessage
                         lead={lead}
                         inbound={inbound}
+                        className="mb-8"
+                    />
+                )}
+
+                {/* Appel ou SMS reçu après l'arrivée : son résumé se lit ici,
+                    pas au fond des notes. La même note n'est jamais montrée
+                    deux fois (le lead créé par cet appel l'a déjà en tête). */}
+                {lastCall && lastCall.note_id !== inbound?.note_id && (
+                    <InboundMessage
+                        lead={lead}
+                        inbound={lastCall}
+                        title={
+                            lastCall.kind === 'sms'
+                                ? 'Dernier SMS reçu'
+                                : 'Résumé du dernier appel'
+                        }
+                        defaultOpen
                         className="mb-8"
                     />
                 )}

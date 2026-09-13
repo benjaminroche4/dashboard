@@ -18,6 +18,8 @@ test('the menu receives the number of leads still to handle', function (): void 
         ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
-            ->where('counts.leadsTodo', 3)
+            // Chaque badge compte son segment : les deux leads locataires à
+            // traiter d'un côté, le lead propriétaire de l'autre.
+            ->where('counts.leadsTodo', 2)
             ->where('counts.ownerLeadsTodo', 1));
 });

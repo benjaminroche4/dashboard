@@ -26,7 +26,9 @@ import { toUrl } from '@/lib/utils';
 import type { NavGroup, NavItem } from '@/types';
 
 function NavBadge({ value }: { value: NavItem['badge'] }) {
-    if (value === undefined || value === null) {
+    // Un zéro n'apprend rien : le compteur n'apparaît qu'à partir de 1, comme
+    // sur les sous-entrées.
+    if (value === undefined || value === null || value <= 0) {
         return null;
     }
 

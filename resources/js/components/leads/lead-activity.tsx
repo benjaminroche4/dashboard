@@ -28,6 +28,7 @@ import {
     MessageScrollerViewport,
 } from '@/components/ui/message-scroller';
 import { Textarea } from '@/components/ui/textarea';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
 import {
     destroy as destroyNote,
@@ -53,14 +54,53 @@ function initials(name: string): string {
 /** Préfixe posé par `SendLeadDossier` sur les notes d'envoi. */
 const SEND_PREFIX = 'Envoi au lead';
 
-export type ActivityFilter = 'all' | 'notes' | 'sends' | 'statuses';
+export type ActivityFilter = 'all' | 'team' | 'tracking' | 'sends' | 'statuses';
 
 export const activityFilters: { value: ActivityFilter; label: string }[] = [
     { value: 'all', label: 'Tout' },
-    { value: 'notes', label: 'Notes' },
+    // Ce que l'équipe s'écrit, séparé de ce que l'application note toute
+    // seule : les deux ne se lisent pas de la même façon.
+    { value: 'team', label: 'Équipe' },
+    { value: 'tracking', label: 'Suivi' },
     { value: 'sends', label: 'Envois' },
     { value: 'statuses', label: 'Statuts' },
 ];
+
+/**
+ * Barre de filtres du fil d'activité, partagée par la fiche lead et le dossier
+ * client : les deux lisent le même fil, ils le filtrent de la même façon.
+ */
+export function ActivityFilterBar({
+    value,
+    onChange,
+    className,
+}: {
+    value: ActivityFilter;
+    onChange: (filter: ActivityFilter) => void;
+    className?: string;
+}) {
+    return (
+        <ToggleGroup
+            type="single"
+            size="sm"
+            value={value}
+            onValueChange={(next) => next && onChange(next as ActivityFilter)}
+            aria-label="Filtrer l’activité"
+            className={cn('gap-0.5', className)}
+        >
+            {activityFilters.map((option) => (
+                <ToggleGroupItem
+                    key={option.value}
+                    value={option.value}
+                    aria-label={option.label}
+                    className="data-[state=on]:bg-background h-7 rounded-md px-2 text-xs first:rounded-md last:rounded-md data-[state=on]:shadow-xs"
+                >
+                    {option.label}
+                </ToggleGroupItem>
+            ))}
+        </ToggleGroup>
+    );
+}
 
 export type ActivityItem =
     | { kind: 'note'; at: string; note: LeadNote; isSend: boolean }
@@ -89,8 +129,15 @@ export function buildActivity(
     return items
         .filter((item) => {
             switch (filter) {
-                case 'notes':
-                    return item.kind === 'note' && !item.isSend;
+                case 'team':
+                    return item.kind === 'note' && item.note.kind === 'team';
+                case 'tracking':
+                    // Les envois ont leur propre onglet : le suivi garde le reste.
+                    return (
+                        item.kind === 'note' &&
+                        item.note.kind === 'tracking' &&
+                        !item.isSend
+                    );
                 case 'sends':
                     return item.kind === 'note' && item.isSend;
                 case 'statuses':

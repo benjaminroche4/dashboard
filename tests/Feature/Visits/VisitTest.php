@@ -417,3 +417,58 @@ test('the type of an existing visit does not change when the form sends one', fu
 
     expect($visit->refresh()->mode)->toBe(VisitMode::ForClient);
 });
+
+test('editing a visit lands back on the visit, while a list action stays on the list', function (): void {
+    $visit = Visit::factory()->create();
+    $member = User::factory()->create();
+
+    // Le formulaire de modification demande la fiche.
+    $this->actingAs($member)
+        ->from(route('clients.visits.edit', $visit))
+        ->patch(route('clients.visits.update', $visit), [
+            'scheduled_at' => '2026-10-02 11:00',
+            'notes' => 'Créneau décalé.',
+            'return_to' => 'show',
+        ])
+        ->assertRedirect(route('clients.visits.show', $visit));
+
+    // Une action de la liste (« effectuée », « annulée ») n'en bouge pas.
+    $this->actingAs($member)
+        ->from(route('clients.visits'))
+        ->patch(route('clients.visits.update', $visit), ['status' => 'done'])
+        ->assertRedirect(route('clients.visits'));
+
+    // Et une destination inventée est refusée.
+    $this->actingAs($member)
+        ->patch(route('clients.visits.update', $visit), ['return_to' => 'ailleurs'])
+        ->assertSessionHasErrors('return_to');
+});
+
+test('photos taken while visiting a new property reach its file', function (): void {
+    Storage::fake('public');
+
+    $member = User::factory()->create();
+    $client = Lead::factory()->converted()->create();
+
+    $this->actingAs($member)
+        ->post(route('clients.visits.store'), [
+            'lead_id' => $client->id,
+            'scheduled_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'assigned_to' => $member->id,
+            'property' => [
+                'street' => '12 rue de Turenne',
+                'postal_code' => '75003',
+                'city' => 'Paris',
+                'photos' => [UploadedFile::fake()->image('facade.jpg'), UploadedFile::fake()->image('salon.jpg')],
+            ],
+        ])
+        ->assertSessionHasNoErrors();
+
+    // Le bien saisi rejoint l'annuaire avec ses photos, sur le disque.
+    $property = Property::query()->where('street', '12 rue de Turenne')->firstOrFail();
+    expect($property->photos)->toHaveCount(2);
+
+    foreach ($property->photos as $path) {
+        Storage::disk('public')->assertExists($path);
+    }
+});

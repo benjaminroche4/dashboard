@@ -27,6 +27,7 @@ use App\Enums\PropertyStatus;
 use App\Enums\PropertyType;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Owners\OwnerController;
+use App\Http\Controllers\RealEstate\AgencyController;
 use App\Http\Requests\Properties\AssignPropertyRequest;
 use App\Http\Requests\Properties\BulkPropertiesRequest;
 use App\Http\Requests\Properties\ExtractListingRequest;
@@ -415,7 +416,7 @@ class PropertyController extends Controller
             // ouverts depuis le formulaire d'un bien.
             'ownerKinds' => OwnerKind::options(),
             'agencies' => Agency::query()->orderBy('name')->get()
-                ->map(fn (Agency $agency): array => ['id' => $agency->id, 'uuid' => $agency->uuid, 'name' => $agency->name])
+                ->map(fn (Agency $agency): array => AgencyController::option($agency))
                 ->all(),
         ];
     }
@@ -431,6 +432,9 @@ class PropertyController extends Controller
             'title' => $property->title,
             'label' => $property->label(),
             'street' => $property->street,
+            // Position géocodée : la fiche propose « Voir sur la carte ».
+            'latitude' => $property->latitude,
+            'longitude' => $property->longitude,
             'postal_code' => $property->postal_code,
             'city' => $property->city,
             'district' => $property->district,

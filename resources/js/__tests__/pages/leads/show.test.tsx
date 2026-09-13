@@ -84,6 +84,7 @@ const note = (overrides: Partial<LeadNote> = {}): LeadNote => ({
     id: 1,
     uuid: '0199a9a0-0000-7000-8000-0000000000c1',
     body: 'Rappeler mardi.',
+    kind: 'team',
     by: 'Admin',
     avatar: null,
     mine: true,
@@ -486,6 +487,57 @@ describe('First contact countdown on the lead page', () => {
             'href',
             '/locataires/' + makeLeadDetail().uuid + '/edit',
         );
+    });
+
+    it('shows the summary of a later call on the fiche, not only in the notes', () => {
+        render(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail({
+                    status: 'in_progress',
+                    source: 'referral',
+                })}
+                inbound={null}
+                lastCall={makeInbound({
+                    kind: 'call',
+                    meta: 'Appel entrant (3 min, répondu)',
+                    body: 'Veut visiter samedi matin.',
+                    note_id: 7,
+                })}
+                notes={[]}
+                history={[]}
+                invoices={[]}
+            />,
+        );
+
+        const block = screen.getByTestId('lead-inbound');
+        expect(block).toHaveAttribute('data-state', 'open');
+        expect(block).toHaveTextContent('Résumé du dernier appel');
+        expect(block).toHaveTextContent('Appel entrant (3 min, répondu)');
+        expect(block).toHaveTextContent('Veut visiter samedi matin.');
+    });
+
+    it('never shows the same call twice: the arrival card already carries it', () => {
+        const call = makeInbound({
+            kind: 'call',
+            meta: 'Appel entrant (0,6 min, message vocal)',
+            body: 'Propose un chalet à louer.',
+            note_id: 12,
+        });
+
+        render(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail({ status: 'todo', source: 'phone' })}
+                inbound={call}
+                lastCall={call}
+                notes={[]}
+                history={[]}
+                invoices={[]}
+            />,
+        );
+
+        expect(screen.getAllByTestId('lead-inbound')).toHaveLength(1);
     });
 
     it('collapses the inbound message once the lead is being handled', async () => {

@@ -423,3 +423,19 @@ test('a property can be exported as a PDF, in the same style as the other docume
             && str_contains($html, 'Ascenseur, cave.');
     });
 });
+
+test('the fiche of a property carries its position, so the map can be offered', function (): void {
+    $staff = User::factory()->staff()->create();
+    $located = Property::factory()->create(['latitude' => 48.8566, 'longitude' => 2.3522]);
+    $unlocated = Property::factory()->create(['latitude' => null, 'longitude' => null]);
+
+    $this->actingAs($staff)->get(route('properties.show', $located))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('property.latitude', 48.8566)
+            ->where('property.longitude', 2.3522));
+
+    // Sans position, le front n'a rien à proposer : il ne montre pas le bouton.
+    $this->actingAs($staff)->get(route('properties.show', $unlocated))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('property.latitude', null));
+});

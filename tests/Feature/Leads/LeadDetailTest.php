@@ -51,7 +51,21 @@ test('the detail page exposes the inbound message of a website lead and nothing 
 
     $this->actingAs($user)
         ->get(route('leads.show', $manual))
-        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->where('inbound', null));
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('inbound', null)
+            ->where('lastCall', null));
+
+    // Appel reçu après l'arrivée : son résumé est exposé à la fiche, quelle
+    // que soit la source du lead — il ne reste pas au fond des notes.
+    $manual->notes()->create(['body' => 'Appel entrant (3 min, répondu) : Veut visiter samedi.']);
+
+    $this->actingAs($user)
+        ->get(route('leads.show', $manual))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('inbound', null)
+            ->where('lastCall.kind', 'call')
+            ->where('lastCall.meta', 'Appel entrant (3 min, répondu)')
+            ->where('lastCall.body', 'Veut visiter samedi.'));
 });
 
 test('the edit page reuses the converting machine form with the lead prefilled', function (): void {

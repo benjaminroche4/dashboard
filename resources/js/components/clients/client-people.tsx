@@ -47,20 +47,8 @@ import type {
  * Sous-titre d'un garant : ce qu'il fait dans la vie, puis ce qu'il gagne —
  * une agence juge la garantie sur les deux, pas sur le seul montant.
  */
-export function guarantorRole(
-    guarantor: ClientGuarantor,
-    currency: string,
-): string {
-    return (
-        [
-            guarantor.occupation ?? guarantor.employment_status_label,
-            guarantor.income_cents === null
-                ? null
-                : `${formatMoney(guarantor.income_cents, currency)} par mois`,
-        ]
-            .filter(Boolean)
-            .join(' · ') || 'Garant'
-    );
+export function guarantorRole(guarantor: ClientGuarantor): string | null {
+    return guarantor.occupation ?? guarantor.employment_status_label;
 }
 
 /** Initiales d'un nom, pour l'avatar de repli. */
@@ -125,86 +113,129 @@ function Detail({ label, value }: { label: string; value: string }) {
  * identité à gauche, coordonnées cliquables alignées à droite, actions au
  * bout ; pour un locataire, ses détails sous un filet.
  */
-function PersonRow({
+/**
+ * Carte d'une personne du dossier, sur le moule d'une ligne de facture :
+ * un bandeau en petites capitales dit ce qu'elle est ici, les actions vivent
+ * à droite de ce bandeau, et le chiffre qui la concerne se lit aligné à
+ * droite, comme un total de ligne.
+ */
+/** Revenu mensuel déclaré sur la fiche d'un locataire, mis en forme. */
+function income(profile: TenantProfile | undefined, currency: string) {
+    return profile?.income_cents == null
+        ? null
+        : formatMoney(profile.income_cents, currency);
+}
+
+function PersonCard({
+    overline,
     name,
-    role,
+    subtitle,
     email,
     phone,
     avatar,
     profile,
+    amount,
+    amountLabel,
     onEdit,
     onRemove,
 }: {
+    /** Ce que la personne est sur ce dossier (« Locataire », « Garant 1 »…). */
+    overline: string;
     name: string;
-    role: string;
+    subtitle?: string | null;
     email?: string | null;
     phone?: string | null;
     avatar?: string | null;
     /** Renseigné pour un locataire seulement. */
     profile?: TenantProfile;
+    /** Chiffre mis en avant à droite (le revenu d'un garant). */
+    amount?: string | null;
+    amountLabel?: string;
     onEdit?: () => void;
     onRemove?: () => void;
 }) {
     const details = profile ? tenantDetails(profile) : [];
 
     return (
-        <li className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3 text-sm first:pt-0 last:pb-0">
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-                <Avatar className="size-9 shrink-0">
-                    {avatar && <AvatarImage src={avatar} alt="" />}
-                    <AvatarFallback className="text-xs">
-                        {initials(name) || <UserRound className="size-4" />}
-                    </AvatarFallback>
-                </Avatar>
-                <div className="grid min-w-0 gap-0.5">
-                    <span className="truncate font-medium">{name}</span>
-                    <span className="text-muted-foreground truncate text-xs">
-                        {role}
-                    </span>
+        <li className="bg-sidebar grid gap-4 rounded-lg border p-4">
+            <div className="flex items-center justify-between gap-2">
+                <p className="text-muted-foreground text-xs font-medium uppercase">
+                    {overline}
+                </p>
+                <div className="flex shrink-0 items-center gap-1">
+                    {onEdit && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Modifier les informations de ${name}`}
+                            onClick={onEdit}
+                        >
+                            <Pencil aria-hidden />
+                        </Button>
+                    )}
+                    {onRemove && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Retirer ${name}`}
+                            onClick={onRemove}
+                        >
+                            <X aria-hidden />
+                        </Button>
+                    )}
                 </div>
             </div>
-            <div className="text-muted-foreground grid gap-0.5 text-right text-xs">
-                {phone && (
-                    <a
-                        href={`tel:${phone.replace(/\s+/g, '')}`}
-                        className="hover:text-foreground tabular-nums underline-offset-4 hover:underline"
-                    >
-                        {phone}
-                    </a>
-                )}
-                {email && (
-                    <a
-                        href={`mailto:${email}`}
-                        className="hover:text-foreground max-w-64 truncate underline-offset-4 hover:underline"
-                    >
-                        {email}
-                    </a>
+
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 text-sm">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <Avatar className="size-9 shrink-0">
+                        {avatar && <AvatarImage src={avatar} alt="" />}
+                        <AvatarFallback className="text-xs">
+                            {initials(name) || <UserRound className="size-4" />}
+                        </AvatarFallback>
+                    </Avatar>
+                    <div className="grid min-w-0 gap-0.5">
+                        <span className="truncate font-medium">{name}</span>
+                        {subtitle && (
+                            <span className="text-muted-foreground truncate text-xs">
+                                {subtitle}
+                            </span>
+                        )}
+                    </div>
+                </div>
+                <div className="text-muted-foreground grid gap-0.5 text-xs">
+                    {phone && (
+                        <a
+                            href={`tel:${phone.replace(/\s+/g, '')}`}
+                            className="hover:text-foreground tabular-nums underline-offset-4 hover:underline"
+                        >
+                            {phone}
+                        </a>
+                    )}
+                    {email && (
+                        <a
+                            href={`mailto:${email}`}
+                            className="hover:text-foreground max-w-64 truncate underline-offset-4 hover:underline"
+                        >
+                            {email}
+                        </a>
+                    )}
+                </div>
+                {amount !== undefined && amount !== null && (
+                    /* Le chiffre se lit à droite, comme le total d'une ligne. */
+                    <div className="grid gap-1.5 text-right">
+                        <span className="text-muted-foreground text-sm">
+                            {amountLabel}
+                        </span>
+                        <span className="font-medium tabular-nums">
+                            {amount}
+                        </span>
+                    </div>
                 )}
             </div>
-            <div className="flex shrink-0 items-center gap-1">
-                {onEdit && (
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`Modifier les informations de ${name}`}
-                        onClick={onEdit}
-                    >
-                        <Pencil aria-hidden />
-                    </Button>
-                )}
-                {onRemove && (
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`Retirer ${name}`}
-                        onClick={onRemove}
-                    >
-                        <X aria-hidden />
-                    </Button>
-                )}
-            </div>
+
             {profile && (
-                <div className="w-full border-t pt-2 text-xs">
+                <div className="border-t pt-3 text-xs">
                     {details.length > 0 ? (
                         <dl className="grid gap-1 sm:grid-cols-2 sm:gap-x-6">
                             {details.map((detail) => (
@@ -239,7 +270,7 @@ function People({
     return rows.length === 0 ? (
         <p className="text-muted-foreground text-sm">{empty}</p>
     ) : (
-        <ul role="list" className="divide-border grid divide-y">
+        <ul role="list" className="grid gap-3">
             {rows}
         </ul>
     );
@@ -288,34 +319,9 @@ export function ClientPeople({
         co_last_name: client.co_tenant?.last_name ?? '',
         co_email: client.co_tenant?.email ?? '',
         co_phone: client.co_tenant?.phone ?? '',
-        co_assigned_to: client.co_assignee ? String(client.co_assignee.id) : '',
-        // Revenus mensuels nets, saisis en euros et envoyés en centimes.
-        income:
-            client.income_cents === null
-                ? ''
-                : String(client.income_cents / 100),
-        co_income:
-            client.co_tenant?.income_cents == null
-                ? ''
-                : String(client.co_tenant.income_cents / 100),
     });
 
-    // Les revenus partent en centimes : leurs erreurs arrivent sur ces clés.
-    const errors = form.errors as Record<string, string | undefined>;
-
     const submit = () => {
-        form.transform((data) => {
-            const values = data as Record<string, string>;
-            const { income, co_income: coIncome, ...rest } = values;
-
-            return {
-                ...rest,
-                income_cents:
-                    income === '' ? null : Math.round(Number(income) * 100),
-                co_income_cents:
-                    coIncome === '' ? null : Math.round(Number(coIncome) * 100),
-            };
-        });
         form.patch(clientPeople({ lead: client.uuid }).url, {
             preserveScroll: true,
             onSuccess: () => setEditing(false),
@@ -353,23 +359,31 @@ export function ClientPeople({
                 }
             >
                 <People empty="Aucun locataire sur ce dossier.">
-                    <PersonRow
+                    {/* Statut professionnel sous le nom et revenu à droite :
+                        ce qui décide d'un dossier de location se lit d'abord. */}
+                    <PersonCard
                         key="primary"
+                        overline="Locataire"
                         name={client.name}
-                        role="Locataire"
+                        subtitle={tenantProfiles.primary?.employment_label}
                         email={client.email}
                         phone={client.phone}
                         profile={tenantProfiles.primary}
+                        amountLabel="Revenu mensuel"
+                        amount={income(tenantProfiles.primary, client.currency)}
                         onEdit={() => setTenant('primary')}
                     />
                     {client.co_tenant?.name ? (
-                        <PersonRow
+                        <PersonCard
                             key="co"
+                            overline="Second locataire"
                             name={client.co_tenant.name}
-                            role="Second locataire"
+                            subtitle={tenantProfiles.co?.employment_label}
                             email={client.co_tenant.email}
                             phone={client.co_tenant.phone}
                             profile={tenantProfiles.co}
+                            amountLabel="Revenu mensuel"
+                            amount={income(tenantProfiles.co, client.currency)}
                             onEdit={() => setTenant('co')}
                         />
                     ) : null}
@@ -392,13 +406,23 @@ export function ClientPeople({
                 }
             >
                 <People empty="Aucun garant sur ce dossier.">
-                    {guarantors.map((person) => (
-                        <PersonRow
+                    {guarantors.map((person, index) => (
+                        <PersonCard
                             key={person.uuid}
+                            overline={`Garant ${index + 1}`}
                             name={person.name}
-                            role={guarantorRole(person, client.currency)}
+                            subtitle={guarantorRole(person)}
                             email={person.email}
                             phone={person.phone}
+                            amountLabel="Revenu mensuel"
+                            amount={
+                                person.income_cents === null
+                                    ? null
+                                    : formatMoney(
+                                          person.income_cents,
+                                          client.currency,
+                                      )
+                            }
                             onEdit={() => setGuarantor(person)}
                         />
                     ))}
@@ -423,10 +447,11 @@ export function ClientPeople({
             >
                 <People empty="Personne en copie pour l’instant.">
                     {watchers.map((person) => (
-                        <PersonRow
+                        <PersonCard
                             key={person.uuid}
+                            overline="Personne de suivi"
                             name={person.name}
-                            role={person.role ?? 'En copie des e-mails'}
+                            subtitle={person.role ?? 'En copie des e-mails'}
                             email={person.email}
                             phone={person.phone}
                             onEdit={() => setWatcher(person)}
@@ -458,8 +483,8 @@ export function ClientPeople({
                     <DialogHeader>
                         <DialogTitle>Personnes du dossier</DialogTitle>
                         <DialogDescription>
-                            Second locataire du foyer et second membre de
-                            l’équipe sur le dossier.
+                            Second locataire du foyer et membre de l’équipe qui
+                            suit le dossier.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4">
@@ -514,45 +539,6 @@ export function ClientPeople({
                             </div>
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="tenant-income">
-                                Revenu mensuel net du locataire
-                            </Label>
-                            <Input
-                                id="tenant-income"
-                                type="number"
-                                min={0}
-                                step={100}
-                                inputMode="numeric"
-                                placeholder="Ex. 4 500"
-                                value={form.data.income}
-                                onChange={(event) =>
-                                    form.setData('income', event.target.value)
-                                }
-                            />
-                            <InputError message={errors.income_cents} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="co-income">
-                                Revenu mensuel net du second locataire
-                            </Label>
-                            <Input
-                                id="co-income"
-                                type="number"
-                                min={0}
-                                step={100}
-                                inputMode="numeric"
-                                placeholder="Ex. 3 200"
-                                value={form.data.co_income}
-                                onChange={(event) =>
-                                    form.setData(
-                                        'co_income',
-                                        event.target.value,
-                                    )
-                                }
-                            />
-                            <InputError message={errors.co_income_cents} />
-                        </div>
-                        <div className="grid gap-2">
                             <Label htmlFor="co-email">E-mail</Label>
                             <Input
                                 id="co-email"
@@ -595,36 +581,6 @@ export function ClientPeople({
                                 }))}
                             />
                             <InputError message={form.errors.assigned_to} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="co-assigned-to">
-                                Second membre du suivi
-                            </Label>
-                            <SearchSelect
-                                id="co-assigned-to"
-                                value={form.data.co_assigned_to}
-                                onChange={(value) =>
-                                    form.setData('co_assigned_to', value)
-                                }
-                                placeholder="Choisir un membre"
-                                searchPlaceholder="Rechercher un membre…"
-                                noResults="Aucun membre ne correspond."
-                                emptyLabel="Aucun second membre"
-                                options={staff
-                                    .filter(
-                                        (member) =>
-                                            String(member.id) !==
-                                            form.data.assigned_to,
-                                    )
-                                    .map((member) => ({
-                                        value: String(member.id),
-                                        label: member.name,
-                                        hint:
-                                            member.functions?.join(' · ') ??
-                                            null,
-                                    }))}
-                            />
-                            <InputError message={form.errors.co_assigned_to} />
                         </div>
                     </div>
                     <DialogFooter>

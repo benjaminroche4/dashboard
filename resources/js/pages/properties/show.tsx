@@ -2,6 +2,7 @@ import { parisFormat } from '@/lib/datetime';
 import { TransitStopItem } from '@/components/properties/transit-stop-item';
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowRight, ExternalLink, FileDown, Mail, Phone } from 'lucide-react';
+import { AddressMapButton } from '@/components/address-map-dialog';
 import { PhotoGallery } from '@/components/photo-gallery';
 import { PropertyStatusMenu } from '@/components/properties/property-status-menu';
 import { formatAddress } from '@/components/real-estate/columns';
@@ -51,12 +52,12 @@ type Props = PropertyFormOptions & {
     property: Property;
     /** Propriétaire rattaché, avec sa fiche complète pour la carte. */
     owner: Owner | null;
-    /** Dossiers clients auxquels le bien est attribué, le plus récent d'abord. */
+    /** Dossiers où le bien est proposé : ceux auxquels il peut être attribué. */
     clients: PropertyClient[];
     visits: PropertyVisit[];
 };
 
-/** Fiche d'un bien de l'annuaire : caractéristiques, photos, propriétaire, agent, dossiers clients, visites. */
+/** Fiche d'un bien de l'annuaire : caractéristiques, photos, propriétaire, agent, locataire, visites. */
 export default function PropertyShow({
     property,
     propertyStatuses,
@@ -66,6 +67,11 @@ export default function PropertyShow({
 }: Props) {
     const address = formatAddress(property);
     const floor = property.floor_label;
+    // La référence du dossier attribué se lit dans la liste des dossiers où le
+    // bien est proposé : l'attribution elle-même ne la porte pas.
+    const tenantReference =
+        clients.find((client) => client.uuid === property.assigned_lead?.uuid)
+            ?.reference ?? null;
 
     return (
         <>
@@ -100,18 +106,30 @@ export default function PropertyShow({
                     creatorAvatar={property.creator_avatar}
                     createdAt={property.created_at}
                     actions={
-                        <Button
-                            variant="outline"
-                            onClick={() =>
-                                downloadPropertyPdf(
-                                    property.uuid,
-                                    property.label,
-                                )
-                            }
-                        >
-                            <FileDown />
-                            Fiche PDF
-                        </Button>
+                        <>
+                            {/* Situer le bien : l'adresse est juste au-dessus. */}
+                            <AddressMapButton
+                                place={{
+                                    name: property.label,
+                                    address,
+                                    street: property.street,
+                                    latitude: property.latitude,
+                                    longitude: property.longitude,
+                                }}
+                            />
+                            <Button
+                                variant="outline"
+                                onClick={() =>
+                                    downloadPropertyPdf(
+                                        property.uuid,
+                                        property.label,
+                                    )
+                                }
+                            >
+                                <FileDown />
+                                Fiche PDF
+                            </Button>
+                        </>
                     }
                     onEdit={() =>
                         router.visit(
@@ -473,9 +491,11 @@ export default function PropertyShow({
                             </DetailSection>
                         )}
 
+                        {/* Un bien n'a qu'un locataire à la fin : celui à qui
+                            il est attribué. Les dossiers où il est proposé se
+                            lisent dans les visites. */}
                         <DetailSection
-                            title="Dossiers clients"
-                            count={clients.length}
+                            title="Locataire définitif"
                             action={
                                 /* L'attribution se choisit parmi les dossiers rattachés. */
                                 <PropertyAssignmentButton
@@ -484,37 +504,27 @@ export default function PropertyShow({
                                 />
                             }
                         >
-                            {clients.length > 0 ? (
-                                <ul
-                                    role="list"
-                                    className="divide-border grid divide-y text-sm"
-                                >
-                                    {clients.map((client) => (
-                                        <li
-                                            key={client.uuid}
-                                            className="grid gap-0.5 py-3 first:pt-0 last:pb-0"
-                                        >
-                                            <Link
-                                                href={clientShow({
-                                                    lead: client.uuid,
-                                                })}
-                                                className="truncate font-medium underline-offset-4 hover:underline"
-                                            >
-                                                {client.name}
-                                            </Link>
-                                            {client.reference && (
-                                                <span className="text-muted-foreground text-xs">
-                                                    {client.reference}
-                                                </span>
-                                            )}
-                                        </li>
-                                    ))}
-                                </ul>
+                            {property.assigned_lead ? (
+                                <div className="grid gap-0.5 text-sm">
+                                    <Link
+                                        href={clientShow({
+                                            lead: property.assigned_lead.uuid,
+                                        })}
+                                        className="truncate font-medium underline-offset-4 hover:underline"
+                                    >
+                                        {property.assigned_lead.name}
+                                    </Link>
+                                    {tenantReference && (
+                                        <span className="text-muted-foreground text-xs">
+                                            {tenantReference}
+                                        </span>
+                                    )}
+                                </div>
                             ) : (
                                 <p className="text-muted-foreground text-sm">
-                                    Ce bien n'est attribué à aucun dossier
-                                    client. Rattachez-le depuis l'onglet « Biens
-                                    » d'un dossier.
+                                    Aucun locataire pour ce bien. Attribuez-le à
+                                    un dossier où il est proposé : il ne sera
+                                    plus suggéré ailleurs.
                                 </p>
                             )}
                         </DetailSection>

@@ -62,9 +62,6 @@ describe('Agent detail page', () => {
             <AgentShow
                 agent={makeAgent({
                     is_favorite: true,
-                    street: '5 rue de Bretagne',
-                    postal_code: '75003',
-                    city: 'Paris',
                     notes: 'Très réactive.',
                     leads: [
                         {
@@ -88,6 +85,8 @@ describe('Agent detail page', () => {
                     street: '12 rue de Turenne',
                     postal_code: '75003',
                     city: 'Paris',
+                    latitude: 48.86,
+                    longitude: 2.36,
                     phone: '+33 1 42 00 00 00',
                     email: 'contact@marais.example',
                     website: 'https://marais.example',
@@ -124,8 +123,14 @@ describe('Agent detail page', () => {
             'href',
             '/real-estate/agencies/0199a9a0-0000-7000-8000-0000000000a1',
         );
+        // Un agent rattaché n'a pas d'adresse propre : la carte « Coordonnées »
+        // montre celle de son agence, et le dit.
+        const contact = within(
+            screen.getByRole('region', { name: 'Coordonnées' }),
+        );
+        expect(contact.getByText('Adresse de l’agence')).toBeInTheDocument();
         expect(
-            screen.getByText('5 rue de Bretagne, 75003 Paris'),
+            contact.getByText('12 rue de Turenne, 75003 Paris'),
         ).toBeInTheDocument();
         // La carte « Joindre » faisait doublon avec les coordonnées de l'en-tête.
         expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();

@@ -13,8 +13,10 @@ use App\Actions\Clients\SendPropertyDecisionReminders;
 use App\Actions\Clients\SetClientPriority;
 use App\Actions\Clients\SuggestClientProperties;
 use App\Actions\Clients\SummarizeDossierReadiness;
+use App\Actions\Clients\UpdateClientDossier;
 use App\Actions\Clients\UpdateClientPeople;
 use App\Actions\Clients\UpdateTenantProfile;
+use App\Data\ClientDossierData;
 use App\Data\ClientPeopleData;
 use App\Data\LeadData;
 use App\Data\LeadGuarantorData;
@@ -23,9 +25,12 @@ use App\Data\TenantProfileData;
 use App\Enums\ClientPriority;
 use App\Enums\Currency;
 use App\Enums\EmploymentStatus;
+use App\Enums\Furnished;
 use App\Enums\GuarantorType;
+use App\Enums\LeadDuration;
 use App\Enums\LeadLanguage;
 use App\Enums\LeadStatus;
+use App\Enums\PartnerRole;
 use App\Enums\PropertyApplicationStatus;
 use App\Enums\PropertyType;
 use App\Enums\ResidencyStatus;
@@ -40,8 +45,10 @@ use App\Http\Requests\Clients\SaveClientWatcherRequest;
 use App\Http\Requests\Clients\SetClientPriorityRequest;
 use App\Http\Requests\Clients\StoreClientRequest;
 use App\Http\Requests\Clients\UpdateClientPeopleRequest;
+use App\Http\Requests\Clients\UpdateClientRequest;
 use App\Http\Requests\Clients\UpdateTenantProfileRequest;
 use App\Models\Activity;
+use App\Models\Agent;
 use App\Models\DocumentRequest;
 use App\Models\Invoice;
 use App\Models\Lead;
@@ -50,6 +57,7 @@ use App\Models\LeadNote;
 use App\Models\LeadPartner;
 use App\Models\LeadStatusChange;
 use App\Models\LeadWatcher;
+use App\Models\Partner;
 use App\Models\PartnerContact;
 use App\Models\Property;
 use App\Models\Quote;
@@ -110,6 +118,63 @@ class ClientController extends Controller
         $lead = $create->handle(LeadData::from($request->validated()), $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Dossier client ouvert pour :name.', ['name' => $lead->fullName()])]);
+
+        return to_route('clients.show', $lead);
+    }
+
+    /**
+     * Modification d'un dossier client, sur sa propre page : le dossier ne
+     * passe plus par la fiche lead ni par la Converting Machine.
+     */
+    public function edit(Lead $lead): Response
+    {
+        $this->authorize('update', $lead);
+        abort_unless($lead->status === LeadStatus::Converted, 404);
+
+        return Inertia::render('clients/edit', [
+            'client' => [
+                'uuid' => $lead->uuid,
+                'name' => $lead->householdName(),
+                'reference' => $lead->reference,
+                'first_name' => $lead->first_name,
+                'last_name' => $lead->last_name,
+                'email' => $lead->email ?? '',
+                'phone' => $lead->phone ?? '',
+                'company' => $lead->company ?? '',
+                'language' => $lead->language->value,
+                'offer' => $lead->offer === null ? '' : $lead->offer->value,
+                'budget' => $lead->budget_cents === null ? '' : (string) ($lead->budget_cents / 100),
+                'currency' => $lead->currency->value,
+                'arrival_at' => $lead->arrival_at?->toDateString() ?? '',
+                'districts' => $lead->districts ?? [],
+                'property_types' => $lead->property_types?->map(fn (PropertyType $type): string => $type->value)->all() ?? [],
+                'duration' => $lead->duration === null ? '' : $lead->duration->value,
+                'guarantors' => $lead->guarantors?->map(fn (GuarantorType $type): string => $type->value)->all() ?? [],
+                'furnished' => $lead->furnished === null ? '' : $lead->furnished->value,
+                'origin_city' => $lead->origin_city ?? '',
+                'message' => $lead->message ?? '',
+            ],
+            'offers' => LeadController::offers(),
+            'languages' => LeadLanguage::options(),
+            'propertyTypes' => PropertyType::options(),
+            'durations' => LeadDuration::options(),
+            'guarantors' => GuarantorType::options(),
+            'furnishedOptions' => Furnished::options(),
+            'currencies' => array_map(
+                fn (Currency $currency): array => ['value' => $currency->value, 'label' => $currency->label()],
+                Currency::cases(),
+            ),
+        ]);
+    }
+
+    public function update(UpdateClientRequest $request, Lead $lead, UpdateClientDossier $update): RedirectResponse
+    {
+        $this->authorize('update', $lead);
+        abort_unless($lead->status === LeadStatus::Converted, 404);
+
+        $update->handle($lead, ClientDossierData::from($request->validated()), $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Dossier client mis à jour.')]);
 
         return to_route('clients.show', $lead);
     }
@@ -248,7 +313,7 @@ class ClientController extends Controller
     }
 
     /** Dossier d'un client : coordonnées, projet, devis, factures, documents, partenaires et notes. */
-    public function show(Lead $lead, SuggestClientProperties $suggest, SummarizeDossierReadiness $readiness): Response
+    public function show(Request $request, Lead $lead, SuggestClientProperties $suggest, SummarizeDossierReadiness $readiness): Response
     {
         $this->authorize('view', $lead);
 
@@ -263,6 +328,7 @@ class ClientController extends Controller
             'quotes',
             'documentRequests.uploads',
             'partnerLinks.partner.contacts',
+            'agent.agency',
             'guarantorPeople',
             'notes.author',
             'visits.property',
@@ -439,6 +505,14 @@ class ClientController extends Controller
                     'decision_due' => $property->getRelationValue('pivot')->status === PropertyApplicationStatus::Pending
                         && $visited instanceof Visit
                         && $visited->scheduled_at->lte(now()->subHours(SendPropertyDecisionReminders::hours())),
+                    // Quand l'équipe relance, et quand elle l'a fait pour la dernière fois.
+                    'reminded_at' => $property->getRelationValue('pivot')->decision_reminded_at?->toIso8601String(),
+                    'reminder_at' => $property->getRelationValue('pivot')->status === PropertyApplicationStatus::Pending
+                        ? SendPropertyDecisionReminders::nextReminderAt(
+                            $visited instanceof Visit ? $visited->scheduled_at : null,
+                            $property->getRelationValue('pivot')->decision_reminded_at,
+                        )?->toIso8601String()
+                        : null,
                 ];
             })->all(),
             // Biens de l'annuaire qui correspondent au projet (budget, quartiers, type, meublé), hors rattachés et visités.
@@ -448,13 +522,24 @@ class ClientController extends Controller
             'propertyOptions' => Property::query()->unassigned()->whereDoesntHave('leads', fn ($query) => $query->whereKey($lead->id))->latest()->get()
                 ->map(fn (Property $property): array => ['id' => $property->id, 'label' => $property->label(), 'street' => $property->street, 'postal_code' => $property->postal_code, 'city' => $property->city, 'photo' => $property->photoUrls()[0] ?? null])
                 ->all(),
-            'notes' => $lead->notes->map(fn (LeadNote $note): array => [
-                'id' => $note->id,
-                'body' => $note->body,
-                'by' => $note->author?->name,
-                'avatar' => $note->author?->avatar,
-                'at' => $note->created_at?->toIso8601String(),
-            ])->all(),
+            // Mêmes bulles que la fiche lead : le dossier reçoit donc les
+            // notes sous la même forme (auteur, « à moi », droits d'édition).
+            'notes' => $lead->notes->map(fn (LeadNote $note): array => LeadController::note($note))->all(),
+            // Le dossier se gère sans repasser par la fiche lead : l'agent
+            // immobilier et les partenaires s'y ajoutent, avec les mêmes
+            // cartes et les mêmes routes que la fiche lead.
+            'agents' => Agent::query()->with('agency')->withFavoriteOf($request->user())->orderBy('last_name')->orderBy('first_name')->get()
+                ->map(fn (Agent $agent): array => [
+                    'id' => $agent->id,
+                    'uuid' => $agent->uuid,
+                    'name' => $agent->fullName(),
+                    'agency' => $agent->agency?->name,
+                    'phone' => $agent->phone,
+                    'is_favorite' => (bool) $agent->is_favorite,
+                ])->all(),
+            'partnerOptions' => Partner::query()->orderBy('name')->get()
+                ->map(fn (Partner $partner): array => ['id' => $partner->id, 'name' => $partner->name, 'type' => $partner->type->value, 'type_label' => $partner->type->label()])->all(),
+            'partnerRoles' => PartnerRole::options(),
             // Journal : les 10 dernières actions du backoffice sur ce dossier.
             'activities' => Activity::query()->with(['actor', 'lead'])->where('lead_id', $lead->id)->latest('created_at')->latest('id')->limit(10)->get()
                 ->map(fn (Activity $activity): array => ActivityController::summary($activity))
@@ -495,15 +580,27 @@ class ClientController extends Controller
                 'name' => $lead->coFullName(),
                 'email' => $lead->co_email,
                 'phone' => $lead->co_phone,
-                'income_cents' => $lead->co_income_cents,
+                // Le revenu se déclare sur la fiche du locataire, avec son
+                // statut professionnel et son employeur.
+                'income_cents' => $lead->tenantIncomeCents(TenantSlot::Co),
             ],
-            // Revenus mensuels nets, pour la règle « loyer ≤ un tiers des revenus ».
-            'income_cents' => $lead->income_cents,
-            'co_income_cents' => $lead->co_income_cents,
+            // Revenus mensuels nets du foyer, pour la règle « loyer ≤ un tiers des revenus ».
+            'income_cents' => $lead->tenantIncomeCents(TenantSlot::Primary),
             'household_income_cents' => $lead->householdIncomeCents(),
             'co_assignee' => $this->follower($lead->coAssignee),
             'invoices_count' => $lead->invoices_count,
             'document_requests_count' => $lead->document_requests_count,
+            // Agent immobilier du dossier : même forme que sur la fiche lead,
+            // la carte est la même des deux côtés.
+            'agent' => $lead->agent === null ? null : [
+                'id' => $lead->agent->id,
+                'uuid' => $lead->agent->uuid,
+                'name' => $lead->agent->fullName(),
+                'agency' => $lead->agent->agency?->name,
+                'position' => $lead->agent->position?->label(),
+                'phone' => $lead->agent->phone,
+                'email' => $lead->agent->email,
+            ],
         ];
     }
 

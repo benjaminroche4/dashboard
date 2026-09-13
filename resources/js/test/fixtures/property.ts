@@ -83,6 +83,8 @@ export function makeProperty(overrides: Partial<Property> = {}): Property {
         street: '12 rue Oberkampf',
         postal_code: '75011',
         city: 'Paris',
+        latitude: null,
+        longitude: null,
         district: 11,
         status: 'available',
         status_label: 'Disponible',

@@ -263,11 +263,7 @@ describe('Clients index page', () => {
         );
         await user.keyboard('{Escape}');
 
-        expect(
-            screen.getByText(
-                '1 client : les leads convertis, suivis jusqu’à l’installation.',
-            ),
-        ).toBeInTheDocument();
+        expect(screen.getByText('1 client')).toBeInTheDocument();
         expect(
             screen.queryByRole('link', { name: 'Léa Durand' }),
         ).not.toBeInTheDocument();

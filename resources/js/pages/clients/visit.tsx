@@ -3,7 +3,6 @@ import {
     Building2,
     CalendarClock,
     ExternalLink,
-    Home,
     MapPin,
     Pencil,
     UserRound,
@@ -11,22 +10,24 @@ import {
 import { OfferBadge } from '@/components/clients/offer-badge';
 import { CreatedBy } from '@/components/created-by';
 import { PhotoGallery } from '@/components/photo-gallery';
-import { PropertyOutcomeMenu } from '@/components/clients/property-outcome';
+import {
+    PropertyFollowUp,
+    PropertyOutcomeMenu,
+} from '@/components/clients/property-outcome';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { VisitReportDialog } from '@/components/visits/visit-report-dialog';
 import { VisitRowActions } from '@/components/visits/visit-row-actions';
-import { VisitReportBadge } from '@/components/visits/visit-report-badge';
 import { VisitStatusBadge } from '@/components/visits/visit-status-badge';
 import { formatMoney } from '@/lib/format';
-import { timeFormat, visitAddress, visitPropertyLine } from '@/lib/visits';
+import { visitAddress } from '@/lib/visits';
 import { show as agentShow } from '@/routes/agents';
 import {
     index as clientsIndex,
     visits as clientsVisits,
 } from '@/routes/clients';
 import { show as clientShow } from '@/routes/clients';
-import { edit as visitEdit, show as visitShow } from '@/routes/clients/visits';
+import { edit as visitEdit } from '@/routes/clients/visits';
 import { show as ownerShow } from '@/routes/owners';
 import { show as propertyShow } from '@/routes/properties';
 import type { Visit, VisitDetail, VisitOutcome } from '@/types';
@@ -44,24 +45,11 @@ const dateTime = parisFormat({
 
 type Props = {
     visit: VisitDetail;
-    /** Les autres visites du même client, les plus récentes d'abord. */
+    /** Les autres visites du même client : seul leur nombre est affiché. */
     otherVisits?: Visit[];
     /** Ce que devient le bien visité pour ce client, une fois le compte rendu écrit. */
     outcome?: VisitOutcome | null;
 };
-
-const shortDayFormat = new Intl.DateTimeFormat('fr-FR', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-});
-
-/** Créneau court d'une autre visite : « dim. 20 sept. · 13:00 ». */
-function shortSlot(scheduledAt: string): string {
-    const date = new Date(scheduledAt);
-
-    return `${shortDayFormat.format(date)} · ${timeFormat.format(date)}`;
-}
 
 /** Carte de section de la fiche : intitulé en capitales puis contenu. */
 function Section({
@@ -122,6 +110,8 @@ export default function VisitShow({
 }: Props) {
     const [reporting, setReporting] = useState(false);
     const { property } = visit;
+    /** Les visites du client, celle-ci comprise. */
+    const totalVisits = otherVisits.length + 1;
     const address = visitAddress(visit);
     const features = [
         property.property_type_label,
@@ -351,10 +341,7 @@ export default function VisitShow({
                                     />
                                 }
                             >
-                                <p className="text-muted-foreground text-sm">
-                                    Le client souhaite-t-il se positionner sur
-                                    ce bien ?
-                                </p>
+                                <PropertyFollowUp outcome={outcome} />
                             </Section>
                         )}
 
@@ -414,66 +401,38 @@ export default function VisitShow({
                                 <Row label="Dossier client">
                                     {/* La formule dit qui visite : elle se lit
                                         à côté du nom, pas ailleurs. */}
-                                    <span className="flex flex-wrap items-center gap-2">
+                                    <span className="grid gap-1">
+                                        <span className="flex flex-wrap items-center gap-2">
+                                            <Link
+                                                href={clientShow({
+                                                    lead: visit.client.uuid,
+                                                })}
+                                                className="underline-offset-4 hover:underline"
+                                            >
+                                                {visit.client.name}
+                                            </Link>
+                                            <OfferBadge
+                                                offer={visit.client.offer}
+                                                label={visit.client.offer_label}
+                                            />
+                                        </span>
+                                        {/* Le nombre de visites suffit : la
+                                            liste des autres visites répétait
+                                            ce que le dossier montre déjà. */}
                                         <Link
                                             href={clientShow({
                                                 lead: visit.client.uuid,
                                             })}
-                                            className="underline-offset-4 hover:underline"
+                                            aria-label={`Voir les visites de ${visit.client.name}`}
+                                            className="text-muted-foreground text-xs tabular-nums underline-offset-4 hover:underline"
                                         >
-                                            {visit.client.name}
+                                            {totalVisits} visite
+                                            {totalVisits > 1 ? 's' : ''} pour ce
+                                            client
                                         </Link>
-                                        <OfferBadge
-                                            offer={visit.client.offer}
-                                            label={visit.client.offer_label}
-                                        />
                                     </span>
                                 </Row>
                             </dl>
-                        </Section>
-
-                        <Section title="Autres visites du client">
-                            {otherVisits.length > 0 ? (
-                                // Le client est le même : une ligne par visite
-                                // (créneau, bien, statut) suffit — le tableau
-                                // complet des journées répétait tout.
-                                <ul role="list" className="grid gap-2">
-                                    {otherVisits.map((other) => (
-                                        <li
-                                            key={other.uuid}
-                                            className="bg-background grid gap-1 rounded-lg border px-3 py-2 text-sm"
-                                        >
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <Link
-                                                    href={visitShow({
-                                                        visit: other.uuid,
-                                                    })}
-                                                    className="font-medium tabular-nums underline-offset-4 hover:underline"
-                                                >
-                                                    {shortSlot(
-                                                        other.scheduled_at,
-                                                    )}
-                                                </Link>
-                                                <VisitStatusBadge
-                                                    status={other.status}
-                                                    label={other.status_label}
-                                                />
-                                                <VisitReportBadge
-                                                    visit={other}
-                                                />
-                                            </div>
-                                            <span className="text-muted-foreground truncate">
-                                                {visitPropertyLine(other)}
-                                            </span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <p className="text-muted-foreground flex items-center gap-2 text-sm">
-                                    <Home className="size-4" aria-hidden />
-                                    Aucune autre visite pour ce client.
-                                </p>
-                            )}
                         </Section>
                     </div>
                 </div>

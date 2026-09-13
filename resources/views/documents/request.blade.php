@@ -82,12 +82,15 @@
 
     <div class="link">
         <div class="label">{{ __('Où déposer vos pièces') }}</div>
-        <div>{{ __('Déposez vos documents via ce lien sécurisé :') }}</div>
-        <a href="{{ $request->publicUrl() }}">{{ $request->publicUrl() }}</a>
-        <div>{{ __('Code d’appairage à saisir sur la page :') }} <strong style="letter-spacing: 3px;">{{ $request->access_code }}</strong></div>
+        {{-- Un seul endroit de dépôt : deux adresses laisseraient le client
+             choisir, et l'équipe chercher ses pièces à deux endroits. --}}
         @if ($request->upload_url)
-            <div>{{ __('Ou, si vous préférez, dans ce dossier partagé :') }}</div>
+            <div>{{ __('Déposez vos documents dans ce dossier partagé :') }}</div>
             <a href="{{ $request->upload_url }}">{{ $request->upload_url }}</a>
+        @else
+            <div>{{ __('Déposez vos documents via ce lien sécurisé :') }}</div>
+            <a href="{{ $request->publicUrl() }}">{{ $request->publicUrl() }}</a>
+            <div>{{ __('Code d’appairage à saisir sur la page :') }} <strong style="letter-spacing: 3px;">{{ $request->access_code }}</strong></div>
         @endif
     </div>
 

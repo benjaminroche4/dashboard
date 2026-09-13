@@ -147,4 +147,27 @@ describe('DocumentUploadList', () => {
             screen.getByRole('link', { name: 'Télécharger passeport.pdf' }),
         ).toBeInTheDocument();
     });
+
+    it('opens a document in the page instead of downloading it', async () => {
+        const user = userEvent.setup();
+        render(
+            <DocumentUploadList
+                requestUuid={requestUuid}
+                uploads={[makeDocumentUpload()]}
+                canReview
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'passeport.pdf' }));
+
+        const viewer = within(await screen.findByRole('dialog'));
+        expect(viewer.getByTitle('Aperçu de passeport.pdf')).toHaveAttribute(
+            'src',
+            `${reviewUrl}/apercu`,
+        );
+        // Le téléchargement reste à portée, il n'est plus le seul chemin.
+        expect(
+            viewer.getByRole('link', { name: 'Télécharger' }),
+        ).toHaveAttribute('href', expect.stringContaining(reviewUrl));
+    });
 });

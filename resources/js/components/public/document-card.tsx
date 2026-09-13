@@ -1,5 +1,7 @@
 import { Check, FileText, UploadCloud, X } from 'lucide-react';
+import { useState } from 'react';
 import type { FileRejection } from 'react-dropzone';
+import { DocumentPreviewDialog } from '@/components/documents/document-preview-dialog';
 import {
     documentReview,
     uploadStatusText,
@@ -16,7 +18,7 @@ import { Dropzone, DropzoneEmptyState } from '@/components/ui/dropzone';
 import { Spinner } from '@/components/ui/spinner';
 import { formatFileSize } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { PublicDocumentDetail } from '@/types';
+import type { PublicDocumentDetail, PublicDocumentUpload } from '@/types';
 
 const ACCEPT = { 'application/pdf': ['.pdf'] };
 
@@ -61,7 +63,7 @@ function Title({
     );
 }
 
-/** Fichiers déjà déposés : chacun s'ouvre dans un onglet. */
+/** Fichiers déjà déposés : chacun s'ouvre dans la page, sans téléchargement. */
 function Files({
     document,
     labels,
@@ -74,58 +76,73 @@ function Files({
     /** Sans la décision de l'équipe sous le fichier. */
     compact?: boolean;
 }) {
+    const [previewing, setPreviewing] = useState<PublicDocumentUpload | null>(
+        null,
+    );
+
     if (document.uploads.length === 0) {
         return null;
     }
 
     return (
-        <ul
-            role="list"
-            aria-label={`${labels.uploaded} · ${document.label}`}
-            className={cn('flex flex-wrap gap-2', className)}
-        >
-            {document.uploads.map((upload) => (
-                <li key={upload.uuid} className="grid min-w-0 gap-1">
-                    <a
-                        href={upload.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        title={`${labels.view} · ${upload.name}`}
-                        className="focus-visible:ring-ring flex min-w-0 rounded-md focus-visible:ring-2 focus-visible:outline-none"
-                    >
-                        <Attachment
-                            size="sm"
-                            className={cn(
-                                'transition-colors',
-                                uploadStatusTones[upload.status],
-                            )}
+        <>
+            <ul
+                role="list"
+                aria-label={`${labels.uploaded} · ${document.label}`}
+                className={cn('flex flex-wrap gap-2', className)}
+            >
+                {document.uploads.map((upload) => (
+                    <li key={upload.uuid} className="grid min-w-0 gap-1">
+                        <button
+                            type="button"
+                            onClick={() => setPreviewing(upload)}
+                            title={`${labels.view} · ${upload.name}`}
+                            className="focus-visible:ring-ring flex min-w-0 rounded-md text-left focus-visible:ring-2 focus-visible:outline-none"
                         >
-                            <AttachmentMedia>
-                                <FileText aria-hidden />
-                            </AttachmentMedia>
-                            <AttachmentContent>
-                                <AttachmentTitle>{upload.name}</AttachmentTitle>
-                                <AttachmentDescription>
-                                    {formatFileSize(upload.size)} ·{' '}
-                                    {labels.view}
-                                </AttachmentDescription>
-                            </AttachmentContent>
-                        </Attachment>
-                    </a>
-                    {!compact && (
-                        <p
-                            className={cn(
-                                'px-1 text-xs',
-                                uploadStatusText[upload.status],
-                            )}
-                        >
-                            {upload.status_label}
-                            {upload.review_note && ` — ${upload.review_note}`}
-                        </p>
-                    )}
-                </li>
-            ))}
-        </ul>
+                            <Attachment
+                                size="sm"
+                                className={cn(
+                                    'transition-colors',
+                                    uploadStatusTones[upload.status],
+                                )}
+                            >
+                                <AttachmentMedia>
+                                    <FileText aria-hidden />
+                                </AttachmentMedia>
+                                <AttachmentContent>
+                                    <AttachmentTitle>
+                                        {upload.name}
+                                    </AttachmentTitle>
+                                    <AttachmentDescription>
+                                        {formatFileSize(upload.size)} ·{' '}
+                                        {labels.view}
+                                    </AttachmentDescription>
+                                </AttachmentContent>
+                            </Attachment>
+                        </button>
+                        {!compact && (
+                            <p
+                                className={cn(
+                                    'px-1 text-xs',
+                                    uploadStatusText[upload.status],
+                                )}
+                            >
+                                {upload.status_label}
+                                {upload.review_note &&
+                                    ` — ${upload.review_note}`}
+                            </p>
+                        )}
+                    </li>
+                ))}
+            </ul>
+            {/* Le client relit sa pièce sans la télécharger, comme l'équipe. */}
+            <DocumentPreviewDialog
+                file={
+                    previewing && { name: previewing.name, url: previewing.url }
+                }
+                onOpenChange={(open) => !open && setPreviewing(null)}
+            />
+        </>
     );
 }
 

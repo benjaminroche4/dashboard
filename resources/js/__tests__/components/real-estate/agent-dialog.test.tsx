@@ -78,4 +78,62 @@ describe('AgentDialog', () => {
             screen.getByRole('combobox', { name: 'Fonction' }),
         ).toHaveTextContent('Négociateur');
     });
+
+    it('asks for an address only when the agent is independent', () => {
+        const { unmount } = render(
+            <AgentDialog
+                open
+                onOpenChange={vi.fn()}
+                agencies={agencyOptions}
+            />,
+        );
+
+        // Indépendant : il porte sa propre adresse.
+        expect(screen.getByLabelText('Adresse')).toBeInTheDocument();
+        unmount();
+
+        // Rattaché : l'adresse est celle de l'agence, rappelée en clair.
+        render(
+            <AgentDialog
+                open
+                onOpenChange={vi.fn()}
+                agencies={agencyOptions}
+                agent={makeAgent()}
+            />,
+        );
+        expect(screen.queryByLabelText('Adresse')).not.toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Adresse de l’agence : 12 rue de Turenne, 75003 Paris.',
+            ),
+        ).toBeInTheDocument();
+    });
+
+    it('offers « agent principal » only when the agent belongs to an agency', () => {
+        const { unmount } = render(
+            <AgentDialog
+                open
+                onOpenChange={vi.fn()}
+                agencies={agencyOptions}
+            />,
+        );
+
+        // Indépendant : il est seul, « principal » ne veut rien dire.
+        expect(
+            screen.queryByLabelText(/Agent principal de l’agence/),
+        ).not.toBeInTheDocument();
+        unmount();
+
+        render(
+            <AgentDialog
+                open
+                onOpenChange={vi.fn()}
+                agencies={agencyOptions}
+                agent={makeAgent()}
+            />,
+        );
+        expect(
+            screen.getByText('Agent principal de l’agence'),
+        ).toBeInTheDocument();
+    });
 });

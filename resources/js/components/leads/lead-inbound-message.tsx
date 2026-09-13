@@ -44,17 +44,24 @@ export function whatsAppUrl(phone: string): string {
 export function LeadInboundMessage({
     lead,
     inbound,
+    title: heading,
+    defaultOpen,
     className,
 }: {
     lead: LeadDetail;
     inbound: Inbound;
+    /** Intitulé imposé (« Dernier appel entrant » pour un échange postérieur à l'arrivée). */
+    title?: string;
+    /** Carte dépliée d'entrée de jeu ; par défaut, seulement pour un lead à traiter. */
+    defaultOpen?: boolean;
     className?: string;
 }) {
     const { auth } = usePage().props;
     const pending = lead.status === 'todo';
-    const [open, setOpen] = useState(pending);
+    const [open, setOpen] = useState(defaultOpen ?? pending);
     const [claiming, setClaiming] = useState(false);
-    const { icon: Icon, title } = kinds[inbound.kind];
+    const { icon: Icon, title: kindTitle } = kinds[inbound.kind];
+    const title = heading ?? kindTitle;
     const when = inbound.at ? dateTime.format(new Date(inbound.at)) : null;
 
     const claim = () => {
@@ -107,7 +114,7 @@ export function LeadInboundMessage({
                         </span>
                     </p>
                 </div>
-                {!pending && (
+                {(!pending || defaultOpen !== undefined) && (
                     <Button
                         type="button"
                         variant="ghost"
@@ -162,7 +169,10 @@ export function LeadInboundMessage({
                                 </Button>
                             </>
                         )}
-                        {pending && (
+                        {/* « Je m'en occupe » n'appartient qu'à la carte
+                            d'arrivée : deux boutons identiques sur la même
+                            page ne servent à rien. */}
+                        {pending && heading === undefined && (
                             <Button
                                 type="button"
                                 size="sm"

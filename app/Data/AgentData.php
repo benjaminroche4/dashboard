@@ -35,18 +35,24 @@ final readonly class AgentData
     public static function from(array $data): self
     {
         $agencyId = $data['agency_id'] ?? null;
+        $agencyId = $agencyId === null || $agencyId === '' ? null : (int) $agencyId;
+        // Un agent rattaché à une agence n'a pas d'adresse propre : c'est celle
+        // de son agence. Seul un indépendant en porte une, et rattacher un
+        // agent efface l'adresse qu'il traînait — sinon deux adresses
+        // cohabiteraient, dont une périmée.
+        $ownAddress = $agencyId === null;
 
         return new self(
-            agencyId: $agencyId === null || $agencyId === '' ? null : (int) $agencyId,
+            agencyId: $agencyId,
             firstName: PersonName::capitalize((string) $data['first_name']),
             lastName: PersonName::capitalize((string) $data['last_name']),
             position: AgentPosition::parse(is_string($data['position'] ?? null) ? $data['position'] : null),
             relationshipQuality: is_string($data['relationship_quality'] ?? null) && $data['relationship_quality'] !== ''
                 ? RelationshipQuality::from($data['relationship_quality'])
                 : null,
-            street: self::blankToNull($data['street'] ?? null),
-            postalCode: self::blankToNull($data['postal_code'] ?? null),
-            city: self::blankToNull($data['city'] ?? null),
+            street: $ownAddress ? self::blankToNull($data['street'] ?? null) : null,
+            postalCode: $ownAddress ? self::blankToNull($data['postal_code'] ?? null) : null,
+            city: $ownAddress ? self::blankToNull($data['city'] ?? null) : null,
             email: self::blankToNull($data['email'] ?? null),
             phone: self::blankToNull($data['phone'] ?? null),
             isPrimary: filter_var($data['is_primary'] ?? false, FILTER_VALIDATE_BOOLEAN),

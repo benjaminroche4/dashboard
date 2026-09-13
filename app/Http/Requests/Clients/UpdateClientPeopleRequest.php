@@ -10,8 +10,9 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
 /**
- * Second locataire et second membre qui suit le dossier : tout est facultatif,
- * mais un second locataire nommé garde des coordonnées valides.
+ * Qui est sur le dossier : le second locataire et le membre qui le suit. Les
+ * revenus et la situation professionnelle vivent sur la fiche de chaque
+ * locataire (`clients.tenant-profile`), avec l'employeur et le titre de séjour.
  */
 class UpdateClientPeopleRequest extends FormRequest
 {
@@ -25,11 +26,7 @@ class UpdateClientPeopleRequest extends FormRequest
             'co_last_name' => ['nullable', 'string', 'max:255'],
             'co_email' => ['nullable', 'email', 'max:255'],
             'co_phone' => ['nullable', 'string', 'max:40'],
-            // Revenus mensuels nets, en centimes.
-            'income_cents' => ['nullable', 'integer', 'min:0', 'max:100000000'],
-            'co_income_cents' => ['nullable', 'integer', 'min:0', 'max:100000000'],
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
-            'co_assigned_to' => ['nullable', 'integer', 'exists:users,id'],
         ];
     }
 
@@ -59,10 +56,7 @@ class UpdateClientPeopleRequest extends FormRequest
             'co_last_name' => 'nom du second locataire',
             'co_email' => 'e-mail du second locataire',
             'co_phone' => 'téléphone du second locataire',
-            'income_cents' => 'revenu du locataire',
-            'co_income_cents' => 'revenu du second locataire',
             'assigned_to' => 'membre qui suit le dossier',
-            'co_assigned_to' => 'second membre du suivi',
         ];
     }
 }

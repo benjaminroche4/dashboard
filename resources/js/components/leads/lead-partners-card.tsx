@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import InputError from '@/components/input-error';
 import { PartnerTypeBadge } from '@/components/partners/columns';
 import { Badge } from '@/components/ui/badge';
+import { DetailSection } from '@/components/real-estate/detail-header';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -70,7 +71,7 @@ function AttachDialog({
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    lead: LeadDetail;
+    lead: Pick<LeadDetail, 'uuid' | 'name'>;
     partners: PartnerOption[];
     roles: PartnerRoleOption[];
 }) {
@@ -207,7 +208,7 @@ function ForwardDialog({
     onOpenChange,
 }: {
     link: LeadPartnerLink | null;
-    lead: LeadDetail;
+    lead: Pick<LeadDetail, 'uuid' | 'name'>;
     onOpenChange: (open: boolean) => void;
 }) {
     const form = useForm<ForwardForm>({ email: '', message: '' });
@@ -364,7 +365,8 @@ export function LeadPartnersCard({
     partners,
     roles,
 }: {
-    lead: LeadDetail;
+    /** Lead ou dossier client : la carte n'a besoin que de l'UUID et du nom. */
+    lead: Pick<LeadDetail, 'uuid' | 'name'>;
     links: LeadPartnerLink[];
     partners: PartnerOption[];
     roles: PartnerRoleOption[];
@@ -382,14 +384,11 @@ export function LeadPartnersCard({
     };
 
     return (
-        <section
-            aria-label="Partenaires du dossier"
-            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-        >
-            <header className="flex items-center justify-between gap-2">
-                <h2 className="text-base font-medium">
-                    Partenaires du dossier
-                </h2>
+        // Même coquille que les autres cartes d'une fiche (`DetailSection`).
+        <DetailSection
+            title="Partenaires du dossier"
+            count={links.length}
+            action={
                 <Button
                     variant="outline"
                     size="sm"
@@ -399,7 +398,8 @@ export function LeadPartnersCard({
                     <Plus aria-hidden />
                     Ajouter
                 </Button>
-            </header>
+            }
+        >
             {links.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
                     {partners.length === 0
@@ -476,6 +476,6 @@ export function LeadPartnersCard({
                 lead={lead}
                 onOpenChange={(open) => !open && setForwarding(null)}
             />
-        </section>
+        </DetailSection>
     );
 }

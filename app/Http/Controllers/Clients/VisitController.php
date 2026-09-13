@@ -21,6 +21,7 @@ use App\Http\Requests\Visits\StoreVisitReportRequest;
 use App\Http\Requests\Visits\StoreVisitRequest;
 use App\Http\Requests\Visits\UpdateVisitRequest;
 use App\Models\Lead;
+use App\Models\LeadPropertyLink;
 use App\Models\Property;
 use App\Models\Visit;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -126,10 +127,20 @@ class VisitController extends Controller
                 'status_label' => $this->propertyStatus($visit)->label(),
                 'options' => PropertyApplicationStatus::options(),
                 'visited_at' => $visit->status === VisitStatus::Done ? $visit->scheduled_at->toIso8601String() : null,
+                // Depuis quand le bien en est là : c'est ce qui date le suivi.
+                'status_at' => $this->decisionLink($visit)?->status_at?->toIso8601String(),
                 // Visite faite et rien de tranché depuis le délai : on le signale.
                 'decision_due' => $this->propertyStatus($visit) === PropertyApplicationStatus::Pending
                     && $visit->status === VisitStatus::Done
                     && $visit->scheduled_at->lte(now()->subHours(SendPropertyDecisionReminders::hours())),
+                // Quand part la prochaine relance, et quand est partie la dernière.
+                'reminded_at' => $this->decisionLink($visit)?->decision_reminded_at?->toIso8601String(),
+                'reminder_at' => $this->propertyStatus($visit) === PropertyApplicationStatus::Pending
+                    ? SendPropertyDecisionReminders::nextReminderAt(
+                        $visit->status === VisitStatus::Done ? $visit->scheduled_at : null,
+                        $this->decisionLink($visit)?->decision_reminded_at,
+                    )?->toIso8601String()
+                    : null,
             ],
         ]);
     }
@@ -138,6 +149,18 @@ class VisitController extends Controller
     private function propertyStatus(Visit $visit): PropertyApplicationStatus
     {
         return self::outcomeOf($visit);
+    }
+
+    /** Lien dossier ↔ bien de cette visite, qui porte la décision et ses relances. */
+    private function decisionLink(Visit $visit): ?LeadPropertyLink
+    {
+        $properties = $visit->lead->relationLoaded('properties')
+            ? $visit->lead->properties
+            : $visit->lead->properties()->whereKey($visit->property_id)->get();
+
+        $pivot = $properties->firstWhere('id', $visit->property_id)?->getRelationValue('pivot');
+
+        return $pivot instanceof LeadPropertyLink ? $pivot : null;
     }
 
     /**
@@ -228,7 +251,11 @@ class VisitController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Visite :status.', ['status' => mb_strtolower($visit->status->label())])]);
 
-        return back();
+        // Depuis le formulaire de modification, on revient sur la visite ;
+        // depuis la liste, on y reste.
+        return $request->validated('return_to') === 'show'
+            ? to_route('clients.visits.show', $visit)
+            : back();
     }
 
     /** Compte rendu rédigé après la visite. */

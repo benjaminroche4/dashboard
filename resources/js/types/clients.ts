@@ -1,4 +1,4 @@
-import type { OfferValue } from '@/types';
+import type { LeadAgent, LeadNote, OfferValue } from '@/types';
 export type ClientPriority = 'low' | 'normal' | 'high' | 'urgent';
 
 export type ClientPriorityOption = { value: ClientPriority; label: string };
@@ -34,9 +34,12 @@ export type Client = {
     /** Second membre qui suit le dossier. */
     co_assignee: { id: number; name: string; avatar: string | null } | null;
     /** Revenus mensuels nets du foyer, en centimes. */
+    /** Revenu du locataire principal, déclaré sur sa fiche. */
     income_cents: number | null;
-    co_income_cents: number | null;
+    /** Somme des revenus déclarés par les fiches des locataires. */
     household_income_cents: number | null;
+    /** Agent immobilier du dossier, comme sur la fiche lead. */
+    agent: LeadAgent | null;
     invoices_count: number;
     document_requests_count: number;
 };
@@ -118,6 +121,12 @@ export type VisitOutcome = {
     visited_at: string | null;
     /** Visite faite et rien de tranché depuis le délai de relance. */
     decision_due: boolean;
+    /** Depuis quand le bien en est à cette étape. */
+    status_at?: string | null;
+    /** Dernière relance partie aux personnes de suivi. */
+    reminded_at?: string | null;
+    /** Prochaine relance automatique, tant que rien n'est tranché. */
+    reminder_at?: string | null;
 };
 
 /** Personne de suivi : en copie des e-mails du dossier. */
@@ -154,13 +163,11 @@ export type ClientTotals = {
     due_cents: number;
 };
 
-export type ClientNote = {
-    id: number;
-    body: string;
-    by: string | null;
-    avatar: string | null;
-    at: string | null;
-};
+/**
+ * Note interne d'un dossier : la même forme que sur la fiche lead — les deux
+ * écrans partagent les bulles, le compositeur et les routes `leads.notes.*`.
+ */
+export type ClientNote = LeadNote;
 
 /** Bien de l'annuaire rattaché à un dossier, avec les visites de ce client. */
 export type ClientProperty = {
@@ -181,6 +188,9 @@ export type ClientProperty = {
     visits_count: number;
     /** Prochaine visite planifiée de ce client sur ce bien (ISO), ou null. */
     next_visit_at: string | null;
+    /** Dernière relance partie aux personnes de suivi, et prochaine prévue. */
+    reminded_at?: string | null;
+    reminder_at?: string | null;
 };
 
 /** Bien de l'annuaire pas encore rattaché au dossier, pour « Lier un bien ». */

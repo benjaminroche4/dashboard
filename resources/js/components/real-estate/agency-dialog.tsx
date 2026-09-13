@@ -71,6 +71,9 @@ export function AgencyDialog({ open, onOpenChange, agency = null }: Props) {
     const submit = () => {
         const options = {
             preserveScroll: true,
+            // Le dialogue s'ouvre aussi par-dessus un formulaire en cours
+            // (une visite, un bien) : remonter la page perdrait la saisie.
+            preserveState: true,
             onSuccess: () => onOpenChange(false),
         };
 
@@ -138,23 +141,22 @@ export function AgencyDialog({ open, onOpenChange, agency = null }: Props) {
                             form.setData({ ...form.data, ...address })
                         }
                     />
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div className="grid gap-2">
-                            <Label htmlFor="agency-phone">Téléphone</Label>
-                            <PhoneInput
-                                id="agency-phone"
-                                value={form.data.phone}
-                                onChange={(value) =>
-                                    form.setData('phone', value)
-                                }
-                            />
-                            <InputError message={form.errors.phone} />
-                        </div>
-                        {field('email', 'E-mail', {
-                            type: 'email',
-                            placeholder: 'contact@…',
-                        })}
+                    {/* Chacun sa ligne, comme dans le dialogue d'un agent :
+                        l'indicatif et le numéro tiennent mal à côté d'un
+                        e-mail. */}
+                    <div className="grid gap-2">
+                        <Label htmlFor="agency-phone">Téléphone</Label>
+                        <PhoneInput
+                            id="agency-phone"
+                            value={form.data.phone}
+                            onChange={(value) => form.setData('phone', value)}
+                        />
+                        <InputError message={form.errors.phone} />
                     </div>
+                    {field('email', 'E-mail', {
+                        type: 'email',
+                        placeholder: 'contact@…',
+                    })}
                     <ContactDuplicatesAlert
                         duplicates={duplicates}
                         noun="agence"

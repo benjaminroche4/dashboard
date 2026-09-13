@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Models\Visit;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
+use Inertia\Testing\AssertableInertia;
 
 beforeEach(function (): void {
     Event::fake([DashboardUpdated::class]);
@@ -89,4 +90,67 @@ test('deciding again restarts the reminder', function (): void {
 
     expect($lead->properties()->first()->getRelationValue('pivot')->decision_reminded_at)->toBeNull()
         ->and(resolve(SendPropertyDecisionReminders::class)->handle())->toBe(1);
+});
+
+test('the visit page says when the team is relaunched about a pending decision', function (): void {
+    $hours = SendPropertyDecisionReminders::hours();
+    $client = Lead::factory()->converted()->create();
+    $property = Property::factory()->create();
+    $visit = Visit::factory()->create([
+        'lead_id' => $client->id,
+        'property_id' => $property->id,
+        'status' => VisitStatus::Done,
+        'scheduled_at' => now()->subHours($hours + 2),
+        'report' => 'Visite faite, le client hésite.',
+        'report_submitted_at' => now()->subHours($hours + 1),
+    ]);
+    $client->properties()->attach($property, ['status' => PropertyApplicationStatus::Pending->value]);
+
+    // Jamais relancé : la première relance court depuis la visite.
+    $this->actingAs(User::factory()->create())
+        ->get(route('clients.visits.show', $visit))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('outcome.decision_due', true)
+            ->where('outcome.reminded_at', null)
+            ->where('outcome.reminder_at', $visit->scheduled_at->copy()->addHours($hours)->toIso8601String())
+            ->etc());
+
+    // Une fois relancé, la suivante court depuis ce rappel.
+    $remindedAt = now()->subMinutes(30);
+    $client->properties()->updateExistingPivot($property->id, ['decision_reminded_at' => $remindedAt]);
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('clients.visits.show', $visit))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('outcome.reminded_at', $remindedAt->toIso8601String())
+            ->where('outcome.reminder_at', $remindedAt->copy()->addHours($hours)->toIso8601String())
+            ->etc());
+});
+
+test('a decided property announces no further reminder', function (): void {
+    $client = Lead::factory()->converted()->create();
+    $property = Property::factory()->create();
+    $visit = Visit::factory()->create([
+        'lead_id' => $client->id,
+        'property_id' => $property->id,
+        'status' => VisitStatus::Done,
+        'scheduled_at' => now()->subDays(3),
+        'report' => 'Visite faite.',
+        'report_submitted_at' => now()->subDays(3),
+    ]);
+    $client->properties()->attach($property, [
+        'status' => PropertyApplicationStatus::Applied->value,
+        'status_at' => now()->subDay(),
+    ]);
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('clients.visits.show', $visit))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('outcome.status', 'applied')
+            ->where('outcome.reminder_at', null)
+            ->where('outcome.decision_due', false)
+            ->etc());
 });

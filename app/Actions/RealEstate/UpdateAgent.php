@@ -18,6 +18,13 @@ final class UpdateAgent
     {
         $agent->fill($data->toArray())->save();
 
+        // Agent rattaché à une agence : son adresse propre a été effacée, sa
+        // position n'a plus d'objet — sans quoi la carte garderait l'épingle
+        // d'une adresse qui n'est plus affichée nulle part.
+        if ($agent->street === null && $agent->latitude !== null) {
+            $agent->forceFill(['latitude' => null, 'longitude' => null])->saveQuietly();
+        }
+
         // Nouvelle adresse (ou position encore absente) : on repositionne sur la carte.
         $geocode = resolve(GeocodeDirectoryEntry::class);
 

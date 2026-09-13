@@ -7,9 +7,11 @@ vi.mock('@/hooks/use-contact-duplicates', () => ({
     useContactDuplicates: () => [],
 }));
 
+const { post } = vi.hoisted(() => ({ post: vi.fn() }));
+
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
-    router: { delete: vi.fn() },
+    router: { delete: vi.fn(), post },
     usePage: () => ({
         props: {
             auth: { user: { role: 'member' } },
@@ -61,6 +63,7 @@ const agency = {
             uuid: '0199a9a0-0000-7000-8000-0000000000b1',
             name: 'Zoé Martin',
             is_primary: false,
+            is_favorite: false,
             position: 'Négociatrice',
             phone: '+33 6 12 34 56 78',
             email: null,
@@ -71,6 +74,7 @@ const agency = {
             uuid: '0199a9a0-0000-7000-8000-0000000000b2',
             name: 'Paul Roux',
             is_primary: false,
+            is_favorite: false,
             position: null,
             phone: null,
             email: null,
@@ -90,7 +94,7 @@ const agency = {
 };
 
 describe('Agency detail page', () => {
-    it('shows coordinates, agents with their lead count, the properties visited with the agency, and adds an agent preselected', async () => {
+    it('shows coordinates, agents, the properties visited with the agency, and adds an agent preselected', async () => {
         const user = userEvent.setup();
         render(<AgencyShow agency={agency} />);
 
@@ -109,7 +113,9 @@ describe('Agency detail page', () => {
             'href',
             '/real-estate/agents/0199a9a0-0000-7000-8000-0000000000b1',
         );
-        expect(agents.getByLabelText('1 lead(s)')).toBeInTheDocument();
+        // Le compte de leads ne s'affiche plus ici : il vit dans la liste des
+        // agents et sur la fiche de l'agent, pas sur celle de l'agence.
+        expect(agents.queryByText(/lead\(s\)/)).toBeNull();
         // Téléphone et e-mail cliquables, sur leur propre ligne (même carte que
         // les interlocuteurs d'un partenaire).
         expect(
@@ -151,5 +157,46 @@ describe('Agency detail page', () => {
         expect(
             screen.queryByRole('menuitem', { name: 'Supprimer' }),
         ).not.toBeInTheDocument();
+    });
+
+    it('stars an agent from the agency, and searches once the list is long', async () => {
+        const user = userEvent.setup();
+        const many = Array.from({ length: 8 }, (_, index) => ({
+            id: index + 10,
+            uuid: `agent-${index}`,
+            name: index === 0 ? 'Zoé Martin' : `Agent ${index}`,
+            position: index === 0 ? 'Négociatrice' : null,
+            phone: null,
+            email: null,
+            is_primary: false,
+            is_favorite: index === 0,
+            leads_count: 0,
+        }));
+        render(<AgencyShow agency={{ ...agency, agents: many }} />);
+
+        const card = within(screen.getByRole('region', { name: 'Agents' }));
+        // Un favori se signale par l'étoile, à côté du nom.
+        expect(card.getAllByRole('img', { name: 'Favori' })).toHaveLength(1);
+
+        // La bascule vit dans le menu de la ligne, comme ailleurs.
+        await user.click(
+            card.getByRole('button', { name: 'Actions pour Zoé Martin' }),
+        );
+        await user.click(
+            await screen.findByRole('menuitem', { name: /Favoris/ }),
+        );
+        expect(post).toHaveBeenCalledWith(
+            '/real-estate/agents/agent-0/favorite',
+            {},
+            expect.objectContaining({ preserveScroll: true }),
+        );
+
+        // Huit agents : la recherche apparaît et réduit la liste.
+        await user.type(
+            card.getByRole('searchbox', { name: 'Rechercher un agent' }),
+            'négo',
+        );
+        expect(card.getAllByRole('listitem')).toHaveLength(1);
+        expect(card.getByText('Zoé Martin')).toBeInTheDocument();
     });
 });

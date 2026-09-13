@@ -31,12 +31,6 @@ describe('Public document code page', () => {
                     intro: 'Saisissez le code d’appairage à 6 chiffres.',
                     code: 'Code d’appairage',
                     submit: 'Ouvrir mon espace',
-                    privacy_title: 'Vos documents sont entre de bonnes mains',
-                    privacy_secure:
-                        'Connexion chiffrée : vos fichiers voyagent protégés.',
-                    privacy_private:
-                        'Accès réservé : seule l’équipe qui suit votre dossier peut les ouvrir.',
-                    privacy_kept: 'Jamais revendus ni transmis à un tiers.',
                 }}
             />,
         );
@@ -44,6 +38,11 @@ describe('Public document code page', () => {
         expect(
             screen.getByRole('heading', { name: 'Vos pièces justificatives' }),
         ).toBeInTheDocument();
+        // L'écran du code va droit au but : le bloc de réassurance vit sur la
+        // page de dépôt, une fois le client entré.
+        expect(
+            screen.queryByText(/entre de bonnes mains/),
+        ).not.toBeInTheDocument();
         expect(
             screen.getByText('Ce code n’est pas le bon.'),
         ).toBeInTheDocument();

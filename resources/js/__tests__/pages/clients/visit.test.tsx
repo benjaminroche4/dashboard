@@ -43,48 +43,29 @@ const others = [
 ];
 
 describe('Visit detail page', () => {
-    it('lists the other visits of the client in one compact line each', () => {
+    it('counts the visits of the client instead of listing them', () => {
         render(<VisitShow visit={makeVisitDetail()} otherVisits={others} />);
 
-        const section = screen.getByRole('region', {
-            name: 'Autres visites du client',
-        });
-        const rows = within(section).getAllByRole('listitem');
-        expect(rows).toHaveLength(2);
-
-        // Créneau cliquable vers la visite, statut, et le bien en sous-titre.
+        // Le nombre de visites se lit à côté du dossier ; la liste des autres
+        // visites, redondante avec le dossier, a disparu de la fiche.
         expect(
-            within(rows[0]!).getByRole('link', {
-                name: 'dim. 20 sept. · 13:00',
+            screen.getByRole('link', {
+                name: 'Voir les visites de Léa Durand',
             }),
-        ).toHaveAttribute(
-            'href',
-            '/clients/visits/0199a9a0-0000-7000-8000-0000000000a2',
-        );
-        expect(rows[0]).toHaveTextContent(
-            'T2 lumineux · 11e · 12 rue Oberkampf, 75011 Paris',
-        );
-        expect(rows[0]).toHaveTextContent('Planifiée');
-
-        // Le client ne se répète pas : c'est le même que celui de la fiche.
+        ).toHaveTextContent('3 visites pour ce client');
         expect(
-            within(section).queryByText('Léa Durand'),
+            screen.queryByRole('region', { name: 'Autres visites du client' }),
         ).not.toBeInTheDocument();
-        // Ni le mode, ni la colonne agent du tableau des journées.
-        expect(
-            within(section).queryByText('Par l’équipe'),
-        ).not.toBeInTheDocument();
-
-        // Un compte rendu manquant reste signalé.
-        expect(rows[1]).toHaveTextContent('Compte rendu à rédiger');
     });
 
-    it('says so when the client has no other visit', () => {
+    it('says one visit when the client has no other visit', () => {
         render(<VisitShow visit={makeVisitDetail()} otherVisits={[]} />);
 
         expect(
-            screen.getByText('Aucune autre visite pour ce client.'),
-        ).toBeInTheDocument();
+            screen.getByRole('link', {
+                name: 'Voir les visites de Léa Durand',
+            }),
+        ).toHaveTextContent('1 visite pour ce client');
     });
 
     it('unlocks the report only once the visit has happened', () => {
@@ -196,8 +177,9 @@ describe('Visit detail page', () => {
         const outcome = {
             status: 'pending' as const,
             status_label: 'À décider',
-            visited_at: null,
+            visited_at: '2026-09-10T10:00:00+02:00',
             decision_due: false,
+            reminder_at: '2099-09-14T09:00:00+02:00',
             options: [
                 {
                     value: 'pending' as const,
@@ -240,10 +222,12 @@ describe('Visit detail page', () => {
         const section = within(
             screen.getByRole('region', { name: 'Suite de la visite' }),
         );
+        // Le suivi dit ce que l'étape veut dire, et quand l'équipe est relancée.
         expect(
-            section.getByText(
-                'Le client souhaite-t-il se positionner sur ce bien ?',
-            ),
+            section.getByText('Le client n’a pas encore décidé.'),
+        ).toBeInTheDocument();
+        expect(
+            section.getByText('Prochaine relance le 14 sept. à 09:00'),
         ).toBeInTheDocument();
 
         await user.click(

@@ -10,6 +10,7 @@ use App\Models\Lead;
 use App\Models\LeadPropertyLink;
 use App\Models\Property;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Mail;
 
 /**
@@ -83,5 +84,20 @@ final class SendPropertyDecisionReminders
     public static function hours(): int
     {
         return max(1, (int) config('company.property_decision.delay_hours'));
+    }
+
+    /**
+     * Quand part la prochaine relance sur un bien laissé « à décider ». Même
+     * règle que `awaitingDecision()` : la première court depuis la visite, les
+     * suivantes depuis le dernier rappel. `null` sans visite effectuée —
+     * il n'y a alors rien à relancer.
+     */
+    public static function nextReminderAt(?CarbonInterface $visitedAt, ?CarbonInterface $remindedAt): ?CarbonInterface
+    {
+        if (! $visitedAt instanceof CarbonInterface) {
+            return null;
+        }
+
+        return ($remindedAt ?? $visitedAt)->copy()->addHours(self::hours());
     }
 }

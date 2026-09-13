@@ -3,8 +3,11 @@ import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
+const { routerPatch } = vi.hoisted(() => ({ routerPatch: vi.fn() }));
+
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
+    router: { patch: routerPatch },
     usePage: () => ({
         props: {
             auth: { user: { role: 'admin' } },
@@ -12,16 +15,22 @@ vi.mock('@inertiajs/react', () => ({
         },
     }),
     useForm: () => ({
+        // Les personnes du dossier et le compositeur de notes passent tous
+        // deux par `useForm` : le stub porte donc leurs champs.
         data: {
             co_first_name: '',
             co_last_name: '',
             co_email: '',
             co_phone: '',
             co_assigned_to: '',
+            body: '',
         },
         errors: {},
         processing: false,
         setData: vi.fn(),
+        clearErrors: vi.fn(),
+        reset: vi.fn(),
+        post: vi.fn(),
         patch: vi.fn(),
     }),
     Link: ({
@@ -109,6 +118,25 @@ describe('Client file page', () => {
                 quotes={[]}
                 visits={[makeVisit()]}
                 documentRequests={[]}
+                suggestedProperties={[
+                    {
+                        id: 9,
+                        uuid: 'prop-9',
+                        label: 'T3 meublé · 100 m² · 1er',
+                        street: '12 rue de Richelieu',
+                        postal_code: '75001',
+                        city: 'Paris',
+                        property_type_label: 'T3',
+                        furnished_label: 'Meublé',
+                        surface_m2: 100,
+                        rent_cents: 60_200,
+                        currency: 'EUR',
+                        listing_url: null,
+                        agent: null,
+                        score: 8,
+                        reasons: ['Dans le budget'],
+                    },
+                ]}
                 partners={[
                     {
                         id: 1,
@@ -130,9 +158,14 @@ describe('Client file page', () => {
                 notes={[
                     {
                         id: 1,
+                        uuid: 'note-1',
                         body: 'Visite prévue lundi.',
+                        kind: 'team',
                         by: 'Admin',
                         avatar: null,
+                        mine: false,
+                        can_edit: false,
+                        can_delete: false,
                         at: '2026-09-07T09:00:00+00:00',
                     },
                 ]}
@@ -175,7 +208,9 @@ describe('Client file page', () => {
             'Visites1',
             // Un compteur à zéro ne s'affiche pas : il n'apprend rien.
             'Documents',
-            'Biens',
+            // Aucun bien rattaché, mais un bien correspond au projet : la
+            // pastille verte « +1 » appelle le coup d'œil.
+            'Biens+1',
             'Notes1',
             'Autre2',
         ]);
@@ -192,8 +227,15 @@ describe('Client file page', () => {
             screen.getByText('Aucun devis pour ce lead.'),
         ).toBeInTheDocument();
         expect(screen.getByText('Garantme')).toBeInTheDocument();
+        // La carte « Partenaires du dossier » est celle de la fiche lead :
+        // le rôle, la note, et de quoi en ajouter un depuis le dossier.
+        const partnerCard = within(
+            screen.getByRole('region', { name: 'Partenaires du dossier' }),
+        );
+        expect(partnerCard.getByText('Garantie')).toBeInTheDocument();
+        expect(partnerCard.getByText('Dossier envoyé')).toBeInTheDocument();
         expect(
-            screen.getByText('Garantie · Dossier envoyé'),
+            partnerCard.getByRole('button', { name: 'Ajouter' }),
         ).toBeInTheDocument();
         await user.click(screen.getByRole('tab', { name: /Notes/ }));
         expect(screen.getByText('Visite prévue lundi.')).toBeInTheDocument();
@@ -259,14 +301,23 @@ describe('Client file page', () => {
         expect(screen.getAllByText('Non renseigné').length).toBeGreaterThan(0);
         await user.click(screen.getByRole('tab', { name: /Autre/ }));
         expect(
-            screen.getByText('Aucun partenaire sur ce dossier.'),
+            screen.getByText(
+                'Aucun partenaire dans l’annuaire pour le moment.',
+            ),
         ).toBeInTheDocument();
         await user.click(screen.getByRole('tab', { name: /Visites/ }));
         expect(
             screen.getByText('Aucune visite pour ce client.'),
         ).toBeInTheDocument();
         await user.click(screen.getByRole('tab', { name: /Notes/ }));
-        expect(screen.getByText('Aucune note.')).toBeInTheDocument();
+        // Fil vide, mais la note s'écrit tout de suite : même compositeur que
+        // la fiche lead.
+        expect(
+            screen.getByText('Aucune activité pour le moment.'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('textbox', { name: 'Nouvelle note' }),
+        ).toBeInTheDocument();
     });
 
     it('lists the journal of the dossier with a link to the full log', async () => {
@@ -307,6 +358,35 @@ describe('Client file page', () => {
         ).toHaveAttribute(
             'href',
             '/tools/activity?lead=0199a9a0-0000-7000-8000-0000000000e1',
+        );
+    });
+
+    it('changes who follows the file from the header', async () => {
+        const user = userEvent.setup();
+        render(
+            <ClientShow
+                client={makeClientDetail()}
+                priorities={clientPriorities}
+                totals={[]}
+                invoices={[]}
+                quotes={[]}
+                documentRequests={[]}
+                partners={[]}
+                notes={[]}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: /Suivi par Admin, changer/ }),
+        );
+        await user.click(
+            screen.getByRole('menuitem', { name: /Charles Petit/ }),
+        );
+
+        expect(routerPatch).toHaveBeenCalledWith(
+            expect.stringContaining('/assign'),
+            { user_id: 2 },
+            expect.objectContaining({ preserveScroll: true }),
         );
     });
 
@@ -392,6 +472,173 @@ describe('Client file page', () => {
         expect(
             within(screen.getByRole('region', { name: 'Garants' })).getByText(
                 /Infirmière/,
+            ),
+        ).toBeInTheDocument();
+    });
+
+    it('presents each person as a card, on the mould of an invoice line', async () => {
+        const user = userEvent.setup();
+        render(
+            <ClientShow
+                priorities={clientPriorities}
+                client={makeClientDetail({ name: 'Bruno Mata' })}
+                guarantors={[
+                    {
+                        uuid: 'guarantor-1',
+                        first_name: 'Marie',
+                        last_name: 'Mata',
+                        name: 'Marie Mata',
+                        email: null,
+                        phone: null,
+                        employment_status: 'cdi',
+                        employment_status_label: 'CDI',
+                        occupation: 'Infirmière',
+                        income_cents: 450_000,
+                        note: null,
+                    },
+                ]}
+                totals={[]}
+                invoices={[]}
+                quotes={[]}
+                documentRequests={[]}
+                partners={[]}
+                notes={[]}
+            />,
+        );
+
+        await user.click(screen.getByRole('tab', { name: /Personnes/ }));
+
+        const guarantors = within(
+            screen.getByRole('region', { name: 'Garants' }),
+        );
+
+        // Le bandeau dit ce que la personne est ici ; le métier passe sous le
+        // nom, et le revenu se lit à droite comme un total de ligne.
+        expect(guarantors.getByText('Garant 1')).toBeInTheDocument();
+        expect(guarantors.getByText('Infirmière')).toBeInTheDocument();
+        expect(guarantors.getByText('Revenu mensuel')).toBeInTheDocument();
+        expect(guarantors.getByText(/4.500,00/)).toBeInTheDocument();
+
+        expect(
+            within(
+                screen.getByRole('region', { name: 'Locataires' }),
+            ).getByText('Locataire'),
+        ).toBeInTheDocument();
+    });
+
+    it('takes a note from the overview and manages agent and partners from the file', async () => {
+        const user = userEvent.setup();
+        render(
+            <ClientShow
+                priorities={clientPriorities}
+                client={makeClientDetail()}
+                invoices={[]}
+                quotes={[]}
+                documentRequests={[]}
+                partners={[]}
+                agents={[
+                    {
+                        id: 1,
+                        uuid: 'agent-1',
+                        name: 'Zoé Martin',
+                        agency: 'Agence du Marais',
+                        phone: null,
+                        is_favorite: false,
+                    },
+                ]}
+                partnerOptions={[
+                    {
+                        id: 1,
+                        name: 'Garantme',
+                        type: 'partnership',
+                        type_label: 'Partenariat',
+                    },
+                ]}
+                partnerRoles={[{ value: 'guarantee', label: 'Garantie' }]}
+                notes={[]}
+            />,
+        );
+
+        // Aperçu : le bouton ouvre le compositeur, sans changer d'onglet.
+        await user.click(
+            screen.getByRole('button', { name: 'Ajouter une note' }),
+        );
+        expect(
+            await screen.findByRole('textbox', { name: 'Nouvelle note' }),
+        ).toBeInTheDocument();
+
+        // Onglet « Autre » : l'agent et les partenaires se gèrent ici.
+        await user.click(screen.getByRole('tab', { name: /Autre/ }));
+        expect(
+            screen.getByRole('region', { name: 'Agent en contact' }),
+        ).toBeInTheDocument();
+        const partnerCard = within(
+            screen.getByRole('region', { name: 'Partenaires du dossier' }),
+        );
+        expect(
+            partnerCard.getByRole('button', { name: 'Ajouter' }),
+        ).toBeEnabled();
+    });
+
+    it('tints the offer badge in the header, like everywhere else', () => {
+        const { unmount } = render(
+            <ClientShow
+                priorities={clientPriorities}
+                client={makeClientDetail({
+                    offer: 'accompagne',
+                    offer_label: 'Accompagné',
+                })}
+                invoices={[]}
+                quotes={[]}
+                documentRequests={[]}
+                partners={[]}
+                notes={[]}
+            />,
+        );
+        // Accompagné en jaune, Confié en bleu : la même lecture partout.
+        expect(screen.getByText('Accompagné').className).toContain('amber');
+        unmount();
+
+        render(
+            <ClientShow
+                priorities={clientPriorities}
+                client={makeClientDetail({
+                    offer: 'confie',
+                    offer_label: 'Confié',
+                })}
+                invoices={[]}
+                quotes={[]}
+                documentRequests={[]}
+                partners={[]}
+                notes={[]}
+            />,
+        );
+        expect(screen.getByText('Confié').className).toContain('blue');
+    });
+
+    it('explains that a refused property is the client’s own refusal', () => {
+        render(
+            <ClientShow
+                priorities={clientPriorities}
+                client={makeClientDetail()}
+                progress={{
+                    visits_done: 1,
+                    properties_refused: 1,
+                    applications: 0,
+                }}
+                invoices={[]}
+                quotes={[]}
+                documentRequests={[]}
+                partners={[]}
+                notes={[]}
+            />,
+        );
+
+        // « Refusés » se lit de travers : c'est le client qui écarte, pas
+        // l'agence qui recale.
+        expect(
+            screen.getByLabelText(
+                /^Biens refusés : Les logements que le client/,
             ),
         ).toBeInTheDocument();
     });

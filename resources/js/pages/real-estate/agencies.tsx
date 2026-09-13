@@ -87,7 +87,15 @@ export default function Agencies({
                             {pagination.total} agence(s) partenaire(s)
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <Button onClick={add}>
+                        <Plus />
+                        Nouvelle agence
+                    </Button>
+                </div>
+                <DataTable
+                    columns={columns}
+                    data={agencies}
+                    filters={
                         <FavoritesFilter
                             active={favoritesOnly}
                             onChange={(active) =>
@@ -98,15 +106,7 @@ export default function Agencies({
                             }
                             count={favoritesCount}
                         />
-                        <Button onClick={add}>
-                            <Plus />
-                            Nouvelle agence
-                        </Button>
-                    </div>
-                </div>
-                <DataTable
-                    columns={columns}
-                    data={agencies}
+                    }
                     server={server}
                     filterColumn="name"
                     filterPlaceholder="Rechercher une agence (nom, ville)…"

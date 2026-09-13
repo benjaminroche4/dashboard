@@ -24,6 +24,7 @@ export function makeAgency(overrides: Partial<Agency> = {}): Agency {
                 uuid: '0199a9a0-0000-7000-8000-0000000000b1',
                 name: 'Zoé Martin',
                 is_primary: false,
+                is_favorite: false,
                 position: 'Négociatrice',
                 phone: '+33 6 12 34 56 78',
                 email: 'zoe@marais.example',
@@ -33,6 +34,7 @@ export function makeAgency(overrides: Partial<Agency> = {}): Agency {
                 uuid: '0199a9a0-0000-7000-8000-0000000000b2',
                 name: 'Paul Roux',
                 is_primary: false,
+                is_favorite: false,
                 position: null,
                 phone: null,
                 email: null,
@@ -50,11 +52,13 @@ export const agencyOptions: AgencyOption[] = [
         id: 1,
         uuid: '0199a9a0-0000-7000-8000-0000000000a1',
         name: 'Agence du Marais',
+        address: '12 rue de Turenne, 75003 Paris',
     },
     {
         id: 2,
         uuid: '0199a9a0-0000-7000-8000-0000000000a2',
         name: 'Bureau Paris Ouest',
+        address: null,
     },
 ];
 

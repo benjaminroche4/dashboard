@@ -30,6 +30,22 @@ class DocumentUploadController extends Controller
         return Storage::disk(DocumentUpload::DISK)->download($upload->path, $upload->original_name);
     }
 
+    /**
+     * La même pièce servie **dans la page** plutôt qu'en pièce jointe : on
+     * relit un PDF avant de le valider, on ne le collectionne pas. `nosniff`
+     * interdit au navigateur de deviner un autre type que celui annoncé.
+     */
+    public function preview(DocumentRequest $documentRequest, DocumentUpload $upload): StreamedResponse
+    {
+        $this->authorize('view', $documentRequest);
+
+        return Storage::disk(DocumentUpload::DISK)->response($upload->path, $upload->original_name, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.addslashes($upload->original_name).'"',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
     /** Valide ou refuse une pièce, avec un motif facultatif sur un refus. */
     public function review(ReviewDocumentUploadRequest $request, DocumentRequest $documentRequest, DocumentUpload $upload, ReviewDocumentUpload $review): RedirectResponse
     {

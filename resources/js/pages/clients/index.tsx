@@ -150,8 +150,7 @@ export default function ClientsIndex({
                         <h1 className="text-lg font-medium">Dossiers</h1>
                         <p className="text-muted-foreground text-sm">
                             {visible.length} client
-                            {visible.length > 1 ? 's' : ''} : les leads
-                            convertis, suivis jusqu’à l’installation.
+                            {visible.length > 1 ? 's' : ''}
                         </p>
                     </div>
                     {/* Un client recommandé n'a jamais été un lead : son
@@ -168,7 +167,7 @@ export default function ClientsIndex({
                     filterPlaceholder="Filtrer par client…"
                     columnLabels={clientColumnLabels}
                     frame="panel"
-                    actions={
+                    filters={
                         <>
                             <FilterMenu
                                 groups={[

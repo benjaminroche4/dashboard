@@ -102,7 +102,7 @@ export default function PropertiesIndex({
                         filterPlaceholder="Rechercher un bien ou une adresse…"
                         columnLabels={propertyColumnLabels}
                         frame="panel"
-                        actions={
+                        filters={
                             <FilterMenu
                                 title="Disponibilité"
                                 options={propertyStatuses}

@@ -79,12 +79,23 @@ class HandleInertiaRequests extends Middleware
                 // « Se connecter avec Google » : le bouton n'apparaît qu'avec des identifiants OAuth.
                 'googleLogin' => GoogleLoginController::configured(),
             ],
-            // Compteurs du menu : leads « À traiter » (tous, et ceux des propriétaires), rafraîchis à chaque événement temps réel.
+            // Compteurs du menu : leads « À traiter » (tous, et ceux des propriétaires)
+            // et dossiers clients ouverts, rafraîchis à chaque événement temps réel.
             'counts' => fn (): array => $request->user() === null
-                ? ['leadsTodo' => 0, 'ownerLeadsTodo' => 0]
+                ? ['leadsTodo' => 0, 'ownerLeadsTodo' => 0, 'clients' => 0]
                 : [
-                    'leadsTodo' => Lead::query()->where('status', LeadStatus::Todo)->count(),
+                    // Chaque badge compte son segment : le menu « Leads
+                    // locataires » annonçait aussi les leads propriétaires.
+                    'leadsTodo' => Lead::query()
+                        ->where('status', LeadStatus::Todo)
+                        ->where(fn ($query) => $query
+                            ->whereNull('help_type')
+                            ->orWhere('help_type', '!=', WebsiteHelpType::RentalManagement))
+                        ->count(),
                     'ownerLeadsTodo' => Lead::query()->where('status', LeadStatus::Todo)->where('help_type', WebsiteHelpType::RentalManagement)->count(),
+                    // Un dossier client est un lead converti : c'est le nombre
+                    // de dossiers suivis, pas une file d'attente.
+                    'clients' => Lead::query()->where('status', LeadStatus::Converted)->count(),
                 ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

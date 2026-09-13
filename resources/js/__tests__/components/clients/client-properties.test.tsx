@@ -140,9 +140,37 @@ describe('ClientProperties', () => {
                 options={options}
             />,
         );
+        // Attribué à **ce** dossier : c'est là que le client habite.
+        expect(
+            screen.getByLabelText('Logement retenu par le client'),
+        ).toHaveTextContent('Retenu par le client');
+        expect(screen.getByText('Le client habite ici :')).toBeInTheDocument();
+    });
+
+    it('names the other dossier when the property is taken elsewhere', () => {
+        render(
+            <ClientProperties
+                clientUuid="client-1"
+                properties={[
+                    {
+                        ...property,
+                        assigned_lead: {
+                            uuid: 'client-9',
+                            name: 'Bruno & Charles',
+                        },
+                    },
+                ]}
+                options={options}
+            />,
+        );
+
         expect(
             screen.getByLabelText('Attribué à Bruno & Charles'),
-        ).toHaveTextContent('Attribué à Bruno & Charles');
+        ).toBeInTheDocument();
+        // Pris ailleurs : ce client n'habite pas là.
+        expect(
+            screen.queryByText('Le client habite ici :'),
+        ).not.toBeInTheDocument();
     });
 
     it('links a property from the directory through the dialog', async () => {
@@ -156,9 +184,11 @@ describe('ClientProperties', () => {
         );
 
         expect(
-            screen.getByText('Aucun bien rattaché à ce dossier.'),
+            screen.getByText(/Aucun logement proposé pour l'instant/),
         ).toBeInTheDocument();
-        await user.click(screen.getByRole('button', { name: 'Lier un bien' }));
+        await user.click(
+            screen.getByRole('button', { name: 'Proposer un logement' }),
+        );
         const dialog = within(await screen.findByRole('dialog'));
         expect(
             dialog.getByRole('button', { name: 'Lier le bien' }),
@@ -326,7 +356,7 @@ describe('ClientProperties', () => {
         );
 
         expect(
-            screen.getByRole('button', { name: 'Lier un bien' }),
+            screen.getByRole('button', { name: 'Proposer un logement' }),
         ).toBeDisabled();
     });
 });

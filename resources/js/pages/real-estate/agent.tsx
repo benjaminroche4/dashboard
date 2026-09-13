@@ -51,8 +51,11 @@ export default function AgentShow({
     activities = [],
 }: Props) {
     const [editing, setEditing] = useState(false);
-    const address = formatAddress(agent);
     const agencyAddress = agency ? formatAddress(agency) : null;
+    // Un agent rattaché travaille à l'adresse de son agence : c'est celle-là
+    // qu'on montre, la sienne n'étant renseignée que pour un indépendant.
+    const address = agency ? agencyAddress : formatAddress(agent);
+    const place = agency ?? agent;
 
     return (
         <>
@@ -107,9 +110,9 @@ export default function AgentShow({
                                     place={{
                                         name: agent.name,
                                         address,
-                                        street: agent.street,
-                                        latitude: agent.latitude,
-                                        longitude: agent.longitude,
+                                        street: place.street,
+                                        latitude: place.latitude,
+                                        longitude: place.longitude,
                                     }}
                                 />
                             }
@@ -130,7 +133,12 @@ export default function AgentShow({
                                             ? `mailto:${agent.email}`
                                             : null,
                                     },
-                                    { label: 'Adresse', value: address },
+                                    {
+                                        label: agency
+                                            ? 'Adresse de l’agence'
+                                            : 'Adresse',
+                                        value: address,
+                                    },
                                 ].map((row) => (
                                     <div
                                         key={row.label}

@@ -31,6 +31,8 @@ export type AgencyAgent = {
     uuid: string;
     name: string;
     is_primary: boolean;
+    /** Favori personnel du membre connecté, comme dans la liste des agents. */
+    is_favorite: boolean;
     position: string | null;
     phone: string | null;
     email: string | null;
@@ -53,6 +55,8 @@ export type AgentAgencyCard = {
     street: string | null;
     postal_code: string | null;
     city: string | null;
+    latitude: number | null;
+    longitude: number | null;
     phone: string | null;
     email: string | null;
     website: string | null;
@@ -111,7 +115,13 @@ export type AgencyForm = {
 };
 
 /** Agence proposée dans le formulaire d'un agent. */
-export type AgencyOption = { id: number; uuid: string; name: string };
+/** Agence dans un sélecteur : son adresse est celle de ses agents rattachés. */
+export type AgencyOption = {
+    id: number;
+    uuid: string;
+    name: string;
+    address?: string | null;
+};
 
 /** Agent immobilier, rattaché ou non à une agence. */
 export type Agent = {

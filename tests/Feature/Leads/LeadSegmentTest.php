@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\LeadStatus;
 use App\Enums\WebsiteHelpType;
 use App\Events\DashboardUpdated;
 use App\Models\Lead;
@@ -63,4 +64,42 @@ test('the lead page and the owner leads expose the segment', function (): void {
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->has('leads', 1));
 
     expect($owner->refresh()->help_type)->toBe(WebsiteHelpType::RentalManagement);
+});
+
+test('a lead moved to the owner segment leaves the tenant list, and the other way round', function (): void {
+    $staff = User::factory()->staff()->create();
+    $tenant = Lead::factory()->create(['help_type' => null]);
+    $owner = Lead::factory()->create(['help_type' => WebsiteHelpType::RentalManagement]);
+
+    // Chaque liste ne montre que son segment : un lead déplacé quitte l'autre.
+    $this->actingAs($staff)->get(route('leads.index'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->has('leads', 1)
+            ->where('leads.0.id', $tenant->id));
+
+    $this->actingAs($staff)->get(route('owners.leads'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->has('leads', 1)
+            ->where('leads.0.id', $owner->id));
+
+    $this->actingAs($staff)
+        ->patch(route('leads.segment', $tenant), ['segment' => 'owner'])
+        ->assertSessionHasNoErrors();
+
+    $this->actingAs($staff)->get(route('leads.index'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->has('leads', 0));
+    $this->actingAs($staff)->get(route('owners.leads'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->has('leads', 2));
+});
+
+test('the sidebar counts each segment separately', function (): void {
+    $staff = User::factory()->staff()->create();
+    Lead::factory()->create(['status' => LeadStatus::Todo, 'help_type' => null]);
+    Lead::factory()->create(['status' => LeadStatus::Todo, 'help_type' => WebsiteHelpType::RentalManagement]);
+
+    // Le badge « Leads locataires » comptait aussi les propriétaires.
+    $this->actingAs($staff)->get(route('dashboard'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('counts.leadsTodo', 1)
+            ->where('counts.ownerLeadsTodo', 1));
 });

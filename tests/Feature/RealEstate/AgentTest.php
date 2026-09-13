@@ -62,7 +62,11 @@ test('an agent is created with capitalised names, attached to an agency, then up
     expect($agent->fullName())->toBe("Jean-Pierre D'Ormesson")
         ->and($agent->agency_id)->toBe($agency->id)
         ->and($agent->position)->toBe(AgentPosition::Negotiator)
-        ->and($agent->city)->toBe('Paris')
+        // Rattaché à une agence : il n'a pas d'adresse propre, c'est celle de
+        // son agence — l'adresse envoyée est donc ignorée.
+        ->and($agent->street)->toBeNull()
+        ->and($agent->postal_code)->toBeNull()
+        ->and($agent->city)->toBeNull()
         ->and($agent->created_by)->toBe($member->id);
 
     $this->actingAs($member)
@@ -76,6 +80,40 @@ test('an agent is created with capitalised names, attached to an agency, then up
 
     expect($agent->refresh()->last_name)->toBe('Dupont')
         ->and($agent->agency_id)->toBeNull();
+
+    // Devenu indépendant, il porte son adresse.
+    $this->actingAs($member)
+        ->patch(route('agents.update', $agent), [
+            'first_name' => 'Jean-Pierre',
+            'last_name' => 'Dupont',
+            'agency_id' => '',
+            'street' => '5 rue de Bretagne',
+            'postal_code' => '75003',
+            'city' => 'Paris',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($agent->refresh()->street)->toBe('5 rue de Bretagne')
+        ->and($agent->city)->toBe('Paris');
+
+    // Rattaché de nouveau : l'adresse et la position s'effacent, celle de
+    // l'agence prend le relais.
+    $agent->forceFill(['latitude' => 48.86, 'longitude' => 2.36])->saveQuietly();
+
+    $this->actingAs($member)
+        ->patch(route('agents.update', $agent), [
+            'first_name' => 'Jean-Pierre',
+            'last_name' => 'Dupont',
+            'agency_id' => $agency->id,
+            'street' => '5 rue de Bretagne',
+            'postal_code' => '75003',
+            'city' => 'Paris',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($agent->refresh()->street)->toBeNull()
+        ->and($agent->latitude)->toBeNull()
+        ->and($agent->longitude)->toBeNull();
 });
 
 test('the payload is validated and only admins delete an agent', function (): void {

@@ -40,6 +40,7 @@ use App\Enums\PartnerRole;
 use App\Enums\PaymentPlan;
 use App\Enums\PropertyType;
 use App\Enums\RecontactChannel;
+use App\Enums\WebsiteHelpType;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Owners\OwnerLeadController;
 use App\Http\Requests\Leads\ApplyLeadQualificationRequest;
@@ -88,8 +89,15 @@ class LeadController extends Controller
         $this->authorize('viewAny', Lead::class);
 
         $withArchived = $request->boolean('archived');
+        // Les leads propriétaires ont leur propre liste : un lead déplacé
+        // vers ce segment doit quitter celle-ci, pas s'afficher des deux côtés.
         $leads = Lead::query()
             ->with(['author', 'assignee'])
+            // `!=` laisserait de côté les leads sans type : en SQL, une
+            // comparaison avec NULL n'est jamais vraie.
+            ->where(fn (Builder $query): Builder => $query
+                ->whereNull('help_type')
+                ->orWhere('help_type', '!=', WebsiteHelpType::RentalManagement))
             ->unless($withArchived, fn (Builder $query): Builder => $query->where('status', '!=', LeadStatus::Archived))
             ->orderBy('position')
             ->latest()
@@ -101,7 +109,13 @@ class LeadController extends Controller
             'leads' => $leads,
             'archived' => [
                 'loaded' => $withArchived,
-                'count' => Lead::query()->where('status', LeadStatus::Archived)->count(),
+                // Même segment que la liste : le compte des archivés aussi.
+                'count' => Lead::query()
+                    ->where('status', LeadStatus::Archived)
+                    ->where(fn (Builder $query): Builder => $query
+                        ->whereNull('help_type')
+                        ->orWhere('help_type', '!=', WebsiteHelpType::RentalManagement))
+                    ->count(),
             ],
             'statuses' => self::statuses(),
             'offers' => self::offers(),
@@ -129,6 +143,30 @@ class LeadController extends Controller
             'uuid' => $lead->uuid,
             'name' => $lead->fullName(),
             'is_client' => $lead->status === LeadStatus::Converted,
+        ];
+    }
+
+    /**
+     * Note interne telle que l'affiche le fil d'activité (fiche lead **et**
+     * dossier client, qui partagent les mêmes bulles et les mêmes routes).
+     *
+     * @return array{id: int, uuid: string, body: string, kind: string, by: string|null, avatar: string|null, mine: bool, can_edit: bool, can_delete: bool, at: string|null}
+     */
+    public static function note(LeadNote $note): array
+    {
+        return [
+            'id' => $note->id,
+            'uuid' => $note->uuid,
+            'body' => $note->body,
+            // Suivi écrit par l'application, ou note de l'équipe : les deux
+            // se lisent séparément dans le fil d'activité.
+            'kind' => $note->kind->value,
+            'by' => $note->author?->name,
+            'avatar' => $note->author?->avatar,
+            'mine' => $note->user_id === Auth::id(),
+            'can_edit' => Auth::user()?->can('update', $note) ?? false,
+            'can_delete' => Auth::user()?->can('delete', $note) ?? false,
+            'at' => $note->created_at?->toIso8601String(),
         ];
     }
 
@@ -286,6 +324,10 @@ class LeadController extends Controller
             'duplicates' => $this->findDuplicates($lead->email, $lead->phone, $lead->id),
             // Message reçu à l'arrivée du lead (site, appel ou SMS), mis en avant tant qu'il est à traiter.
             'inbound' => LeadInboundMessageData::fromLead($lead)?->toArray(),
+            // Dernier appel ou SMS noté par la téléphonie, quelle que soit la
+            // source du lead : le résumé de l'assistant se lit sur la fiche,
+            // pas au fond des notes.
+            'lastCall' => LeadInboundMessageData::lastPhone($lead)?->toArray(),
             // Qualification proposée par l'assistant IA, en attente de relecture.
             'qualification' => self::qualification($lead),
             'can' => ['delete' => Auth::user()?->can('delete', $lead) ?? false],
@@ -493,17 +535,7 @@ class LeadController extends Controller
                 'document_count' => $request->documentCount(),
                 'created_at' => $request->created_at?->toIso8601String(),
             ])->all(),
-            'notes' => $lead->notes->map(fn (LeadNote $note): array => [
-                'id' => $note->id,
-                'uuid' => $note->uuid,
-                'body' => $note->body,
-                'by' => $note->author?->name,
-                'avatar' => $note->author?->avatar,
-                'mine' => $note->user_id === Auth::id(),
-                'can_edit' => Auth::user()?->can('update', $note) ?? false,
-                'can_delete' => Auth::user()?->can('delete', $note) ?? false,
-                'at' => $note->created_at?->toIso8601String(),
-            ])->all(),
+            'notes' => $lead->notes->map(fn (LeadNote $note): array => self::note($note))->all(),
             'history' => $lead->statusChanges->map(fn (LeadStatusChange $change): array => [
                 'id' => $change->id,
                 'from' => $change->from_status?->label(),

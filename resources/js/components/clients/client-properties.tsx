@@ -1,6 +1,13 @@
 import { parisFormat } from '@/lib/datetime';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
-import { CalendarPlus, ExternalLink, Link2, Sparkles, X } from 'lucide-react';
+import {
+    CalendarPlus,
+    ExternalLink,
+    Link2,
+    Sparkles,
+    UserCheck,
+    X,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AiBadge } from '@/components/ai-badge';
 import InputError from '@/components/input-error';
@@ -58,7 +65,8 @@ const dateTime = parisFormat({
 
 /**
  * Biens rattachés à un dossier client : liste avec les visites du client,
- * « Planifier une visite » prérempli, retrait, et « Lier un bien » de l'annuaire.
+ * « Planifier une visite » prérempli, retrait, et « Proposer un logement »
+ * depuis l'annuaire.
  */
 export function ClientProperties({
     clientUuid,
@@ -157,6 +165,15 @@ export function ClientProperties({
         );
     };
 
+    // Le logement retenu — celui où le client habite — ouvre la liste.
+    const retained =
+        properties.find(
+            (property) => property.assigned_lead?.uuid === clientUuid,
+        ) ?? null;
+    const ordered = retained
+        ? [retained, ...properties.filter((property) => property !== retained)]
+        : properties;
+
     const remove = (property: ClientProperty) => {
         setRemoving(property.id);
         router.delete(
@@ -167,13 +184,35 @@ export function ClientProperties({
 
     return (
         <div className="grid gap-4">
+            {/* La question de cet onglet : où le client habite une fois la
+                visite validée et le bail signé. Le reste n'est qu'en chemin. */}
+            {retained ? (
+                <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-lg border border-green-300 bg-green-50 p-3 text-sm text-green-900 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+                    <span className="font-medium">Le client habite ici :</span>
+                    <Link
+                        href={propertyShow({ property: retained.uuid })}
+                        className="font-medium underline underline-offset-4"
+                    >
+                        {retained.label}
+                    </Link>
+                    <span className="text-green-800 dark:text-green-200/80">
+                        {formatAddress(retained) ?? ''}
+                    </span>
+                </p>
+            ) : (
+                <p className="text-muted-foreground text-sm">
+                    Aucun logement retenu pour l'instant : ceux d'en dessous lui
+                    sont proposés, jusqu'à la visite validée et le bail signé.
+                </p>
+            )}
             {properties.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
-                    Aucun bien rattaché à ce dossier.
+                    Aucun logement proposé pour l'instant. Ajoutez-en un depuis
+                    l'annuaire pour pouvoir planifier une visite.
                 </p>
             ) : (
                 <ul role="list" className="grid gap-3">
-                    {properties.map((property) => (
+                    {ordered.map((property) => (
                         <li
                             key={property.id}
                             className="bg-sidebar flex flex-wrap items-start justify-between gap-3 rounded-lg border p-3 text-sm"
@@ -229,11 +268,25 @@ export function ClientProperties({
                                     {property.next_visit_at &&
                                         ` · prochaine ${dateTime.format(new Date(property.next_visit_at))}`}
                                 </span>
-                                {/* Bien pris : on le voit ici aussi, même s'il l'est par un autre dossier. */}
-                                <PropertyAssignmentBadge
-                                    property={property}
-                                    className="mt-1 w-fit"
-                                />
+                                {/* Le logement retenu par ce client, ou pris
+                                    par un autre dossier : les deux se disent. */}
+                                {property.assigned_lead?.uuid === clientUuid ? (
+                                    <Badge
+                                        className="mt-1 w-fit gap-1 border-transparent bg-green-100 font-medium text-green-900 dark:bg-green-950 dark:text-green-200"
+                                        aria-label="Logement retenu par le client"
+                                    >
+                                        <UserCheck
+                                            className="size-3"
+                                            aria-hidden
+                                        />
+                                        Retenu par le client
+                                    </Badge>
+                                ) : (
+                                    <PropertyAssignmentBadge
+                                        property={property}
+                                        className="mt-1 w-fit"
+                                    />
+                                )}
                             </div>
                             <div className="flex shrink-0 items-center gap-1">
                                 <Button variant="outline" size="sm" asChild>
@@ -275,12 +328,12 @@ export function ClientProperties({
                     disabled={options.length === 0}
                 >
                     <Link2 aria-hidden />
-                    Lier un bien
+                    Proposer un logement
                 </Button>
                 {options.length === 0 && (
                     <p className="text-muted-foreground mt-2 text-xs">
-                        Tous les biens de l’annuaire sont déjà rattachés, ou
-                        l’annuaire est vide.
+                        Tous les logements de l’annuaire sont déjà proposés à ce
+                        client, ou l’annuaire est vide.
                     </p>
                 )}
             </div>
@@ -452,7 +505,9 @@ export function ClientProperties({
             <Dialog open={linking} onOpenChange={setLinking}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Lier un bien au dossier</DialogTitle>
+                        <DialogTitle>
+                            Proposer un logement à ce client
+                        </DialogTitle>
                         <DialogDescription>
                             Choisissez un bien de l’annuaire. Vous pourrez
                             ensuite planifier une visite dessus.

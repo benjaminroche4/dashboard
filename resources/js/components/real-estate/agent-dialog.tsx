@@ -81,6 +81,10 @@ export function AgentDialog({
 }: Props) {
     const form = useForm<AgentForm>(initial(agent, defaultAgencyId));
     const editing = agent !== null;
+    // Adresse de l'agence choisie : c'est celle de l'agent, rappelée en clair.
+    const selectedAgencyAddress =
+        agencies.find((agency) => String(agency.id) === form.data.agency_id)
+            ?.address ?? null;
     const duplicates = useContactDuplicates(
         (query) => agentDuplicates({ query }).url,
         form.data.email,
@@ -181,7 +185,16 @@ export function AgentDialog({
                             id="agent-agency"
                             value={form.data.agency_id}
                             onChange={(value) =>
-                                form.setData('agency_id', value)
+                                form.setData({
+                                    ...form.data,
+                                    agency_id: value,
+                                    // Devenu indépendant : il n'est principal
+                                    // de rien.
+                                    is_primary:
+                                        value === ''
+                                            ? false
+                                            : form.data.is_primary,
+                                })
                             }
                             agencies={agencies}
                         />
@@ -214,18 +227,29 @@ export function AgentDialog({
                         </Select>
                         <InputError message={form.errors.position} />
                     </div>
-                    <AddressFields
-                        idPrefix="agent"
-                        values={{
-                            street: form.data.street,
-                            postal_code: form.data.postal_code,
-                            city: form.data.city,
-                        }}
-                        errors={form.errors}
-                        onChange={(address) =>
-                            form.setData({ ...form.data, ...address })
-                        }
-                    />
+                    {/* L'adresse ne se saisit que pour un indépendant : un agent
+                        rattaché travaille à l'adresse de son agence, et le
+                        serveur efface l'adresse propre d'un agent rattaché. */}
+                    {form.data.agency_id === '' ? (
+                        <AddressFields
+                            idPrefix="agent"
+                            values={{
+                                street: form.data.street,
+                                postal_code: form.data.postal_code,
+                                city: form.data.city,
+                            }}
+                            errors={form.errors}
+                            onChange={(address) =>
+                                form.setData({ ...form.data, ...address })
+                            }
+                        />
+                    ) : (
+                        <p className="text-muted-foreground text-sm">
+                            {selectedAgencyAddress
+                                ? `Adresse de l’agence : ${selectedAgencyAddress}.`
+                                : 'L’adresse est celle de son agence : elle se modifie sur la fiche de l’agence.'}
+                        </p>
+                    )}
                     <div className="grid gap-2">
                         <Label htmlFor="agent-phone">Téléphone</Label>
                         <PhoneInput
@@ -293,29 +317,32 @@ export function AgentDialog({
                         />
                         <InputError message={form.errors.notes} />
                     </div>
-                    {/* Un agent principal ouvre la liste de son agence. */}
-                    <label
-                        htmlFor="agent-primary"
-                        className="bg-sidebar flex items-start gap-3 rounded-lg border p-3 text-sm"
-                    >
-                        <Checkbox
-                            id="agent-primary"
-                            checked={form.data.is_primary}
-                            onCheckedChange={(state) =>
-                                form.setData('is_primary', state === true)
-                            }
-                            className="mt-0.5"
-                        />
-                        <span className="grid gap-0.5">
-                            <span className="font-medium">
-                                Agent principal de l’agence
+                    {/* Un indépendant est seul : « principal » ne veut rien
+                        dire pour lui. */}
+                    {form.data.agency_id !== '' && (
+                        <label
+                            htmlFor="agent-primary"
+                            className="bg-sidebar flex items-start gap-3 rounded-lg border p-3 text-sm"
+                        >
+                            <Checkbox
+                                id="agent-primary"
+                                checked={form.data.is_primary}
+                                onCheckedChange={(state) =>
+                                    form.setData('is_primary', state === true)
+                                }
+                                className="mt-0.5"
+                            />
+                            <span className="grid gap-0.5">
+                                <span className="font-medium">
+                                    Agent principal de l’agence
+                                </span>
+                                <span className="text-muted-foreground text-xs">
+                                    Celui que l’équipe appelle en premier ; il
+                                    passe en tête de la liste de son agence.
+                                </span>
                             </span>
-                            <span className="text-muted-foreground text-xs">
-                                Celui que l’équipe appelle en premier ; il passe
-                                en tête de la liste de son agence.
-                            </span>
-                        </span>
-                    </label>
+                        </label>
+                    )}
                     {!editing && (
                         <label
                             htmlFor="agent-notify"

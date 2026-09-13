@@ -1,5 +1,13 @@
 import { router } from '@inertiajs/react';
-import { Check, Download, FileText, RotateCcw, Trash2, X } from 'lucide-react';
+import {
+    Check,
+    Download,
+    Eye,
+    FileText,
+    RotateCcw,
+    Trash2,
+    X,
+} from 'lucide-react';
 import { useState } from 'react';
 import {
     Attachment,
@@ -22,8 +30,10 @@ import {
 import { formatFileSize } from '@/lib/format';
 import {
     destroy as uploadDestroy,
+    preview as uploadPreview,
     review as uploadReview,
 } from '@/routes/tools/documents/uploads';
+import { DocumentPreviewDialog } from '@/components/documents/document-preview-dialog';
 import {
     uploadStatusText,
     uploadStatusTones,
@@ -58,6 +68,7 @@ export function DocumentUploadList({
     canReview?: boolean;
 }) {
     const [deleting, setDeleting] = useState<DocumentUpload | null>(null);
+    const [previewing, setPreviewing] = useState<DocumentUpload | null>(null);
     const [refusing, setRefusing] = useState<DocumentUpload | null>(null);
     const [note, setNote] = useState('');
     const [busy, setBusy] = useState(false);
@@ -132,12 +143,15 @@ export function DocumentUploadList({
                             </AttachmentMedia>
                             <AttachmentContent>
                                 <AttachmentTitle>
-                                    <a
-                                        href={upload.download_url}
-                                        className="underline-offset-4 hover:underline"
+                                    {/* Le nom ouvre la pièce dans la page :
+                                        on la relit avant de la valider. */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setPreviewing(upload)}
+                                        className="truncate underline-offset-4 hover:underline"
                                     >
                                         {upload.name}
-                                    </a>
+                                    </button>
                                 </AttachmentTitle>
                                 <AttachmentDescription>
                                     {formatFileSize(upload.size)}
@@ -194,6 +208,12 @@ export function DocumentUploadList({
                                         </AttachmentAction>
                                     ))}
                                 <AttachmentAction
+                                    aria-label={`Aperçu de ${upload.name}`}
+                                    onClick={() => setPreviewing(upload)}
+                                >
+                                    <Eye aria-hidden />
+                                </AttachmentAction>
+                                <AttachmentAction
                                     aria-label={`Télécharger ${upload.name}`}
                                     asChild
                                 >
@@ -225,6 +245,20 @@ export function DocumentUploadList({
                     </li>
                 ))}
             </ul>
+
+            <DocumentPreviewDialog
+                file={
+                    previewing && {
+                        name: previewing.name,
+                        url: uploadPreview({
+                            documentRequest: requestUuid,
+                            upload: previewing.uuid,
+                        }).url,
+                        downloadUrl: previewing.download_url,
+                    }
+                }
+                onOpenChange={(open) => !open && setPreviewing(null)}
+            />
 
             <Dialog
                 open={refusing !== null}

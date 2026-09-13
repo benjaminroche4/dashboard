@@ -94,6 +94,7 @@ Route::middleware(['auth'])->group(function (): void {
     Route::put('tools/documents/{documentRequest}', [DocumentRequestController::class, 'update'])->name('tools.documents.update');
     Route::delete('tools/documents/{documentRequest}', [DocumentRequestController::class, 'destroy'])->name('tools.documents.destroy');
     Route::get('tools/documents/{documentRequest}/uploads/{upload}', [DocumentUploadController::class, 'download'])->scopeBindings()->name('tools.documents.uploads.download');
+    Route::get('tools/documents/{documentRequest}/uploads/{upload}/apercu', [DocumentUploadController::class, 'preview'])->scopeBindings()->name('tools.documents.uploads.preview');
     Route::patch('tools/documents/{documentRequest}/uploads/{upload}', [DocumentUploadController::class, 'review'])->scopeBindings()->name('tools.documents.uploads.review');
     Route::delete('tools/documents/{documentRequest}/uploads/{upload}', [DocumentUploadController::class, 'destroy'])->scopeBindings()->name('tools.documents.uploads.destroy');
     // Devis : même cycle que les factures, transformables en facture d'un clic.
@@ -198,6 +199,9 @@ Route::middleware(['auth'])->group(function (): void {
     Route::patch('properties/{property}/assign', [PropertyController::class, 'assign'])->name('properties.assign');
     Route::delete('properties/{property}', [PropertyController::class, 'destroy'])->name('properties.destroy');
     Route::get('clients/{lead}', [ClientController::class, 'show'])->name('clients.show');
+    // Le dossier client se modifie chez lui, sans passer par la fiche lead.
+    Route::get('clients/{lead}/edit', [ClientController::class, 'edit'])->name('clients.edit');
+    Route::patch('clients/{lead}', [ClientController::class, 'update'])->name('clients.update');
     Route::post('clients/{lead}/properties/explain', [ClientPropertyController::class, 'explain'])->middleware('throttle:20,1')->name('clients.properties.explain');
     Route::post('clients/{lead}/properties', [ClientPropertyController::class, 'store'])->name('clients.properties.store');
     Route::patch('clients/{lead}/properties/{property}/status', [ClientPropertyController::class, 'status'])->name('clients.properties.status');

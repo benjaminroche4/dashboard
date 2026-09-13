@@ -23,6 +23,9 @@ class UpdateVisitRequest extends FormRequest
             'property_id' => ['nullable', 'integer', 'exists:properties,id'],
             'agent_id' => ['nullable', 'integer', 'exists:agents,id'],
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
+            // Le formulaire de modification demande à revenir sur la fiche ;
+            // les actions de la liste, elles, ne bougent pas de la liste.
+            'return_to' => ['nullable', 'in:show'],
         ];
     }
 
@@ -32,6 +35,7 @@ class UpdateVisitRequest extends FormRequest
     public function attributes(): array
     {
         return [
+            'return_to' => 'retour',
             'status' => 'statut',
             'scheduled_at' => 'date de la visite',
             'notes' => 'notes',

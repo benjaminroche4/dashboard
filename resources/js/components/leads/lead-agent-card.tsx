@@ -1,6 +1,7 @@
 import { Link, router } from '@inertiajs/react';
 import { Building2, Mail, MessageCircle, Phone, X } from 'lucide-react';
 import { useState } from 'react';
+import { DetailSection } from '@/components/real-estate/detail-header';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -57,7 +58,8 @@ export function LeadAgentCard({
     lead,
     agents,
 }: {
-    lead: LeadDetail;
+    /** Lead ou dossier client : la carte n'a besoin que de l'UUID et de l'agent. */
+    lead: Pick<LeadDetail, 'uuid' | 'agent'>;
     agents: AgentOption[];
 }) {
     const [saving, setSaving] = useState(false);
@@ -73,14 +75,12 @@ export function LeadAgentCard({
     };
 
     return (
-        <section
-            aria-label="Agent en contact"
-            className="bg-sidebar grid gap-3 rounded-xl border p-4"
+        // La coquille commune des fiches : une seule carte dans tout le
+        // backoffice, sur la fiche lead comme dans le dossier client.
+        <DetailSection
+            title="Agent en contact"
+            action={saving ? <Spinner /> : undefined}
         >
-            <header className="flex items-center justify-between gap-2">
-                <h2 className="text-base font-medium">Agent en contact</h2>
-                {saving && <Spinner />}
-            </header>
             {current ? (
                 <div className="grid gap-1 text-sm">
                     <Link
@@ -184,6 +184,6 @@ export function LeadAgentCard({
                     </Button>
                 )}
             </div>
-        </section>
+        </DetailSection>
     );
 }

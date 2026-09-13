@@ -10,8 +10,8 @@ use App\Models\Lead;
 use App\Models\User;
 
 /**
- * Personnes d'un dossier : second locataire du foyer et second membre du
- * suivi. Sans changement, rien n'est écrit ni diffusé.
+ * Personnes d'un dossier : second locataire du foyer, revenus et membre qui
+ * suit le dossier. Sans changement, rien n'est écrit ni diffusé.
  */
 final class UpdateClientPeople
 {
@@ -26,10 +26,7 @@ final class UpdateClientPeople
         $tenantChanged = $lead->coFullName() !== $data->coFullName()
             || $lead->co_email !== $data->coEmail
             || $lead->co_phone !== $data->coPhone;
-        $incomeChanged = $lead->income_cents !== $data->incomeCents
-            || $lead->co_income_cents !== $data->coIncomeCents;
         $assigneeChanged = $data->assigneeProvided && $lead->assigned_to !== $data->assignedTo;
-        $followerChanged = $lead->co_assigned_to !== $data->coAssignedTo;
 
         $lead->fill($changes);
         $lead->save();
@@ -50,25 +47,6 @@ final class UpdateClientPeople
                 'body' => $lead->assignee === null
                     ? 'Dossier retiré du suivi de l’équipe.'
                     : "Dossier suivi par {$lead->assignee->name}.",
-                'user_id' => $by?->id,
-            ]);
-        }
-
-        if ($incomeChanged) {
-            $income = $lead->householdIncomeCents();
-            $lead->notes()->create([
-                'body' => $income === null
-                    ? 'Revenus du foyer retirés du dossier.'
-                    : 'Revenus du foyer : '.number_format($income / 100, 0, ',', ' ').' '.$lead->currency->value.' par mois.',
-                'user_id' => $by?->id,
-            ]);
-        }
-
-        if ($followerChanged) {
-            $lead->notes()->create([
-                'body' => $lead->coAssignee === null
-                    ? 'Second membre du suivi retiré du dossier.'
-                    : "Dossier suivi aussi par {$lead->coAssignee->name}.",
                 'user_id' => $by?->id,
             ]);
         }

@@ -13,9 +13,8 @@ use App\Models\Visit;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia;
 
-it('records a second tenant and a second follower on a dossier', function (): void {
+it('records a second tenant on a dossier', function (): void {
     $admin = User::factory()->staff()->create();
-    $second = User::factory()->staff()->create(['name' => 'Charles Petit']);
     $lead = Lead::factory()->converted()->create(['first_name' => 'Bruno', 'last_name' => 'Mata', 'assigned_to' => $admin->id]);
 
     $this->actingAs($admin)
@@ -24,7 +23,6 @@ it('records a second tenant and a second follower on a dossier', function (): vo
             'co_last_name' => 'mata',
             'co_email' => 'charles@example.com',
             'co_phone' => '+33 6 12 34 56 78',
-            'co_assigned_to' => $second->id,
         ])
         ->assertRedirect();
 
@@ -32,10 +30,22 @@ it('records a second tenant and a second follower on a dossier', function (): vo
     expect($lead->co_first_name)->toBe('Charles')
         ->and($lead->co_last_name)->toBe('Mata')
         ->and($lead->co_email)->toBe('charles@example.com')
-        ->and($lead->co_assigned_to)->toBe($second->id)
         // Le nom du dossier prend les prénoms, pas les noms de famille.
         ->and($lead->householdName())->toBe('Bruno & Charles')
-        ->and($lead->notes()->count())->toBe(2);
+        ->and($lead->notes()->count())->toBe(1);
+});
+
+it('leaves the second follower in place: the dossier no longer edits it', function (): void {
+    $admin = User::factory()->staff()->create();
+    $second = User::factory()->staff()->create(['name' => 'Charles Petit']);
+    $lead = Lead::factory()->converted()->create(['assigned_to' => $admin->id, 'co_assigned_to' => $second->id]);
+
+    $this->actingAs($admin)
+        ->patch(route('clients.people', $lead), ['co_first_name' => 'Charles'])
+        ->assertRedirect();
+
+    // Le champ a quitté le formulaire : son absence n'efface pas la colonne.
+    expect($lead->refresh()->co_assigned_to)->toBe($second->id);
 });
 
 it('names the dossier with the tenant full name when there is only one', function (): void {

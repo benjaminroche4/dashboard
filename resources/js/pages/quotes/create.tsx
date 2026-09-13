@@ -20,7 +20,12 @@ import { FormActionBar } from '@/components/form-action-bar';
 import { FormSection } from '@/components/form-section';
 import InputError from '@/components/input-error';
 import { CreateFromMenu } from '@/components/invoices/create-from-menu';
-import { BankAccountField } from '@/components/invoices/bank-account-field';
+import {
+    accountsFor,
+    accountValues,
+    BankAccountField,
+    defaultAccountFor,
+} from '@/components/invoices/bank-account-field';
 import { InvoicePreview } from '@/components/invoices/invoice-preview';
 import { Button } from '@/components/ui/button';
 import {
@@ -171,9 +176,12 @@ export default function QuotesCreate({
                   issued_at: defaults.issued_at,
                   valid_until: defaults.valid_until,
                   notes: '',
-                  bank_name: '',
-                  bank_iban: '',
-                  bank_reference: '',
+                  // Le compte par défaut de la devise est inscrit dès
+                  // l'ouverture : sans lui, le sélecteur en montrait un que
+                  // ni l'aperçu ni le document enregistré ne reprenaient.
+                  ...accountValues(
+                      defaultAccountFor(bankAccounts, initialCurrency),
+                  ),
                   items: [
                       {
                           offer: initialOffer,
@@ -217,6 +225,16 @@ export default function QuotesCreate({
         form.setData({
             ...form.data,
             currency,
+            // Un compte de la configuration qui ne sert pas cette devise cède
+            // la place à celui qui la sert ; un compte saisi à la main reste.
+            ...(bankAccounts.some(
+                (account) => account.iban === form.data.bank_iban,
+            ) &&
+            !accountsFor(bankAccounts, currency).some(
+                (account) => account.iban === form.data.bank_iban,
+            )
+                ? accountValues(defaultAccountFor(bankAccounts, currency))
+                : {}),
             items: form.data.items.map((line) =>
                 line.offer === null
                     ? line

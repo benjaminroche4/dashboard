@@ -36,6 +36,9 @@ export type Property = {
     street: string;
     postal_code: string | null;
     city: string | null;
+    /** Position géocodée, quand l'adresse a pu être située. */
+    latitude: number | null;
+    longitude: number | null;
     /** Arrondissement (1 à 20), déduit du code postal 750XX si absent. */
     district: number | null;
     /** Partenaire rattaché au bien (gestion, assurance, déménagement…). */

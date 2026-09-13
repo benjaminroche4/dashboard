@@ -384,4 +384,60 @@ describe('VisitForm', () => {
             expect.anything(),
         );
     });
+
+    it('joint des photos au bien saisi pendant la visite', async () => {
+        const user = userEvent.setup();
+        render(
+            <VisitForm
+                clients={clients}
+                properties={[]}
+                options={propertyFormOptions}
+            />,
+        );
+
+        // Sans bien dans l'annuaire, le formulaire est déjà en « Nouveau bien ».
+        expect(
+            screen.getByRole('button', { name: 'Ajouter des photos du bien' }),
+        ).toBeInTheDocument();
+
+        // Le champ caché de la dropzone : seul moyen de déposer en test.
+        await user.upload(
+            document.querySelector<HTMLInputElement>('input[type="file"]')!,
+            new File(['x'], 'facade.jpg', { type: 'image/jpeg' }),
+        );
+
+        // La photo déposée est listée, et peut être retirée avant l'envoi.
+        expect(
+            await screen.findByRole('button', { name: 'Retirer facade.jpg' }),
+        ).toBeInTheDocument();
+    });
+
+    it('ouvre l’ajout d’un agent et d’une agence sans quitter le formulaire', async () => {
+        const user = userEvent.setup();
+        render(
+            <VisitForm
+                clients={clients}
+                properties={[]}
+                options={propertyFormOptions}
+            />,
+        );
+
+        // Le bloc du bien porte les mêmes libellés : on vise celui de l'agent.
+        const block = within(
+            screen.getByRole('region', { name: 'Agent et commentaires' }),
+        );
+
+        await user.click(block.getByRole('button', { name: 'Nouvel agent' }));
+        expect(
+            await screen.findByRole('dialog', { name: /agent/i }),
+        ).toBeInTheDocument();
+        await user.keyboard('{Escape}');
+
+        await user.click(
+            block.getByRole('button', { name: 'Nouvelle agence' }),
+        );
+        expect(
+            await screen.findByRole('dialog', { name: /agence/i }),
+        ).toBeInTheDocument();
+    });
 });

@@ -1,5 +1,5 @@
-import { Badge } from '@/components/ui/badge';
-import { transitKindLabels } from '@/lib/transit';
+import type { CSSProperties } from 'react';
+import { transitKindLabels, transitLineColors } from '@/lib/transit';
 import type { TransitStop } from '@/types';
 
 /**
@@ -14,15 +14,26 @@ export function TransitStopItem({ stop }: { stop: TransitStop }) {
             </span>
             {stop.lines.length > 0 && (
                 <span className="flex flex-wrap items-center gap-1">
-                    {stop.lines.map((line) => (
-                        <Badge
-                            key={line}
-                            variant="secondary"
-                            className="min-w-6 justify-center px-1.5 py-0 font-mono text-[11px] tabular-nums"
-                        >
-                            {line}
-                        </Badge>
-                    ))}
+                    {stop.lines.map((line) => {
+                        const colors = transitLineColors(stop.kind, line);
+
+                        return (
+                            /* Les couleurs du réseau : c'est à elles qu'on
+                               reconnaît une ligne avant d'en lire le numéro. */
+                            <span
+                                key={line}
+                                className="inline-flex min-w-5 items-center justify-center rounded-sm bg-(--line) px-1 text-[11px] font-semibold text-(--line-text) tabular-nums"
+                                style={
+                                    {
+                                        '--line': colors.background,
+                                        '--line-text': colors.text,
+                                    } as CSSProperties
+                                }
+                            >
+                                {line}
+                            </span>
+                        );
+                    })}
                 </span>
             )}
             {stop.minutes !== null && (

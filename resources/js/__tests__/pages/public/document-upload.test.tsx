@@ -258,14 +258,21 @@ describe('Public document upload page', () => {
         );
     });
 
-    it('lets the client reopen a file they have just sent', () => {
+    it('lets the client reopen a file they have just sent, without downloading it', async () => {
+        const user = userEvent.setup();
         renderPage();
 
-        // Le nom du fichier est un lien : on relit ce qu'on a déposé.
-        const file = screen.getByTitle('Ouvrir · bulletin-juin.pdf');
+        // La pièce s'ouvre dans la page, comme sur un espace de fichiers.
+        await user.click(screen.getByTitle('Ouvrir · bulletin-juin.pdf'));
 
-        expect(file).toHaveAttribute('href', '/depot/jeton/fichiers/up-1');
-        expect(file).toHaveAttribute('target', '_blank');
+        const viewer = await screen.findByRole('dialog');
+        expect(
+            within(viewer).getByTitle('Aperçu de bulletin-juin.pdf'),
+        ).toHaveAttribute('src', '/depot/jeton/fichiers/up-1');
+        // Rien n'est téléchargé : le client relit, il ne collectionne pas.
+        expect(
+            within(viewer).queryByRole('link', { name: /Télécharger/ }),
+        ).not.toBeInTheDocument();
     });
 
     it('tells the client what the team decided, and why a document was refused', () => {

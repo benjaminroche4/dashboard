@@ -151,9 +151,22 @@ test('the team sees the public link and the received files on the request page, 
         ->assertOk()
         ->assertDownload('passeport.pdf');
 
+    // La même pièce se lit **dans la page**, sans être téléchargée.
+    $apercu = $this->actingAs($member)
+        ->get(route('tools.documents.uploads.preview', [$request, $upload]))
+        ->assertOk();
+
+    expect($apercu->headers->get('Content-Type'))->toBe('application/pdf')
+        ->and($apercu->headers->get('Content-Disposition'))->toContain('inline')
+        ->and($apercu->headers->get('X-Content-Type-Options'))->toBe('nosniff');
+
     // Un fichier d'une autre liste n'est pas accessible par cette liste.
     $other = DocumentRequest::factory()->create();
     $this->actingAs($member)->get(route('tools.documents.uploads.download', [$other, $upload]))->assertNotFound();
+    $this->actingAs($member)->get(route('tools.documents.uploads.preview', [$other, $upload]))->assertNotFound();
+    // Hors session, l'aperçu est fermé comme le reste.
+    auth()->logout();
+    $this->get(route('tools.documents.uploads.preview', [$request, $upload]))->assertRedirect(route('login'));
 
     $this->actingAs($member)
         ->delete(route('tools.documents.uploads.destroy', [$request, $upload]))
@@ -201,7 +214,10 @@ test('the public page asks for the pairing code first, unlocks the session with 
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->component('public/document-code')
             ->where('request.name', $request->fullName())
-            ->has('labels.code'));
+            ->has('labels.code')
+            // L'écran du code va droit au but : le bloc de réassurance n'est
+            // servi qu'à la page de dépôt, une fois le client entré.
+            ->missing('labels.privacy_title'));
 
     $this->post($request->publicUrl(), ['person' => 0, 'document' => 'rib', 'files' => [UploadedFile::fake()->create('a.pdf', 10, 'application/pdf')]])
         ->assertForbidden();

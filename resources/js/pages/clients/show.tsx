@@ -1,5 +1,5 @@
 import { parisFormat } from '@/lib/datetime';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import {
     Building2,
     CalendarClock,
@@ -10,22 +10,37 @@ import {
     FilePlus2,
     FileSignature,
     Home,
+    Info,
     Languages,
     Mail,
     MapPin,
+    MessageSquarePlus,
     MoreHorizontal,
+    Pencil,
     Phone,
     ShieldCheck,
     Sofa,
     Wallet,
 } from 'lucide-react';
-import type { ComponentType, ReactNode, SVGProps } from 'react';
+import {
+    useState,
+    type ComponentType,
+    type ReactNode,
+    type SVGProps,
+} from 'react';
+import { ClientAssigneeMenu } from '@/components/clients/client-assignee-menu';
 import { ClientPriorityMenu } from '@/components/clients/client-priority';
 import { ArrivalProgress } from '@/components/clients/arrival-progress';
+import { OfferBadge } from '@/components/clients/offer-badge';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { ClientPeople } from '@/components/clients/client-people';
 import { ClientProperties } from '@/components/clients/client-properties';
 import { DossierReadinessCard } from '@/components/clients/dossier-readiness';
-import { CreatedBy } from '@/components/created-by';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -34,27 +49,39 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { FolderIllustration } from '@/components/folder-card';
+import {
+    ActivityFilterBar,
+    LeadActivity,
+    type ActivityFilter,
+} from '@/components/leads/lead-activity';
+import { LeadAgentCard } from '@/components/leads/lead-agent-card';
 import { LeadDocumentRequests } from '@/components/leads/lead-document-requests';
+import { LeadNoteComposer } from '@/components/leads/lead-note-composer';
+import { LeadPartnersCard } from '@/components/leads/lead-partners-card';
 import { LeadInvoices } from '@/components/leads/lead-invoices';
 import { LeadQuotes } from '@/components/leads/lead-quotes';
-import { PartnerTypeBadge } from '@/components/partners/columns';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 import { DetailSection } from '@/components/real-estate/detail-header';
 import { VisitDaySection } from '@/components/visits/visit-day-section';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useInitials } from '@/hooks/use-initials';
 import { formatDate, formatMoney } from '@/lib/format';
 import { groupVisitsByDay } from '@/lib/visits';
-import { index as clientsIndex } from '@/routes/clients';
+import { edit as clientEdit, index as clientsIndex } from '@/routes/clients';
 import { create as invoiceCreate } from '@/routes/invoices';
 import { create as visitCreate } from '@/routes/clients/visits';
 import { show as leadShow } from '@/routes/leads';
+import { store as storeNote } from '@/routes/leads/notes';
 import { index as activityIndex } from '@/routes/tools/activity';
 import { create as quoteCreate } from '@/routes/tools/quotes';
 import type {
     Activity,
+    AgentOption,
     ClientDetail,
     ClientGuarantor,
     ClientWatcher,
@@ -70,6 +97,8 @@ import type {
     LeadInvoice,
     LeadPartnerLink,
     LeadQuote,
+    PartnerOption,
+    PartnerRoleOption,
     TenantProfile,
     TenantSlot,
     Visit,
@@ -88,6 +117,10 @@ type Props = {
     quotes: LeadQuote[];
     documentRequests: LeadDocumentRequest[];
     partners: LeadPartnerLink[];
+    /** Annuaires du dossier : agents, partenaires et rôles possibles. */
+    agents?: AgentOption[];
+    partnerOptions?: PartnerOption[];
+    partnerRoles?: PartnerRoleOption[];
     /** Biens rattachés au dossier, et biens de l'annuaire encore liables. */
     properties?: ClientProperty[];
     propertyOptions?: ClientPropertyOption[];
@@ -149,16 +182,41 @@ function Fact({
 function Stat({
     label,
     value,
+    hint,
     children,
 }: {
     label: string;
     value?: string;
+    /** Ce que le chiffre compte au juste, quand l'intitulé peut se lire de travers. */
+    hint?: string;
     /** Contenu libre à la place du chiffre (barre d'avancement, badge…). */
     children?: ReactNode;
 }) {
     return (
         <div className="grid gap-1 px-4 py-3 first:pl-0 last:pr-0 max-sm:border-b max-sm:px-0 max-sm:last:border-b-0 sm:border-l sm:first:border-l-0">
-            <p className="text-muted-foreground truncate text-sm">{label}</p>
+            <p className="text-muted-foreground flex items-center gap-1.5 truncate text-sm">
+                {label}
+                {hint && (
+                    /* Son propre fournisseur : la carte doit se suffire, même
+                       rendue hors de l'enveloppe de l'application. */
+                    <TooltipProvider delayDuration={0}>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    type="button"
+                                    aria-label={`${label} : ${hint}`}
+                                    className="hover:text-foreground transition-colors"
+                                >
+                                    <Info className="size-3.5" aria-hidden />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-64">
+                                {hint}
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                )}
+            </p>
             {children ?? (
                 <p className="text-xl font-semibold tabular-nums">{value}</p>
             )}
@@ -170,10 +228,13 @@ function Tab({
     value,
     label,
     count,
+    matches,
 }: {
     value: string;
     label: string;
     count?: number;
+    /** Biens qui correspondent au projet : une pastille verte, à côté du compte. */
+    matches?: number;
 }) {
     return (
         <TabsTrigger value={value} className="flex-none px-3">
@@ -186,6 +247,17 @@ function Tab({
                     aria-label={`${count} ${count > 1 ? 'éléments' : 'élément'}`}
                 >
                     {count}
+                </Badge>
+            )}
+            {/* Suggestions : elles ne sont pas rattachées au dossier, elles ne
+                se comptent donc pas avec, mais elles appellent un coup d'œil. */}
+            {matches !== undefined && matches > 0 && (
+                <Badge
+                    variant="outline"
+                    className="border-emerald-200 bg-emerald-50 font-medium text-emerald-700 tabular-nums dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+                    aria-label={`${matches} bien${matches > 1 ? 's' : ''} correspond${matches > 1 ? 'ent' : ''} au projet`}
+                >
+                    +{matches}
                 </Badge>
             )}
         </TabsTrigger>
@@ -209,6 +281,9 @@ export default function ClientShow({
     quotes,
     documentRequests,
     partners,
+    agents = [],
+    partnerOptions = [],
+    partnerRoles = [],
     properties = [],
     visits = [],
     activities = [],
@@ -222,7 +297,37 @@ export default function ClientShow({
     employmentStatuses = [],
     progress = { visits_done: 0, properties_refused: 0, applications: 0 },
 }: Props) {
-    const initials = useInitials();
+    const { staff } = usePage().props;
+    // Les notes du dossier passent par les routes du lead : c'est le même
+    // enregistrement, et le même fil que la fiche lead.
+    const noteForm = useForm({ body: '' });
+    const [noteOpen, setNoteOpen] = useState(false);
+    // Les notes de l'équipe et le suivi se lisent séparément, ici comme sur
+    // la fiche lead.
+    const [noteFilter, setNoteFilter] = useState<ActivityFilter>('all');
+    const submitNote = (onDone?: () => void) => {
+        noteForm.post(storeNote({ lead: client.uuid }).url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                noteForm.reset();
+                onDone?.();
+            },
+        });
+    };
+    const composer = (onDone?: () => void) => (
+        <LeadNoteComposer
+            value={noteForm.data.body}
+            onChange={(value) => noteForm.setData('body', value)}
+            onSubmit={() => submitNote(onDone)}
+            processing={noteForm.processing}
+            error={noteForm.errors.body}
+            candidates={staff.map((member) => ({
+                id: member.id,
+                name: member.name,
+            }))}
+        />
+    );
+
     // Onglet « Personnes » : locataires, garants et membres du suivi.
     const peopleCount =
         1 +
@@ -251,11 +356,12 @@ export default function ClientShow({
                                 {client.name}
                             </h1>
                             <Badge variant="secondary">Client</Badge>
-                            {client.offer_label && (
-                                <Badge variant="outline">
-                                    {client.offer_label}
-                                </Badge>
-                            )}
+                            {/* La formule garde sa couleur partout : bleu
+                                Confié, jaune Accompagné. */}
+                            <OfferBadge
+                                offer={client.offer}
+                                label={client.offer_label}
+                            />
                             <ClientPriorityMenu
                                 uuid={client.uuid}
                                 priority={client.priority}
@@ -268,28 +374,26 @@ export default function ClientShow({
                             {client.converted_at &&
                                 ` · client depuis le ${formatDate(client.converted_at.slice(0, 10))}`}
                             {' · '}
-                            {client.assignee ? (
-                                <span className="inline-flex items-center gap-1.5 align-middle">
-                                    suivi par
-                                    <Avatar className="size-5">
-                                        {client.assignee.avatar && (
-                                            <AvatarImage
-                                                src={client.assignee.avatar}
-                                                alt=""
-                                            />
-                                        )}
-                                        <AvatarFallback className="text-[10px]">
-                                            {initials(client.assignee.name)}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    {client.assignee.name}
-                                </span>
-                            ) : (
-                                'non attribué'
-                            )}
+                            {/* Le suivi se change là où on le lit. */}
+                            <span className="inline-flex items-center gap-1.5 align-middle">
+                                suivi par
+                                <ClientAssigneeMenu
+                                    clientUuid={client.uuid}
+                                    clientName={client.name}
+                                    assignee={client.assignee}
+                                />
+                            </span>
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                        {/* Le dossier se modifie chez lui : sa propre page,
+                            sans passer par la fiche lead. */}
+                        <Button variant="outline" asChild>
+                            <Link href={clientEdit({ lead: client.uuid })}>
+                                <Pencil aria-hidden />
+                                Modifier
+                            </Link>
+                        </Button>
                         {/* Actions secondaires du dossier, derrière le menu « ⋯ ». */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -371,6 +475,7 @@ export default function ClientShow({
                     />
                     <Stat
                         label="Biens refusés"
+                        hint="Les logements que le client a écartés lui-même. Une candidature refusée par l’agence ou le propriétaire n’est pas comptée ici."
                         value={String(progress.properties_refused)}
                     />
                 </section>
@@ -399,6 +504,7 @@ export default function ClientShow({
                             value="biens"
                             label="Biens"
                             count={properties.length}
+                            matches={suggestedProperties.length}
                         />
                         <Tab value="notes" label="Notes" count={notes.length} />
                         <Tab
@@ -417,6 +523,25 @@ export default function ClientShow({
                         value="apercu"
                         className="grid items-start gap-4 lg:grid-cols-2"
                     >
+                        {/* Une note se prend sans quitter l'aperçu : le
+                            bouton ouvre le même compositeur que l'onglet
+                            Notes (mentions comprises). */}
+                        <div className="flex justify-end lg:col-span-2">
+                            <Popover open={noteOpen} onOpenChange={setNoteOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" size="sm">
+                                        <MessageSquarePlus aria-hidden />
+                                        Ajouter une note
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                    align="end"
+                                    className="w-[min(24rem,calc(100vw-2rem))]"
+                                >
+                                    {composer(() => setNoteOpen(false))}
+                                </PopoverContent>
+                            </Popover>
+                        </div>
                         <DetailSection
                             title="Dossier de location"
                             className="lg:col-span-2"
@@ -565,7 +690,7 @@ export default function ClientShow({
                         </DetailSection>
                     </TabsContent>
                     <TabsContent value="biens">
-                        <DetailSection title="Biens du dossier">
+                        <DetailSection title="Logement du client">
                             <ClientProperties
                                 clientUuid={client.uuid}
                                 properties={properties}
@@ -575,51 +700,41 @@ export default function ClientShow({
                         </DetailSection>
                     </TabsContent>
                     <TabsContent value="notes" className="grid gap-4">
-                        <DetailSection title="Notes">
+                        {/* Même fil et mêmes bulles que la fiche lead : on
+                            écrit ici, on relit et on corrige ici. */}
+                        <DetailSection
+                            title="Notes"
+                            count={notes.length}
+                            action={
+                                <ActivityFilterBar
+                                    value={noteFilter}
+                                    onChange={setNoteFilter}
+                                />
+                            }
+                        >
                             <p className="text-muted-foreground -mt-2 text-sm">
-                                Les dernières notes de l'équipe sur ce dossier.
+                                Ce que l’équipe s’écrit, et le suivi que
+                                l’application note au fil des actions. « @ »
+                                mentionne un membre.
                             </p>
-                            {notes.length === 0 ? (
-                                <p className="text-muted-foreground text-sm">
-                                    Aucune note.
-                                </p>
-                            ) : (
-                                <ul role="list" className="grid gap-4">
-                                    {notes.slice(0, 8).map((note) => (
-                                        <li
-                                            key={note.id}
-                                            className="grid gap-1 text-sm"
-                                        >
-                                            <p className="whitespace-pre-line">
-                                                {note.body}
-                                            </p>
-                                            <p className="text-muted-foreground text-xs">
-                                                <CreatedBy
-                                                    name={note.by}
-                                                    avatar={note.avatar}
-                                                    verb=""
-                                                />
-                                                {note.at &&
-                                                    ` · ${dateTime.format(new Date(note.at))}`}
-                                            </p>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                            {notes.length > 8 && (
-                                <p className="text-muted-foreground mt-3 text-xs">
-                                    <Link
-                                        href={leadShow({ lead: client.uuid })}
-                                        className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
-                                    >
-                                        <Contact
-                                            className="size-3"
-                                            aria-hidden
-                                        />
-                                        Tout le fil d'activité sur la fiche lead
-                                    </Link>
-                                </p>
-                            )}
+                            {composer()}
+                            <LeadActivity
+                                leadUuid={client.uuid}
+                                notes={notes}
+                                history={[]}
+                                staffNames={staff.map((member) => member.name)}
+                                filter={noteFilter}
+                                className="max-h-none"
+                            />
+                            <p className="text-muted-foreground text-xs">
+                                <Link
+                                    href={leadShow({ lead: client.uuid })}
+                                    className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
+                                >
+                                    <Contact className="size-3" aria-hidden />
+                                    Tout le fil d’activité sur la fiche lead
+                                </Link>
+                            </p>
                         </DetailSection>
                         <DetailSection title="Journal">
                             <p className="text-muted-foreground -mt-2 text-sm">
@@ -691,42 +806,16 @@ export default function ClientShow({
                                 canEdit
                             />
                         </DetailSection>
-                        <DetailSection title="Partenaires du dossier">
-                            <p className="text-muted-foreground -mt-2 text-sm">
-                                Garantie, assurance, déménagement… gérés depuis
-                                la fiche lead.
-                            </p>
-                            {partners.length === 0 ? (
-                                <p className="text-muted-foreground text-sm">
-                                    Aucun partenaire sur ce dossier.
-                                </p>
-                            ) : (
-                                <ul role="list" className="grid gap-3">
-                                    {partners.map((link) => (
-                                        <li
-                                            key={link.id}
-                                            className="grid gap-1 text-sm"
-                                        >
-                                            <span className="flex flex-wrap items-center gap-2">
-                                                <span className="font-medium">
-                                                    {link.partner.name}
-                                                </span>
-                                                <PartnerTypeBadge
-                                                    type={link.partner.type}
-                                                    label={
-                                                        link.partner.type_label
-                                                    }
-                                                />
-                                            </span>
-                                            <span className="text-muted-foreground">
-                                                {link.role_label}
-                                                {link.note && ` · ${link.note}`}
-                                            </span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </DetailSection>
+                        {/* Le dossier se gère ici : agent immobilier et
+                            partenaires s'ajoutent sans repasser par la fiche
+                            lead — mêmes cartes, mêmes routes. */}
+                        <LeadAgentCard lead={client} agents={agents} />
+                        <LeadPartnersCard
+                            lead={client}
+                            links={partners}
+                            partners={partnerOptions}
+                            roles={partnerRoles}
+                        />
                     </TabsContent>
                 </Tabs>
             </div>

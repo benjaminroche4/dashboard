@@ -346,4 +346,50 @@ describe('Invoice creation page', () => {
         expect(payload.discount_percent).toBe(10);
         expect(payload.deposit_cents).toBe(10_050);
     });
+
+    it('carries the account of the currency from the start, and follows a currency change', async () => {
+        const user = userEvent.setup();
+        // Plusieurs comptes, chacun pour sa devise et aucun neutre : c'est là
+        // que le sélecteur, l'aperçu et le document enregistré divergeaient.
+        render(
+            <InvoicesCreate
+                {...props}
+                bankAccounts={[
+                    {
+                        label: 'Compte CHF',
+                        bank: 'BCGE',
+                        iban: 'CH11',
+                        reference: 'REF-CHF',
+                        currency: 'CHF',
+                    },
+                    {
+                        label: 'Compte EUR',
+                        bank: 'Qonto',
+                        iban: 'FR22',
+                        reference: '',
+                        currency: 'EUR',
+                    },
+                ]}
+            />,
+        );
+
+        // Devise par défaut CHF : le compte CHF est choisi, et l'aperçu le dit.
+        expect(
+            screen.getByRole('combobox', { name: 'Compte d’encaissement' }),
+        ).toHaveTextContent('Compte CHF');
+        const preview = within(screen.getByRole('article'));
+        expect(preview.getByText(/IBAN CH11/)).toBeInTheDocument();
+        expect(
+            preview.getByText(/Référence à indiquer : REF-CHF/),
+        ).toBeInTheDocument();
+
+        // Passer en euros prend le compte qui sert cette devise.
+        await user.click(screen.getByLabelText('Devise'));
+        await user.click(await screen.findByRole('option', { name: /Euro/ }));
+
+        expect(
+            screen.getByRole('combobox', { name: 'Compte d’encaissement' }),
+        ).toHaveTextContent('Compte EUR');
+        expect(preview.getByText(/IBAN FR22/)).toBeInTheDocument();
+    });
 });

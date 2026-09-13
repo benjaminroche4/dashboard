@@ -156,10 +156,10 @@ describe('Documents create page', () => {
         expect(within(language).getByLabelText('Français')).toBeChecked();
         expect(within(language).getByLabelText('Anglais')).not.toBeChecked();
         expect(language.querySelectorAll('[data-country]')).toHaveLength(2);
-        expect(screen.getByLabelText(/Dossier Google Drive/)).toHaveAttribute(
-            'placeholder',
-            'https://drive.google.com/...',
-        );
+        // Le dépôt se fait sur la plateforme par défaut : le champ du dossier
+        // Drive n'apparaît qu'en choisissant l'autre option.
+        expect(screen.getByLabelText(/Sur notre plateforme/)).toBeChecked();
+        expect(screen.queryByLabelText('Lien du dossier')).toBeNull();
 
         const summary = screen.getByRole('region', {
             name: 'Personnes du foyer',
@@ -259,8 +259,9 @@ describe('Documents create page', () => {
 
         await user.type(screen.getByLabelText(/Prénom/), 'Léa');
         await user.type(screen.getByLabelText(/^Nom/), 'Martin');
+        await user.click(screen.getByLabelText(/Sur un dossier Google Drive/));
         await user.type(
-            screen.getByLabelText(/Dossier Google Drive/),
+            screen.getByLabelText('Lien du dossier'),
             'https://drive.google.com/x',
         );
         await user.click(screen.getByLabelText(/3 derniers bulletins/));
@@ -269,7 +270,10 @@ describe('Documents create page', () => {
         );
 
         expect(toastError).not.toHaveBeenCalled();
-        expect(post).toHaveBeenCalledWith('/tools/documents');
+        expect(post).toHaveBeenCalledWith(
+            '/tools/documents',
+            expect.objectContaining({ onError: expect.any(Function) }),
+        );
 
         const transformer = transform.mock.calls[0]?.[0] as (
             data: Record<string, unknown>,
@@ -322,7 +326,10 @@ describe('Documents create page', () => {
         expect(tabs()[1]).toHaveTextContent('Paul Martin');
         expect(screen.getByLabelText(/Prénom/)).toHaveValue('Léa');
         expect(screen.getByLabelText('Anglais')).toBeChecked();
-        expect(screen.getByLabelText(/Dossier Google Drive/)).toHaveValue(
+        expect(
+            screen.getByLabelText(/Sur un dossier Google Drive/),
+        ).toBeChecked();
+        expect(screen.getByLabelText('Lien du dossier')).toHaveValue(
             'https://drive.google.com/drive/folders/abc',
         );
         expect(screen.getByRole('link', { name: 'Annuler' })).toHaveAttribute(
@@ -340,6 +347,7 @@ describe('Documents create page', () => {
         expect(post).not.toHaveBeenCalled();
         expect(put).toHaveBeenCalledWith(
             '/tools/documents/0199b0c0-0000-7000-8000-000000000001',
+            expect.objectContaining({ onError: expect.any(Function) }),
         );
     });
 });
