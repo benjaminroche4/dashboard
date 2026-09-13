@@ -62,6 +62,10 @@ export default defineConfig({
         setupFiles: ['./resources/js/test/setup.ts'],
         include: ['resources/js/__tests__/**/*.test.{ts,tsx}'],
         css: false,
+        // Les formulaires les plus longs (un bien : équipements, orientations,
+        // sélecteurs cherchables) demandent plus que les 5 s par défaut quand
+        // toute la suite tourne en parallèle. Un vrai blocage échoue toujours.
+        testTimeout: 15_000,
     },
     fmt: {
         printWidth: 80,

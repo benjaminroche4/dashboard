@@ -7,12 +7,6 @@ export type VisitStatusOption = { value: VisitStatus; label: string };
 /** Façon de visiter : l'équipe pour le client, ou le client seul. */
 export type VisitModeValue = 'for_client' | 'client_alone';
 
-export type VisitModeOption = {
-    value: VisitModeValue;
-    label: string;
-    hint: string;
-};
-
 /** Visite d'un bien par un client, à une date donnée. */
 export type Visit = {
     id: number;
@@ -32,6 +26,8 @@ export type Visit = {
     report_author: string | null;
     /** Visite passée, non annulée, sans compte rendu : à rédiger. */
     report_due: boolean;
+    /** Le compte rendu peut s'écrire : visite passée et non annulée. */
+    can_report: boolean;
     client: {
         id: number;
         uuid: string;

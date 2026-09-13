@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\EmploymentStatus;
 use Carbon\CarbonInterface;
 use Database\Factories\LeadGuarantorFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -22,6 +23,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $last_name
  * @property string|null $email
  * @property string|null $phone
+ * @property EmploymentStatus|null $employment_status
+ * @property string|null $occupation
  * @property int|null $income_cents
  * @property string|null $note
  * @property int|null $created_by
@@ -29,7 +32,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonInterface|null $updated_at
  * @property-read Lead $lead
  */
-#[Fillable(['lead_id', 'first_name', 'last_name', 'email', 'phone', 'income_cents', 'note', 'created_by'])]
+#[Fillable(['lead_id', 'first_name', 'last_name', 'email', 'phone', 'employment_status', 'occupation', 'income_cents', 'note', 'created_by'])]
 class LeadGuarantor extends Model
 {
     /** @use HasFactory<LeadGuarantorFactory> */
@@ -61,5 +64,13 @@ class LeadGuarantor extends Model
     public function fullName(): string
     {
         return trim("{$this->first_name} {$this->last_name}");
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return ['employment_status' => EmploymentStatus::class];
     }
 }

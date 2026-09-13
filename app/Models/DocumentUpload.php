@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\DocumentUploadStatus;
 use Carbon\CarbonInterface;
 use Database\Factories\DocumentUploadFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -25,6 +26,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $path
  * @property string $mime_type
  * @property int $size
+ * @property DocumentUploadStatus $status
+ * @property string|null $review_note
+ * @property CarbonInterface|null $reviewed_at
+ * @property int|null $reviewed_by
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  */
@@ -58,5 +63,26 @@ class DocumentUpload extends Model
     public function request(): BelongsTo
     {
         return $this->belongsTo(DocumentRequest::class, 'document_request_id');
+    }
+
+    /**
+     * Membre qui a validé ou refusé la pièce.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'status' => DocumentUploadStatus::class,
+            'reviewed_at' => 'datetime',
+        ];
     }
 }

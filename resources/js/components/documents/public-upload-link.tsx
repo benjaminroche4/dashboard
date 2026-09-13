@@ -3,12 +3,13 @@ import { useState } from 'react';
 import { SendUploadLinkDialog } from '@/components/documents/send-upload-link-dialog';
 import { Button } from '@/components/ui/button';
 import { notify } from '@/lib/toast';
+import { parisFormat } from '@/lib/datetime';
 
 /**
  * Lien de dépôt d'une liste de pièces : adresse à transmettre au
  * client, bouton de copie, nombre de fichiers déjà reçus.
  */
-const sentAt = new Intl.DateTimeFormat('fr-FR', {
+const sentAt = parisFormat({
     day: 'numeric',
     month: 'long',
     hour: '2-digit',

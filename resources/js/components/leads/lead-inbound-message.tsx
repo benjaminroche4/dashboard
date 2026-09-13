@@ -16,6 +16,7 @@ import { notify } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { assign as leadAssign, status as leadStatus } from '@/routes/leads';
 import type { LeadDetail, LeadInboundMessage as Inbound } from '@/types';
+import { parisFormat } from '@/lib/datetime';
 
 const kinds = {
     website: { icon: Globe, title: 'Message reçu depuis le site' },
@@ -23,7 +24,7 @@ const kinds = {
     sms: { icon: MessageSquareText, title: 'SMS reçu' },
 } as const;
 
-const dateTime = new Intl.DateTimeFormat('fr-FR', {
+const dateTime = parisFormat({
     day: 'numeric',
     month: 'long',
     hour: '2-digit',
@@ -87,13 +88,17 @@ export function LeadInboundMessage({
             data-testid="lead-inbound"
             data-state={open ? 'open' : 'collapsed'}
             className={cn(
-                'bg-sidebar grid gap-3 rounded-xl border p-4',
+                'bg-card grid gap-3 rounded-xl border p-4',
                 className,
             )}
         >
-            <header className="flex flex-wrap items-center justify-between gap-2">
+            {/* Même carte que les autres sections d'une fiche ; l'intitulé
+                garde sa ligne de provenance et son bouton de repli. */}
+            <header className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
                 <div className="grid min-w-0 gap-0.5">
-                    <h2 className="text-base font-medium">{title}</h2>
+                    <h2 className="text-muted-foreground text-xs tracking-wide uppercase">
+                        {title}
+                    </h2>
                     <p className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
                         <Icon className="size-3.5 shrink-0" aria-hidden />
                         <span className="truncate">

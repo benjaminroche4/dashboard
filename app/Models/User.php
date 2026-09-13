@@ -9,6 +9,7 @@ use App\Enums\AccessLevel;
 use App\Enums\SiteSection;
 use App\Enums\StaffFunction;
 use App\Enums\StaffRole;
+use App\Support\FileUrl;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Appends;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -20,7 +21,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Storage;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -92,9 +92,7 @@ class User extends Authenticatable implements PasskeyUser
      */
     protected function avatar(): Attribute
     {
-        return new Attribute(get: fn (): ?string => $this->avatar_path === null
-            ? null
-            : Storage::disk('public')->url($this->avatar_path));
+        return new Attribute(get: fn (): ?string => FileUrl::for('public', $this->avatar_path));
     }
 
     /**

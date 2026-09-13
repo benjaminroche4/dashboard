@@ -1,6 +1,7 @@
 import { capitalizeName } from '@/lib/format';
 import type {
     CatalogGroup,
+    DocumentPresetOption,
     DocumentRequestForm,
     DocumentRequestLeadOption,
     HouseholdPersonForm,
@@ -131,6 +132,66 @@ export function toggleCategory(
             ? without
             : [...without, ...keys],
     };
+}
+
+/**
+ * Coche ou décoche un profil, comme une case : ses pièces **s'ajoutent** à
+ * celles déjà cochées (sans doublon, sans rien retirer d'autre), et un second
+ * clic retire exactement les pièces du profil. Les pièces cochées à la main
+ * qui ne sont pas dans le profil ne bougent jamais.
+ */
+export function togglePreset(
+    person: HouseholdPersonForm,
+    preset: DocumentPresetOption,
+): HouseholdPersonForm {
+    if (isPresetApplied(person, preset)) {
+        return {
+            ...person,
+            documents: person.documents.filter(
+                (key) => !preset.documents.includes(key),
+            ),
+        };
+    }
+
+    const added = preset.documents.filter(
+        (key) => !person.documents.includes(key),
+    );
+
+    return { ...person, documents: [...person.documents, ...added] };
+}
+
+/** Vrai quand toutes les pièces du profil sont déjà cochées. */
+export function isPresetApplied(
+    person: HouseholdPersonForm,
+    preset: DocumentPresetOption,
+): boolean {
+    return (
+        preset.documents.length > 0 &&
+        preset.documents.every((key) => person.documents.includes(key))
+    );
+}
+
+/**
+ * Profils regroupés par famille, dans l'ordre où le serveur les envoie.
+ *
+ * @returns une entrée par famille : son nom et ses profils
+ */
+export function groupPresets(
+    presets: DocumentPresetOption[],
+): { group: string; presets: DocumentPresetOption[] }[] {
+    const groups: { group: string; presets: DocumentPresetOption[] }[] = [];
+
+    for (const preset of presets) {
+        const last = groups.at(-1);
+
+        if (last?.group === preset.group) {
+            last.presets.push(preset);
+        } else {
+            groups.push({ group: preset.group, presets: [preset] });
+        }
+    }
+
+    return groups;
 }
 
 /** Nombre de pièces cochées dans une catégorie. */

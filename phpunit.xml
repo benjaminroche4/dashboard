@@ -37,6 +37,12 @@
         <!-- Aucun test n'appelle l'API Claude : sans clé, l'assistant se tait. -->
         <env name="ANTHROPIC_API_KEY" value=""/>
         <env name="DOC_RAPTOR_KEY" value=""/>
+        <!-- Aucun bucket pendant les tests : les fichiers restent sur la machine,
+             jamais dans l'object storage d'un vrai projet. -->
+        <env name="AWS_BUCKET" value=""/>
+        <env name="AWS_ACCESS_KEY_ID" value=""/>
+        <env name="AWS_SECRET_ACCESS_KEY" value=""/>
+        <env name="AWS_ENDPOINT" value=""/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>

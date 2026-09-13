@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { Clock, Pencil, RefreshCw } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { DetailSection } from '@/components/real-estate/detail-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -210,7 +211,10 @@ export function LeadShowBody({
     return (
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
             <Tabs defaultValue="dossier" className="gap-6">
-                <TabsList variant="line" className="w-full border-b">
+                <TabsList
+                    variant="line"
+                    className="w-full justify-start border-b"
+                >
                     <Tab value="dossier" label="Dossier" />
                     {hasCommercial && (
                         <Tab
@@ -285,11 +289,7 @@ export function LeadShowBody({
                 )}
             </Tabs>
             <aside className="grid h-fit content-start gap-6 lg:sticky lg:top-6">
-                <section
-                    aria-label="Responsable"
-                    className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                >
-                    <h2 className="text-base font-medium">Suivi par</h2>
+                <DetailSection title="Suivi par">
                     {assign}
                     {recontact && (
                         <div className="border-t pt-3">{recontact}</div>
@@ -323,25 +323,10 @@ export function LeadShowBody({
                         )}
                     </div>
                     {actions && <div className="border-t pt-3">{actions}</div>}
-                </section>
-                <section
-                    aria-label="Activité"
-                    className="bg-sidebar grid gap-2 rounded-xl border p-4"
-                >
-                    <header className="flex flex-wrap items-center justify-between gap-2">
-                        <h2 className="flex items-center gap-2 text-base font-medium">
-                            Activité
-                            <Badge
-                                variant="secondary"
-                                className="font-medium tabular-nums"
-                                aria-label={`${activityCount} ${activityCount > 1 ? 'entrées' : 'entrée'}`}
-                            >
-                                {activityCount}
-                            </Badge>
-                        </h2>
-                    </header>
+                </DetailSection>
+                <DetailSection title="Activité" count={activityCount}>
                     {activity}
-                </section>
+                </DetailSection>
             </aside>
         </div>
     );

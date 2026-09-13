@@ -1,3 +1,4 @@
+import { parisFormat } from '@/lib/datetime';
 const currencyFormatters = new Map<string, Intl.NumberFormat>();
 
 /** Locale par devise : CHF à la suisse (1 234.50), EUR à la française (1 234,50). */
@@ -20,7 +21,7 @@ export function formatMoney(cents: number, currency = 'EUR'): string {
     return formatter.format(cents / 100);
 }
 
-const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
+const dateFormatter = parisFormat({
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -33,7 +34,7 @@ export function formatDate(iso: string): string {
     return dateFormatter.format(new Date(year, month - 1, day));
 }
 
-const longDateFormatter = new Intl.DateTimeFormat('fr-FR', {
+const longDateFormatter = parisFormat({
     day: 'numeric',
     month: 'long',
     year: 'numeric',

@@ -67,6 +67,12 @@ return [
     'visit_report' => [
         'delay_minutes' => (int) env('VISIT_REPORT_REMINDER_DELAY_MINUTES', 60),
     ],
+    // Bien visité laissé « À décider » : délai avant la première relance des
+    // personnes de suivi, et intervalle entre deux relances. Court par nature —
+    // un bien qui plaît part vite, et une hésitation qui dure fait perdre le bien.
+    'property_decision' => [
+        'delay_hours' => (int) env('PROPERTY_DECISION_REMINDER_HOURS', 48),
+    ],
     'default_currency' => env('COMPANY_DEFAULT_CURRENCY', 'EUR'),
     'default_payment_terms_days' => (int) env('COMPANY_PAYMENT_TERMS_DAYS', 30),
     // Durée de validité d'un devis, en jours, proposée par défaut.

@@ -12,7 +12,6 @@ use App\Models\Lead;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Validator;
 
 class StoreVisitRequest extends FormRequest
 {
@@ -41,7 +40,6 @@ class StoreVisitRequest extends FormRequest
             'agent_id' => ['nullable', 'integer', Rule::exists('agents', 'id')],
             'assigned_to' => [Rule::requiredIf($entrusted), 'nullable', 'integer', Rule::exists('users', 'id')],
             'scheduled_at' => ['required', 'date'],
-            'mode' => ['nullable', Rule::enum(VisitMode::class)],
             'notes' => ['nullable', 'string', 'max:3000'],
             // Informer le client par e-mail (décoché par défaut).
             'notify_client' => ['nullable', 'boolean'],
@@ -49,22 +47,12 @@ class StoreVisitRequest extends FormRequest
     }
 
     /**
-     * La visite autonome suppose un client sur place : elle n'est possible que
-     * sur la formule « Accompagné ».
-     *
-     * @return list<callable>
+     * Type de visite : il découle de la formule du client, jamais de ce que
+     * le formulaire envoie.
      */
-    public function after(): array
+    public function visitMode(): VisitMode
     {
-        return [
-            function (Validator $validator): void {
-                $mode = VisitMode::tryFrom((string) $this->input('mode', ''));
-
-                if ($mode !== null && ! $mode->allowedFor($this->client()?->offer)) {
-                    $validator->errors()->add('mode', __('La visite autonome est réservée aux clients de la formule Accompagné.'));
-                }
-            },
-        ];
+        return VisitMode::forOffer($this->client()?->offer);
     }
 
     /** Client de la visite, pour connaître sa formule. */
@@ -88,7 +76,6 @@ class StoreVisitRequest extends FormRequest
             'agent_id' => 'agent immobilier',
             'assigned_to' => 'membre qui réalise la visite',
             'scheduled_at' => 'date de la visite',
-            'mode' => 'type de visite',
             'notes' => 'notes',
             'notify_client' => 'information du client',
         ];

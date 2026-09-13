@@ -1,7 +1,8 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useInitials } from '@/hooks/use-initials';
+import { parisFormat } from '@/lib/datetime';
 
-const dateFormat = new Intl.DateTimeFormat('fr-FR', {
+const dateFormat = parisFormat({
     day: 'numeric',
     month: 'long',
     year: 'numeric',

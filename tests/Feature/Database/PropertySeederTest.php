@@ -9,6 +9,7 @@ use Database\Seeders\LeadSeeder;
 use Database\Seeders\PropertySeeder;
 use Database\Seeders\RealEstateSeeder;
 use Database\Seeders\StaffSeeder;
+use Illuminate\Support\Facades\Storage;
 
 it('seeds properties and assigned visits, two of them reported and one awaiting its report', function (): void {
     $this->seed([StaffSeeder::class, LeadSeeder::class, RealEstateSeeder::class, PropertySeeder::class]);
@@ -39,4 +40,21 @@ it('groups planned visits into touring days, so the day map and its route have s
         expect($perDay->get(now()->addDays($days)->toDateString(), 0))
             ->toBeGreaterThanOrEqual($least);
     }
+});
+
+it('gives every property real photos, copied from the seeder fixtures', function (): void {
+    Storage::fake('public');
+
+    $this->seed([StaffSeeder::class, LeadSeeder::class, RealEstateSeeder::class, PropertySeeder::class]);
+
+    Property::query()->each(function (Property $property): void {
+        expect($property->photos)->toHaveCount(3);
+
+        foreach ($property->photos ?? [] as $path) {
+            expect(Storage::disk('public')->exists($path))->toBeTrue()
+                // Une vraie photo, pas un fichier vide : l'en-tête JPEG et un poids plausible.
+                ->and(Storage::disk('public')->size($path))->toBeGreaterThan(10_000)
+                ->and(bin2hex(substr((string) Storage::disk('public')->get($path), 0, 2)))->toBe('ffd8');
+        }
+    });
 });

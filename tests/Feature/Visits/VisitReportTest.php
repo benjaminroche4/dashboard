@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 use App\Enums\VisitStatus;
 use App\Events\DashboardUpdated;
+use App\Mail\VisitReportSent;
 use App\Models\Lead;
 use App\Models\Property;
 use App\Models\User;
 use App\Models\Visit;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
 
@@ -115,4 +117,128 @@ test('the report refuses a file that is not an image or too big', function (): v
         ->assertSessionHasErrors('photos.0');
 
     expect($visit->refresh()->report)->toBeNull();
+});
+
+test('the report can be e-mailed to the client, to the whole household', function (): void {
+    Mail::fake();
+    Storage::fake('public');
+
+    $member = User::factory()->create();
+    $second = User::factory()->create();
+    $lead = Lead::factory()->converted()->create([
+        'first_name' => 'Anne',
+        'last_name' => 'Delahaye',
+        'email' => 'anne@example.com',
+        'co_first_name' => 'Bruno',
+        'co_last_name' => 'Delahaye',
+        'co_email' => 'bruno@example.com',
+        'assigned_to' => $second->id,
+    ]);
+    $visit = Visit::factory()->for($lead)->create(['scheduled_at' => now()->subDay()]);
+
+    $this->actingAs($member)
+        ->post(route('clients.visits.report', $visit), [
+            'report' => 'Le client a beaucoup aimé la lumière, réserve sur le vis-à-vis.',
+            'photos' => [UploadedFile::fake()->image('salon.jpg')],
+            'notify_client' => true,
+        ])
+        ->assertSessionHasNoErrors();
+
+    // Les deux locataires reçoivent, le membre du suivi est en copie.
+    Mail::assertQueued(VisitReportSent::class, fn (VisitReportSent $mail): bool => $mail->hasTo('anne@example.com')
+        && $mail->hasTo('bruno@example.com')
+        && $mail->hasCc($second->email));
+
+    // L'envoi est tracé sur le dossier et compte comme un contact.
+    expect($lead->fresh()->notes()->latest('id')->value('body'))
+        ->toContain('Compte rendu de visite envoyé à')
+        ->and($lead->fresh()->last_contacted_at)->not->toBeNull();
+});
+
+test('nothing is sent without asking, nor without an address', function (): void {
+    Mail::fake();
+    Storage::fake('public');
+
+    $member = User::factory()->create();
+
+    // Case décochée : rien ne part. (La visite est passée : sinon le compte
+    // rendu ne se débloque pas.)
+    $visit = Visit::factory()->for(Lead::factory()->converted()->create(['email' => 'lea@example.com']))->create(['scheduled_at' => now()->subHour()]);
+    $this->actingAs($member)
+        ->post(route('clients.visits.report', $visit), ['report' => 'Visite correcte, sans plus.'])
+        ->assertSessionHasNoErrors();
+    Mail::assertNotQueued(VisitReportSent::class);
+
+    // Case cochée mais aucun e-mail sur le dossier : rien ne part non plus.
+    $mute = Visit::factory()->for(Lead::factory()->converted()->create(['email' => null, 'co_email' => null]))->create(['scheduled_at' => now()->subHour()]);
+    $this->actingAs($member)
+        ->post(route('clients.visits.report', $mute), ['report' => 'Visite correcte, sans plus.', 'notify_client' => true])
+        ->assertSessionHasNoErrors();
+    Mail::assertNotQueued(VisitReportSent::class);
+});
+
+test('the report unlocks only after the visit: a future one is refused', function (): void {
+    $member = User::factory()->create();
+    $lead = Lead::factory()->converted()->create();
+    $future = Visit::factory()->create(['lead_id' => $lead->id, 'scheduled_at' => now()->addDay(), 'assigned_to' => $member->id]);
+
+    expect($future->reportable())->toBeFalse();
+
+    $this->actingAs($member)
+        ->post(route('clients.visits.report', $future), ['report' => 'Le client a beaucoup aimé le quartier.'])
+        ->assertSessionHasErrors('report');
+
+    expect($future->refresh()->report)->toBeNull()
+        ->and($future->status)->toBe(VisitStatus::Planned);
+
+    // Passé l'heure, la même visite se raconte.
+    $future->forceFill(['scheduled_at' => now()->subMinute()])->save();
+
+    $this->actingAs($member)
+        ->post(route('clients.visits.report', $future), ['report' => 'Le client a beaucoup aimé le quartier.'])
+        ->assertSessionHasNoErrors();
+
+    expect($future->refresh()->report)->toContain('le quartier');
+});
+
+test('a cancelled visit expects no report, but an existing one stays editable', function (): void {
+    $member = User::factory()->create();
+    $lead = Lead::factory()->converted()->create();
+    $cancelled = Visit::factory()->create([
+        'lead_id' => $lead->id,
+        'scheduled_at' => now()->subDay(),
+        'status' => VisitStatus::Cancelled,
+        'assigned_to' => $member->id,
+    ]);
+
+    expect($cancelled->reportable())->toBeFalse();
+
+    $this->actingAs($member)
+        ->post(route('clients.visits.report', $cancelled), ['report' => 'Rien à signaler sur cette visite.'])
+        ->assertSessionHasErrors('report');
+
+    // Un compte rendu déjà écrit reste modifiable, même après une annulation.
+    $cancelled->forceFill(['report' => 'Premier jet du compte rendu.'])->save();
+
+    expect($cancelled->reportable())->toBeTrue();
+
+    $this->actingAs($member)
+        ->post(route('clients.visits.report', $cancelled), ['report' => 'Compte rendu corrigé après coup.'])
+        ->assertSessionHasNoErrors();
+
+    expect($cancelled->refresh()->report)->toBe('Compte rendu corrigé après coup.');
+});
+
+test('the summary tells the front whether the report can be written', function (): void {
+    $lead = Lead::factory()->converted()->create();
+    Visit::factory()->create(['lead_id' => $lead->id, 'scheduled_at' => now()->addDay()]);
+    Visit::factory()->create(['lead_id' => $lead->id, 'scheduled_at' => now()->subDay()]);
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('clients.visits'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('clients/visits')
+            ->where('visits', fn ($visits): bool => collect($visits)->pluck('can_report')->sort()->values()->all() === [false, true])
+            ->etc());
 });

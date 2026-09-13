@@ -26,13 +26,14 @@ import {
 import { cn } from '@/lib/utils';
 import { destroy, show as memberShow } from '@/routes/team';
 import type { StaffRoleOption, TeamMember } from '@/types';
+import { parisFormat } from '@/lib/datetime';
 
 type Props = {
     members: TeamMember[];
     roles: StaffRoleOption[];
 };
 
-const dateFormat = new Intl.DateTimeFormat('fr-FR', {
+const dateFormat = parisFormat({
     day: 'numeric',
     month: 'short',
     year: 'numeric',

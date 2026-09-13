@@ -5,26 +5,34 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Clients;
 
 use App\Actions\Clients\DeleteClientGuarantor;
+use App\Actions\Clients\DeleteClientWatcher;
 use App\Actions\Clients\SaveClientGuarantor;
+use App\Actions\Clients\SaveClientWatcher;
+use App\Actions\Clients\SendPropertyDecisionReminders;
 use App\Actions\Clients\SetClientPriority;
 use App\Actions\Clients\SuggestClientProperties;
+use App\Actions\Clients\SummarizeDossierReadiness;
 use App\Actions\Clients\UpdateClientPeople;
 use App\Actions\Clients\UpdateTenantProfile;
 use App\Data\ClientPeopleData;
 use App\Data\LeadGuarantorData;
+use App\Data\LeadWatcherData;
 use App\Data\TenantProfileData;
 use App\Enums\ClientPriority;
 use App\Enums\EmploymentStatus;
 use App\Enums\GuarantorType;
 use App\Enums\LeadStatus;
+use App\Enums\PropertyApplicationStatus;
 use App\Enums\PropertyType;
 use App\Enums\ResidencyStatus;
+use App\Enums\StaffFunction;
 use App\Enums\TenantSlot;
 use App\Enums\VisitStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Leads\LeadController;
 use App\Http\Controllers\Tools\ActivityController;
 use App\Http\Requests\Clients\SaveClientGuarantorRequest;
+use App\Http\Requests\Clients\SaveClientWatcherRequest;
 use App\Http\Requests\Clients\SetClientPriorityRequest;
 use App\Http\Requests\Clients\UpdateClientPeopleRequest;
 use App\Http\Requests\Clients\UpdateTenantProfileRequest;
@@ -36,9 +44,11 @@ use App\Models\LeadGuarantor;
 use App\Models\LeadNote;
 use App\Models\LeadPartner;
 use App\Models\LeadStatusChange;
+use App\Models\LeadWatcher;
 use App\Models\PartnerContact;
 use App\Models\Property;
 use App\Models\Quote;
+use App\Models\User;
 use App\Models\Visit;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
@@ -187,8 +197,35 @@ class ClientController extends Controller
         return back();
     }
 
+    /** Ajoute ou met à jour une personne de suivi du dossier. */
+    public function saveWatcher(SaveClientWatcherRequest $request, Lead $lead, SaveClientWatcher $save, ?LeadWatcher $watcher = null): RedirectResponse
+    {
+        $this->authorize('update', $lead);
+        abort_unless($lead->status === LeadStatus::Converted, 404);
+        abort_if($watcher instanceof LeadWatcher && $watcher->lead_id !== $lead->id, 404);
+
+        $save->handle($lead, LeadWatcherData::from($request->validated()), $watcher, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Personne de suivi enregistrée.')]);
+
+        return back();
+    }
+
+    /** Retire une personne de suivi du dossier. */
+    public function destroyWatcher(Request $request, Lead $lead, LeadWatcher $watcher, DeleteClientWatcher $delete): RedirectResponse
+    {
+        $this->authorize('update', $lead);
+        abort_unless($watcher->lead_id === $lead->id, 404);
+
+        $delete->handle($watcher, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Personne de suivi retirée.')]);
+
+        return back();
+    }
+
     /** Dossier d'un client : coordonnées, projet, devis, factures, documents, partenaires et notes. */
-    public function show(Lead $lead, SuggestClientProperties $suggest): Response
+    public function show(Lead $lead, SuggestClientProperties $suggest, SummarizeDossierReadiness $readiness): Response
     {
         $this->authorize('view', $lead);
 
@@ -201,7 +238,7 @@ class ClientController extends Controller
             'statusChanges' => fn ($query) => $query->where('to_status', LeadStatus::Converted)->latest(),
             'invoices',
             'quotes',
-            'documentRequests',
+            'documentRequests.uploads',
             'partnerLinks.partner.contacts',
             'guarantorPeople',
             'notes.author',
@@ -262,10 +299,36 @@ class ClientController extends Controller
                 'name' => $guarantor->fullName(),
                 'email' => $guarantor->email,
                 'phone' => $guarantor->phone,
+                'employment_status' => $guarantor->employment_status?->value,
+                'employment_status_label' => $guarantor->employment_status?->label(),
+                'occupation' => $guarantor->occupation,
                 'income_cents' => $guarantor->income_cents,
                 'note' => $guarantor->note,
             ])->all(),
+            // Personnes de suivi : en copie des e-mails du dossier.
+            'watchers' => $lead->watchers->map(fn (LeadWatcher $watcher): array => [
+                'uuid' => $watcher->uuid,
+                'name' => $watcher->name,
+                'email' => $watcher->email,
+                'phone' => $watcher->phone,
+                'role' => $watcher->role,
+            ])->all(),
             'totals' => array_values($totals),
+            // Où en est la recherche : ce qu'on a montré, ce qui est écarté,
+            // et les candidatures en jeu.
+            'progress' => [
+                'visits_done' => $lead->visits->where('status', VisitStatus::Done)->count(),
+                'properties_refused' => $lead->properties()
+                    ->wherePivotIn('status', [PropertyApplicationStatus::Declined->value, PropertyApplicationStatus::Rejected->value])
+                    ->count(),
+                'applications' => $lead->properties()
+                    ->wherePivotIn('status', [PropertyApplicationStatus::Applied->value, PropertyApplicationStatus::Accepted->value])
+                    ->count(),
+            ],
+            // Le dossier est-il présentable ? C'est la mesure que l'équipe
+            // regarde en premier sur l'aperçu.
+            'readiness' => $readiness->handle($lead)->toArray(),
+            'propertyStatuses' => PropertyApplicationStatus::options(),
             'invoices' => $lead->invoices->map(fn (Invoice $invoice): array => [
                 'id' => $invoice->id,
                 'uuid' => $invoice->uuid,
@@ -318,6 +381,9 @@ class ClientController extends Controller
             'properties' => $lead->properties()->with(['agent', 'assignedLead'])->orderByPivot('created_at', 'desc')->get()->map(function (Property $property) use ($lead): array {
                 $visits = $lead->visits->where('property_id', $property->id);
                 $next = $visits->where('status', VisitStatus::Planned)->sortBy('scheduled_at')->first();
+                // Dernière visite effectuée : c'est d'elle que court l'attente
+                // d'une décision, et le rappel envoyé aux personnes de suivi.
+                $visited = $visits->where('status', VisitStatus::Done)->sortByDesc('scheduled_at')->first();
 
                 return [
                     'id' => $property->id,
@@ -339,6 +405,15 @@ class ClientController extends Controller
                     ],
                     'visits_count' => $visits->count(),
                     'next_visit_at' => $next instanceof Visit ? $next->scheduled_at->toIso8601String() : null,
+                    // Suite de la visite : positionnement du client, puis candidature.
+                    'status' => $property->getRelationValue('pivot')->status->value,
+                    'status_label' => $property->getRelationValue('pivot')->status->label(),
+                    'status_at' => $property->getRelationValue('pivot')->status_at?->toIso8601String(),
+                    'visited_at' => $visited instanceof Visit ? $visited->scheduled_at->toIso8601String() : null,
+                    // Le client tarde : le badge le signale, la relance est partie ou va partir.
+                    'decision_due' => $property->getRelationValue('pivot')->status === PropertyApplicationStatus::Pending
+                        && $visited instanceof Visit
+                        && $visited->scheduled_at->lte(now()->subHours(SendPropertyDecisionReminders::hours())),
                 ];
             })->all(),
             // Biens de l'annuaire qui correspondent au projet (budget, quartiers, type, meublé), hors rattachés et visités.
@@ -387,11 +462,7 @@ class ClientController extends Controller
             'priority_rank' => $lead->priority->rank(),
             'arrival_at' => $lead->arrival_at?->toDateString(),
             'converted_at' => ($conversion instanceof LeadStatusChange ? $conversion->created_at : $lead->updated_at)?->toIso8601String(),
-            'assignee' => $lead->assignee === null ? null : [
-                'id' => $lead->assignee->id,
-                'name' => $lead->assignee->name,
-                'avatar' => $lead->assignee->avatar,
-            ],
+            'assignee' => $this->follower($lead->assignee),
             // Second locataire du foyer et second membre du suivi (facultatifs).
             'co_tenant' => $lead->coFullName() === null && $lead->co_email === null && $lead->co_phone === null ? null : [
                 'first_name' => $lead->co_first_name,
@@ -405,13 +476,31 @@ class ClientController extends Controller
             'income_cents' => $lead->income_cents,
             'co_income_cents' => $lead->co_income_cents,
             'household_income_cents' => $lead->householdIncomeCents(),
-            'co_assignee' => $lead->coAssignee === null ? null : [
-                'id' => $lead->coAssignee->id,
-                'name' => $lead->coAssignee->name,
-                'avatar' => $lead->coAssignee->avatar,
-            ],
+            'co_assignee' => $this->follower($lead->coAssignee),
             'invoices_count' => $lead->invoices_count,
             'document_requests_count' => $lead->document_requests_count,
+        ];
+    }
+
+    /**
+     * Une personne qui suit le dossier, telle que la fiche l'affiche : nom,
+     * fonction dans l'équipe, e-mail et téléphone pour la joindre.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function follower(?User $member): ?array
+    {
+        if (! $member instanceof User) {
+            return null;
+        }
+
+        return [
+            'id' => $member->id,
+            'name' => $member->name,
+            'avatar' => $member->avatar,
+            'email' => $member->email,
+            'phone' => $member->phone,
+            'functions' => array_map(fn (StaffFunction $function): string => $function->label(), $member->staffFunctions()),
         ];
     }
 }

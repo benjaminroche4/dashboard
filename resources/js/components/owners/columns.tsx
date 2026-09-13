@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { show as ownerShow } from '@/routes/owners';
 import type { Owner } from '@/types';
+import { parisFormat } from '@/lib/datetime';
 
 function SortableHeader({
     label,
@@ -35,7 +36,7 @@ export const ownerColumnLabels: Record<string, string> = {
     creator: 'Ajouté par',
 };
 
-const exchangeDate = new Intl.DateTimeFormat('fr-FR', {
+const exchangeDate = parisFormat({
     day: '2-digit',
     month: 'short',
     year: 'numeric',

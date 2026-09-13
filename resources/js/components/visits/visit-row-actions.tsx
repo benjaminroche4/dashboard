@@ -21,8 +21,9 @@ import {
 import { VisitReportDialog } from '@/components/visits/visit-report-dialog';
 import { destroy, edit, show, update } from '@/routes/clients/visits';
 import type { Visit, VisitStatus } from '@/types';
+import { parisFormat } from '@/lib/datetime';
 
-const visitDateTime = new Intl.DateTimeFormat('fr-FR', {
+const visitDateTime = parisFormat({
     weekday: 'long',
     day: 'numeric',
     month: 'long',

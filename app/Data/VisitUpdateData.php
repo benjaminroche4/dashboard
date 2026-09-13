@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Data;
 
-use App\Enums\VisitMode;
 use App\Enums\VisitStatus;
 use Carbon\CarbonImmutable;
 
@@ -16,7 +15,6 @@ final readonly class VisitUpdateData
 {
     public function __construct(
         public ?VisitStatus $status = null,
-        public ?VisitMode $mode = null,
         public ?CarbonImmutable $scheduledAt = null,
         public ?string $notes = null,
         public ?int $propertyId = null,
@@ -36,11 +34,8 @@ final readonly class VisitUpdateData
         $status = $data['status'] ?? null;
         $scheduledAt = $data['scheduled_at'] ?? null;
 
-        $mode = $data['mode'] ?? null;
-
         return new self(
             status: is_string($status) && $status !== '' ? VisitStatus::from($status) : null,
-            mode: is_string($mode) && $mode !== '' ? VisitMode::from($mode) : null,
             scheduledAt: is_string($scheduledAt) && $scheduledAt !== ''
                 ? CarbonImmutable::parse($scheduledAt, config('app.timezone'))
                 : null,

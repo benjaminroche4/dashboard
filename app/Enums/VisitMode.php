@@ -6,8 +6,9 @@ namespace App\Enums;
 
 /**
  * Façon dont la visite se déroule : l'équipe visite à la place du client, ou
- * le client visite seul. La visite autonome n'a de sens que sur la formule
- * « Accompagné », où le client est sur place.
+ * le client visite seul. Ce n'est pas un choix — la formule souscrite le dit
+ * déjà : « Confié », nous faisons les visites ; « Accompagné », le client
+ * visite lui-même et nous montons le dossier.
  */
 enum VisitMode: string
 {
@@ -39,21 +40,12 @@ enum VisitMode: string
         };
     }
 
-    /** Vrai si ce mode est possible pour un client sur cette formule. */
-    public function allowedFor(?Offer $offer): bool
-    {
-        return $this !== self::ClientAlone || $offer === Offer::Accompagne;
-    }
-
     /**
-     * @return list<array{value: string, label: string, hint: string}>
+     * Type de visite d'un client, déduit de sa formule. Sans formule connue,
+     * l'équipe visite : c'est le cas le plus courant et le plus prudent.
      */
-    public static function options(): array
+    public static function forOffer(?Offer $offer): self
     {
-        return array_map(fn (self $case): array => [
-            'value' => $case->value,
-            'label' => $case->label(),
-            'hint' => $case->hint(),
-        ], self::cases());
+        return $offer === Offer::Accompagne ? self::ClientAlone : self::ForClient;
     }
 }

@@ -41,11 +41,47 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 import ClientShow from '@/pages/clients/show';
-import { clientPriorities, makeClientDetail } from '@/test/fixtures/client';
+import {
+    clientPriorities,
+    makeClientDetail,
+    makeDossierReadiness,
+} from '@/test/fixtures/client';
 import { makeActivity } from '@/test/fixtures/activity';
 import { makeVisit } from '@/test/fixtures/visit';
 
 describe('Client file page', () => {
+    it('says on the overview whether the dossier is ready to be presented', () => {
+        render(
+            <ClientShow
+                priorities={clientPriorities}
+                client={makeClientDetail()}
+                readiness={makeDossierReadiness({
+                    status: 'incomplete',
+                    status_label: 'Incomplet',
+                    total: 6,
+                    accepted: 3,
+                    to_check: 1,
+                    refused: 1,
+                    missing: 1,
+                    percent: 50,
+                })}
+                totals={[]}
+                invoices={[]}
+                quotes={[]}
+                documentRequests={[]}
+                partners={[]}
+                notes={[]}
+            />,
+        );
+
+        const section = within(
+            screen.getByRole('region', { name: 'Dossier de location' }),
+        );
+
+        expect(section.getByText('Incomplet')).toBeInTheDocument();
+        expect(section.getByText('3/6 pièces validées')).toBeInTheDocument();
+    });
+
     it('shows the client, the money figures, the project, the dossier tabs and the actions', async () => {
         const user = userEvent.setup();
         render(
@@ -135,8 +171,9 @@ describe('Client file page', () => {
             'Aperçu',
             'Personnes2',
             'Visites1',
-            'Documents0',
-            'Biens0',
+            // Un compteur à zéro ne s'affiche pas : il n'apprend rien.
+            'Documents',
+            'Biens',
             'Notes1',
             'Autre2',
         ]);
@@ -296,8 +333,20 @@ describe('Client file page', () => {
                         name: 'Marie Mata',
                         email: null,
                         phone: null,
+                        employment_status: 'cdi',
+                        employment_status_label: 'CDI',
+                        occupation: 'Infirmière',
                         income_cents: 450_000,
                         note: null,
+                    },
+                ]}
+                watchers={[
+                    {
+                        uuid: 'watcher-1',
+                        name: 'Claire Martin',
+                        email: 'claire.martin@exemple.com',
+                        phone: '+33 6 11 22 33 44',
+                        role: 'Mère du locataire',
                     },
                 ]}
                 totals={[]}
@@ -324,10 +373,24 @@ describe('Client file page', () => {
             ),
         ).toBeInTheDocument();
 
-        const followers = within(
+        // Les personnes de suivi sont des gens à qui on met une adresse : un
+        // nom, le lien avec le client, l'e-mail. Pas des membres de l'équipe.
+        const watchers = within(
             screen.getByRole('region', { name: 'Personnes de suivi' }),
         );
-        expect(followers.getByText('Admin')).toBeInTheDocument();
-        expect(followers.getByText('Charles Petit')).toBeInTheDocument();
+        expect(watchers.getByText('Claire Martin')).toBeInTheDocument();
+        expect(watchers.getByText('Mère du locataire')).toBeInTheDocument();
+        expect(
+            watchers.getByText('claire.martin@exemple.com').closest('a'),
+        ).toHaveAttribute('href', 'mailto:claire.martin@exemple.com');
+        expect(watchers.getByText('+33 6 11 22 33 44')).toBeInTheDocument();
+        expect(watchers.queryByText('Charles Petit')).toBeNull();
+
+        // Le garant dit ce qu'il fait dans la vie, pas seulement son revenu.
+        expect(
+            within(screen.getByRole('region', { name: 'Garants' })).getByText(
+                /Infirmière/,
+            ),
+        ).toBeInTheDocument();
     });
 });

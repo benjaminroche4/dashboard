@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
     countInCategory,
+    groupPresets,
+    isPresetApplied,
+    togglePreset,
     emptyDocumentRequestForm,
     emptyPerson,
     isCategoryChecked,
@@ -15,6 +18,7 @@ import {
 } from '@/lib/document-request-form';
 import {
     catalog,
+    documentPresets,
     documentRequestLeads,
     makePersonForm,
 } from '@/test/fixtures/document-request';
@@ -43,6 +47,46 @@ describe('document request form helpers', () => {
         person = toggleCategory(person, identity);
         expect(isCategoryChecked(person, identity)).toBe(false);
         expect(person.documents).toEqual(['payslips']);
+    });
+
+    it('ticks a profile without losing what was already ticked, and unticks it on a second click', () => {
+        const [freelance, withCompany, employee] = documentPresets;
+        let person = toggleDocument(emptyPerson(), 'family_record_book', true);
+
+        person = togglePreset(person, freelance!);
+        expect(person.documents).toEqual([
+            'family_record_book',
+            'identity_document',
+            'employment_contract',
+        ]);
+        expect(isPresetApplied(person, freelance!)).toBe(true);
+        // « Avec société » demande une pièce de plus, cochée à la main ici :
+        // il compte donc pour coché, ses pièces étant toutes présentes.
+        expect(isPresetApplied(person, withCompany!)).toBe(true);
+        expect(isPresetApplied(person, employee!)).toBe(false);
+
+        // Un second profil ajoute ses pièces aux précédentes.
+        person = togglePreset(person, employee!);
+        expect(person.documents).toContain('payslips');
+
+        // Second clic sur le premier profil : seules ses pièces repartent, la
+        // pièce cochée à la main et celles de l'autre profil restent.
+        person = togglePreset(person, freelance!);
+        expect(person.documents).toEqual(['family_record_book', 'payslips']);
+        expect(isPresetApplied(person, freelance!)).toBe(false);
+    });
+
+    it('groups the profiles by trade, in the order given by the server', () => {
+        expect(
+            groupPresets(documentPresets).map((family) => [
+                family.group,
+                family.presets.map((preset) => preset.value),
+            ]),
+        ).toEqual([
+            ['Indépendant', ['freelance', 'freelance_company']],
+            ['Salarié', ['employee']],
+        ]);
+        expect(groupPresets([])).toEqual([]);
     });
 
     it('names a person, falling back to its number', () => {

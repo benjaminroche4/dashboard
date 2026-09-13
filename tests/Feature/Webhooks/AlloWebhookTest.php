@@ -79,7 +79,7 @@ test('an inbound call from a known number is noted on the lead and touches its l
 
     expect($note->body)->toBe('Appel entrant (5,5 min, répondu) : Cherche un T2 dans le 11e pour novembre.')
         ->and($note->user_id)->toBe($charles->id)
-        ->and($lead->last_contacted_at?->toIso8601String())->toBe('2026-09-06T14:30:00+00:00')
+        ->and($lead->last_contacted_at?->toIso8601String())->toBe('2026-09-06T16:30:00+02:00')
         ->and(Lead::query()->count())->toBe(1);
 
     Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->message === "a reçu un appel de {$lead->fullName()}"
@@ -158,7 +158,7 @@ test('a received SMS is noted, and creates a lead when the number is unknown', f
 
     expect($lead->source_note)->toBe('SMS reçu via Allo')
         ->and($lead->notes()->sole()->body)->toBe('SMS reçu : Bonjour, je cherche un appartement pour octobre.')
-        ->and($lead->last_contacted_at?->toIso8601String())->toBe('2026-09-06T16:00:00+00:00');
+        ->and($lead->last_contacted_at?->toIso8601String())->toBe('2026-09-06T18:00:00+02:00');
 
     Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->message === 'SMS reçu de Marie Dupont');
 });

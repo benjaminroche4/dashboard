@@ -1,5 +1,4 @@
 import { Head } from '@inertiajs/react';
-import { Panel } from '@/components/panel';
 import { VisitForm } from '@/components/visits/visit-form';
 import {
     index as clientsIndex,
@@ -10,7 +9,6 @@ import type {
     PropertyFormOptions,
     Visit,
     VisitClientOption,
-    VisitModeOption,
     VisitPropertyOption,
 } from '@/types';
 
@@ -18,7 +16,6 @@ type Props = PropertyFormOptions & {
     visit: Visit;
     clients: VisitClientOption[];
     /** Les deux façons de visiter. */
-    visitModes: VisitModeOption[];
     properties: VisitPropertyOption[];
 };
 
@@ -26,7 +23,6 @@ type Props = PropertyFormOptions & {
 export default function VisitEdit({
     visit,
     clients,
-    visitModes,
     properties,
     ...options
 }: Props) {
@@ -41,15 +37,12 @@ export default function VisitEdit({
                         présent. Le client de la visite ne change pas.
                     </p>
                 </div>
-                <Panel title="Visite">
-                    <VisitForm
-                        clients={clients}
-                        visitModes={visitModes}
-                        properties={properties}
-                        options={options}
-                        visit={visit}
-                    />
-                </Panel>
+                <VisitForm
+                    clients={clients}
+                    properties={properties}
+                    options={options}
+                    visit={visit}
+                />
             </div>
         </>
     );

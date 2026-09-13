@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Enums\LeadLanguage;
 use App\Http\Middleware\EnsureSectionAccess;
 use App\Http\Middleware\EnsureStaffRole;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\NoIndex;
+use App\Models\DocumentRequest;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -14,6 +16,8 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 use Illuminate\Session\TokenMismatchException;
+use Illuminate\Support\Facades\App;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -64,6 +68,29 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return $redirect;
+        });
+
+        // Dépôt trop lourd pour PHP (413) : le client n'a ni compte ni
+        // interlocuteur sur cette page, il doit lire ce qui s'est passé et
+        // quoi faire, pas une page d'erreur.
+        $exceptions->render(function (HttpException $e, Request $request) {
+            if ($e->getStatusCode() !== 413 || $request->expectsJson() || ! $request->is('depot/*')) {
+                return null;
+            }
+
+            $language = DocumentRequest::query()
+                ->where('public_token', (string) $request->segment(2))
+                ->value('language');
+
+            $locale = $language instanceof LeadLanguage ? $language->value : (is_string($language) ? $language : null);
+
+            if ($locale !== null) {
+                App::setLocale($locale);
+            }
+
+            return back()->withErrors([
+                'files' => __('Ce dépôt est trop lourd : envoyez vos fichiers en plusieurs fois.'),
+            ]);
         });
 
         // Jeton CSRF périmé (419) : on revient sur la page avec un message plutôt qu'une erreur.

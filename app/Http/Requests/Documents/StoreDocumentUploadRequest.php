@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Requests\Documents;
 
 use App\Models\DocumentRequest;
+use App\Support\UploadLimits;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\App;
 use Illuminate\Validation\Validator;
 
 /**
@@ -16,6 +18,19 @@ use Illuminate\Validation\Validator;
 class StoreDocumentUploadRequest extends FormRequest
 {
     /**
+     * La validation tourne **avant** le contrôleur et son `inLocale()` : sans
+     * cela, un client anglophone recevrait ses erreurs en français.
+     */
+    protected function prepareForValidation(): void
+    {
+        $request = $this->route('documentRequest');
+
+        if ($request instanceof DocumentRequest) {
+            App::setLocale($request->language->value);
+        }
+    }
+
+    /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
@@ -23,8 +38,9 @@ class StoreDocumentUploadRequest extends FormRequest
         return [
             'person' => ['required', 'integer', 'min:0', 'max:3'],
             'document' => ['required', 'string', 'max:100'],
-            'files' => ['required', 'array', 'min:1', 'max:10'],
-            'files.*' => ['required', 'file', 'mimes:pdf', 'mimetypes:application/pdf', 'max:10240'],
+            // Les bornes suivent ce que PHP accepte vraiment sur cette machine.
+            'files' => ['required', 'array', 'min:1', 'max:'.UploadLimits::maxFiles()],
+            'files.*' => ['required', 'file', 'mimes:pdf', 'mimetypes:application/pdf', 'max:'.(int) (UploadLimits::perFile() / 1024)],
         ];
     }
 
@@ -61,6 +77,12 @@ class StoreDocumentUploadRequest extends FormRequest
         ];
     }
 
+    /** « 10 Mo », tel que le client le lit. */
+    public static function megabytes(int $bytes): string
+    {
+        return round($bytes / 1024 / 1024, 1).' Mo';
+    }
+
     /**
      * @return array<string, string>
      */
@@ -69,8 +91,8 @@ class StoreDocumentUploadRequest extends FormRequest
         return [
             'files.*.mimes' => __('Seul le format PDF est accepté.'),
             'files.*.mimetypes' => __('Seul le format PDF est accepté.'),
-            'files.*.max' => __('Chaque fichier doit faire moins de 10 Mo.'),
-            'files.max' => __('Dix fichiers au maximum à la fois.'),
+            'files.*.max' => __('Chaque fichier doit faire moins de :size.', ['size' => self::megabytes(UploadLimits::perFile())]),
+            'files.max' => __(':count fichiers au maximum à la fois.', ['count' => UploadLimits::maxFiles()]),
         ];
     }
 }

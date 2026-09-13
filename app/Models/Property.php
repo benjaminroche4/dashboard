@@ -10,6 +10,7 @@ use App\Enums\LeaseType;
 use App\Enums\PropertyFloor;
 use App\Enums\PropertyStatus;
 use App\Enums\PropertyType;
+use App\Support\FileUrl;
 use Carbon\CarbonInterface;
 use Database\Factories\PropertyFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -21,7 +22,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Bien de l'annuaire « Biens » : un logement que l'équipe peut proposer et faire visiter.
@@ -130,7 +130,7 @@ class Property extends Model
      */
     public function photoUrls(): array
     {
-        return array_map(fn (string $path): string => Storage::disk('public')->url($path), $this->photos ?? []);
+        return FileUrl::all('public', $this->photos ?? []);
     }
 
     /** Titre affiché : le titre saisi, sinon l'adresse. */

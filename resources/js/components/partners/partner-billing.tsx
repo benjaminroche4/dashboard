@@ -1,7 +1,8 @@
 import { Link } from '@inertiajs/react';
 import type { ComponentProps, ReactNode } from 'react';
-import { FilePlus2, FileSignature, FileText, ReceiptText } from 'lucide-react';
+import { FilePlus2, FileSignature, FileText } from 'lucide-react';
 import { QuoteStatusBadge } from '@/components/quotes/quote-status-badge';
+import { DetailSection } from '@/components/real-estate/detail-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDate, formatMoney } from '@/lib/format';
@@ -78,21 +79,10 @@ export function PartnerBilling({
     const total = quotes.length + invoices.length;
 
     return (
-        <section
-            aria-label="Devis et factures"
-            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-        >
-            <header className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="flex items-center gap-2 text-base font-medium">
-                    <ReceiptText className="size-4" aria-hidden />
-                    Devis et factures
-                    <Badge
-                        variant="secondary"
-                        className="font-medium tabular-nums"
-                    >
-                        {total}
-                    </Badge>
-                </h2>
+        <DetailSection
+            title="Devis et factures"
+            count={total}
+            action={
                 <div className="flex flex-wrap items-center gap-2">
                     {can.quotes && (
                         <Button variant="outline" size="sm" asChild>
@@ -119,8 +109,9 @@ export function PartnerBilling({
                         </Button>
                     )}
                 </div>
-            </header>
-            <div className="bg-background grid gap-4 rounded-lg border p-4">
+            }
+        >
+            <div className="grid gap-4">
                 {total === 0 ? (
                     <p className="text-muted-foreground text-sm">
                         Aucun devis ni facture avec ce partenaire pour le
@@ -199,6 +190,6 @@ export function PartnerBilling({
                     </>
                 )}
             </div>
-        </section>
+        </DetailSection>
     );
 }

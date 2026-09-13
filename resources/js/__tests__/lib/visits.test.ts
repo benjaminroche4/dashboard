@@ -6,6 +6,9 @@ import {
     groupVisitsByDay,
     openVisits,
     visitAddress,
+    visitModeForOffer,
+    visitPropertyLine,
+    visitTours,
 } from '@/lib/visits';
 import { makeVisit } from '@/test/fixtures/visit';
 
@@ -111,6 +114,43 @@ describe('visitAddress', () => {
     });
 });
 
+describe('visitPropertyLine', () => {
+    it('puts the name then the address, and never repeats the name', () => {
+        // Bien titré : le nom précède son adresse.
+        expect(visitPropertyLine(makeVisit())).toBe(
+            'T2 lumineux · 11e · 12 rue Oberkampf, 75011 Paris',
+        );
+
+        // Bien sans titre : son nom **est** sa rue, l'adresse suffit.
+        expect(
+            visitPropertyLine(
+                makeVisit({
+                    property: {
+                        ...makeVisit().property,
+                        label: '78 boulevard Bonnin',
+                        street: '78 boulevard Bonnin',
+                        postal_code: '75014',
+                    },
+                }),
+            ),
+        ).toBe('78 boulevard Bonnin, 75014 Paris');
+
+        // Sans adresse du tout, il reste le nom.
+        expect(
+            visitPropertyLine(
+                makeVisit({
+                    property: {
+                        ...makeVisit().property,
+                        street: '',
+                        postal_code: null,
+                        city: null,
+                    },
+                }),
+            ),
+        ).toBe('T2 lumineux · 11e');
+    });
+});
+
 describe('openVisits', () => {
     it('keeps the coming days and only the past visits still awaiting a report', () => {
         const visits = [
@@ -132,5 +172,55 @@ describe('openVisits', () => {
         expect(openVisits(visits, now).map((visit) => visit.id)).toEqual([
             1, 2, 3,
         ]);
+    });
+});
+
+describe('visitModeForOffer', () => {
+    it('lets the offer decide who visits', () => {
+        // « Accompagné » : le client visite lui-même ; « Confié » : nous.
+        expect(visitModeForOffer('accompagne')).toBe('client_alone');
+        expect(visitModeForOffer('confie')).toBe('for_client');
+    });
+
+    it('falls back to a visit made by the team when the offer is unknown', () => {
+        expect(visitModeForOffer(null)).toBe('for_client');
+        expect(visitModeForOffer(undefined)).toBe('for_client');
+    });
+});
+
+describe('visitTours', () => {
+    const withMember = (id: number, name: string | null) =>
+        makeVisit({
+            id,
+            uuid: `tour-${id}`,
+            assignee: name === null ? null : { id, name, avatar: null },
+        });
+
+    it('groups the day by the member who does the visits, sorted by name', () => {
+        const tours = visitTours([
+            withMember(2, 'Charles'),
+            withMember(1, 'Alice'),
+            withMember(3, null),
+            makeVisit({
+                id: 4,
+                uuid: 'tour-4',
+                assignee: { id: 1, name: 'Alice', avatar: null },
+            }),
+        ]);
+
+        expect(tours.map((tour) => tour.label)).toEqual([
+            'Alice',
+            'Charles',
+            'Sans membre',
+        ]);
+        // Alice a deux visites ; les visites sans membre ferment la liste.
+        expect(tours[0]?.visits.map((visit) => visit.id)).toEqual([1, 4]);
+        expect(tours[2]?.key).toBe('none');
+    });
+
+    it('returns a single tour when one member does the whole day', () => {
+        expect(
+            visitTours([withMember(1, 'Alice'), withMember(1, 'Alice')]),
+        ).toHaveLength(1);
     });
 });

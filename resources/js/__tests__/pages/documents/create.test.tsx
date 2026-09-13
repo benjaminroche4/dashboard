@@ -58,6 +58,7 @@ function useFormStub(initial: Record<string, unknown>) {
 import DocumentsCreate from '@/pages/documents/create';
 import {
     catalog,
+    documentPresets,
     documentRequestLeads,
     languages,
     makeDocumentRequestEdit,
@@ -68,6 +69,7 @@ const renderPage = () =>
     render(
         <DocumentsCreate
             catalog={catalog}
+            presets={documentPresets}
             roles={roles}
             languages={languages}
             leads={documentRequestLeads}
@@ -89,6 +91,48 @@ describe('Documents create page', () => {
         transform.mockClear();
         toastError.mockClear();
         Element.prototype.scrollIntoView = vi.fn();
+    });
+
+    it('ticks a profile in one click, unticks it in another, from the household column', async () => {
+        const user = userEvent.setup();
+        renderPage();
+
+        // Le compteur de la carte de la personne (la carte des profils a le sien).
+        const counter = () =>
+            within(
+                screen.getByRole('region', { name: 'Personne 1' }),
+            ).getByText(/^\d+ cochée\(s\)$/).textContent;
+        expect(counter()).toBe('0 cochée(s)');
+
+        expect(screen.getByText('Indépendant')).toBeInTheDocument();
+        const salarie = screen.getByRole('button', { name: /^Salarié/ });
+
+        await user.click(salarie);
+        expect(counter()).toBe('2 cochée(s)');
+        expect(
+            screen.getByRole('checkbox', {
+                name: /3 derniers bulletins de salaire/,
+            }),
+        ).toBeChecked();
+        expect(salarie).toHaveAttribute('aria-pressed', 'true');
+
+        // Un second profil ajoute ses pièces sans retirer les premières.
+        await user.click(
+            screen.getByRole('button', { name: /^Freelance sans société/ }),
+        );
+        expect(counter()).toBe('3 cochée(s)');
+        // La carte des profils vit sous le récapitulatif du foyer.
+        expect(
+            screen.getByRole('region', { name: 'Profil du dossier' }),
+        ).toBeInTheDocument();
+
+        // Second clic sur « Salarié » : seules ses pièces repartent.
+        await user.click(salarie);
+        expect(counter()).toBe('1 cochée(s)');
+        expect(salarie).toHaveAttribute('aria-pressed', 'false');
+
+        await user.click(screen.getByRole('button', { name: 'Tout décocher' }));
+        expect(counter()).toBe('0 cochée(s)');
     });
 
     it('renders one person tab, its card, the PDF settings and the household summary, without e-mail', () => {

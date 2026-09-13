@@ -1,4 +1,4 @@
-import { makeVisitClient, visitModes } from '@/test/fixtures/visit';
+import { makeVisitClient } from '@/test/fixtures/visit';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactNode, useState } from 'react';
@@ -89,7 +89,6 @@ describe('Visit create page', () => {
         render(
             <VisitCreate
                 clients={clients}
-                visitModes={visitModes}
                 properties={properties}
                 defaultClientId={2}
                 {...propertyFormOptions}

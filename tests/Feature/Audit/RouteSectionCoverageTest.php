@@ -38,8 +38,13 @@ const FREE_ROUTES = [
     // Supervision, et routes techniques publiées par les paquets.
     'pulse',
     'default-livewire.update', 'livewire.upload-file', 'livewire.preview-file',
+    // Servies par Laravel **seulement quand le disque privé est local** : dès
+    // qu'un bucket est configuré (production), elles n'existent pas.
     'storage.local', 'storage.local.upload',
 ];
+
+/** Routes de FREE_ROUTES qui dépendent de la configuration, pas du code. */
+const OPTIONAL_FREE_ROUTES = ['storage.local', 'storage.local.upload'];
 
 test('every named route declares its site section, or is explicitly free', function (): void {
     $undeclared = collect(Router::getRoutes()->getRoutes())
@@ -61,5 +66,7 @@ test('every free route is a real route, so the list never rots', function (): vo
         ->unique()
         ->all();
 
-    expect(array_values(array_diff(FREE_ROUTES, $names)))->toBe([]);
+    // Les routes conditionnelles (disque privé servi en local) ne font pas
+    // rancir la liste : elles disparaissent avec un bucket.
+    expect(array_values(array_diff(FREE_ROUTES, $names, OPTIONAL_FREE_ROUTES)))->toBe([]);
 });

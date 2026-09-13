@@ -13,13 +13,15 @@ import { VisitReportBadge } from '@/components/visits/visit-report-badge';
 import { PropertyThumb } from '@/components/visits/property-picker';
 import { VisitRowActions } from '@/components/visits/visit-row-actions';
 import { VisitStatusBadge } from '@/components/visits/visit-status-badge';
+import { WriteReportButton } from '@/components/visits/write-report-button';
 import { formatMoney } from '@/lib/format';
 import { timeFormat } from '@/lib/visits';
 import { show as clientShow } from '@/routes/clients';
 import { show as visitShow } from '@/routes/clients/visits';
 import type { Visit } from '@/types';
+import { parisFormat } from '@/lib/datetime';
 
-const dayFormat = new Intl.DateTimeFormat('fr-FR', {
+const dayFormat = parisFormat({
     weekday: 'short',
     day: 'numeric',
     month: 'short',
@@ -54,9 +56,11 @@ export function VisitReportsDue({ visits }: { visits: Visit[] }) {
                         <TableRow>
                             <TableHead className="w-36">Visite</TableHead>
                             <TableHead className="w-[24%]">Client</TableHead>
-                            <TableHead className="w-[38%]">Bien</TableHead>
+                            <TableHead className="w-[32%]">Bien</TableHead>
                             <TableHead className="w-[18%]">Statut</TableHead>
-                            <TableHead className="w-12" />
+                            <TableHead className="w-36 text-right">
+                                <span className="sr-only">Actions</span>
+                            </TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -128,7 +132,12 @@ export function VisitReportsDue({ visits }: { visits: Visit[] }) {
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <VisitRowActions visit={visit} />
+                                        {/* Le compte rendu s'écrit d'ici :
+                                            c'est ce que la carte réclame. */}
+                                        <div className="flex items-center justify-end gap-1">
+                                            <WriteReportButton visit={visit} />
+                                            <VisitRowActions visit={visit} />
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             );

@@ -34,8 +34,9 @@ import {
     update as updateNote,
 } from '@/routes/leads/notes';
 import type { LeadNote, LeadStatusChange } from '@/types';
+import { parisFormat } from '@/lib/datetime';
 
-const dateTime = new Intl.DateTimeFormat('fr-FR', {
+const dateTime = parisFormat({
     dateStyle: 'short',
     timeStyle: 'short',
 });

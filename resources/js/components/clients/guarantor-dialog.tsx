@@ -12,6 +12,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { capitalizeName } from '@/lib/format';
 import guarantors from '@/routes/clients/guarantors';
@@ -24,12 +31,15 @@ import type { ClientGuarantor } from '@/types';
 export function GuarantorDialog({
     clientUuid,
     guarantor,
+    employmentStatuses = [],
     open,
     onOpenChange,
 }: {
     clientUuid: string;
     /** Garant à modifier ; `null` pour un ajout. */
     guarantor: ClientGuarantor | null;
+    /** Situations professionnelles proposées (`EmploymentStatus::options()`). */
+    employmentStatuses?: { value: string; label: string }[];
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }) {
@@ -39,6 +49,8 @@ export function GuarantorDialog({
         last_name: guarantor?.last_name ?? '',
         email: guarantor?.email ?? '',
         phone: guarantor?.phone ?? '',
+        employment_status: guarantor?.employment_status ?? '',
+        occupation: guarantor?.occupation ?? '',
         income:
             guarantor?.income_cents == null
                 ? ''
@@ -98,7 +110,8 @@ export function GuarantorDialog({
                         {editing ? 'Modifier le garant' : 'Ajouter un garant'}
                     </DialogTitle>
                     <DialogDescription>
-                        Ses informations de contact et son revenu mensuel net.
+                        Ses coordonnées, ce qu’il fait dans la vie et son revenu
+                        mensuel net.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4">
@@ -165,6 +178,54 @@ export function GuarantorDialog({
                             onChange={(value) => form.setData('phone', value)}
                         />
                         <InputError message={form.errors.phone} />
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid gap-2">
+                            <Label htmlFor="guarantor-employment">
+                                Situation professionnelle
+                            </Label>
+                            <Select
+                                value={form.data.employment_status}
+                                onValueChange={(value) =>
+                                    form.setData('employment_status', value)
+                                }
+                            >
+                                <SelectTrigger
+                                    id="guarantor-employment"
+                                    className="w-full"
+                                >
+                                    <SelectValue placeholder="Non renseignée" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {employmentStatuses.map((status) => (
+                                        <SelectItem
+                                            key={status.value}
+                                            value={status.value}
+                                        >
+                                            {status.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <InputError
+                                message={form.errors.employment_status}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="guarantor-occupation">Métier</Label>
+                            <Input
+                                id="guarantor-occupation"
+                                placeholder="Ex. Infirmière, à l’hôpital Saint-Louis"
+                                value={form.data.occupation}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'occupation',
+                                        event.target.value,
+                                    )
+                                }
+                            />
+                            <InputError message={form.errors.occupation} />
+                        </div>
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="guarantor-income">

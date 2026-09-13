@@ -244,7 +244,10 @@ describe('Lead detail page', () => {
         const section = within(
             screen.getByRole('region', { name: 'Activité' }),
         );
-        expect(section.getByLabelText('3 entrées')).toHaveTextContent('3');
+        // Le compteur vit dans l'intitulé de la carte, comme sur les fiches.
+        expect(
+            section.getByRole('heading', { name: /Activité\s*3/ }),
+        ).toBeInTheDocument();
         expect(screen.queryByText('Rappeler mardi.')).not.toBeInTheDocument();
         await userEvent.click(
             section.getByRole('button', { name: 'Voir l’activité' }),
@@ -371,9 +374,7 @@ describe('Lead detail page', () => {
             />,
         );
 
-        const card = within(
-            screen.getByRole('region', { name: 'Responsable' }),
-        );
+        const card = within(screen.getByRole('region', { name: 'Suivi par' }));
         expect(card.getByText(/WhatsApp ·/)).toBeInTheDocument();
         expect(card.getByText(/En retard de \d+ j/)).toHaveAttribute(
             'data-late',
@@ -556,7 +557,7 @@ describe('First contact countdown on the lead page', () => {
         ).not.toBeInTheDocument();
         // La colonne droite reste limitée au suivi et à l'activité.
         expect(
-            screen.getByRole('region', { name: 'Responsable' }),
+            screen.getByRole('region', { name: 'Suivi par' }),
         ).toBeInTheDocument();
         expect(
             screen.getByRole('region', { name: 'Activité' }),

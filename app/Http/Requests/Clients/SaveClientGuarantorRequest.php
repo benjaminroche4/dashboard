@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Clients;
 
+use App\Enums\EmploymentStatus;
 use App\Support\PhoneNumber;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 /** Garant d'un dossier : nom obligatoire, le reste facultatif. */
@@ -22,6 +24,8 @@ class SaveClientGuarantorRequest extends FormRequest
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:40'],
+            'employment_status' => ['nullable', Rule::enum(EmploymentStatus::class)],
+            'occupation' => ['nullable', 'string', 'max:255'],
             'income_cents' => ['nullable', 'integer', 'min:0', 'max:100000000'],
             'note' => ['nullable', 'string', 'max:2000'],
         ];
@@ -53,6 +57,8 @@ class SaveClientGuarantorRequest extends FormRequest
             'last_name' => 'nom du garant',
             'email' => 'e-mail du garant',
             'phone' => 'téléphone du garant',
+            'employment_status' => 'situation professionnelle du garant',
+            'occupation' => 'métier du garant',
             'income_cents' => 'revenu du garant',
             'note' => 'note',
         ];

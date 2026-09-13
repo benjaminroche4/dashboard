@@ -12,8 +12,9 @@ import { formatMoney } from '@/lib/format';
 import { show as agentShow } from '@/routes/agents';
 import { show as clientShow } from '@/routes/clients';
 import type { Visit } from '@/types';
+import { parisFormat } from '@/lib/datetime';
 
-const dateTime = new Intl.DateTimeFormat('fr-FR', {
+const dateTime = parisFormat({
     weekday: 'short',
     day: 'numeric',
     month: 'short',

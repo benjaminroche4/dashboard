@@ -1,4 +1,5 @@
 import type {
+    DocumentPresetOption,
     DocumentRequestLeadOption,
     DocumentUpload,
     PublicDocumentPerson,
@@ -42,6 +43,32 @@ export const catalog: CatalogGroup[] = [
                 hint: 'Complet et signé',
             },
         ],
+    },
+];
+
+/** Profils réduits, même forme que DocumentPreset::options(). */
+export const documentPresets: DocumentPresetOption[] = [
+    {
+        value: 'freelance',
+        label: 'Freelance sans société',
+        group: 'Indépendant',
+        documents: ['identity_document', 'employment_contract'],
+    },
+    {
+        value: 'freelance_company',
+        label: 'Freelance avec société',
+        group: 'Indépendant',
+        documents: [
+            'identity_document',
+            'employment_contract',
+            'family_record_book',
+        ],
+    },
+    {
+        value: 'employee',
+        label: 'Salarié',
+        group: 'Salarié',
+        documents: ['identity_document', 'payslips'],
     },
 ];
 
@@ -204,6 +231,11 @@ export function makeDocumentUpload(
         uploaded_at: '2026-09-08T10:00:00+02:00',
         download_url:
             '/tools/documents/0199b0c0-0000-7000-8000-000000000001/uploads/0199b0c0-0000-7000-8000-0000000000aa',
+        status: 'pending',
+        status_label: 'À relire',
+        review_note: null,
+        reviewed_at: null,
+        reviewer: null,
         ...overrides,
     };
 }

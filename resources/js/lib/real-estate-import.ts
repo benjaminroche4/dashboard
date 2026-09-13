@@ -1,4 +1,4 @@
-import type { AgencyImportRow, AgentImportRow } from '@/types';
+import type { AgentImportRow } from '@/types';
 
 /** Colonnes attendues, dans l'ordre, quand la première ligne n'est pas un en-tête. */
 export const importColumns = [
@@ -100,87 +100,6 @@ export function parseAgentRows(text: string): ParsedImport {
         });
 
         if (row.first_name === '' || row.last_name === '') {
-            invalid.push(index + 1 + (hasHeader ? 1 : 0));
-
-            return;
-        }
-
-        rows.push(row);
-    });
-
-    return { rows, invalid, hasHeader };
-}
-
-/** Colonnes d'un import d'agences, dans l'ordre : nom, e-mail, téléphone, ville. */
-export const agencyImportColumns = ['name', 'email', 'phone', 'city'] as const;
-
-const agencyHeaderAliases: Record<
-    string,
-    (typeof agencyImportColumns)[number]
-> = {
-    agence: 'name',
-    agency: 'name',
-    nom: 'name',
-    name: 'name',
-    raison_sociale: 'name',
-    email: 'email',
-    'e-mail': 'email',
-    mail: 'email',
-    telephone: 'phone',
-    téléphone: 'phone',
-    tel: 'phone',
-    phone: 'phone',
-    ville: 'city',
-    city: 'city',
-};
-
-export type ParsedAgencyImport = {
-    rows: AgencyImportRow[];
-    /** Lignes ignorées faute de nom (numéros à partir de 1). */
-    invalid: number[];
-    hasHeader: boolean;
-};
-
-/**
- * Même lecture que les agents, pour un annuaire d'agences : la première ligne
- * sert d'en-tête si elle contient « agence » ou « nom », sinon l'ordre est
- * nom, e-mail, téléphone, ville.
- */
-export function parseAgencyRows(text: string): ParsedAgencyImport {
-    const lines = text
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter((line) => line !== '');
-
-    if (lines.length === 0) {
-        return { rows: [], invalid: [], hasHeader: false };
-    }
-
-    const firstCells = splitLine(lines[0] ?? '').map(normalizeHeader);
-    const hasHeader = firstCells.some((cell) => cell in agencyHeaderAliases);
-    const mapping: ((typeof agencyImportColumns)[number] | null)[] = hasHeader
-        ? firstCells.map((cell) => agencyHeaderAliases[cell] ?? null)
-        : [...agencyImportColumns];
-    const body = hasHeader ? lines.slice(1) : lines;
-    const rows: AgencyImportRow[] = [];
-    const invalid: number[] = [];
-
-    body.forEach((line, index) => {
-        const cells = splitLine(line);
-        const row: AgencyImportRow = {
-            name: '',
-            email: '',
-            phone: '',
-            city: '',
-        };
-
-        mapping.forEach((column, position) => {
-            if (column) {
-                row[column] = cells[position] ?? '';
-            }
-        });
-
-        if (row.name === '') {
             invalid.push(index + 1 + (hasHeader ? 1 : 0));
 
             return;

@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\VisitMode;
 use App\Enums\VisitStatus;
+use App\Support\FileUrl;
 use Carbon\CarbonInterface;
 use Database\Factories\VisitFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -14,7 +15,6 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Visite d'un bien par un client, à une date donnée.
@@ -127,7 +127,7 @@ class Visit extends Model
      */
     public function reportPhotoUrls(): array
     {
-        return array_map(fn (string $path): string => Storage::disk('public')->url($path), $this->report_photos ?? []);
+        return FileUrl::all('public', $this->report_photos ?? []);
     }
 
     /**
@@ -139,6 +139,17 @@ class Visit extends Model
     }
 
     /** Un compte rendu est attendu : visite passée, non annulée, sans compte rendu. */
+    /**
+     * Le compte rendu ne s'écrit qu'**après** la visite : avant l'heure, il
+     * n'y a rien à raconter. Une visite annulée n'en attend pas non plus ;
+     * un compte rendu déjà écrit reste modifiable.
+     */
+    public function reportable(): bool
+    {
+        return $this->report !== null
+            || ($this->status !== VisitStatus::Cancelled && $this->scheduled_at->isPast());
+    }
+
     public function reportDue(): bool
     {
         return $this->report === null

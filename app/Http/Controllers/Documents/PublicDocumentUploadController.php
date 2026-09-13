@@ -6,11 +6,13 @@ namespace App\Http\Controllers\Documents;
 
 use App\Actions\Documents\RenderDocumentRequestPdf;
 use App\Actions\Documents\StoreDocumentUploads;
+use App\Enums\DocumentUploadStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Documents\StoreDocumentUploadRequest;
 use App\Http\Requests\Documents\VerifyDocumentAccessCodeRequest;
 use App\Models\DocumentRequest;
 use App\Models\DocumentUpload;
+use App\Support\UploadLimits;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -38,7 +40,7 @@ class PublicDocumentUploadController extends Controller
                     'intro' => __('Saisissez le code d’appairage à 6 chiffres qui vous a été communiqué pour ouvrir votre espace de dépôt.'),
                     'code' => __('Code d’appairage'),
                     'submit' => __('Ouvrir mon espace'),
-                    'contact' => __('Une question ? Écrivez-nous :'),
+                    ...$this->trustLabels(),
                 ],
             ]));
         }
@@ -56,6 +58,8 @@ class PublicDocumentUploadController extends Controller
                 'email' => config('company.email'),
                 'phone' => config('company.phone'),
             ],
+            // Ce que le serveur accepte vraiment : la page n'annonce pas plus.
+            'limits' => UploadLimits::toArray(),
             'labels' => $this->labels(),
         ]));
     }
@@ -112,6 +116,10 @@ class PublicDocumentUploadController extends Controller
                             'name' => $upload->original_name,
                             'size' => $upload->size,
                             'uploaded_at' => $upload->created_at?->toIso8601String(),
+                            // Le client voit la décision de l'équipe, et le motif d'un refus.
+                            'status' => $upload->status->value,
+                            'status_label' => $upload->status->clientLabel(),
+                            'review_note' => $upload->status === DocumentUploadStatus::Refused ? $upload->review_note : null,
                         ])
                         ->all();
 
@@ -136,14 +144,35 @@ class PublicDocumentUploadController extends Controller
             'title' => __('Vos pièces justificatives'),
             'intro' => __('Merci de réunir les pièces ci-dessous pour constituer votre dossier de location.'),
             'drop' => __('Déposez vos fichiers ici ou cliquez pour les choisir'),
-            'formats' => __('PDF uniquement · 10 Mo par fichier'),
+            'formats' => __('PDF uniquement · :size par fichier', ['size' => StoreDocumentUploadRequest::megabytes(UploadLimits::perFile())]),
+            'too_large' => __('Fichier trop lourd (:size au maximum) :', ['size' => StoreDocumentUploadRequest::megabytes(UploadLimits::perFile())]),
+            'wrong_type' => __('Seul le format PDF est accepté :'),
+            'too_many' => __(':count fichiers au maximum à la fois.', ['count' => UploadLimits::maxFiles()]),
+            'too_heavy' => __('Envoi trop lourd (:size au maximum) : déposez vos fichiers en plusieurs fois.', ['size' => StoreDocumentUploadRequest::megabytes(UploadLimits::perRequest())]),
             'uploaded' => __('Fichiers reçus'),
             'none' => __('Aucun fichier pour le moment'),
             'sending' => __('Envoi en cours…'),
             'done' => __('Pièce reçue'),
-            'contact' => __('Une question ? Écrivez-nous :'),
-            'privacy' => __('Vos fichiers sont transmis de façon sécurisée et ne sont visibles que par notre équipe.'),
+            ...$this->trustLabels(),
             'progress' => __(':done pièce(s) reçue(s) sur :total'),
+            'refused' => __('Pièce refusée, merci d’en déposer une autre.'),
+        ];
+    }
+
+    /**
+     * Ce qui rassure le client sur ce qu'il dépose : une page publique demande
+     * des pièces d'identité et des bulletins de salaire, elle doit dire
+     * clairement où ils vont. Partagé par l'écran du code et celui du dépôt.
+     *
+     * @return array<string, string>
+     */
+    private function trustLabels(): array
+    {
+        return [
+            'privacy_title' => __('Vos documents sont entre de bonnes mains'),
+            'privacy_secure' => __('Connexion chiffrée : vos fichiers voyagent protégés, et ce lien n’est accessible qu’avec votre code.'),
+            'privacy_private' => __('Accès réservé : seule l’équipe :company qui suit votre dossier peut les ouvrir.', ['company' => config('company.name')]),
+            'privacy_kept' => __('Jamais revendus ni transmis à un tiers : ils servent uniquement à constituer votre dossier de location.'),
         ];
     }
 

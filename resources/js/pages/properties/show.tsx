@@ -1,17 +1,7 @@
+import { parisFormat } from '@/lib/datetime';
 import { TransitStopItem } from '@/components/properties/transit-stop-item';
 import { Head, Link, router } from '@inertiajs/react';
-import {
-    ArrowRight,
-    Building2,
-    CalendarClock,
-    ExternalLink,
-    FileDown,
-    FolderOpen,
-    Handshake,
-    KeyRound,
-    Mail,
-    Phone,
-} from 'lucide-react';
+import { ArrowRight, ExternalLink, FileDown, Mail, Phone } from 'lucide-react';
 import { PhotoGallery } from '@/components/photo-gallery';
 import { PropertyStatusMenu } from '@/components/properties/property-status-menu';
 import { formatAddress } from '@/components/real-estate/columns';
@@ -19,6 +9,7 @@ import { downloadPropertyPdf } from '@/lib/download-property-pdf';
 import {
     DetailHeader,
     DetailRow,
+    DetailSection,
     missingValue,
 } from '@/components/real-estate/detail-header';
 import { Badge } from '@/components/ui/badge';
@@ -47,7 +38,7 @@ import type {
     PropertyVisit,
 } from '@/types';
 
-const visitDateTime = new Intl.DateTimeFormat('fr-FR', {
+const visitDateTime = parisFormat({
     weekday: 'short',
     day: 'numeric',
     month: 'short',
@@ -183,15 +174,8 @@ export default function PropertyShow({
 
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                     <div className="flex flex-col gap-4">
-                        <section
-                            aria-label="Caractéristiques"
-                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                        >
-                            <h2 className="text-base font-medium">
-                                Caractéristiques
-                            </h2>
-                            {/* Contenu sur fond blanc, comme les autres sections. */}
-                            <div className="bg-background rounded-lg border p-4">
+                        <DetailSection title="Caractéristiques">
+                            <div className="grid">
                                 <dl className="grid gap-4 sm:grid-cols-2">
                                     <DetailRow label="Statut">
                                         {property.status_label}
@@ -286,23 +270,15 @@ export default function PropertyShow({
                                     </DetailRow>
                                 </dl>
                             </div>
-                        </section>
+                        </DetailSection>
                         {property.amenity_labels.length > 0 && (
-                            <section
-                                aria-label="Équipements"
-                                className="bg-sidebar grid gap-3 rounded-xl border p-4"
+                            <DetailSection
+                                title="Équipements"
+                                count={property.amenity_labels.length}
                             >
-                                <header className="flex flex-wrap items-center gap-2">
-                                    <h2 className="text-base font-medium">
-                                        Équipements
-                                    </h2>
-                                    <Badge variant="secondary">
-                                        {property.amenity_labels.length}
-                                    </Badge>
-                                </header>
                                 <ul
                                     role="list"
-                                    className="bg-background flex flex-wrap gap-1.5 rounded-lg border p-4"
+                                    className="flex flex-wrap gap-1.5"
                                 >
                                     {property.amenity_labels.map((amenity) => (
                                         <li key={amenity}>
@@ -315,26 +291,15 @@ export default function PropertyShow({
                                         </li>
                                     ))}
                                 </ul>
-                            </section>
+                            </DetailSection>
                         )}
 
                         {property.transit.length > 0 && (
-                            <section
-                                aria-label="Transports"
-                                className="bg-sidebar grid gap-3 rounded-xl border p-4"
+                            <DetailSection
+                                title="Transports"
+                                count={property.transit.length}
                             >
-                                <header className="flex flex-wrap items-center gap-2">
-                                    <h2 className="text-base font-medium">
-                                        Transports
-                                    </h2>
-                                    <Badge variant="secondary">
-                                        {property.transit.length}
-                                    </Badge>
-                                </header>
-                                <ul
-                                    role="list"
-                                    className="bg-background grid gap-2 rounded-lg border p-4"
-                                >
+                                <ul role="list" className="grid gap-2">
                                     {property.transit.map((stop, index) => (
                                         <li
                                             key={`${stop.kind}-${stop.name}-${index}`}
@@ -343,15 +308,10 @@ export default function PropertyShow({
                                         </li>
                                     ))}
                                 </ul>
-                            </section>
+                            </DetailSection>
                         )}
-                        <section
-                            aria-label="Photos"
-                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                        >
-                            <h2 className="text-base font-medium">Photos</h2>
-                            {/* Contenu sur fond blanc, comme les autres sections. */}
-                            <div className="bg-background rounded-lg border p-4">
+                        <DetailSection title="Photos">
+                            <div className="grid">
                                 {property.photos.length > 0 ? (
                                     <PhotoGallery
                                         photos={property.photos}
@@ -373,14 +333,9 @@ export default function PropertyShow({
                                     </p>
                                 )}
                             </div>
-                        </section>
-                        <section
-                            aria-label="Notes"
-                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                        >
-                            <h2 className="text-base font-medium">Notes</h2>
-                            {/* Contenu sur fond blanc, comme les autres sections. */}
-                            <div className="bg-background rounded-lg border p-4">
+                        </DetailSection>
+                        <DetailSection title="Notes">
+                            <div className="grid">
                                 {property.notes ? (
                                     <p className="text-sm/6 whitespace-pre-line">
                                         {property.notes}
@@ -391,19 +346,11 @@ export default function PropertyShow({
                                     </p>
                                 )}
                             </div>
-                        </section>
+                        </DetailSection>
                     </div>
                     <aside className="grid h-fit content-start gap-6 lg:sticky lg:top-6">
-                        <section
-                            aria-label="Propriétaire"
-                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                        >
-                            <h2 className="flex items-center gap-2 text-base font-medium">
-                                <KeyRound className="size-4" aria-hidden />
-                                Propriétaire
-                            </h2>
-                            {/* Contenu sur fond blanc, comme les autres sections. */}
-                            <div className="bg-background grid gap-3 rounded-lg border p-4">
+                        <DetailSection title="Propriétaire">
+                            <div className="grid gap-3">
                                 {owner ? (
                                     <>
                                         <div className="grid gap-1 text-sm">
@@ -480,18 +427,10 @@ export default function PropertyShow({
                                     </p>
                                 )}
                             </div>
-                        </section>
+                        </DetailSection>
 
-                        <section
-                            aria-label="Agent"
-                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                        >
-                            <h2 className="flex items-center gap-2 text-base font-medium">
-                                <Building2 className="size-4" aria-hidden />
-                                Agent
-                            </h2>
-                            {/* Contenu sur fond blanc, comme les autres sections. */}
-                            <div className="bg-background grid gap-3 rounded-lg border p-4">
+                        <DetailSection title="Agent">
+                            <div className="grid gap-3">
                                 {property.agent ? (
                                     <div className="grid gap-1 text-sm">
                                         <Link
@@ -514,19 +453,11 @@ export default function PropertyShow({
                                     </p>
                                 )}
                             </div>
-                        </section>
+                        </DetailSection>
 
                         {property.partner && (
-                            <section
-                                aria-label="Partenaire"
-                                className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                            >
-                                <h2 className="flex items-center gap-2 text-base font-medium">
-                                    <Handshake className="size-4" aria-hidden />
-                                    Partenaire
-                                </h2>
-                                {/* Contenu sur fond blanc, comme les autres sections. */}
-                                <div className="bg-background grid gap-1 rounded-lg border p-4 text-sm">
+                            <DetailSection title="Partenaire">
+                                <div className="grid gap-1 text-sm">
                                     <Link
                                         href={partnerShow({
                                             partner: property.partner.uuid,
@@ -539,39 +470,29 @@ export default function PropertyShow({
                                         {property.partner.type}
                                     </span>
                                 </div>
-                            </section>
+                            </DetailSection>
                         )}
 
-                        <section
-                            aria-label="Dossiers clients"
-                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                        >
-                            <header className="flex flex-wrap items-center justify-between gap-2">
-                                <h2 className="flex items-center gap-2 text-base font-medium">
-                                    <FolderOpen
-                                        className="size-4"
-                                        aria-hidden
-                                    />
-                                    Dossiers clients
-                                    <Badge
-                                        variant="secondary"
-                                        className="tabular-nums"
-                                    >
-                                        {clients.length}
-                                    </Badge>
-                                </h2>
-                                {/* L'attribution se choisit parmi les dossiers rattachés. */}
+                        <DetailSection
+                            title="Dossiers clients"
+                            count={clients.length}
+                            action={
+                                /* L'attribution se choisit parmi les dossiers rattachés. */
                                 <PropertyAssignmentButton
                                     property={property}
                                     clients={clients}
                                 />
-                            </header>
+                            }
+                        >
                             {clients.length > 0 ? (
-                                <ul role="list" className="grid gap-2 text-sm">
+                                <ul
+                                    role="list"
+                                    className="divide-border grid divide-y text-sm"
+                                >
                                     {clients.map((client) => (
                                         <li
                                             key={client.uuid}
-                                            className="bg-background grid gap-0.5 rounded-lg border px-3 py-2"
+                                            className="grid gap-0.5 py-3 first:pt-0 last:pb-0"
                                         >
                                             <Link
                                                 href={clientShow({
@@ -596,28 +517,18 @@ export default function PropertyShow({
                                     » d'un dossier.
                                 </p>
                             )}
-                        </section>
+                        </DetailSection>
 
-                        <section
-                            aria-label="Visites"
-                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                        >
-                            <h2 className="flex items-center gap-2 text-base font-medium">
-                                <CalendarClock className="size-4" aria-hidden />
-                                Visites
-                                <Badge
-                                    variant="secondary"
-                                    className="tabular-nums"
-                                >
-                                    {visits.length}
-                                </Badge>
-                            </h2>
+                        <DetailSection title="Visites" count={visits.length}>
                             {visits.length > 0 ? (
-                                <ul role="list" className="grid gap-2 text-sm">
+                                <ul
+                                    role="list"
+                                    className="divide-border grid divide-y text-sm"
+                                >
                                     {visits.map((visit) => (
                                         <li
                                             key={visit.uuid}
-                                            className="bg-background flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2"
+                                            className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"
                                         >
                                             <div className="grid min-w-0 gap-0.5">
                                                 <Link
@@ -650,7 +561,7 @@ export default function PropertyShow({
                                     Aucune visite pour ce bien.
                                 </p>
                             )}
-                        </section>
+                        </DetailSection>
                     </aside>
                 </div>
             </div>

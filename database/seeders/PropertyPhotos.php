@@ -7,36 +7,43 @@ namespace Database\Seeders;
 use App\Models\Property;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 /**
  * Photos de démonstration des biens : sans elles, les vignettes des listes et
  * la couverture des cartes ne montrent jamais que la silhouette de repli.
- * Images générées (dégradé + numéro), jamais téléchargées.
+ * Les fichiers viennent de `database/seeders/fixtures/properties` (de vraies
+ * photos de logements, versionnées avec le dépôt) et sont recopiés sur le
+ * disque `public` : aucun téléchargement, le jeu de démonstration se rejoue
+ * hors ligne.
  */
 final class PropertyPhotos
 {
-    /** Teintes des dégradés, une par bien. */
-    private const array TONES = [
-        [0xE2, 0xE8, 0xF0],
-        [0xFE, 0xE2, 0xE2],
-        [0xDC, 0xFC, 0xE7],
-        [0xFE, 0xF3, 0xC7],
-        [0xE0, 0xE7, 0xFF],
-        [0xF3, 0xE8, 0xFF],
+    /** Photos disponibles, dans l'ordre où elles sont distribuées. */
+    private const array FILES = [
+        'maison-moderne.jpg',
+        'villa-moderne.jpg',
+        'maison-bois-jardin.jpg',
+        'pavillon-terrasse.jpg',
     ];
 
     /**
      * Attache `$count` photos au bien et renvoie les chemins enregistrés.
+     * Chaque bien part d'une photo différente (déduite de son nom) : deux
+     * biens voisins n'ont donc pas la même couverture.
      *
      * @return list<string>
      */
-    public static function attach(Property $property, int $count = 2): array
+    public static function attach(Property $property, int $count = 3): array
     {
+        $files = self::FILES;
+        $offset = abs(crc32($property->label())) % count($files);
         $paths = [];
 
-        for ($index = 0; $index < $count; $index++) {
+        for ($index = 0; $index < min($count, count($files)); $index++) {
+            $file = $files[($offset + $index) % count($files)];
             $path = "properties/{$property->uuid}-".Str::random(8).'.jpg';
-            Storage::disk('public')->put($path, self::image($property->label(), $index));
+            Storage::disk('public')->put($path, self::bytes($file));
             $paths[] = $path;
         }
 
@@ -45,54 +52,21 @@ final class PropertyPhotos
         return $paths;
     }
 
-    /**
-     * Une composante de couleur, bornée à l'intervalle attendu par GD.
-     *
-     * @return int<0, 255>
-     */
-    private static function channel(float $value): int
+    /** Contenu d'une photo de démonstration, lu une seule fois par exécution. */
+    private static function bytes(string $file): string
     {
-        $channel = (int) $value;
+        /** @var array<string, string> $cache */
+        static $cache = [];
 
-        if ($channel < 0) {
-            return 0;
+        if (! isset($cache[$file])) {
+            $path = __DIR__.'/fixtures/properties/'.$file;
+            $bytes = is_file($path) ? file_get_contents($path) : false;
+
+            throw_if($bytes === false, RuntimeException::class, "Photo de démonstration introuvable : {$file}");
+
+            $cache[$file] = $bytes;
         }
 
-        return $channel > 255 ? 255 : $channel;
-    }
-
-    /** Vignette 800×600 : dégradé de la teinte du bien et numéro de la photo. */
-    private static function image(string $label, int $index): string
-    {
-        $width = 800;
-        $height = 600;
-        $canvas = imagecreatetruecolor($width, $height);
-        [$red, $green, $blue] = self::TONES[(abs(crc32($label)) + $index) % count(self::TONES)];
-
-        for ($y = 0; $y < $height; $y++) {
-            $shade = 1 - ($y / $height) * 0.35;
-            $line = imagecolorallocate(
-                $canvas,
-                self::channel($red * $shade),
-                self::channel($green * $shade),
-                self::channel($blue * $shade),
-            );
-            if ($line !== false) {
-                imagefilledrectangle($canvas, 0, $y, $width, $y, $line);
-            }
-        }
-
-        $ink = imagecolorallocate($canvas, 0x44, 0x44, 0x44);
-
-        if ($ink !== false) {
-            imagestring($canvas, 5, 24, $height - 40, 'Photo '.($index + 1).' - '.mb_substr($label, 0, 40), $ink);
-        }
-
-        ob_start();
-        imagejpeg($canvas, null, 80);
-        $bytes = (string) ob_get_clean();
-        imagedestroy($canvas);
-
-        return $bytes;
+        return $cache[$file];
     }
 }

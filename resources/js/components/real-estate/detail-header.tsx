@@ -116,21 +116,33 @@ export function DetailHeader({
 /** Carte de section d'une fiche : intitulé en capitales puis contenu. */
 export function DetailSection({
     title,
+    count,
     action,
+    className,
     children,
 }: {
     title: string;
+    /** Nombre d'éléments, rappelé discrètement à côté de l'intitulé. */
+    count?: number;
     action?: ReactNode;
+    /** Pour la place qu'occupe la carte dans sa grille (`lg:col-span-2`…). */
+    className?: string;
     children: ReactNode;
 }) {
     return (
         <section
             aria-label={title}
-            className="bg-card grid gap-3 rounded-xl border p-4"
+            className={cn(
+                'bg-card grid gap-3 rounded-xl border p-4',
+                className,
+            )}
         >
-            <header className="flex items-center justify-between gap-2 border-b pb-3">
-                <h2 className="text-muted-foreground text-xs tracking-wide uppercase">
+            <header className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+                <h2 className="text-muted-foreground flex items-center gap-2 text-xs tracking-wide uppercase">
                     {title}
+                    {count !== undefined && (
+                        <span className="tabular-nums">{count}</span>
+                    )}
                 </h2>
                 {action}
             </header>

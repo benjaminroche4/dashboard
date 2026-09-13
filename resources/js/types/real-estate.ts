@@ -162,14 +162,6 @@ export type Agent = {
     created_at: string | null;
 };
 
-/** Ligne d'un import d'agences collé depuis un tableur. */
-export type AgencyImportRow = {
-    name: string;
-    email: string;
-    phone: string;
-    city: string;
-};
-
 export type AgentForm = {
     is_primary: boolean;
     agency_id: string;

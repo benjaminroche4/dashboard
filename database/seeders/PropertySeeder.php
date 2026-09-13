@@ -36,8 +36,9 @@ final class PropertySeeder extends Seeder
         Property::factory()->count(5)->located()->state($creator)->state($agent)->create();
         Property::factory()->located()->status(PropertyStatus::Rented)->state($creator)->state($agent)->create();
 
-        // Deux photos par bien : les vignettes des listes et la couverture des
-        // cartes n'ont d'intérêt que si le jeu de démonstration en a.
+        // Trois vraies photos par bien : les vignettes des listes, la
+        // couverture des cartes et le diaporama n'ont d'intérêt que si le jeu
+        // de démonstration en a (fichiers dans `fixtures/properties`).
         Property::query()->each(fn (Property $property): array => PropertyPhotos::attach($property));
 
         $clients = Lead::query()->where('status', LeadStatus::Converted)->inRandomOrder()->limit(5)->get();

@@ -9,14 +9,11 @@ use App\Actions\Directory\TouchDirectoryContact;
 use App\Actions\RealEstate\CreateAgency;
 use App\Actions\RealEstate\DeleteAgencies;
 use App\Actions\RealEstate\DeleteAgency;
-use App\Actions\RealEstate\ImportAgencies;
 use App\Actions\RealEstate\UpdateAgency;
 use App\Data\AgencyData;
-use App\Data\AgencyImportRowData;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Tools\ActivityController;
 use App\Http\Requests\RealEstate\BulkAgenciesRequest;
-use App\Http\Requests\RealEstate\ImportAgenciesRequest;
 use App\Http\Requests\RealEstate\IndexAgenciesRequest;
 use App\Http\Requests\RealEstate\StoreAgencyRequest;
 use App\Http\Requests\RealEstate\TouchDirectoryRequest;
@@ -187,23 +184,6 @@ class AgencyController extends Controller
         $touch->handle($agency, is_string($at) ? CarbonImmutable::parse($at) : null, $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Échange noté.')]);
-
-        return back();
-    }
-
-    /** Import d'agences collées depuis un tableur. */
-    public function import(ImportAgenciesRequest $request, ImportAgencies $import): RedirectResponse
-    {
-        $this->authorize('create', Agency::class);
-
-        /** @var list<array<string, mixed>> $rows */
-        $rows = $request->validated('rows');
-        $result = $import->handle(array_map(AgencyImportRowData::from(...), $rows), $request->user());
-
-        Inertia::flash('toast', ['type' => 'success', 'message' => __(':created agence(s) importée(s), :skipped ignorée(s) car déjà présente(s).', [
-            'created' => $result['created'],
-            'skipped' => $result['skipped'],
-        ])]);
 
         return back();
     }

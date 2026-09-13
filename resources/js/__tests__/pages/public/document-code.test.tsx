@@ -31,7 +31,12 @@ describe('Public document code page', () => {
                     intro: 'Saisissez le code d’appairage à 6 chiffres.',
                     code: 'Code d’appairage',
                     submit: 'Ouvrir mon espace',
-                    contact: 'Une question ? Écrivez-nous :',
+                    privacy_title: 'Vos documents sont entre de bonnes mains',
+                    privacy_secure:
+                        'Connexion chiffrée : vos fichiers voyagent protégés.',
+                    privacy_private:
+                        'Accès réservé : seule l’équipe qui suit votre dossier peut les ouvrir.',
+                    privacy_kept: 'Jamais revendus ni transmis à un tiers.',
                 }}
             />,
         );

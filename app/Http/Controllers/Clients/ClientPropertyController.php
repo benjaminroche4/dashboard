@@ -7,10 +7,12 @@ namespace App\Http\Controllers\Clients;
 use App\Actions\Clients\AttachClientProperty;
 use App\Actions\Clients\DetachClientProperty;
 use App\Actions\Clients\ExplainClientPropertySuggestions;
+use App\Actions\Clients\SetClientPropertyStatus;
 use App\Actions\Clients\SuggestClientProperties;
 use App\Enums\LeadStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Clients\AttachClientPropertyRequest;
+use App\Http\Requests\Clients\SetClientPropertyStatusRequest;
 use App\Models\Lead;
 use App\Models\Property;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -58,6 +60,23 @@ class ClientPropertyController extends Controller
                 array_keys($result['explanations']),
             ),
         ]);
+    }
+
+    /** Suite de la visite : positionnement du client, puis sort de sa candidature. */
+    public function status(SetClientPropertyStatusRequest $request, Lead $lead, Property $property, SetClientPropertyStatus $setStatus): RedirectResponse
+    {
+        $this->authorize('update', $lead);
+        abort_unless($lead->status === LeadStatus::Converted, 404);
+
+        $status = $request->status();
+        $setStatus->handle($lead, $property, $status, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __(':property : :status.', [
+            'property' => $property->label(),
+            'status' => $status->label(),
+        ])]);
+
+        return back();
     }
 
     public function destroy(Lead $lead, Property $property, DetachClientProperty $detach): RedirectResponse

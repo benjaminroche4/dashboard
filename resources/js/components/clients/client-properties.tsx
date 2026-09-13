@@ -1,3 +1,4 @@
+import { parisFormat } from '@/lib/datetime';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { CalendarPlus, ExternalLink, Link2, Sparkles, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -46,7 +47,7 @@ const fitTones: Record<ClientPropertyExplanation['fit'], string> = {
     weak: 'bg-neutral-100 text-neutral-600 dark:bg-neutral-900 dark:text-neutral-400',
 };
 
-const dateTime = new Intl.DateTimeFormat('fr-FR', {
+const dateTime = parisFormat({
     weekday: 'short',
     day: 'numeric',
     month: 'short',

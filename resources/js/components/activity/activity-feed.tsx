@@ -7,10 +7,11 @@ import { activityIcon, activityTone } from '@/lib/activity-resources';
 import { cn } from '@/lib/utils';
 import { show as leadShow } from '@/routes/leads';
 import type { Activity } from '@/types';
+import { parisFormat } from '@/lib/datetime';
 
 export type ActivityGroup = { label: string; items: Activity[] };
 
-const timeFormat = new Intl.DateTimeFormat('fr-FR', {
+const timeFormat = parisFormat({
     hour: '2-digit',
     minute: '2-digit',
 });

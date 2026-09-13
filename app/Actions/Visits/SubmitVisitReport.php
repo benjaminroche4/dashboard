@@ -7,8 +7,10 @@ namespace App\Actions\Visits;
 use App\Data\VisitReportData;
 use App\Enums\VisitStatus;
 use App\Events\DashboardUpdated;
+use App\Mail\VisitReportSent;
 use App\Models\User;
 use App\Models\Visit;
+use App\Support\HouseholdMail;
 use Illuminate\Http\UploadedFile;
 
 /**
@@ -51,8 +53,35 @@ final class SubmitVisitReport
             'user_id' => $by?->id,
         ]);
 
-        event(new DashboardUpdated('visits', ['id' => $visit->id], "a rédigé le compte rendu de la visite de {$visit->lead->fullName()} : {$visit->property->label()}", $by));
+        $sentTo = $this->notifyClient($visit, $data);
+        $sent = $sentTo === [] ? '' : ', envoyé à '.implode(', ', $sentTo);
+
+        event(new DashboardUpdated('visits', ['id' => $visit->id], "a rédigé le compte rendu de la visite de {$visit->lead->fullName()} : {$visit->property->label()}{$sent}", $by));
 
         return $visit;
+    }
+
+    /**
+     * Envoi du compte rendu au client, hors transaction et seulement s'il a été
+     * demandé : le foyer en destinataires, les membres du suivi en copie.
+     *
+     * @return list<string> Adresses servies
+     */
+    private function notifyClient(Visit $visit, VisitReportData $data): array
+    {
+        if (! $data->notifyClient) {
+            return [];
+        }
+
+        $sent = HouseholdMail::send($visit->lead, new VisitReportSent($visit));
+
+        if ($sent !== []) {
+            $visit->lead->notes()->create([
+                'body' => 'Compte rendu de visite envoyé à '.implode(', ', $sent).'.',
+            ]);
+            $visit->lead->forceFill(['last_contacted_at' => now()])->save();
+        }
+
+        return $sent;
     }
 }

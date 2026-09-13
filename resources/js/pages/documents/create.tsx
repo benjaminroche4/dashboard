@@ -11,6 +11,7 @@ import {
 import { useState, type FormEvent } from 'react';
 import { CountryFlag } from '@/components/country-flag';
 import { HouseholdPersonCard } from '@/components/documents/household-person-card';
+import { HouseholdPresetCard } from '@/components/documents/household-preset-card';
 import { FormActionBar } from '@/components/form-action-bar';
 import { FormSection } from '@/components/form-section';
 import InputError from '@/components/input-error';
@@ -45,6 +46,7 @@ import {
 } from '@/routes/tools/documents';
 import type {
     CatalogGroup,
+    DocumentPresetOption,
     DocumentLanguage,
     DocumentRequestEdit,
     DocumentRequestForm,
@@ -56,6 +58,8 @@ import type {
 
 type Props = {
     catalog: CatalogGroup[];
+    /** Profils prêts à cocher (freelance, salarié, étudiant…). */
+    presets?: DocumentPresetOption[];
     roles: { value: HouseholdRole; label: string }[];
     languages: { value: DocumentLanguage; label: string }[];
     /** Leads et dossiers clients proposés dans le sélecteur. */
@@ -68,6 +72,7 @@ type Props = {
 
 export default function DocumentsCreate({
     catalog,
+    presets = [],
     roles,
     languages,
     leads,
@@ -448,92 +453,110 @@ export default function DocumentsCreate({
                     </div>
 
                     {/* Récapitulatif du foyer */}
-                    <FormSection
-                        title="Personnes du foyer"
-                        icon={Users}
-                        className="h-fit lg:sticky lg:top-6"
-                        action={
-                            <span className="text-muted-foreground text-xs tabular-nums">
-                                {persons.length}/{MAX_PERSONS} max
-                            </span>
-                        }
-                    >
-                        <ul role="list" className="grid gap-1">
-                            {persons.map((person, index) => {
-                                const status = personStatus(person);
-                                const role = roles.find(
-                                    (candidate) =>
-                                        candidate.value === person.role,
-                                )?.label;
-                                const selected = index === activeIndex;
-
-                                return (
-                                    <li key={index}>
-                                        <button
-                                            type="button"
-                                            onClick={() => setActive(index)}
-                                            aria-current={
-                                                selected ? 'true' : undefined
-                                            }
-                                            className={cn(
-                                                'hover:bg-background hover:border-border flex w-full items-center gap-3 rounded-lg border border-transparent px-2 py-1.5 text-left text-sm transition-colors',
-                                                selected &&
-                                                    'bg-background border-primary ring-primary/20 hover:border-primary font-medium ring-2',
-                                                !selected &&
-                                                    hasErrors(index) &&
-                                                    'border-red-500/60',
-                                            )}
-                                        >
-                                            {status.complete ? (
-                                                <Check
-                                                    aria-hidden="true"
-                                                    className="size-4 text-green-600"
-                                                />
-                                            ) : (
-                                                <CircleDashed
-                                                    aria-hidden="true"
-                                                    className="text-muted-foreground size-4"
-                                                />
-                                            )}
-                                            <span className="grid min-w-0 flex-1">
-                                                <span className="truncate">
-                                                    {personName(person, index)}
-                                                    {role && (
-                                                        <span className="text-muted-foreground">
-                                                            {' '}
-                                                            · {role}
-                                                        </span>
-                                                    )}
-                                                </span>
-                                                <span
-                                                    className={cn(
-                                                        'text-xs',
-                                                        status.complete
-                                                            ? 'text-muted-foreground'
-                                                            : 'text-amber-700 dark:text-amber-400',
-                                                    )}
-                                                >
-                                                    {status.complete
-                                                        ? status.label
-                                                        : `à compléter · ${status.label}`}
-                                                </span>
-                                            </span>
-                                        </button>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="w-full"
-                            onClick={addPerson}
-                            disabled={persons.length >= MAX_PERSONS}
+                    {/* Colonne de droite : le foyer, puis les profils de la
+                        personne affichée. */}
+                    <div className="grid h-fit gap-4 lg:sticky lg:top-6">
+                        <FormSection
+                            title="Personnes du foyer"
+                            icon={Users}
+                            action={
+                                <span className="text-muted-foreground text-xs tabular-nums">
+                                    {persons.length}/{MAX_PERSONS} max
+                                </span>
+                            }
                         >
-                            <Plus />
-                            Ajouter une personne
-                        </Button>
-                    </FormSection>
+                            <ul role="list" className="grid gap-1">
+                                {persons.map((person, index) => {
+                                    const status = personStatus(person);
+                                    const role = roles.find(
+                                        (candidate) =>
+                                            candidate.value === person.role,
+                                    )?.label;
+                                    const selected = index === activeIndex;
+
+                                    return (
+                                        <li key={index}>
+                                            <button
+                                                type="button"
+                                                onClick={() => setActive(index)}
+                                                aria-current={
+                                                    selected
+                                                        ? 'true'
+                                                        : undefined
+                                                }
+                                                className={cn(
+                                                    'hover:bg-background hover:border-border flex w-full items-center gap-3 rounded-lg border border-transparent px-2 py-1.5 text-left text-sm transition-colors',
+                                                    selected &&
+                                                        'bg-background border-primary ring-primary/20 hover:border-primary font-medium ring-2',
+                                                    !selected &&
+                                                        hasErrors(index) &&
+                                                        'border-red-500/60',
+                                                )}
+                                            >
+                                                {status.complete ? (
+                                                    <Check
+                                                        aria-hidden="true"
+                                                        className="size-4 text-green-600"
+                                                    />
+                                                ) : (
+                                                    <CircleDashed
+                                                        aria-hidden="true"
+                                                        className="text-muted-foreground size-4"
+                                                    />
+                                                )}
+                                                <span className="grid min-w-0 flex-1">
+                                                    <span className="truncate">
+                                                        {personName(
+                                                            person,
+                                                            index,
+                                                        )}
+                                                        {role && (
+                                                            <span className="text-muted-foreground">
+                                                                {' '}
+                                                                · {role}
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                    <span
+                                                        className={cn(
+                                                            'text-xs',
+                                                            status.complete
+                                                                ? 'text-muted-foreground'
+                                                                : 'text-amber-700 dark:text-amber-400',
+                                                        )}
+                                                    >
+                                                        {status.complete
+                                                            ? status.label
+                                                            : `à compléter · ${status.label}`}
+                                                    </span>
+                                                </span>
+                                            </button>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full"
+                                onClick={addPerson}
+                                disabled={persons.length >= MAX_PERSONS}
+                            >
+                                <Plus />
+                                Ajouter une personne
+                            </Button>
+                        </FormSection>
+
+                        <HouseholdPresetCard
+                            presets={presets}
+                            person={persons[activeIndex] ?? emptyPerson()}
+                            name={personName(
+                                persons[activeIndex] ?? emptyPerson(),
+                                activeIndex,
+                            )}
+                            onChange={(next) => setPerson(activeIndex, next)}
+                        />
+                    </div>
                 </form>
             </div>
 

@@ -82,6 +82,45 @@ export type TenantProfile = {
 };
 
 /** Garant du dossier, repris des listes de documents (personnes du foyer). */
+/**
+ * Suite donnée à un bien pour un client, une fois la visite faite : miroir de
+ * `App\Enums\PropertyApplicationStatus`.
+ */
+export type PropertyApplicationStatus =
+    | 'pending'
+    | 'declined'
+    | 'applied'
+    | 'accepted'
+    | 'rejected';
+
+/** Une étape proposée dans le menu, avec ce qu'elle veut dire. */
+export type PropertyStatusOption = {
+    value: PropertyApplicationStatus;
+    label: string;
+    hint: string;
+};
+
+/** Ce que devient le bien visité pour ce client (prop `outcome`). */
+export type VisitOutcome = {
+    status: PropertyApplicationStatus;
+    status_label: string;
+    options: PropertyStatusOption[];
+    /** Date de la visite quand elle est faite, sinon null. */
+    visited_at: string | null;
+    /** Visite faite et rien de tranché depuis le délai de relance. */
+    decision_due: boolean;
+};
+
+/** Personne de suivi : en copie des e-mails du dossier. */
+export type ClientWatcher = {
+    uuid: string;
+    name: string;
+    email: string;
+    phone: string | null;
+    /** Ce qu'elle est pour le client (« Mère », « Service RH »…). */
+    role: string | null;
+};
+
 export type ClientGuarantor = {
     uuid: string;
     first_name: string;
@@ -89,6 +128,10 @@ export type ClientGuarantor = {
     name: string;
     email: string | null;
     phone: string | null;
+    /** Ce que le garant fait dans la vie. */
+    employment_status: string | null;
+    employment_status_label: string | null;
+    occupation: string | null;
     /** Revenu mensuel net, en centimes. */
     income_cents: number | null;
     note: string | null;
@@ -167,4 +210,20 @@ export type ClientPropertyExplanation = {
     id: number;
     fit: 'strong' | 'good' | 'weak';
     reason: string;
+};
+
+/** État du dossier de location (miroir de App\Enums\DossierStatus). */
+export type DossierStatus = 'not_started' | 'incomplete' | 'to_check' | 'ready';
+
+/** Où en est le dossier : on compte les pièces demandées, pas les fichiers. */
+export type DossierReadiness = {
+    status: DossierStatus;
+    status_label: string;
+    total: number;
+    accepted: number;
+    to_check: number;
+    refused: number;
+    missing: number;
+    /** Part des pièces validées, de 0 à 100. */
+    percent: number;
 };

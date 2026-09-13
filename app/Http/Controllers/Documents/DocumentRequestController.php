@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Documents;
 
+use App\Actions\Documents\BuildDossierArchive;
 use App\Actions\Documents\CreateDocumentRequest;
 use App\Actions\Documents\DeleteDocumentRequest;
 use App\Actions\Documents\DeleteDocumentRequests;
 use App\Actions\Documents\LinkDocumentRequestToLead;
 use App\Actions\Documents\RenderDocumentRequestPdf;
+use App\Actions\Documents\RenderDossierCover;
 use App\Actions\Documents\SendDocumentUploadLink;
 use App\Actions\Documents\UpdateDocumentRequest;
 use App\Data\DocumentRequestData;
+use App\Enums\DocumentPreset;
+use App\Enums\DocumentUploadStatus;
 use App\Enums\GuarantorType;
 use App\Enums\HouseholdRole;
 use App\Enums\LeadLanguage;
@@ -32,6 +36,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class DocumentRequestController extends Controller
 {
@@ -132,7 +137,7 @@ class DocumentRequestController extends Controller
     {
         $this->authorize('view', $documentRequest);
 
-        $documentRequest->load(['creator', 'lead', 'uploads']);
+        $documentRequest->load(['creator', 'lead', 'uploads.reviewer']);
 
         return Inertia::render('documents/show', [
             'request' => [
@@ -149,11 +154,17 @@ class DocumentRequestController extends Controller
                     $documentRequest->lead?->mailRecipients() ?? [],
                 ),
                 'uploads_count' => $documentRequest->uploads->count(),
+                // Ce qui part dans le dossier fusionné et dans l'archive : une
+                // pièce refusée n'est pas valide, elle en est écartée.
+                'valid_uploads_count' => $documentRequest->uploads->reject(fn (DocumentUpload $upload): bool => $upload->status === DocumentUploadStatus::Refused)->count(),
                 // Rattacher la liste à un lead depuis sa fiche demande le droit de la modifier.
                 'can_update' => $request->user()?->can('update', $documentRequest) ?? false,
                 'persons' => $this->personsWithUploads($documentRequest),
             ],
             'pdfAvailable' => $pdf->isConfigured(),
+            // Fusion du dossier : la page de garde demande DocRaptor, les
+            // pièces non (elles sont déjà des PDF).
+            'coverAvailable' => $pdf->isConfigured(),
         ]);
     }
 
@@ -186,6 +197,53 @@ class DocumentRequestController extends Controller
         return back();
     }
 
+    /**
+     * Page de garde du dossier fusionné : le navigateur la met en première
+     * page, devant les pièces déposées (la fusion se fait là-bas, aucun
+     * fusionneur de PDF n'étant installable sur l'hébergement).
+     */
+    public function cover(DocumentRequest $documentRequest, RenderDossierCover $cover): HttpResponse
+    {
+        $this->authorize('view', $documentRequest);
+
+        $documentRequest->load('uploads');
+
+        return response($cover->handle($documentRequest), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.RenderDossierCover::fileName($documentRequest).'"',
+        ]);
+    }
+
+    /**
+     * Toutes les pièces déposées dans un `.zip`, **non fusionnées** : un
+     * dossier par personne, les fichiers numérotés dans l'ordre du dossier.
+     */
+    public function archive(DocumentRequest $documentRequest, BuildDossierArchive $archive): BinaryFileResponse|RedirectResponse
+    {
+        $this->authorize('view', $documentRequest);
+
+        $documentRequest->load('uploads');
+
+        // Rien à archiver (aucun dépôt, ou tout refusé) : le menu est déjà
+        // grisé, mais une page restée ouverte ne doit pas tomber sur une 500.
+        if (BuildDossierArchive::plan($documentRequest) === []) {
+            Inertia::flash('toast', [
+                'type' => 'warning',
+                'message' => $documentRequest->uploads->isEmpty()
+                    ? __('Aucune pièce déposée pour le moment.')
+                    : __('Toutes les pièces déposées ont été refusées.'),
+            ]);
+
+            return back();
+        }
+
+        return response()
+            ->download($archive->handle($documentRequest), BuildDossierArchive::fileName($documentRequest), [
+                'Content-Type' => 'application/zip',
+            ])
+            ->deleteFileAfterSend();
+    }
+
     public function pdf(DocumentRequest $documentRequest, RenderDocumentRequestPdf $pdf): HttpResponse
     {
         $this->authorize('view', $documentRequest);
@@ -205,6 +263,8 @@ class DocumentRequestController extends Controller
     {
         return [
             'catalog' => DocumentCatalog::grouped(),
+            // Profils prêts à cocher (freelance, salarié, étudiant…).
+            'presets' => DocumentPreset::options(),
             'roles' => HouseholdRole::options(),
             'languages' => LeadLanguage::options(),
             'leads' => $this->leadOptions($attached),
@@ -277,6 +337,11 @@ class DocumentRequestController extends Controller
                             'size' => $upload->size,
                             'uploaded_at' => $upload->created_at?->toIso8601String(),
                             'download_url' => route('tools.documents.uploads.download', ['documentRequest' => $documentRequest, 'upload' => $upload]),
+                            'status' => $upload->status->value,
+                            'status_label' => $upload->status->label(),
+                            'review_note' => $upload->review_note,
+                            'reviewed_at' => $upload->reviewed_at?->toIso8601String(),
+                            'reviewer' => $upload->reviewer?->name,
                         ])
                         ->all();
 
@@ -308,11 +373,13 @@ class DocumentRequestController extends Controller
             'public_url' => $request->publicUrl(),
             'creator' => $request->creator?->name,
             'creator_avatar' => $request->creator?->avatar,
+            // Un lead converti est un dossier client : nom du foyer et lien vers le dossier.
             'lead' => $request->lead === null ? null : [
                 'id' => $request->lead->id,
                 'uuid' => $request->lead->uuid,
-                'name' => $request->lead->fullName(),
+                'name' => $request->lead->status === LeadStatus::Converted ? $request->lead->householdName() : $request->lead->fullName(),
                 'reference' => $request->lead->reference,
+                'is_client' => $request->lead->status === LeadStatus::Converted,
             ],
             'created_at' => $request->created_at?->toIso8601String(),
         ];

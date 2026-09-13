@@ -1,3 +1,4 @@
+import { parisFormat } from '@/lib/datetime';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Check, Download, Pencil, Receipt, Send, X } from 'lucide-react';
 import { useState } from 'react';
@@ -44,7 +45,7 @@ const dotClasses: Record<QuoteStatus, string> = {
     invoiced: 'bg-neutral-600',
 };
 
-const dateTime = new Intl.DateTimeFormat('fr-FR', {
+const dateTime = parisFormat({
     day: 'numeric',
     month: 'long',
     year: 'numeric',

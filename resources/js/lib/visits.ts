@@ -1,4 +1,5 @@
-import type { Visit } from '@/types';
+import type { OfferValue, Visit, VisitModeValue } from '@/types';
+import { parisFormat } from '@/lib/datetime';
 
 /** Un jour de visites : clé `AAAA-MM-JJ`, libellé et visites triées par heure. */
 export type VisitDay = {
@@ -13,19 +14,66 @@ export type VisitDay = {
     visits: Visit[];
 };
 
-const dayFormat = new Intl.DateTimeFormat('fr-FR', {
+const dayFormat = parisFormat({
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric',
 });
 
-export const timeFormat = new Intl.DateTimeFormat('fr-FR', {
+export const timeFormat = parisFormat({
     hour: '2-digit',
     minute: '2-digit',
 });
 
 /** Clé de jour locale `AAAA-MM-JJ` d'une date. */
+/**
+ * Type de visite d'un client, déduit de sa formule — miroir de
+ * `VisitMode::forOffer()`. « Confié », l'équipe visite ; « Accompagné », le
+ * client visite lui-même. Ce n'est jamais un choix du formulaire.
+ */
+export function visitModeForOffer(
+    offer: OfferValue | null | undefined,
+): VisitModeValue {
+    return offer === 'accompagne' ? 'client_alone' : 'for_client';
+}
+
+/** Une tournée : le membre qui la réalise, et ses visites dans l'ordre. */
+export type VisitTour = {
+    /** `all`, l'identifiant du membre, ou `none` pour les visites sans membre. */
+    key: string;
+    label: string;
+    visits: Visit[];
+};
+
+/**
+ * Tournées d'une journée, une par membre qui réalise des visites : une
+ * journée chargée mélange les itinéraires de plusieurs personnes, et une
+ * liste unique de cinquante visites ne se suit pas. Les membres sont triés
+ * par nom, les visites sans membre finissent la liste.
+ */
+export function visitTours(visits: Visit[]): VisitTour[] {
+    const tours = new Map<string, VisitTour>();
+
+    for (const visit of visits) {
+        const key =
+            visit.assignee === null ? 'none' : String(visit.assignee.id);
+        const label = visit.assignee?.name ?? 'Sans membre';
+        const tour = tours.get(key) ?? { key, label, visits: [] };
+
+        tour.visits.push(visit);
+        tours.set(key, tour);
+    }
+
+    return [...tours.values()].sort((a, b) =>
+        a.key === 'none'
+            ? 1
+            : b.key === 'none'
+              ? -1
+              : a.label.localeCompare(b.label),
+    );
+}
+
 export function dayKey(date: Date): string {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -139,4 +187,20 @@ export function visitAddress(visit: Visit): string {
         .join(' ');
 
     return [property.street, line].filter(Boolean).join(', ');
+}
+
+/**
+ * Bien et adresse sur une ligne, **sans répéter le nom** : un bien sans titre
+ * est nommé par sa rue, « 78 boulevard Bonnin · 78 boulevard Bonnin, 75014
+ * Paris » n'apprend rien à personne.
+ */
+export function visitPropertyLine(visit: Visit): string {
+    const address = visitAddress(visit);
+    const label = visit.property.label;
+
+    if (address === '') {
+        return label;
+    }
+
+    return address.startsWith(label) ? address : `${label} · ${address}`;
 }

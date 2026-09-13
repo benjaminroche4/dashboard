@@ -212,9 +212,11 @@ class LeadController extends Controller
                 'uuid' => $lead->uuid,
                 'reference' => $lead->reference,
                 'company' => $lead->company,
-                'name' => $lead->fullName(),
+                'name' => $lead->status === LeadStatus::Converted ? $lead->householdName() : $lead->fullName(),
                 'email' => $lead->email,
                 'status_label' => $lead->status->label(),
+                // Converti : c'est un dossier client, pas un lead à travailler.
+                'is_client' => $lead->status === LeadStatus::Converted,
                 'url' => route('leads.show', $lead),
             ])
             ->all();

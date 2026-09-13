@@ -9,27 +9,30 @@ import {
     UserRound,
 } from 'lucide-react';
 import { CreatedBy } from '@/components/created-by';
+import { PhotoGallery } from '@/components/photo-gallery';
+import { PropertyOutcomeMenu } from '@/components/clients/property-outcome';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { VisitDaySection } from '@/components/visits/visit-day-section';
 import { VisitReportDialog } from '@/components/visits/visit-report-dialog';
 import { VisitRowActions } from '@/components/visits/visit-row-actions';
+import { VisitReportBadge } from '@/components/visits/visit-report-badge';
 import { VisitStatusBadge } from '@/components/visits/visit-status-badge';
 import { formatMoney } from '@/lib/format';
-import { groupVisitsByDay, visitAddress } from '@/lib/visits';
+import { timeFormat, visitAddress, visitPropertyLine } from '@/lib/visits';
 import { show as agentShow } from '@/routes/agents';
 import {
     index as clientsIndex,
     visits as clientsVisits,
 } from '@/routes/clients';
 import { show as clientShow } from '@/routes/clients';
-import { edit as visitEdit } from '@/routes/clients/visits';
+import { edit as visitEdit, show as visitShow } from '@/routes/clients/visits';
 import { show as ownerShow } from '@/routes/owners';
 import { show as propertyShow } from '@/routes/properties';
-import type { Visit, VisitDetail } from '@/types';
+import type { Visit, VisitDetail, VisitOutcome } from '@/types';
 import { useState } from 'react';
+import { parisFormat } from '@/lib/datetime';
 
-const dateTime = new Intl.DateTimeFormat('fr-FR', {
+const dateTime = parisFormat({
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -42,7 +45,22 @@ type Props = {
     visit: VisitDetail;
     /** Les autres visites du même client, les plus récentes d'abord. */
     otherVisits?: Visit[];
+    /** Ce que devient le bien visité pour ce client, une fois le compte rendu écrit. */
+    outcome?: VisitOutcome | null;
 };
+
+const shortDayFormat = new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+});
+
+/** Créneau court d'une autre visite : « dim. 20 sept. · 13:00 ». */
+function shortSlot(scheduledAt: string): string {
+    const date = new Date(scheduledAt);
+
+    return `${shortDayFormat.format(date)} · ${timeFormat.format(date)}`;
+}
 
 /** Carte de section de la fiche : intitulé en capitales puis contenu. */
 function Section({
@@ -96,7 +114,11 @@ const missing = (
  * Fiche d'une visite : créneau, client, bien visité avec ses photos, agent et
  * membre présent, compte rendu et commentaires internes.
  */
-export default function VisitShow({ visit, otherVisits = [] }: Props) {
+export default function VisitShow({
+    visit,
+    otherVisits = [],
+    outcome = null,
+}: Props) {
     const [reporting, setReporting] = useState(false);
     const { property } = visit;
     const address = visitAddress(visit);
@@ -109,7 +131,6 @@ export default function VisitShow({ visit, otherVisits = [] }: Props) {
     ]
         .filter(Boolean)
         .join(' · ');
-    const days = groupVisitsByDay(otherVisits);
 
     return (
         <>
@@ -196,23 +217,13 @@ export default function VisitShow({ visit, otherVisits = [] }: Props) {
                             }
                         >
                             {property.photos.length > 0 && (
-                                <ul
-                                    role="list"
+                                /* Cliquer ouvre le diaporama plein écran,
+                                   comme sur la fiche du bien. */
+                                <PhotoGallery
+                                    photos={property.photos}
+                                    label={property.label}
                                     className="grid grid-cols-3 gap-2"
-                                >
-                                    {property.photos
-                                        .slice(0, 3)
-                                        .map((photo, index) => (
-                                            <li key={photo}>
-                                                <img
-                                                    src={photo}
-                                                    alt={`Photo ${index + 1} du bien ${property.label}`}
-                                                    loading="lazy"
-                                                    className="aspect-[4/3] w-full rounded-lg border object-cover"
-                                                />
-                                            </li>
-                                        ))}
-                                </ul>
+                                />
                             )}
                             <dl className="grid gap-4 sm:grid-cols-2">
                                 <Row label="Bien">
@@ -291,7 +302,7 @@ export default function VisitShow({ visit, otherVisits = [] }: Props) {
                         <Section
                             title="Compte rendu"
                             action={
-                                visit.status !== 'cancelled' && (
+                                visit.can_report && (
                                     <Button
                                         variant="outline"
                                         size="sm"
@@ -314,15 +325,44 @@ export default function VisitShow({ visit, otherVisits = [] }: Props) {
                                         {visit.report_submitted_at &&
                                             ` le ${dateTime.format(new Date(visit.report_submitted_at))}`}
                                     </p>
+                                    {visit.report_photos.length > 0 && (
+                                        <PhotoGallery
+                                            photos={visit.report_photos}
+                                            label={`compte rendu de la visite de ${visit.client.name}`}
+                                            className="grid grid-cols-3 gap-2 sm:grid-cols-4"
+                                        />
+                                    )}
                                 </div>
                             ) : (
                                 <p className="text-muted-foreground text-sm">
-                                    {visit.report_due
-                                        ? 'La visite est passée : le compte rendu reste à écrire.'
-                                        : 'Aucun compte rendu pour le moment.'}
+                                    {visit.status === 'cancelled'
+                                        ? 'Visite annulée : aucun compte rendu attendu.'
+                                        : visit.report_due
+                                          ? 'La visite est passée : le compte rendu reste à écrire.'
+                                          : 'Le compte rendu s’écrira après la visite.'}
                                 </p>
                             )}
                         </Section>
+
+                        {outcome && visit.report && (
+                            <Section
+                                title="Suite de la visite"
+                                action={
+                                    <PropertyOutcomeMenu
+                                        clientUuid={visit.client.uuid}
+                                        propertyUuid={property.uuid}
+                                        propertyLabel={property.label}
+                                        status={outcome.status}
+                                        options={outcome.options}
+                                    />
+                                }
+                            >
+                                <p className="text-muted-foreground text-sm">
+                                    Le client souhaite-t-il se positionner sur
+                                    ce bien ?
+                                </p>
+                            </Section>
+                        )}
 
                         <Section title="Commentaires internes">
                             {visit.notes ? (
@@ -387,15 +427,41 @@ export default function VisitShow({ visit, otherVisits = [] }: Props) {
                         </Section>
 
                         <Section title="Autres visites du client">
-                            {days.length > 0 ? (
-                                <div className="grid gap-4">
-                                    {days.map((day) => (
-                                        <VisitDaySection
-                                            key={day.key}
-                                            day={day}
-                                        />
+                            {otherVisits.length > 0 ? (
+                                // Le client est le même : une ligne par visite
+                                // (créneau, bien, statut) suffit — le tableau
+                                // complet des journées répétait tout.
+                                <ul role="list" className="grid gap-2">
+                                    {otherVisits.map((other) => (
+                                        <li
+                                            key={other.uuid}
+                                            className="bg-background grid gap-1 rounded-lg border px-3 py-2 text-sm"
+                                        >
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <Link
+                                                    href={visitShow({
+                                                        visit: other.uuid,
+                                                    })}
+                                                    className="font-medium tabular-nums underline-offset-4 hover:underline"
+                                                >
+                                                    {shortSlot(
+                                                        other.scheduled_at,
+                                                    )}
+                                                </Link>
+                                                <VisitStatusBadge
+                                                    status={other.status}
+                                                    label={other.status_label}
+                                                />
+                                                <VisitReportBadge
+                                                    visit={other}
+                                                />
+                                            </div>
+                                            <span className="text-muted-foreground truncate">
+                                                {visitPropertyLine(other)}
+                                            </span>
+                                        </li>
                                     ))}
-                                </div>
+                                </ul>
                             ) : (
                                 <p className="text-muted-foreground flex items-center gap-2 text-sm">
                                     <Home className="size-4" aria-hidden />

@@ -10,12 +10,13 @@ import {
     VISIO_TIME_SLOTS,
     defaultSlot,
 } from '@/components/leads/lead-visio-dialog';
+import { FormSection } from '@/components/form-section';
 import { PropertyFields } from '@/components/properties/property-fields';
 import { PropertyPicker } from '@/components/visits/property-picker';
+import { VisitModeBadge } from '@/components/visits/visit-mode-badge';
 import { Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
     Select,
     SelectContent,
@@ -30,6 +31,7 @@ import {
     propertyFormToPayload,
 } from '@/lib/property-form';
 import { cn } from '@/lib/utils';
+import { visitModeForOffer } from '@/lib/visits';
 import { visits as clientsVisits } from '@/routes/clients';
 import { show as visitShow, store, update } from '@/routes/clients/visits';
 import type {
@@ -37,8 +39,6 @@ import type {
     PropertyFormOptions,
     Visit,
     VisitClientOption,
-    VisitModeOption,
-    VisitModeValue,
     VisitPropertyOption,
 } from '@/types';
 
@@ -50,8 +50,6 @@ type VisitForm = {
     property_id: string;
     property: PropertyForm;
     agent_id: string;
-    /** Visite réalisée par l'équipe, ou visite autonome du client (Accompagné). */
-    visit_mode: VisitModeValue;
     /** Membre de l'équipe qui réalise la visite. */
     assigned_to: string;
     scheduled_at: string;
@@ -66,8 +64,6 @@ export const MAX_PHOTOS = 10;
 
 type Props = {
     clients: VisitClientOption[];
-    /** Les deux façons de visiter (`VisitMode::options()`). */
-    visitModes: VisitModeOption[];
     properties: VisitPropertyOption[];
     options: PropertyFormOptions;
     /** Client présélectionné (ex. depuis un dossier). */
@@ -92,7 +88,6 @@ function initial(
         property_id: defaultPropertyId ? String(defaultPropertyId) : '',
         property: initialPropertyForm(),
         agent_id: '',
-        visit_mode: 'for_client',
         assigned_to: assignedTo === null ? '' : String(assignedTo),
         scheduled_at: defaultSlot(),
         photos: [],
@@ -108,7 +103,6 @@ function initial(
  */
 export function VisitForm({
     clients,
-    visitModes,
     properties,
     options,
     defaultClientId = null,
@@ -154,8 +148,8 @@ export function VisitForm({
         (option) => String(option.id) === form.data.lead_id,
     );
     const entrusted = client?.offer === 'confie';
-    // Seul un client « Accompagné » peut visiter seul.
-    const accompanied = client?.offer === 'accompagne';
+    // Le type de visite découle de la formule : le serveur le décide seul.
+    const visitMode = visitModeForOffer(client?.offer);
 
     // Changer de client réaligne la confirmation par e-mail sur sa formule.
     const chooseClient = (value: string) => {
@@ -237,20 +231,11 @@ export function VisitForm({
                 submit();
             }}
         >
-            <div className="bg-background grid gap-4 rounded-lg border p-4">
-                <div className="flex items-start gap-3 border-b pb-3">
-                    <span className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
-                        <CalendarClock className="size-4" aria-hidden />
-                    </span>
-                    <div className="grid gap-0.5">
-                        <h2 className="text-sm font-medium">
-                            Client et créneau
-                        </h2>
-                        <p className="text-muted-foreground text-xs">
-                            Qui visite, quand, et quel membre accompagne.
-                        </p>
-                    </div>
-                </div>
+            <FormSection
+                title="Client et créneau"
+                hint="Qui visite, quand, et quel membre accompagne."
+                icon={CalendarClock}
+            >
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="grid gap-2">
                         <Label htmlFor="visit-client">Client</Label>
@@ -269,14 +254,6 @@ export function VisitForm({
                             }))}
                         />
                         <InputError message={errors.lead_id} />
-                        {client?.offer_label && (
-                            <p className="text-muted-foreground text-xs">
-                                Formule {client.offer_label} ·{' '}
-                                {entrusted
-                                    ? 'l’équipe visite sans le client.'
-                                    : 'le client visite avec nous.'}
-                            </p>
-                        )}
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="visit-date">Date et heure</Label>
@@ -322,59 +299,32 @@ export function VisitForm({
                     </div>
                 </div>
 
-                {/* Type de visite : la visite autonome suppose un client sur place. */}
-                <fieldset className="grid gap-2">
-                    <legend className="mb-2 text-sm font-medium">
-                        Type de visite
-                    </legend>
-                    <RadioGroup
-                        aria-label="Type de visite"
-                        value={form.data.visit_mode}
-                        onValueChange={(value) =>
-                            form.setData('visit_mode', value as VisitModeValue)
-                        }
-                        className="grid gap-2 sm:grid-cols-2"
+                {/* Le type de visite se lit, il ne se choisit pas : la formule
+                    souscrite l'a déjà décidé. Bloc entier sous le créneau,
+                    plutôt qu'une ligne serrée sous le nom du client. */}
+                {client?.offer_label && (
+                    <div
+                        role="note"
+                        className="bg-muted/40 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border p-3 text-sm"
                     >
-                        {visitModes.map((option) => {
-                            const allowed =
-                                option.value === 'for_client' || accompanied;
-
-                            return (
-                                <Label
-                                    key={option.value}
-                                    htmlFor={`visit-mode-${option.value}`}
-                                    className={cn(
-                                        'bg-background has-data-[state=checked]:border-primary has-data-[state=checked]:ring-primary/20 flex cursor-pointer items-start gap-2 rounded-lg border p-3 font-normal has-data-[state=checked]:ring-2',
-                                        !allowed &&
-                                            'cursor-not-allowed opacity-60',
-                                    )}
-                                >
-                                    <RadioGroupItem
-                                        id={`visit-mode-${option.value}`}
-                                        value={option.value}
-                                        disabled={!allowed}
-                                        className="mt-0.5"
-                                    />
-                                    <span className="grid gap-0.5">
-                                        <span className="text-sm font-medium">
-                                            {option.label}
-                                        </span>
-                                        <span className="text-muted-foreground text-xs">
-                                            {option.hint}
-                                        </span>
-                                    </span>
-                                </Label>
-                            );
-                        })}
-                    </RadioGroup>
-                    <InputError message={errors.mode} />
-                </fieldset>
+                        <VisitModeBadge mode={visitMode} />
+                        <span>
+                            <span className="font-medium">
+                                Formule {client.offer_label}
+                            </span>
+                            <span className="text-muted-foreground">
+                                {' · '}
+                                {entrusted
+                                    ? 'l’équipe visite sans le client.'
+                                    : 'le client visite lui-même.'}
+                            </span>
+                        </span>
+                    </div>
+                )}
 
                 <div className="grid gap-2">
                     <Label htmlFor="visit-assigned-to">
-                        {entrusted
-                            ? 'Visite réalisée par'
-                            : 'Visite accompagnée par'}
+                        Visite réalisée par
                     </Label>
                     <SearchSelect
                         id="visit-assigned-to"
@@ -446,20 +396,13 @@ export function VisitForm({
                         </span>
                     </label>
                 )}
-            </div>
+            </FormSection>
 
-            <div className="bg-background grid gap-4 rounded-lg border p-4">
-                <div className="flex items-start gap-3 border-b pb-3">
-                    <span className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
-                        <House className="size-4" aria-hidden />
-                    </span>
-                    <div className="grid gap-0.5">
-                        <h2 className="text-sm font-medium">Bien à visiter</h2>
-                        <p className="text-muted-foreground text-xs">
-                            Un bien de l’annuaire ou un nouveau bien.
-                        </p>
-                    </div>
-                </div>
+            <FormSection
+                title="Bien à visiter"
+                hint="Un bien de l’annuaire ou un nouveau bien."
+                icon={House}
+            >
                 <PropertyPicker
                     source={form.data.mode}
                     lockExisting={editing}
@@ -483,22 +426,13 @@ export function VisitForm({
                         />
                     </div>
                 )}
-            </div>
+            </FormSection>
 
-            <div className="bg-background grid gap-4 rounded-lg border p-4">
-                <div className="flex items-start gap-3 border-b pb-3">
-                    <span className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
-                        <MessageSquareText className="size-4" aria-hidden />
-                    </span>
-                    <div className="grid gap-0.5">
-                        <h2 className="text-sm font-medium">
-                            Agent et commentaires
-                        </h2>
-                        <p className="text-muted-foreground text-xs">
-                            Agent immobilier présent et consignes internes.
-                        </p>
-                    </div>
-                </div>
+            <FormSection
+                title="Agent et commentaires"
+                hint="Agent immobilier présent et consignes internes."
+                icon={MessageSquareText}
+            >
                 <div className="grid gap-2">
                     <Label htmlFor="visit-agent">Agent immobilier</Label>
                     <SearchSelect
@@ -531,7 +465,7 @@ export function VisitForm({
                     />
                     <InputError message={errors.notes} />
                 </div>
-            </div>
+            </FormSection>
 
             <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-4">
                 <Button type="button" variant="ghost" asChild>

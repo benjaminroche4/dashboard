@@ -1,5 +1,5 @@
-import { Head, Link, router } from '@inertiajs/react';
-import { CalendarCheck, Globe, Send, TriangleAlert } from 'lucide-react';
+import { Head, Link } from '@inertiajs/react';
+import { Globe, Send, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { ActivityFeed } from '@/components/activity/activity-feed';
 import { AddressMapButton } from '@/components/address-map-dialog';
@@ -17,8 +17,10 @@ import {
 import { formatAddress } from '@/components/real-estate/columns';
 import {
     DetailHeader,
+    DetailSection,
     missingValue,
 } from '@/components/real-estate/detail-header';
+import { DirectoryRelationCard } from '@/components/real-estate/directory-relation-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -43,12 +45,6 @@ import type {
     PartnerDuplicate,
     PartnerTypeOption,
 } from '@/types';
-
-const contactDate = new Intl.DateTimeFormat('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-});
 
 type Props = {
     partner: PartnerDetail;
@@ -178,16 +174,9 @@ export default function PartnerShow({
                                 </AlertDescription>
                             </Alert>
                         )}
-                        <section
-                            aria-label="Coordonnées"
-                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                        >
-                            {/* Titre et actions sur le fond gris, contenu en blanc :
-                                même découpe que « Interlocuteurs » et « Dossiers ». */}
-                            <header className="flex flex-wrap items-center justify-between gap-2">
-                                <h2 className="text-base font-medium">
-                                    Coordonnées
-                                </h2>
+                        <DetailSection
+                            title="Coordonnées"
+                            action={
                                 <AddressMapButton
                                     place={{
                                         name: partner.name,
@@ -197,8 +186,9 @@ export default function PartnerShow({
                                         longitude: partner.longitude,
                                     }}
                                 />
-                            </header>
-                            <div className="bg-background grid gap-4 rounded-lg border p-4">
+                            }
+                        >
+                            <div className="grid gap-4">
                                 {mapUrl && (
                                     <img
                                         src={mapUrl}
@@ -267,77 +257,32 @@ export default function PartnerShow({
                                     ))}
                                 </dl>
                             </div>
-                        </section>
+                        </DetailSection>
                         <PartnerContacts
                             partnerUuid={partner.uuid}
                             contacts={partner.contacts}
                         />
-                        {/* Même carte que « Interlocuteurs » et « Dossiers » : sur cette
-                            fiche, les sections voisines partagent le fond du panneau. */}
-                        <section
-                            aria-label="Notes"
-                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                        >
-                            <h2 className="text-base font-medium">Notes</h2>
-                            {/* Contenu sur fond blanc, comme les coordonnées et les tableaux. */}
-                            <div className="bg-background rounded-lg border p-4">
-                                {partner.notes ? (
-                                    <p className="text-sm/6 whitespace-pre-line">
-                                        {partner.notes}
-                                    </p>
-                                ) : (
-                                    <p className="text-muted-foreground text-sm">
-                                        Aucune note.
-                                    </p>
-                                )}
-                            </div>
-                        </section>
                     </div>
                     <aside className="grid h-fit content-start gap-6 lg:sticky lg:top-6">
-                        <section
-                            aria-label="Suivi de la relation"
-                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                        >
-                            <h2 className="text-base font-medium">
-                                Suivi de la relation
-                            </h2>
-                            {/* Dernier échange, noté à la main. */}
-                            <div className="grid gap-2">
-                                <p className="text-muted-foreground text-xs">
-                                    {partner.last_contacted_at
-                                        ? `Dernier échange le ${contactDate.format(new Date(partner.last_contacted_at))}`
-                                        : 'Aucun échange noté pour le moment.'}
-                                </p>
-                                <div className="flex flex-wrap gap-2">
+                        <DirectoryRelationCard
+                            lastContactedAt={partner.last_contacted_at}
+                            touchUrl={
+                                partnerContact({ partner: partner.uuid }).url
+                            }
+                            notes={partner.notes}
+                            extraAction={
+                                welcomeTo.length > 0 && (
                                     <Button
-                                        variant="outline"
+                                        variant="ghost"
                                         size="sm"
-                                        onClick={() =>
-                                            router.post(
-                                                partnerContact({
-                                                    partner: partner.uuid,
-                                                }).url,
-                                                {},
-                                                { preserveScroll: true },
-                                            )
-                                        }
+                                        onClick={() => setWelcoming(true)}
                                     >
-                                        <CalendarCheck aria-hidden />
-                                        Échange noté
+                                        <Send aria-hidden />
+                                        Renvoyer la bienvenue
                                     </Button>
-                                    {welcomeTo.length > 0 && (
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => setWelcoming(true)}
-                                        >
-                                            <Send aria-hidden />
-                                            Renvoyer la bienvenue
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
-                        </section>
+                                )
+                            }
+                        />
                         <PartnerLeads
                             leads={partner.leads}
                             partner={partner}

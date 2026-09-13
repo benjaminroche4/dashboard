@@ -1,3 +1,4 @@
+import { parisFormat } from '@/lib/datetime';
 import { Head, Link, router } from '@inertiajs/react';
 import { CalendarRange, History } from 'lucide-react';
 import { ActivityFeed } from '@/components/activity/activity-feed';
@@ -35,7 +36,7 @@ type Props = {
 /** Valeur « Tous » des sélecteurs (un `SelectItem` n'accepte pas la chaîne vide). */
 const ALL = 'all';
 
-const dayFormat = new Intl.DateTimeFormat('fr-FR', {
+const dayFormat = parisFormat({
     weekday: 'long',
     day: 'numeric',
     month: 'long',

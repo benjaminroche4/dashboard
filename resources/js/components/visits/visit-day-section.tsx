@@ -13,6 +13,7 @@ import { VisitReportBadge } from '@/components/visits/visit-report-badge';
 import { PropertyThumb } from '@/components/visits/property-picker';
 import { VisitRowActions } from '@/components/visits/visit-row-actions';
 import { VisitStatusBadge } from '@/components/visits/visit-status-badge';
+import { WriteReportButton } from '@/components/visits/write-report-button';
 import { formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { timeFormat, type VisitDay } from '@/lib/visits';
@@ -51,7 +52,7 @@ export function VisitDaySection({ day }: { day: VisitDay }) {
                                 <TableHead className="w-[22%]">
                                     Client
                                 </TableHead>
-                                <TableHead className="w-[34%]">Bien</TableHead>
+                                <TableHead className="w-[28%]">Bien</TableHead>
                                 <TableHead className="w-[13%]">
                                     Réalisée par
                                 </TableHead>
@@ -59,7 +60,9 @@ export function VisitDaySection({ day }: { day: VisitDay }) {
                                     Statut
                                 </TableHead>
                                 <TableHead className="w-[10%]">Agent</TableHead>
-                                <TableHead className="w-12" />
+                                <TableHead className="w-36 text-right">
+                                    <span className="sr-only">Actions</span>
+                                </TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -147,7 +150,10 @@ export function VisitDaySection({ day }: { day: VisitDay }) {
                                         )}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <VisitRowActions visit={visit} />
+                                        <div className="flex items-center justify-end gap-1">
+                                            <WriteReportButton visit={visit} />
+                                            <VisitRowActions visit={visit} />
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))}

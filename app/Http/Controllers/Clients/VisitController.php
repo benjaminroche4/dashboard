@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Clients;
 
+use App\Actions\Clients\SendPropertyDecisionReminders;
 use App\Actions\Visits\DeleteVisit;
 use App\Actions\Visits\ScheduleVisit;
 use App\Actions\Visits\SubmitVisitReport;
@@ -12,7 +13,7 @@ use App\Data\VisitData;
 use App\Data\VisitReportData;
 use App\Data\VisitUpdateData;
 use App\Enums\LeadStatus;
-use App\Enums\VisitMode;
+use App\Enums\PropertyApplicationStatus;
 use App\Enums\VisitStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Properties\PropertyController;
@@ -50,7 +51,6 @@ class VisitController extends Controller
         return Inertia::render('clients/visits', [
             'visits' => $visits,
             'statuses' => VisitStatus::options(),
-            'visitModes' => VisitMode::options(),
             'realtimeOnly' => ['visits'],
         ]);
     }
@@ -119,7 +119,27 @@ class VisitController extends Controller
                 ->get()
                 ->map(fn (Visit $other): array => self::summary($other))
                 ->all(),
+            // Suite donnée au bien pour ce client : elle se décide une fois le
+            // compte rendu écrit, et vit sur le lien dossier ↔ bien.
+            'outcome' => [
+                'status' => $this->propertyStatus($visit)->value,
+                'status_label' => $this->propertyStatus($visit)->label(),
+                'options' => PropertyApplicationStatus::options(),
+                'visited_at' => $visit->status === VisitStatus::Done ? $visit->scheduled_at->toIso8601String() : null,
+                // Visite faite et rien de tranché depuis le délai : on le signale.
+                'decision_due' => $this->propertyStatus($visit) === PropertyApplicationStatus::Pending
+                    && $visit->status === VisitStatus::Done
+                    && $visit->scheduled_at->lte(now()->subHours(SendPropertyDecisionReminders::hours())),
+            ],
         ]);
+    }
+
+    /** État du bien visité dans le dossier ; « à décider » tant qu'il n'y est pas rattaché. */
+    private function propertyStatus(Visit $visit): PropertyApplicationStatus
+    {
+        $link = $visit->lead->properties()->whereKey($visit->property_id)->first();
+
+        return $link?->getRelationValue('pivot')->status ?? PropertyApplicationStatus::Pending;
     }
 
     /** Modification d'une visite : même formulaire que la planification, prérempli. */
@@ -144,7 +164,11 @@ class VisitController extends Controller
             $this->authorize('create', Property::class);
         }
 
-        $visit = $schedule->handle(VisitData::from($request->validated()), $request->user());
+        $visit = $schedule->handle(
+            // Le type de visite est déduit de la formule du client.
+            VisitData::from([...$request->validated(), 'mode' => $request->visitMode()->value]),
+            $request->user(),
+        );
         $visit->load(['lead', 'property']);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Visite planifiée pour :name : :property.', ['name' => $visit->lead->fullName(), 'property' => $visit->property->label()])]);
@@ -174,7 +198,6 @@ class VisitController extends Controller
                     'offer_label' => $lead->offer?->label(),
                 ])
                 ->all(),
-            'visitModes' => VisitMode::options(),
             // Un bien attribué à un client est pris : on ne le propose plus en visite.
             'properties' => Property::query()->unassigned()->latest()->get()
                 ->map(fn (Property $property): array => ['id' => $property->id, 'label' => $property->label(), 'street' => $property->street, 'postal_code' => $property->postal_code, 'city' => $property->city, 'photo' => $property->photoUrls()[0] ?? null])
@@ -199,9 +222,14 @@ class VisitController extends Controller
     {
         $this->authorize('update', $visit);
 
-        $visit = $submit->handle($visit, VisitReportData::from($request->validated()), $request->user());
+        $data = VisitReportData::from($request->validated());
+        $visit = $submit->handle($visit, $data, $request->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Compte rendu enregistré pour la visite de :name.', ['name' => $visit->lead->fullName()])]);
+        // Le toast dit ce qui s'est passé : enregistré, et envoyé le cas échéant.
+        $sent = $data->notifyClient && $visit->lead->mailRecipients() !== [];
+        Inertia::flash('toast', ['type' => 'success', 'message' => $sent
+            ? __('Compte rendu enregistré et envoyé à :name.', ['name' => $visit->lead->fullName()])
+            : __('Compte rendu enregistré pour la visite de :name.', ['name' => $visit->lead->fullName()])]);
 
         return back();
     }
@@ -238,6 +266,10 @@ class VisitController extends Controller
             'report_submitted_at' => $visit->report_submitted_at?->toIso8601String(),
             'report_author' => $visit->reportAuthor?->name,
             'report_due' => $visit->reportDue(),
+            // Le compte rendu ne se rédige qu'une fois la visite passée.
+            'can_report' => $visit->reportable(),
+            // Le compte rendu ne peut partir que si le foyer a une adresse e-mail.
+            'can_notify_client' => $visit->lead->mailRecipients() !== [],
             'client' => [
                 'id' => $visit->lead->id,
                 'uuid' => $visit->lead->uuid,

@@ -16,7 +16,7 @@ test('it reads a completed call: the contact is the caller when inbound, the cal
         ->and($inbound->result)->toBe(PhoneCallResult::Answered)
         ->and($inbound->lengthInMinutes)->toBe(5.5)
         ->and($inbound->isContact())->toBeTrue()
-        ->and($inbound->at?->toIso8601String())->toBe('2026-09-06T14:30:00+00:00')
+        ->and($inbound->at?->toIso8601String())->toBe('2026-09-06T16:30:00+02:00')
         ->and($inbound->toArray()['external_id'])->toBe('cll_1');
 
     $outbound = PhoneEventData::from('call.completed', ['id' => 'cll_2', 'from_number' => '+33184804344', 'from_name' => 'RIP', 'to' => '+33612345678', 'to_name' => 'Marie Dupont', 'type' => 'OUTBOUND', 'result' => 'VOICEMAIL']);
@@ -41,5 +41,5 @@ test('it reads a received SMS with its text and date', function (): void {
         ->and($sms->content)->toBe('Bonjour')
         ->and($sms->result)->toBeNull()
         ->and($sms->contactNumber())->toBe('+33612345678')
-        ->and($sms->at?->toIso8601String())->toBe('2026-09-06T16:00:00+00:00');
+        ->and($sms->at?->toIso8601String())->toBe('2026-09-06T18:00:00+02:00');
 });

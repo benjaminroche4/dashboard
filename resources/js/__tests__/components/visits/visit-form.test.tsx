@@ -55,7 +55,7 @@ vi.mock('@inertiajs/react', () => ({
 
 import { VisitForm } from '@/components/visits/visit-form';
 import { propertyFormOptions } from '@/test/fixtures/property';
-import { makeVisitClient, visitModes } from '@/test/fixtures/visit';
+import { makeVisitClient } from '@/test/fixtures/visit';
 
 const clients = [
     makeVisitClient({
@@ -70,7 +70,6 @@ function renderForm() {
     return render(
         <VisitForm
             clients={clients}
-            visitModes={visitModes}
             properties={[]}
             options={propertyFormOptions}
             defaultClientId={1}
@@ -90,9 +89,9 @@ describe('VisitForm', () => {
             screen.getByRole('form', { name: 'Planifier une visite' }),
         );
 
-        expect(
-            dialog.getByLabelText('Visite accompagnée par'),
-        ).toHaveTextContent('Charles');
+        expect(dialog.getByLabelText('Visite réalisée par')).toHaveTextContent(
+            'Charles',
+        );
 
         await user.type(dialog.getByLabelText('Adresse'), '3 rue de la Paix');
         await user.type(dialog.getByLabelText('Arrondissement'), '2');
@@ -191,26 +190,24 @@ describe('VisitForm', () => {
                         offer_label: 'Confié',
                     }),
                 ]}
-                visitModes={visitModes}
                 properties={[]}
                 options={propertyFormOptions}
                 defaultClientId={1}
             />,
         );
 
-        // Accompagné : le client vient, on lui envoie la confirmation.
-        expect(
-            screen.getByText(
-                'Formule Accompagné · le client visite avec nous.',
-            ),
-        ).toBeInTheDocument();
+        // Accompagné : le client vient, on lui envoie la confirmation. La
+        // formule est un bloc à part entière, sous le créneau.
+        const offer = () => screen.getByRole('note');
+        expect(offer()).toHaveTextContent('Formule Accompagné');
+        expect(offer()).toHaveTextContent('le client visite lui-même.');
         expect(
             screen.getByRole('checkbox', {
                 name: /Informer le client par e-mail/,
             }),
         ).toBeChecked();
         expect(
-            screen.getByLabelText('Visite accompagnée par'),
+            screen.getByLabelText('Visite réalisée par'),
         ).toBeInTheDocument();
 
         await user.click(screen.getByLabelText('Client'));
@@ -219,11 +216,8 @@ describe('VisitForm', () => {
         );
 
         // Confié : l'équipe visite seule, pas d'e-mail au client.
-        expect(
-            screen.getByText(
-                'Formule Confié · l’équipe visite sans le client.',
-            ),
-        ).toBeInTheDocument();
+        expect(offer()).toHaveTextContent('Formule Confié');
+        expect(offer()).toHaveTextContent('l’équipe visite sans le client.');
         expect(
             screen.queryByRole('checkbox', {
                 name: /Informer le client par e-mail/,
@@ -250,7 +244,7 @@ describe('VisitForm', () => {
             screen.getByRole('form', { name: 'Planifier une visite' }),
         );
 
-        await user.click(dialog.getByLabelText('Visite accompagnée par'));
+        await user.click(dialog.getByLabelText('Visite réalisée par'));
         await user.click(
             await screen.findByRole('option', {
                 name: 'Personne pour l’instant',
@@ -271,7 +265,7 @@ describe('VisitForm', () => {
         );
     });
 
-    it('offers the autonomous visit only to an Accompagné client', async () => {
+    it('shows the visit type without letting it be chosen', async () => {
         const user = userEvent.setup();
         render(
             <VisitForm
@@ -289,31 +283,24 @@ describe('VisitForm', () => {
                         offer_label: 'Confié',
                     }),
                 ]}
-                visitModes={visitModes}
                 properties={[]}
                 options={propertyFormOptions}
                 defaultClientId={1}
             />,
         );
 
-        const modes = within(
-            screen.getByRole('radiogroup', { name: 'Type de visite' }),
-        );
+        // La formule décide : aucun choix n'est offert.
         expect(
-            modes.getByRole('radio', { name: /Visite réalisée par l’équipe/ }),
-        ).toBeEnabled();
-        expect(
-            modes.getByRole('radio', { name: /Visite autonome du client/ }),
-        ).toBeEnabled();
+            screen.queryByRole('radiogroup', { name: 'Type de visite' }),
+        ).toBeNull();
+        expect(screen.getByText('Visite autonome')).toBeInTheDocument();
 
-        // Un client « Confié » ne peut pas visiter seul.
         await user.click(screen.getByRole('combobox', { name: /Client/ }));
         await user.click(
             await screen.findByRole('option', { name: /Bruno Petit/ }),
         );
 
-        expect(
-            modes.getByRole('radio', { name: /Visite autonome du client/ }),
-        ).toBeDisabled();
+        expect(screen.getByText('Par l’équipe')).toBeInTheDocument();
+        expect(screen.queryByText('Visite autonome')).toBeNull();
     });
 });

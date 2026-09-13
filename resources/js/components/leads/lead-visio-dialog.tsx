@@ -39,6 +39,7 @@ import { notify } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { visio } from '@/routes/leads';
 import type { LeadDetail } from '@/types';
+import { parisFormat } from '@/lib/datetime';
 
 export const VISIO_DURATION_MINUTES = 20;
 
@@ -73,13 +74,12 @@ export function defaultSlot(now = new Date()): string {
     return toLocalInput(slot);
 }
 
-const dateTime = new Intl.DateTimeFormat('fr-FR', {
+const dateTime = parisFormat({
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     hour: '2-digit',
     minute: '2-digit',
-    timeZone: 'Europe/Paris',
 });
 
 /**

@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 use App\Enums\LeadStatus;
 use App\Enums\Offer;
+use App\Enums\StaffFunction;
 use App\Mail\VisitScheduled;
 use App\Models\Lead;
 use App\Models\Property;
 use App\Models\User;
 use App\Models\Visit;
 use Illuminate\Support\Facades\Mail;
+use Inertia\Testing\AssertableInertia;
 
 it('records a second tenant and a second follower on a dossier', function (): void {
     $admin = User::factory()->staff()->create();
@@ -91,4 +93,23 @@ it('sends the visit confirmation to both tenants and copies both followers', fun
         && $mail->hasTo('charles@example.com')
         && $mail->hasCc($advisor->email)
         && $mail->hasCc($second->email));
+});
+
+test('a person following the file is served with what it takes to reach them', function (): void {
+    $advisor = User::factory()->create([
+        'name' => 'Charles Petit',
+        'email' => 'charles@relocation-in-paris.fr',
+        'phone' => '+33 6 98 76 54 32',
+        'functions' => [StaffFunction::Dossiers->value, StaffFunction::Visits->value],
+    ]);
+    $lead = Lead::factory()->converted()->create(['assigned_to' => $advisor->id]);
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('clients.show', $lead))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('client.assignee.name', 'Charles Petit')
+            ->where('client.assignee.email', 'charles@relocation-in-paris.fr')
+            ->where('client.assignee.phone', '+33 6 98 76 54 32')
+            ->where('client.assignee.functions', ['Gestion des dossiers', 'Agent de visite']));
 });

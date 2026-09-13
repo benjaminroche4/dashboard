@@ -9,6 +9,7 @@ use App\Models\DocumentRequest;
 use App\Models\DocumentUpload;
 use App\Models\Lead;
 use App\Models\User;
+use App\Support\UploadLimits;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
@@ -45,6 +46,11 @@ test('every request has a public upload link found by its token, never by its id
             ->has('request.persons.0.categories.0.documents.0.key')
             ->where('request.persons.0.categories.0.documents.0.uploads', [])
             ->where('labels.title', 'Your supporting documents')
+            // Ce qui rassure le client est traduit avec le reste ; plus
+            // d'adresse de contact générique en pied de page.
+            ->where('labels.privacy_title', 'Your documents are in safe hands')
+            ->where('labels.privacy_private', 'Restricted access: only the Relocation In Paris team handling your application can open them.')
+            ->missing('labels.contact')
             ->missing('request.upload_url')
             ->where('auth.user', null));
 
@@ -272,4 +278,75 @@ test('the team emails the upload link and pairing code to the client in the list
     $this->actingAs($member)
         ->post(route('tools.documents.send-link', $request), ['emails' => array_map(fn (int $i): string => "a{$i}@example.com", range(1, 6))])
         ->assertSessionHasErrors('emails');
+});
+
+test('a file that is not a PDF, too big or too numerous is refused with a readable reason', function (): void {
+    $request = DocumentRequest::factory()->create([
+        'persons' => [[
+            'first_name' => 'Léa',
+            'last_name' => 'Durand',
+            'role' => 'tenant',
+            'documents' => ['identity_document'],
+        ]],
+    ]);
+    unlock($request);
+
+    $post = fn (array $files) => $this->post($request->publicUrl(), [
+        'person' => 0,
+        'document' => 'identity_document',
+        'files' => $files,
+    ]);
+
+    // Une photo n'est pas un dossier : seul le PDF passe.
+    $post([UploadedFile::fake()->image('cni.jpg')])->assertSessionHasErrors('files.0');
+
+    // Trop lourd pour ce que le serveur accepte.
+    $heavy = (int) (UploadLimits::perFile() / 1024) + 1;
+    $post([UploadedFile::fake()->create('cni.pdf', $heavy, 'application/pdf')])->assertSessionHasErrors('files.0');
+
+    // Trop de fichiers d'un coup.
+    $many = array_map(
+        fn (int $index) => UploadedFile::fake()->create("piece-{$index}.pdf", 10, 'application/pdf'),
+        range(1, UploadLimits::maxFiles() + 1),
+    );
+    $post($many)->assertSessionHasErrors('files');
+
+    expect(DocumentUpload::query()->count())->toBe(0);
+});
+
+test('the deposit page announces the limits the server really accepts', function (): void {
+    $request = DocumentRequest::factory()->create();
+    unlock($request);
+
+    $this->get($request->publicUrl())
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('limits.file', UploadLimits::perFile())
+            ->where('limits.files', UploadLimits::maxFiles())
+            ->where('limits.total', UploadLimits::perRequest())
+            ->etc());
+});
+
+test('an english client reads the refusal in english', function (): void {
+    $request = DocumentRequest::factory()->english()->create([
+        'persons' => [[
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'role' => 'tenant',
+            'documents' => ['identity_document'],
+        ]],
+    ]);
+    unlock($request);
+
+    $this->post($request->publicUrl(), [
+        'person' => 0,
+        'document' => 'identity_document',
+        'files' => [UploadedFile::fake()->image('passport.png')],
+    ])->assertSessionHasErrors('files.0');
+
+    $message = (string) session('errors')?->first('files.0');
+
+    // La validation tourne avant le contrôleur : sans le réglage de langue,
+    // ce message serait resté en français.
+    expect($message)->toBe('Only PDF files are accepted.');
 });

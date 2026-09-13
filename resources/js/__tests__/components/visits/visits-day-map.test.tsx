@@ -290,47 +290,12 @@ describe('VisitsDayMap', () => {
         ).toBeInTheDocument();
         expect(screen.getByText(/1 adresse non géocodée/)).toBeInTheDocument();
         expect(screen.getByText(/1 adresse non localisée/)).toBeInTheDocument();
-        // L'itinéraire se trace sur la carte, sans ouvrir Google Maps ailleurs.
+        // L'itinéraire de la tournée a été retiré : ni bouton, ni tracé.
         expect(
-            screen.queryByRole('link', { name: 'Itinéraire de la tournée' }),
+            screen.queryByRole('button', { name: /itinéraire/i }),
         ).toBeNull();
+        expect(screen.queryByRole('link', { name: /itinéraire/i })).toBeNull();
         expect(fake.routes).toHaveLength(0);
-
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Itinéraire de la tournée' }),
-        );
-        await waitFor(() => expect(fake.routes).toHaveLength(1));
-        // Les étapes localisées, dans l'ordre du jour : départ, escale, arrivée.
-        expect(fake.routes[0]?.request).toEqual({
-            origin: { lat: 48.8627, lng: 2.3623 },
-            waypoints: [{ location: { lat: 48.8656, lng: 2.3705 } }],
-            destination: { lat: 48.85772, lng: 2.38473 },
-            travelMode: 'DRIVING',
-        });
-        await waitFor(() => expect(fake.routeShown).not.toBeNull());
-        expect(
-            screen.getByRole('button', { name: 'Masquer l’itinéraire' }),
-        ).toHaveAttribute('aria-pressed', 'true');
-    });
-
-    it('reports an unavailable route without breaking the map', async () => {
-        const user = userEvent.setup();
-        fake.failRoute(true);
-        renderMap();
-        await waitFor(() => expect(fake.markers.length).toBeGreaterThan(0));
-
-        await user.click(
-            screen.getByRole('button', { name: 'Itinéraire de la tournée' }),
-        );
-        expect(
-            await screen.findByText(
-                'Itinéraire indisponible pour cette tournée.',
-            ),
-        ).toBeInTheDocument();
-        // La carte reste en place : ses pastilles n'ont pas disparu.
-        expect(
-            fake.markers.filter((marker) => marker.map !== null).length,
-        ).toBeGreaterThan(0);
     });
 
     it('navigates to the previous and next days with visits, and back to today', async () => {

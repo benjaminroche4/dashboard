@@ -6,8 +6,9 @@ import {
     show as documentsShow,
 } from '@/routes/tools/documents';
 import type { LeadDocumentRequest } from '@/types';
+import { parisFormat } from '@/lib/datetime';
 
-const dateFormat = new Intl.DateTimeFormat('fr-FR', {
+const dateFormat = parisFormat({
     day: 'numeric',
     month: 'short',
     year: 'numeric',

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\DocumentUploadStatus;
 use App\Models\DocumentRequest;
 use App\Models\DocumentUpload;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -30,6 +31,17 @@ final class DocumentUploadFactory extends Factory
             'path' => 'document-uploads/'.fake()->uuid().'/0/tax_notices/'.$name,
             'mime_type' => 'application/pdf',
             'size' => fake()->numberBetween(50_000, 3_000_000),
+            'status' => DocumentUploadStatus::Pending,
         ];
+    }
+
+    /** Pièce déjà vérifiée par l'équipe (un refus porte son motif). */
+    public function reviewed(DocumentUploadStatus $status, ?string $note = null): self
+    {
+        return $this->state(fn (): array => [
+            'status' => $status,
+            'review_note' => $status === DocumentUploadStatus::Refused ? $note : null,
+            'reviewed_at' => now(),
+        ]);
     }
 }

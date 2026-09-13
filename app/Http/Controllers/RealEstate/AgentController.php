@@ -26,6 +26,7 @@ use App\Models\Activity;
 use App\Models\Agency;
 use App\Models\Agent;
 use App\Models\Lead;
+use App\Services\DistrictStaticMap;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -96,6 +97,17 @@ class AgentController extends Controller
         $query->orderBy('id');
     }
 
+    /** Adresse de l'agent sur une ligne, pour la carte statique. */
+    private function addressLine(Agent $agent): ?string
+    {
+        $line = trim(implode(', ', array_filter([
+            $agent->street,
+            trim(($agent->postal_code ?? '').' '.($agent->city ?? '')),
+        ])));
+
+        return $line === '' ? null : $line;
+    }
+
     public function show(Request $request, Agent $agent): Response
     {
         $this->authorize('view', $agent);
@@ -106,6 +118,9 @@ class AgentController extends Controller
             ->loadFavoriteOf($request->user());
 
         return Inertia::render('real-estate/agent', [
+            // Carte statique de l'adresse, comme sur les fiches partenaire,
+            // agence et propriétaire (clé Maps Static dédiée).
+            'mapUrl' => resolve(DistrictStaticMap::class)->place($agent->latitude, $agent->longitude, $this->addressLine($agent)),
             'agent' => self::summary($agent),
             // Fiche de son agence, pour la carte « Agence » de la page.
             'agency' => $agent->agency === null ? null : [

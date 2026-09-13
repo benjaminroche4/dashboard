@@ -24,8 +24,7 @@ export function loadGoogleMaps(key: string): Promise<typeof google.maps> {
             v: 'weekly',
             language: 'fr',
             region: 'FR',
-            // `routes` : tracé de l'itinéraire d'une tournée de visites.
-            libraries: 'marker,routes',
+            libraries: 'marker',
             loading: 'async',
             callback: CALLBACK,
         });

@@ -16,6 +16,19 @@ export type CatalogGroup = {
     items: CatalogItem[];
 };
 
+/**
+ * Profil de locataire proposé au formulaire (miroir de `App\Enums\DocumentPreset`) :
+ * ses pièces se cochent d'un clic.
+ */
+export type DocumentPresetOption = {
+    value: string;
+    label: string;
+    /** Famille du profil : « Indépendant », « Salarié », « Études ». */
+    group: string;
+    /** Clés du catalogue cochées par le profil. */
+    documents: string[];
+};
+
 /** Personne du foyer dans le formulaire : identité, rôle et clés des pièces cochées. */
 export type HouseholdPersonForm = {
     first_name: string;
@@ -79,6 +92,9 @@ export type HouseholdPersonDetail = {
 };
 
 /** Fichier déposé par le client sur la page publique. */
+/** Relecture d'une pièce déposée : miroir de `App\Enums\DocumentUploadStatus`. */
+export type DocumentUploadStatus = 'pending' | 'accepted' | 'refused';
+
 export type DocumentUpload = {
     id: number;
     uuid: string;
@@ -86,6 +102,12 @@ export type DocumentUpload = {
     size: number;
     uploaded_at: string | null;
     download_url: string;
+    status: DocumentUploadStatus;
+    status_label: string;
+    /** Motif du refus, ou remarque de la relecture. */
+    review_note: string | null;
+    reviewed_at: string | null;
+    reviewer: string | null;
 };
 
 export type DocumentRequestDetail = DocumentRequestSummary & {

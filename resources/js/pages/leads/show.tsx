@@ -1,3 +1,4 @@
+import { parisFormat } from '@/lib/datetime';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { AlarmClock, ArrowRight, Pencil, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
@@ -110,7 +111,7 @@ const missing = (label = 'Non renseigné') => (
     <span className="text-muted-foreground font-normal">{label}</span>
 );
 
-const dateTime = new Intl.DateTimeFormat('fr-FR', {
+const dateTime = parisFormat({
     day: 'numeric',
     month: 'long',
     year: 'numeric',

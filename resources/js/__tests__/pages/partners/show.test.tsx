@@ -113,7 +113,7 @@ describe('Partner detail page', () => {
         // Joindre le partenaire passe par ses interlocuteurs, plus par une
         // carte à part : seul le suivi de la relation reste dans la colonne.
         expect(
-            screen.getByRole('region', { name: 'Suivi de la relation' }),
+            screen.getByRole('region', { name: 'Suivi et notes' }),
         ).toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();
         // Le retour se fait par le fil d'Ariane : plus de lien dans l'en-tête.
@@ -154,7 +154,7 @@ describe('Partner detail page', () => {
         );
 
         expect(
-            screen.getByRole('heading', { name: 'Suivi de la relation' }),
+            screen.getByRole('heading', { name: 'Suivi et notes' }),
         ).toBeInTheDocument();
         expect(screen.getByText('Aucune note.')).toBeInTheDocument();
         expect(

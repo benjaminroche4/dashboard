@@ -181,7 +181,7 @@ describe('Owner detail page', () => {
 
         // Fraîcheur de la relation, comme sur un agent ou un partenaire.
         const relation = within(
-            screen.getByRole('region', { name: 'Suivi de la relation' }),
+            screen.getByRole('region', { name: 'Suivi et notes' }),
         );
         expect(
             relation.getByText('Dernier échange le 1 septembre 2026'),

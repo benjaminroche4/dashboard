@@ -9,8 +9,9 @@ import { cn } from '@/lib/utils';
 import { qualify as leadQualify } from '@/routes/leads';
 import leadQualification from '@/routes/leads/qualification';
 import type { LeadDetail, LeadQualification } from '@/types';
+import { parisFormat } from '@/lib/datetime';
 
-const dateTime = new Intl.DateTimeFormat('fr-FR', {
+const dateTime = parisFormat({
     day: 'numeric',
     month: 'long',
     hour: '2-digit',

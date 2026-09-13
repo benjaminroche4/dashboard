@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Data;
 
+use App\Enums\EmploymentStatus;
 use App\Support\PersonName;
 
 /** Garant d'un dossier : nom capitalisé, coordonnées et revenu mensuel net. */
@@ -14,6 +15,9 @@ final readonly class LeadGuarantorData
         public string $lastName,
         public ?string $email,
         public ?string $phone,
+        /** Ce que le garant fait dans la vie : le statut, puis le métier. */
+        public ?EmploymentStatus $employmentStatus,
+        public ?string $occupation,
         public ?int $incomeCents,
         public ?string $note,
     ) {}
@@ -28,6 +32,8 @@ final readonly class LeadGuarantorData
             lastName: PersonName::capitalize((string) $data['last_name']),
             email: self::blankToNull($data['email'] ?? null),
             phone: self::blankToNull($data['phone'] ?? null),
+            employmentStatus: EmploymentStatus::tryFrom((string) ($data['employment_status'] ?? '')),
+            occupation: self::blankToNull($data['occupation'] ?? null),
             incomeCents: self::amount($data['income_cents'] ?? null),
             note: self::blankToNull($data['note'] ?? null),
         );
@@ -43,6 +49,8 @@ final readonly class LeadGuarantorData
             'last_name' => $this->lastName,
             'email' => $this->email,
             'phone' => $this->phone,
+            'employment_status' => $this->employmentStatus,
+            'occupation' => $this->occupation,
             'income_cents' => $this->incomeCents,
             'note' => $this->note,
         ];

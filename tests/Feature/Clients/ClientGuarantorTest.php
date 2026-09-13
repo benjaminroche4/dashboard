@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\EmploymentStatus;
 use App\Models\Lead;
 use App\Models\LeadGuarantor;
 use App\Models\User;
@@ -65,4 +66,40 @@ test('the household income adds up both tenants', function (): void {
 
     expect($lead->householdIncomeCents())->toBe(550_000);
     expect(Lead::factory()->converted()->create()->householdIncomeCents())->toBeNull();
+});
+
+test('a guarantor says what they do for a living, not only what they earn', function (): void {
+    $user = User::factory()->staff()->create();
+    $lead = Lead::factory()->converted()->create();
+
+    $this->actingAs($user)
+        ->post(route('clients.guarantors.store', $lead), [
+            'first_name' => 'Marie',
+            'last_name' => 'Mata',
+            'employment_status' => 'cdi',
+            'occupation' => 'Infirmière, hôpital Saint-Louis',
+            'income_cents' => 450_000,
+        ])
+        ->assertSessionHasNoErrors();
+
+    $guarantor = LeadGuarantor::query()->firstOrFail();
+    expect($guarantor->employment_status)->toBe(EmploymentStatus::Permanent)
+        ->and($guarantor->occupation)->toBe('Infirmière, hôpital Saint-Louis');
+
+    // Le dossier expose le statut et son libellé, pour l'afficher tel quel.
+    $this->actingAs($user)
+        ->get(route('clients.show', $lead))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('guarantors.0.employment_status', 'cdi')
+            ->where('guarantors.0.employment_status_label', 'CDI')
+            ->where('guarantors.0.occupation', 'Infirmière, hôpital Saint-Louis'));
+
+    // Une situation inconnue est refusée : la liste est fermée.
+    $this->actingAs($user)
+        ->post(route('clients.guarantors.store', $lead), [
+            'first_name' => 'Paul',
+            'last_name' => 'Roux',
+            'employment_status' => 'astronaute',
+        ])
+        ->assertSessionHasErrors('employment_status');
 });

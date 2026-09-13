@@ -41,6 +41,19 @@ test('without a bucket, files stay on the machine', function (): void {
         ->and($disks['public']['root'])->toBe(storage_path('app/public'));
 });
 
+test('an empty variable counts as absent, so the bucket keeps addressing the files', function (): void {
+    $disks = disks([
+        'AWS_BUCKET' => 'rip-dashboard',
+        // `AWS_URL=` dans le .env : une chaîne vide, pas une URL.
+        'AWS_URL' => '',
+        'AWS_ENDPOINT' => 'https://storage.googleapis.com',
+    ]);
+
+    // Sans cette normalisation, `Storage::url()` fabriquerait « /public/… ».
+    expect($disks['public']['url'])->toBeNull()
+        ->and($disks['public']['endpoint'])->toBe('https://storage.googleapis.com');
+});
+
 test('a configured bucket moves both disks to the object storage, without touching the code', function (): void {
     $disks = disks([
         'AWS_BUCKET' => 'rip-dashboard',
@@ -52,11 +65,14 @@ test('a configured bucket moves both disks to the object storage, without touchi
     // dans le même bucket, sous deux préfixes séparés.
     expect($disks['local']['driver'])->toBe('s3')
         ->and($disks['local']['bucket'])->toBe('rip-dashboard')
-        ->and($disks['local']['root'])->toBe('private')
+        ->and($disks['local']['root'])->toBe('dashboard/private')
         ->and($disks['local']['visibility'])->toBe('private')
         ->and($disks['public']['driver'])->toBe('s3')
-        ->and($disks['public']['root'])->toBe('public')
-        ->and($disks['public']['visibility'])->toBe('public')
+        ->and($disks['public']['root'])->toBe('dashboard/public')
+        // Aucune ACL publique : les buckets refusent l'accès public, les photos
+        // sont servies par des liens signés (`App\Support\FileUrl`).
+        ->and($disks['public']['visibility'])->toBe('private')
+        ->and($disks['public']['options'])->toBe(['ACL' => ''])
         // Les URL des photos sortent du bucket (ou de son CDN), plus de /storage.
         ->and($disks['public']['url'])->toBe('https://cdn.example.com');
 });

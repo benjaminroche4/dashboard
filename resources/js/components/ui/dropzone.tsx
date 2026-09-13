@@ -47,6 +47,12 @@ export type DropzoneProps = Omit<DropzoneOptions, 'onDrop'> & {
         fileRejections: FileRejection[],
         event: DropEvent,
     ) => void;
+    /**
+     * Fichiers refusés, avec leur motif (retouche projet : `onError` ne porte
+     * qu'un message anglais de react-dropzone, impossible à traduire ni à
+     * rattacher au fichier fautif).
+     */
+    onRejected?: (rejections: FileRejection[]) => void;
     children?: ReactNode;
 };
 
@@ -57,6 +63,7 @@ export const Dropzone = ({
     minSize,
     onDrop,
     onError,
+    onRejected,
     disabled,
     src,
     className,
@@ -73,8 +80,15 @@ export const Dropzone = ({
         disabled,
         onDrop: (acceptedFiles, fileRejections, event) => {
             if (fileRejections.length > 0) {
+                if (onRejected) {
+                    onRejected(fileRejections);
+
+                    return;
+                }
+
                 const message = fileRejections.at(0)?.errors.at(0)?.message;
                 onError?.(new Error(message));
+
                 return;
             }
 

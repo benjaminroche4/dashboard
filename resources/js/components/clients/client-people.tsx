@@ -1,5 +1,5 @@
-import { useForm, usePage } from '@inertiajs/react';
-import { Mail, Pencil, Phone, Plus, UserRound } from 'lucide-react';
+import { router, useForm, usePage } from '@inertiajs/react';
+import { Mail, Pencil, Phone, Plus, UserRound, X } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PhoneInput } from '@/components/phone-input';
@@ -20,16 +20,39 @@ import { ClientTenantProfileDialog } from '@/components/clients/client-tenant-pr
 import { capitalizeName } from '@/lib/format';
 import { tenantDetails } from '@/lib/tenant-profile';
 import { GuarantorDialog } from '@/components/clients/guarantor-dialog';
+import { WatcherDialog } from '@/components/clients/watcher-dialog';
 import { RentAffordabilityAlert } from '@/components/clients/rent-affordability-alert';
 import { formatMoney } from '@/lib/format';
 import { totalIncomeCents } from '@/lib/rent-affordability';
 import { people as clientPeople } from '@/routes/clients';
+import clientWatchers from '@/routes/clients/watchers';
 import type {
     ClientDetail,
     ClientGuarantor,
+    ClientWatcher,
     TenantProfile,
     TenantSlot,
 } from '@/types';
+
+/**
+ * Sous-titre d'un garant : ce qu'il fait dans la vie, puis ce qu'il gagne —
+ * une agence juge la garantie sur les deux, pas sur le seul montant.
+ */
+export function guarantorRole(
+    guarantor: ClientGuarantor,
+    currency: string,
+): string {
+    return (
+        [
+            guarantor.occupation ?? guarantor.employment_status_label,
+            guarantor.income_cents === null
+                ? null
+                : `${formatMoney(guarantor.income_cents, currency)} par mois`,
+        ]
+            .filter(Boolean)
+            .join(' · ') || 'Garant'
+    );
+}
 
 /** Initiales d'un nom, pour l'avatar de repli. */
 function initials(name: string): string {
@@ -93,6 +116,7 @@ function PersonCard({
     avatar,
     profile,
     onEdit,
+    onRemove,
 }: {
     name: string;
     role: string;
@@ -102,6 +126,7 @@ function PersonCard({
     /** Renseigné pour un locataire seulement. */
     profile?: TenantProfile;
     onEdit?: () => void;
+    onRemove?: () => void;
 }) {
     const details = profile ? tenantDetails(profile) : [];
 
@@ -127,6 +152,16 @@ function PersonCard({
                     >
                         <Pencil />
                         Modifier
+                    </Button>
+                )}
+                {onRemove && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Retirer ${name}`}
+                        onClick={onRemove}
+                    >
+                        <X aria-hidden />
                     </Button>
                 )}
             </div>
@@ -189,12 +224,15 @@ function Empty({ children }: { children: React.ReactNode }) {
 export function ClientPeople({
     client,
     guarantors,
+    watchers = [],
     tenantProfiles,
     residencyStatuses,
     employmentStatuses,
 }: {
     client: ClientDetail;
     guarantors: ClientGuarantor[];
+    /** Personnes en copie des e-mails du dossier. */
+    watchers?: ClientWatcher[];
     /** Détails par emplacement de locataire ; le second n'y est que s'il existe. */
     tenantProfiles: Partial<Record<TenantSlot, TenantProfile>>;
     residencyStatuses: { value: string; label: string }[];
@@ -202,6 +240,13 @@ export function ClientPeople({
 }) {
     const { staff } = usePage().props;
     const [editing, setEditing] = useState(false);
+    const [watcher, setWatcher] = useState<ClientWatcher | 'new' | null>(null);
+    const removeWatcher = (person: ClientWatcher) =>
+        router.delete(
+            clientWatchers.destroy({ lead: client.uuid, watcher: person.uuid })
+                .url,
+            { preserveScroll: true },
+        );
     /** Locataire dont on modifie les détails. */
     const [tenant, setTenant] = useState<TenantSlot | null>(null);
     /** Garant en cours de saisie : `null` fermé, `'new'` à l'ajout. */
@@ -322,11 +367,7 @@ export function ClientPeople({
                         <PersonCard
                             key={person.uuid}
                             name={person.name}
-                            role={
-                                person.income_cents === null
-                                    ? 'Garant'
-                                    : `Garant · ${formatMoney(person.income_cents, client.currency)} par mois`
-                            }
+                            role={guarantorRole(person, client.currency)}
                             email={person.email}
                             phone={person.phone}
                             onEdit={() => setGuarantor(person)}
@@ -341,43 +382,50 @@ export function ClientPeople({
 
             <Group
                 title="Personnes de suivi"
-                hint="Les deux membres reçoivent une copie des e-mails du dossier."
+                hint="Des proches ou des contacts du client, en copie des e-mails du dossier."
                 action={
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setEditing(true)}
+                        onClick={() => setWatcher('new')}
                     >
-                        <Pencil />
-                        {client.assignee
-                            ? 'Changer le suivi'
-                            : 'Attribuer le dossier'}
+                        <Plus />
+                        Ajouter une personne
                     </Button>
                 }
             >
-                {client.assignee ? (
-                    <PersonCard
-                        name={client.assignee.name}
-                        role="Suivi principal"
-                        avatar={client.assignee.avatar}
-                    />
+                {watchers.length > 0 ? (
+                    watchers.map((person) => (
+                        <PersonCard
+                            key={person.uuid}
+                            name={person.name}
+                            role={person.role ?? 'En copie des e-mails'}
+                            email={person.email}
+                            phone={person.phone}
+                            onEdit={() => setWatcher(person)}
+                            onRemove={() => removeWatcher(person)}
+                        />
+                    ))
                 ) : (
-                    <Empty>Dossier non attribué.</Empty>
-                )}
-                {client.co_assignee ? (
-                    <PersonCard
-                        name={client.co_assignee.name}
-                        role="Second suivi"
-                        avatar={client.co_assignee.avatar}
-                    />
-                ) : (
-                    <Empty>Aucun second membre sur le suivi.</Empty>
+                    <Empty>
+                        Personne en copie : ajoutez un proche ou un contact du
+                        client pour qu’il reçoive les e-mails du dossier.
+                    </Empty>
                 )}
             </Group>
+
+            <WatcherDialog
+                clientUuid={client.uuid}
+                watcher={watcher === 'new' ? null : watcher}
+                open={watcher !== null}
+                onOpenChange={(next) => !next && setWatcher(null)}
+                key={watcher === 'new' ? 'new' : (watcher?.uuid ?? 'none')}
+            />
 
             <GuarantorDialog
                 clientUuid={client.uuid}
                 guarantor={guarantor === 'new' ? null : guarantor}
+                employmentStatuses={employmentStatuses}
                 open={guarantor !== null}
                 onOpenChange={(next) => !next && setGuarantor(null)}
                 key={guarantor === 'new' ? 'new' : (guarantor?.uuid ?? 'none')}

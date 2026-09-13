@@ -22,8 +22,9 @@ import {
 import { formatFileSize } from '@/lib/format';
 import { destroy as uploadDestroy } from '@/routes/tools/documents/uploads';
 import type { DocumentUpload } from '@/types';
+import { parisFormat } from '@/lib/datetime';
 
-const dateTime = new Intl.DateTimeFormat('fr-FR', {
+const dateTime = parisFormat({
     day: 'numeric',
     month: 'short',
     hour: '2-digit',

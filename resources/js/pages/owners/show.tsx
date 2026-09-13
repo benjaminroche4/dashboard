@@ -1,16 +1,16 @@
 import { Head, Link } from '@inertiajs/react';
-import { House, Plus, UserRoundSearch } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { AddressMapButton } from '@/components/address-map-dialog';
 import { OwnerDialog } from '@/components/owners/owner-dialog';
 import { formatAddress } from '@/components/real-estate/columns';
 import {
     DetailHeader,
+    DetailSection,
     missingValue,
 } from '@/components/real-estate/detail-header';
 import { OwnerKindBadge } from '@/components/owners/owner-kind-badge';
 import { DirectoryRelationCard } from '@/components/real-estate/directory-relation-card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatMoney } from '@/lib/format';
 import {
@@ -24,6 +24,7 @@ import {
     show as propertyShow,
 } from '@/routes/properties';
 import type { Owner, OwnerKindOption, OwnerParcStats, Property } from '@/types';
+import { parisFormat } from '@/lib/datetime';
 
 type Props = {
     /** Carte statique de l'adresse, null sans clé Maps Static dédiée. */
@@ -36,7 +37,7 @@ type Props = {
     kinds: OwnerKindOption[];
 };
 
-const visitDate = new Intl.DateTimeFormat('fr-FR', {
+const visitDate = parisFormat({
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -82,16 +83,9 @@ export default function OwnerShow({
 
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                     <div className="flex flex-col gap-6">
-                        {/* Même découpe que la fiche partenaire : titre et action
-                            sur le fond gris, contenu dans un bloc blanc. */}
-                        <section
-                            aria-label="Coordonnées"
-                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                        >
-                            <header className="flex flex-wrap items-center justify-between gap-2">
-                                <h2 className="text-base font-medium">
-                                    Coordonnées
-                                </h2>
+                        <DetailSection
+                            title="Coordonnées"
+                            action={
                                 <AddressMapButton
                                     place={{
                                         name: owner.name,
@@ -101,8 +95,9 @@ export default function OwnerShow({
                                         longitude: null,
                                     }}
                                 />
-                            </header>
-                            <div className="bg-background grid gap-4 rounded-lg border p-4">
+                            }
+                        >
+                            <div className="grid gap-4">
                                 {mapUrl && (
                                     <img
                                         src={mapUrl}
@@ -156,27 +151,18 @@ export default function OwnerShow({
                                     ))}
                                 </dl>
                             </div>
-                        </section>
+                        </DetailSection>
 
                         <DirectoryRelationCard
                             lastContactedAt={owner.last_contacted_at}
                             touchUrl={ownerContact({ owner: owner.uuid }).url}
+                            notes={owner.notes}
                         />
 
                         {owner.lead && (
-                            <section
-                                aria-label="Lead propriétaire"
-                                className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                            >
-                                <h2 className="flex items-center gap-2 text-base font-medium">
-                                    <UserRoundSearch
-                                        className="size-4"
-                                        aria-hidden
-                                    />
-                                    Lead propriétaire
-                                </h2>
+                            <DetailSection title="Lead propriétaire">
                                 {/* La prospection reste le lead ; l'annuaire garde le lien. */}
-                                <div className="bg-background grid gap-1 rounded-lg border p-4 text-sm">
+                                <div className="grid gap-1 text-sm">
                                     <Link
                                         href={leadShow({
                                             lead: owner.lead.uuid,
@@ -195,44 +181,14 @@ export default function OwnerShow({
                                             .join(' · ')}
                                     </span>
                                 </div>
-                            </section>
+                            </DetailSection>
                         )}
-
-                        <section
-                            aria-label="Notes"
-                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                        >
-                            <h2 className="text-base font-medium">Notes</h2>
-                            {/* Contenu sur fond blanc, comme les autres sections. */}
-                            <div className="bg-background rounded-lg border p-4">
-                                {owner.notes ? (
-                                    <p className="text-sm/6 whitespace-pre-line">
-                                        {owner.notes}
-                                    </p>
-                                ) : (
-                                    <p className="text-muted-foreground text-sm">
-                                        Aucune note.
-                                    </p>
-                                )}
-                            </div>
-                        </section>
                     </div>
                     <aside className="grid h-fit content-start gap-6 lg:sticky lg:top-6">
-                        <section
-                            aria-label="Biens"
-                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                        >
-                            <header className="flex flex-wrap items-center justify-between gap-2">
-                                <h2 className="flex items-center gap-2 text-base font-medium">
-                                    <House className="size-4" aria-hidden />
-                                    Biens
-                                    <Badge
-                                        variant="secondary"
-                                        className="tabular-nums"
-                                    >
-                                        {properties.length}
-                                    </Badge>
-                                </h2>
+                        <DetailSection
+                            title="Biens"
+                            count={properties.length}
+                            action={
                                 <Button variant="outline" size="sm" asChild>
                                     <Link
                                         href={propertyCreate({
@@ -243,9 +199,10 @@ export default function OwnerShow({
                                         Ajouter un bien
                                     </Link>
                                 </Button>
-                            </header>
+                            }
+                        >
                             {properties.length > 0 && (
-                                <dl className="bg-background grid grid-cols-3 divide-x rounded-lg border text-center">
+                                <dl className="grid grid-cols-3 divide-x rounded-lg border text-center">
                                     {[
                                         {
                                             label: 'Disponibles',
@@ -281,7 +238,7 @@ export default function OwnerShow({
                                 </dl>
                             )}
                             {stats.last_visit_at && (
-                                <p className="text-muted-foreground px-1 text-xs">
+                                <p className="text-muted-foreground text-xs">
                                     Dernière visite le{' '}
                                     {visitDate.format(
                                         new Date(stats.last_visit_at),
@@ -292,12 +249,12 @@ export default function OwnerShow({
                             {properties.length > 0 ? (
                                 <ul
                                     role="list"
-                                    className="bg-background divide-border grid divide-y rounded-lg border px-3 text-sm"
+                                    className="divide-border grid divide-y text-sm"
                                 >
                                     {properties.map((property) => (
                                         <li
                                             key={property.uuid}
-                                            className="flex flex-wrap items-center justify-between gap-2 py-3"
+                                            className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"
                                         >
                                             <div className="grid min-w-0 gap-0.5">
                                                 <Link
@@ -324,14 +281,12 @@ export default function OwnerShow({
                                     ))}
                                 </ul>
                             ) : (
-                                <div className="bg-background rounded-lg border p-4">
-                                    <p className="text-muted-foreground text-sm">
-                                        Aucun bien rattaché pour l’instant. Un
-                                        propriétaire peut en détenir plusieurs.
-                                    </p>
-                                </div>
+                                <p className="text-muted-foreground text-sm">
+                                    Aucun bien rattaché pour l’instant. Un
+                                    propriétaire peut en détenir plusieurs.
+                                </p>
                             )}
-                        </section>
+                        </DetailSection>
                     </aside>
                 </div>
             </div>

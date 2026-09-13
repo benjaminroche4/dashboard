@@ -1,4 +1,9 @@
-import type { Client, ClientDetail, ClientPriorityOption } from '@/types';
+import type {
+    Client,
+    ClientDetail,
+    ClientPriorityOption,
+    DossierReadiness,
+} from '@/types';
 
 /** Miroir de LeadFactory::converted() : un dossier client suivi par Admin. */
 export function makeClient(overrides: Partial<Client> = {}): Client {
@@ -56,3 +61,20 @@ export const clientPriorities: ClientPriorityOption[] = [
     { value: 'high', label: 'Haute' },
     { value: 'urgent', label: 'Urgente' },
 ];
+
+/** État du dossier de location : « Prêt » par défaut, à surcharger au besoin. */
+export function makeDossierReadiness(
+    overrides: Partial<DossierReadiness> = {},
+): DossierReadiness {
+    return {
+        status: 'ready',
+        status_label: 'Prêt',
+        total: 6,
+        accepted: 6,
+        to_check: 0,
+        refused: 0,
+        missing: 0,
+        percent: 100,
+        ...overrides,
+    };
+}

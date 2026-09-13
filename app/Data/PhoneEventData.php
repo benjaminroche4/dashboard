@@ -99,9 +99,16 @@ final readonly class PhoneEventData
         ];
     }
 
+    /**
+     * Horodatage reçu du fournisseur : il porte son propre fuseau (souvent
+     * UTC). On le ramène à l'heure de Paris, la seule que l'application
+     * connaisse — sans quoi l'instant se décale à l'enregistrement.
+     */
     private static function date(mixed $value): ?CarbonInterface
     {
-        return is_string($value) && $value !== '' ? Date::parse($value) : null;
+        return is_string($value) && $value !== ''
+            ? Date::parse($value)->setTimezone(date_default_timezone_get())
+            : null;
     }
 
     private static function blankToNull(mixed $value): ?string

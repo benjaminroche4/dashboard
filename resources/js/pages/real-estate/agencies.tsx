@@ -1,11 +1,10 @@
 import { Head, usePage } from '@inertiajs/react';
-import { Plus, Upload } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { DataTable } from '@/components/data-table';
 import { DirectoryBulkActions } from '@/components/real-estate/directory-bulk-actions';
 import { FavoritesFilter } from '@/components/favorites-filter';
 import { AgencyDialog } from '@/components/real-estate/agency-dialog';
-import { AgencyImportDialog } from '@/components/real-estate/agency-import-dialog';
 import { AgentDialog } from '@/components/real-estate/agent-dialog';
 import {
     agencyColumnLabels,
@@ -42,7 +41,6 @@ export default function Agencies({
     const { auth } = usePage().props;
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editing, setEditing] = useState<Agency | null>(null);
-    const [importOpen, setImportOpen] = useState(false);
     // Ajout d'un agent depuis la liste des agents d'une agence, agence présélectionnée.
     const [agentDialogOpen, setAgentDialogOpen] = useState(false);
     const [agentAgency, setAgentAgency] = useState<Agency | null>(null);
@@ -100,13 +98,6 @@ export default function Agencies({
                             }
                             count={favoritesCount}
                         />
-                        <Button
-                            variant="outline"
-                            onClick={() => setImportOpen(true)}
-                        >
-                            <Upload />
-                            Importer
-                        </Button>
                         <Button onClick={add}>
                             <Plus />
                             Nouvelle agence
@@ -133,10 +124,6 @@ export default function Agencies({
                     frame="panel"
                 />
             </div>
-            <AgencyImportDialog
-                open={importOpen}
-                onOpenChange={setImportOpen}
-            />
             <AgencyDialog
                 open={dialogOpen}
                 onOpenChange={setDialogOpen}

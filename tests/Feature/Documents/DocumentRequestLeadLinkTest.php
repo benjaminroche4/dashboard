@@ -62,3 +62,27 @@ test('an unknown lead is refused and the route uses the UUID', function (): void
         ->patch("/tools/documents/{$request->id}/lead", ['lead_id' => null])
         ->assertNotFound();
 });
+
+test('a list linked to a converted lead is presented as a client folder', function (): void {
+    $member = User::factory()->create();
+    $lead = Lead::factory()->converted()->create([
+        'first_name' => 'Bruno',
+        'last_name' => 'Mata',
+        'co_first_name' => 'Charles',
+        'co_last_name' => 'Mata',
+    ]);
+    $request = DocumentRequest::factory()->create(['lead_id' => $lead->id]);
+
+    $this->actingAs($member)
+        ->get(route('tools.documents.show', $request))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('request.lead.name', 'Bruno & Charles')
+            ->where('request.lead.is_client', true));
+
+    // La recherche qui sert au rattachement le dit aussi.
+    $this->actingAs($member)
+        ->getJson(route('leads.search', ['q' => 'Bruno']))
+        ->assertOk()
+        ->assertJsonPath('0.name', 'Bruno & Charles')
+        ->assertJsonPath('0.is_client', true);
+});

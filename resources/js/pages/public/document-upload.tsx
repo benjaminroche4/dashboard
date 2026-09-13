@@ -8,15 +8,41 @@ import {
     AttachmentMedia,
     AttachmentTitle,
 } from '@/components/ui/attachment';
-import { Badge } from '@/components/ui/badge';
 import { Dropzone, DropzoneEmptyState } from '@/components/ui/dropzone';
+import type { FileRejection } from 'react-dropzone';
 import { Spinner } from '@/components/ui/spinner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TrustNotice } from '@/components/public/trust-notice';
 import { useFlashToast } from '@/hooks/use-flash-toast';
 import { categoryIcon } from '@/lib/document-category-icons';
 import { formatFileSize } from '@/lib/format';
 import { notify } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import type { DocumentLanguage, PublicDocumentPerson } from '@/types';
+
+const ACCEPT = { 'application/pdf': ['.pdf'] };
+
+/** Ce que le serveur accepte, calculé d'après les limites de PHP. */
+export type UploadLimits = { file: number; files: number; total: number };
+
+/**
+ * Motif de refus d'un fichier, dit au client dans sa langue : react-dropzone
+ * ne renvoie que des phrases anglaises avec des octets bruts.
+ */
+export function rejectionMessage(
+    rejections: FileRejection[],
+    labels: { too_large: string; wrong_type: string; too_many: string },
+): string {
+    const first = rejections[0];
+    const code = first?.errors[0]?.code;
+    const name = first?.file.name ?? '';
+
+    if (code === 'too-many-files') {
+        return labels.too_many;
+    }
+
+    return `${code === 'file-too-large' ? labels.too_large : labels.wrong_type} ${name}`;
+}
 
 type Props = {
     request: {
@@ -27,25 +53,29 @@ type Props = {
     };
     uploadUrl: string;
     company: { name: string; email: string; phone: string };
+    limits: UploadLimits;
     labels: Record<
         | 'title'
         | 'intro'
         | 'drop'
         | 'formats'
+        | 'too_large'
+        | 'wrong_type'
+        | 'too_many'
+        | 'too_heavy'
         | 'uploaded'
         | 'none'
         | 'sending'
         | 'done'
-        | 'contact'
-        | 'privacy'
-        | 'progress',
+        | 'privacy_title'
+        | 'privacy_secure'
+        | 'privacy_private'
+        | 'privacy_kept'
+        | 'progress'
+        | 'refused',
         string
     >;
 };
-
-const ACCEPT = { 'application/pdf': ['.pdf'] };
-const MAX_SIZE = 10 * 1024 * 1024;
-const MAX_FILES = 10;
 
 /** Nombre de pièces ayant au moins un fichier, sur le total demandé. */
 export function uploadProgress(persons: PublicDocumentPerson[]): {
@@ -71,6 +101,18 @@ export function uploadProgress(persons: PublicDocumentPerson[]): {
 }
 
 /**
+ * Pièces d'une personne : celles qui ont au moins un fichier, sur le total
+ * qu'on lui demande. C'est ce que porte son onglet, avec la même règle que
+ * le compteur de la page.
+ */
+export function personProgress(person: PublicDocumentPerson): {
+    done: number;
+    total: number;
+} {
+    return uploadProgress([person]);
+}
+
+/**
  * Page publique de dépôt des pièces (/depot/{jeton}) : le client dépose ses
  * fichiers pièce par pièce, dans sa langue, sans compte.
  */
@@ -78,15 +120,26 @@ export default function PublicDocumentUpload({
     request,
     uploadUrl,
     company,
+    limits,
     labels,
 }: Props) {
     useFlashToast();
     const { errors } = usePage().props;
     const [pending, setPending] = useState<string | null>(null);
+    // Personne affichée : la première du foyer par défaut.
+    const [active, setActive] = useState(request.persons[0]?.index ?? 0);
     const progress = uploadProgress(request.persons);
 
     const send = (personIndex: number, documentKey: string, files: File[]) => {
         const slot = `${personIndex}:${documentKey}`;
+        const weight = files.reduce((total, file) => total + file.size, 0);
+
+        // Au-delà, PHP refuse l'envoi entier avant même d'arriver à Laravel.
+        if (weight > limits.total) {
+            notify.error(labels.too_heavy);
+
+            return;
+        }
 
         router.post(
             uploadUrl,
@@ -158,199 +211,235 @@ export default function PublicDocumentUpload({
                         )}
                     </header>
 
-                    {request.persons.map((person) => (
-                        <section
-                            key={person.index}
-                            aria-label={person.name}
-                            className="grid gap-5"
-                        >
-                            <div className="flex items-center gap-2 border-b pb-2">
-                                <h2 className="text-lg font-medium">
-                                    {person.name}
-                                </h2>
-                                <Badge variant="outline">{person.role}</Badge>
-                            </div>
-                            {person.categories.map((category) => {
-                                const Icon = categoryIcon(category.value);
+                    <Tabs
+                        value={String(active)}
+                        onValueChange={(value) => setActive(Number(value))}
+                        className="gap-5"
+                    >
+                        {/* Une personne, pas d'onglets : il n'y a rien à
+                            choisir. À plusieurs, la barre reste collée en
+                            haut pour qu'on sache toujours qui l'on remplit. */}
+                        {request.persons.length > 1 && (
+                            <TabsList
+                                variant="line"
+                                className="bg-background sticky top-0 z-10 w-full justify-start overflow-x-auto py-2"
+                            >
+                                {request.persons.map((person) => {
+                                    const count = personProgress(person);
 
-                                return (
-                                    <section
-                                        key={category.value}
-                                        aria-label={category.label}
-                                        className="grid gap-3"
-                                    >
-                                        <h3 className="text-muted-foreground flex items-center gap-2 text-xs font-medium tracking-wide uppercase">
-                                            <Icon
-                                                aria-hidden
-                                                className="size-4 shrink-0"
-                                            />
-                                            {category.label}
-                                        </h3>
-                                        <ul role="list" className="grid gap-3">
-                                            {category.documents.map(
-                                                (document) => {
-                                                    const slot = `${person.index}:${document.key}`;
-                                                    const received =
-                                                        document.uploads
-                                                            .length > 0;
-                                                    const busy =
-                                                        pending === slot;
+                                    return (
+                                        <TabsTrigger
+                                            key={person.index}
+                                            value={String(person.index)}
+                                        >
+                                            {person.name}
+                                            <span className="text-muted-foreground tabular-nums">
+                                                {count.done}/{count.total}
+                                            </span>
+                                        </TabsTrigger>
+                                    );
+                                })}
+                            </TabsList>
+                        )}
+                        {request.persons.map((person) => (
+                            <TabsContent
+                                key={person.index}
+                                value={String(person.index)}
+                                aria-label={person.name}
+                                className="grid gap-5"
+                            >
+                                {/* Le nom vit dans l'onglet, qui reste collé
+                                    en haut : inutile de le répéter ici. Seul
+                                    un foyer sans onglets a besoin de son
+                                    titre, et le rôle ne dit rien au client. */}
+                                {request.persons.length === 1 && (
+                                    <h2 className="text-lg font-medium">
+                                        {person.name}
+                                    </h2>
+                                )}
+                                {person.categories.map((category) => {
+                                    const Icon = categoryIcon(category.value);
 
-                                                    return (
-                                                        <li
-                                                            key={document.key}
-                                                            className={cn(
-                                                                'grid gap-3 rounded-xl border p-4',
-                                                                received &&
-                                                                    'border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/60 dark:bg-emerald-950/20',
-                                                            )}
-                                                        >
-                                                            <div className="flex items-start justify-between gap-3">
-                                                                <div className="min-w-0">
-                                                                    <p className="text-sm font-medium">
-                                                                        {
-                                                                            document.label
-                                                                        }
-                                                                    </p>
-                                                                    {document.hint && (
-                                                                        <p className="text-muted-foreground text-sm">
+                                    return (
+                                        <section
+                                            key={category.value}
+                                            aria-label={category.label}
+                                            className="grid gap-3"
+                                        >
+                                            <h3 className="text-muted-foreground flex items-center gap-2 text-xs font-medium tracking-wide uppercase">
+                                                <Icon
+                                                    aria-hidden
+                                                    className="size-4 shrink-0"
+                                                />
+                                                {category.label}
+                                            </h3>
+                                            <ul
+                                                role="list"
+                                                className="grid gap-3"
+                                            >
+                                                {category.documents.map(
+                                                    (document) => {
+                                                        const slot = `${person.index}:${document.key}`;
+                                                        const received =
+                                                            document.uploads
+                                                                .length > 0;
+                                                        const busy =
+                                                            pending === slot;
+
+                                                        return (
+                                                            <li
+                                                                key={
+                                                                    document.key
+                                                                }
+                                                                className={cn(
+                                                                    'grid gap-3 rounded-xl border p-4',
+                                                                    received &&
+                                                                        'border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/60 dark:bg-emerald-950/20',
+                                                                )}
+                                                            >
+                                                                <div className="flex items-start justify-between gap-3">
+                                                                    <div className="min-w-0">
+                                                                        <p className="text-sm font-medium">
                                                                             {
-                                                                                document.hint
+                                                                                document.label
                                                                             }
                                                                         </p>
+                                                                        {document.hint && (
+                                                                            <p className="text-muted-foreground text-sm">
+                                                                                {
+                                                                                    document.hint
+                                                                                }
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
+                                                                    {received && (
+                                                                        <span className="flex shrink-0 items-center gap-1 text-sm text-emerald-700 dark:text-emerald-300">
+                                                                            <CheckCircle2
+                                                                                className="size-4"
+                                                                                aria-hidden
+                                                                            />
+                                                                            {
+                                                                                labels.done
+                                                                            }
+                                                                        </span>
                                                                     )}
                                                                 </div>
                                                                 {received && (
-                                                                    <span className="flex shrink-0 items-center gap-1 text-sm text-emerald-700 dark:text-emerald-300">
-                                                                        <CheckCircle2
-                                                                            className="size-4"
-                                                                            aria-hidden
-                                                                        />
-                                                                        {
-                                                                            labels.done
-                                                                        }
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            {received && (
-                                                                <ul
-                                                                    role="list"
-                                                                    aria-label={`${labels.uploaded} · ${document.label}`}
-                                                                    className="flex flex-wrap gap-2"
-                                                                >
-                                                                    {document.uploads.map(
-                                                                        (
-                                                                            upload,
-                                                                        ) => (
-                                                                            <li
-                                                                                key={
-                                                                                    upload.uuid
-                                                                                }
-                                                                                className="flex min-w-0"
-                                                                            >
-                                                                                <Attachment
-                                                                                    size="sm"
-                                                                                    className="bg-background"
+                                                                    <ul
+                                                                        role="list"
+                                                                        aria-label={`${labels.uploaded} · ${document.label}`}
+                                                                        className="flex flex-wrap gap-2"
+                                                                    >
+                                                                        {document.uploads.map(
+                                                                            (
+                                                                                upload,
+                                                                            ) => (
+                                                                                <li
+                                                                                    key={
+                                                                                        upload.uuid
+                                                                                    }
+                                                                                    className="flex min-w-0"
                                                                                 >
-                                                                                    <AttachmentMedia>
-                                                                                        <FileText
-                                                                                            aria-hidden
-                                                                                        />
-                                                                                    </AttachmentMedia>
-                                                                                    <AttachmentContent>
-                                                                                        <AttachmentTitle>
-                                                                                            {
-                                                                                                upload.name
-                                                                                            }
-                                                                                        </AttachmentTitle>
-                                                                                        <AttachmentDescription>
-                                                                                            {formatFileSize(
-                                                                                                upload.size,
-                                                                                            )}
-                                                                                        </AttachmentDescription>
-                                                                                    </AttachmentContent>
-                                                                                </Attachment>
-                                                                            </li>
-                                                                        ),
-                                                                    )}
-                                                                </ul>
-                                                            )}
-                                                            <Dropzone
-                                                                accept={ACCEPT}
-                                                                maxFiles={
-                                                                    MAX_FILES
-                                                                }
-                                                                maxSize={
-                                                                    MAX_SIZE
-                                                                }
-                                                                multiple
-                                                                disabled={busy}
-                                                                aria-label={`${labels.drop} · ${document.label}`}
-                                                                onDrop={(
-                                                                    files,
-                                                                ) =>
-                                                                    send(
-                                                                        person.index,
-                                                                        document.key,
-                                                                        files,
-                                                                    )
-                                                                }
-                                                                onError={(
-                                                                    error,
-                                                                ) =>
-                                                                    notify.error(
-                                                                        labels.formats,
-                                                                        error.message,
-                                                                    )
-                                                                }
-                                                                className="bg-background p-5"
-                                                            >
-                                                                <DropzoneEmptyState>
-                                                                    <div className="flex flex-col items-center justify-center gap-1 text-center">
-                                                                        {busy ? (
-                                                                            <Spinner />
-                                                                        ) : (
-                                                                            <UploadCloud
-                                                                                className="text-muted-foreground size-5"
-                                                                                aria-hidden
-                                                                            />
+                                                                                    <Attachment
+                                                                                        size="sm"
+                                                                                        className="bg-background"
+                                                                                    >
+                                                                                        <AttachmentMedia>
+                                                                                            <FileText
+                                                                                                aria-hidden
+                                                                                            />
+                                                                                        </AttachmentMedia>
+                                                                                        <AttachmentContent>
+                                                                                            <AttachmentTitle>
+                                                                                                {
+                                                                                                    upload.name
+                                                                                                }
+                                                                                            </AttachmentTitle>
+                                                                                            <AttachmentDescription>
+                                                                                                {formatFileSize(
+                                                                                                    upload.size,
+                                                                                                )}
+                                                                                            </AttachmentDescription>
+                                                                                        </AttachmentContent>
+                                                                                    </Attachment>
+                                                                                </li>
+                                                                            ),
                                                                         )}
-                                                                        <p className="text-sm font-medium text-wrap">
-                                                                            {busy
-                                                                                ? labels.sending
-                                                                                : labels.drop}
-                                                                        </p>
-                                                                        <p className="text-muted-foreground text-xs text-wrap">
-                                                                            {
-                                                                                labels.formats
-                                                                            }
-                                                                        </p>
-                                                                    </div>
-                                                                </DropzoneEmptyState>
-                                                            </Dropzone>
-                                                        </li>
-                                                    );
-                                                },
-                                            )}
-                                        </ul>
-                                    </section>
-                                );
-                            })}
-                        </section>
-                    ))}
+                                                                    </ul>
+                                                                )}
+                                                                <Dropzone
+                                                                    accept={
+                                                                        ACCEPT
+                                                                    }
+                                                                    maxFiles={
+                                                                        limits.files
+                                                                    }
+                                                                    maxSize={
+                                                                        limits.file
+                                                                    }
+                                                                    multiple
+                                                                    disabled={
+                                                                        busy
+                                                                    }
+                                                                    aria-label={`${labels.drop} · ${document.label}`}
+                                                                    onDrop={(
+                                                                        files,
+                                                                    ) =>
+                                                                        send(
+                                                                            person.index,
+                                                                            document.key,
+                                                                            files,
+                                                                        )
+                                                                    }
+                                                                    onRejected={(
+                                                                        rejections,
+                                                                    ) =>
+                                                                        notify.error(
+                                                                            rejectionMessage(
+                                                                                rejections,
+                                                                                labels,
+                                                                            ),
+                                                                        )
+                                                                    }
+                                                                    className="bg-background p-5"
+                                                                >
+                                                                    <DropzoneEmptyState>
+                                                                        <div className="flex flex-col items-center justify-center gap-1 text-center">
+                                                                            {busy ? (
+                                                                                <Spinner />
+                                                                            ) : (
+                                                                                <UploadCloud
+                                                                                    className="text-muted-foreground size-5"
+                                                                                    aria-hidden
+                                                                                />
+                                                                            )}
+                                                                            <p className="text-sm font-medium text-wrap">
+                                                                                {busy
+                                                                                    ? labels.sending
+                                                                                    : labels.drop}
+                                                                            </p>
+                                                                            <p className="text-muted-foreground text-xs text-wrap">
+                                                                                {
+                                                                                    labels.formats
+                                                                                }
+                                                                            </p>
+                                                                        </div>
+                                                                    </DropzoneEmptyState>
+                                                                </Dropzone>
+                                                            </li>
+                                                        );
+                                                    },
+                                                )}
+                                            </ul>
+                                        </section>
+                                    );
+                                })}
+                            </TabsContent>
+                        ))}
+                    </Tabs>
 
-                    <footer className="text-muted-foreground grid gap-1 border-t pt-6 text-sm">
-                        <p>{labels.privacy}</p>
-                        <p>
-                            {labels.contact}{' '}
-                            <a
-                                href={`mailto:${company.email}`}
-                                className="text-foreground underline-offset-4 hover:underline"
-                            >
-                                {company.email}
-                            </a>{' '}
-                            · {company.phone}
-                        </p>
+                    <footer className="border-t pt-6">
+                        <TrustNotice labels={labels} />
                     </footer>
                 </div>
             </main>

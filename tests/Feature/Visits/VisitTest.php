@@ -82,7 +82,8 @@ test('scheduling a visit with a new property adds it to the directory and notes 
         ->and($visit->lead_id)->toBe($client->id)
         ->and($visit->status)->toBe(VisitStatus::Planned)
         ->and($visit->scheduled_at->format('Y-m-d H:i'))->toBe('2026-09-15 10:30')
-        ->and($client->notes()->latest()->value('body'))->toBe('Visite planifiée le 15 septembre 2026 à 10:30 : 12 rue Oberkampf.');
+        ->and($client->notes()->latest()->value('body'))// Client « Accompagné » : c'est lui qui visite, la note le dit.
+        ->toBe('Visite planifiée le 15 septembre 2026 à 10:30 : 12 rue Oberkampf (visite autonome du client).');
     Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->resource === 'properties');
     Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->resource === 'visits' && str_contains((string) $event->message, 'Léa Durand'));
 });
@@ -338,61 +339,54 @@ test('asking to notify a client without email schedules the visit without sendin
     Mail::assertNothingQueued();
 });
 
-test('a visit is made for the client, or by the client alone on the Accompagné offer', function (): void {
+test('the visit type follows the offer of the client, and is never chosen', function (): void {
     $staff = User::factory()->create();
     $accompanied = Lead::factory()->converted()->create(['offer' => Offer::Accompagne]);
     $entrusted = Lead::factory()->converted()->create(['offer' => Offer::Confie]);
     $property = Property::factory()->create();
 
-    // Par défaut, l'équipe visite pour le client.
+    // « Confié » : nous faisons les visites.
     $this->actingAs($staff)->post(route('clients.visits.store'), [
         'lead_id' => $entrusted->id,
         'property_id' => $property->id,
         'assigned_to' => $staff->id,
         'scheduled_at' => now()->addDay()->format('Y-m-d\TH:i'),
+        // Un type envoyé par le formulaire est ignoré : la formule tranche.
+        'mode' => VisitMode::ClientAlone->value,
     ])->assertSessionHasNoErrors();
 
-    expect(Visit::query()->firstOrFail()->mode)->toBe(VisitMode::ForClient);
+    expect(Visit::query()->where('lead_id', $entrusted->id)->firstOrFail()->mode)
+        ->toBe(VisitMode::ForClient);
 
-    // La visite autonome est refusée sur la formule « Confié ».
-    $this->actingAs($staff)->post(route('clients.visits.store'), [
-        'lead_id' => $entrusted->id,
-        'property_id' => $property->id,
-        'assigned_to' => $staff->id,
-        'scheduled_at' => now()->addDays(2)->format('Y-m-d\TH:i'),
-        'mode' => VisitMode::ClientAlone->value,
-    ])->assertSessionHasErrors('mode');
-
-    // Elle est acceptée sur « Accompagné », et notée sur le dossier.
+    // « Accompagné » : le client visite lui-même, et le dossier le note.
     $this->actingAs($staff)->post(route('clients.visits.store'), [
         'lead_id' => $accompanied->id,
         'property_id' => $property->id,
         'scheduled_at' => now()->addDays(3)->format('Y-m-d\TH:i'),
-        'mode' => VisitMode::ClientAlone->value,
+        'mode' => VisitMode::ForClient->value,
     ])->assertSessionHasNoErrors();
 
     $visit = Visit::query()->where('lead_id', $accompanied->id)->firstOrFail();
     expect($visit->mode)->toBe(VisitMode::ClientAlone)
         ->and($accompanied->notes()->first()?->body)->toContain('visite autonome du client');
 
-    // La liste et le formulaire portent le mode et ses deux options.
+    // La liste porte le mode, mais plus aucune liste d'options à choisir.
     $this->actingAs($staff)->get(route('clients.visits'))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
-            ->has('visitModes', 2)
-            ->where('visitModes.1.value', 'client_alone')
+            ->missing('visitModes')
             ->where('visits.0.mode_label', 'Visite autonome'));
 });
 
-test('changing the mode of a visit keeps the Accompagné rule', function (): void {
+test('the type of an existing visit does not change when the form sends one', function (): void {
     $staff = User::factory()->create();
-    $visit = Visit::factory()->create(['lead_id' => Lead::factory()->converted()->create(['offer' => Offer::Confie])]);
+    $visit = Visit::factory()->create([
+        'lead_id' => Lead::factory()->converted()->create(['offer' => Offer::Confie]),
+        'mode' => VisitMode::ForClient,
+    ]);
 
-    $this->actingAs($staff)->patch(route('clients.visits.update', $visit), ['mode' => VisitMode::ClientAlone->value])
-        ->assertSessionHasErrors('mode');
-
-    $accompanied = Visit::factory()->create(['lead_id' => Lead::factory()->converted()->create(['offer' => Offer::Accompagne])]);
-    $this->actingAs($staff)->patch(route('clients.visits.update', $accompanied), ['mode' => VisitMode::ClientAlone->value])
+    $this->actingAs($staff)
+        ->patch(route('clients.visits.update', $visit), ['mode' => VisitMode::ClientAlone->value])
         ->assertSessionHasNoErrors();
 
-    expect($accompanied->refresh()->mode)->toBe(VisitMode::ClientAlone);
+    expect($visit->refresh()->mode)->toBe(VisitMode::ForClient);
 });

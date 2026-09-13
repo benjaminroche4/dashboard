@@ -36,8 +36,8 @@ export function HouseholdPersonPanel({
 
     return (
         <Collapsible open={open} onOpenChange={setOpen} asChild>
-            <section aria-label={name} className="bg-sidebar rounded-xl border">
-                <header className="flex items-center justify-between gap-3 px-4 py-3">
+            <section aria-label={name} className="bg-card rounded-xl border">
+                <header className="flex items-center justify-between gap-3 border-b px-4 py-3">
                     <CollapsibleTrigger asChild>
                         <button
                             type="button"
@@ -78,11 +78,11 @@ export function HouseholdPersonPanel({
                                             className="size-4 shrink-0"
                                         />
                                         {category.label}
-                                        <span className="bg-background text-foreground inline-flex min-w-5 items-center justify-center rounded-full border px-1.5 text-[11px] font-medium tabular-nums">
+                                        <span className="text-foreground inline-flex min-w-5 items-center justify-center rounded-full border px-1.5 text-[11px] font-medium tabular-nums">
                                             {category.documents.length}
                                         </span>
                                     </h3>
-                                    <ul className="bg-background divide-y rounded-lg border px-3">
+                                    <ul className="divide-border divide-y">
                                         {category.documents.map((document) => (
                                             <li
                                                 key={document.label}

@@ -1,7 +1,7 @@
 import type {
     Visit,
     VisitClientOption,
-    VisitModeOption,
+    VisitDetail,
     VisitStatusOption,
 } from '@/types';
 
@@ -28,6 +28,7 @@ export function makeVisit(overrides: Partial<Visit> = {}): Visit {
         report_submitted_at: null,
         report_author: null,
         report_due: false,
+        can_report: false,
         client: {
             id: 1,
             uuid: '0199a9a0-0000-7000-8000-000000000001',
@@ -79,15 +80,29 @@ export function makeVisitClient(
 }
 
 /** Les deux façons de visiter (`VisitMode::options()`). */
-export const visitModes: VisitModeOption[] = [
-    {
-        value: 'for_client',
-        label: 'Visite réalisée par l’équipe',
-        hint: 'Un membre de l’équipe se rend sur place, avec ou sans le client.',
-    },
-    {
-        value: 'client_alone',
-        label: 'Visite autonome du client',
-        hint: 'Le client visite seul ; réservé à la formule Accompagné.',
-    },
-];
+
+/** Visite détaillée, pour la page « Fiche d'une visite ». */
+export function makeVisitDetail(
+    overrides: Partial<VisitDetail> = {},
+): VisitDetail {
+    const visit = makeVisit();
+
+    return {
+        ...visit,
+        created_at: '2026-09-10T09:00:00+02:00',
+        ...overrides,
+        property: {
+            ...visit.property,
+            property_type_label: 'T2',
+            furnished_label: 'Meublé',
+            rooms: 2,
+            surface_m2: 42,
+            floor_label: '3e étage',
+            charges_cents: 10_000,
+            listing_url: null,
+            photos: [],
+            owner: null,
+            ...overrides.property,
+        },
+    };
+}

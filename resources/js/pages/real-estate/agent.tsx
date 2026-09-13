@@ -9,6 +9,7 @@ import { formatAddress } from '@/components/real-estate/columns';
 import { DirectoryRelationCard } from '@/components/real-estate/directory-relation-card';
 import {
     DetailHeader,
+    DetailSection,
     missingValue,
 } from '@/components/real-estate/detail-header';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +27,7 @@ import {
     touch as agentTouch,
 } from '@/routes/agents';
 import type { Activity, AgencyOption, Agent, AgentAgencyCard } from '@/types';
+import { parisFormat } from '@/lib/datetime';
 
 type Props = {
     agent: Agent;
@@ -36,7 +38,7 @@ type Props = {
     activities?: Activity[];
 };
 
-const visitDate = new Intl.DateTimeFormat('fr-FR', {
+const visitDate = parisFormat({
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -195,36 +197,12 @@ export default function AgentShow({
                         <DirectoryRelationCard
                             lastContactedAt={agent.last_contacted_at}
                             touchUrl={agentTouch({ agent: agent.uuid }).url}
+                            notes={agent.notes}
                         />
-                        <section
-                            aria-label="Notes"
-                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                        >
-                            <h2 className="text-base font-medium">Notes</h2>
-                            {/* Contenu sur fond blanc, comme les autres sections. */}
-                            <div className="bg-background rounded-lg border p-4">
-                                {agent.notes ? (
-                                    <p className="text-sm/6 whitespace-pre-line">
-                                        {agent.notes}
-                                    </p>
-                                ) : (
-                                    <p className="text-muted-foreground text-sm">
-                                        Aucune note.
-                                    </p>
-                                )}
-                            </div>
-                        </section>
                     </div>
                     <aside className="grid h-fit content-start gap-6 lg:sticky lg:top-6">
                         {agency && (
-                            <section
-                                aria-label="Agence"
-                                className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                            >
-                                <h2 className="flex items-center gap-2 text-base font-medium">
-                                    <Building2 className="size-4" aria-hidden />
-                                    Agence
-                                </h2>
+                            <DetailSection title="Agence">
                                 <div className="grid gap-1 text-sm">
                                     <Link
                                         href={agencyShow({
@@ -303,21 +281,12 @@ export default function AgentShow({
                                         <ArrowRight aria-hidden />
                                     </Link>
                                 </Button>
-                            </section>
+                            </DetailSection>
                         )}
-                        <section
-                            aria-label="Leads et clients"
-                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
+                        <DetailSection
+                            title="Leads et clients"
+                            count={agent.leads.length}
                         >
-                            <h2 className="flex items-center gap-2 text-base font-medium">
-                                Leads et clients
-                                <Badge
-                                    variant="secondary"
-                                    className="font-medium tabular-nums"
-                                >
-                                    {agent.leads.length}
-                                </Badge>
-                            </h2>
                             {agent.leads.length === 0 ? (
                                 <p className="text-muted-foreground text-sm">
                                     Aucun lead ni dossier client ne lui est
@@ -336,7 +305,7 @@ export default function AgentShow({
                                     ))}
                                 </ul>
                             )}
-                        </section>
+                        </DetailSection>
                         {activities.length > 0 && (
                             <ActivityFeed
                                 groups={[

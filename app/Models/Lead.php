@@ -225,6 +225,16 @@ class Lead extends Model
     }
 
     /**
+     * Personnes de suivi : elles reçoivent une copie des e-mails du dossier.
+     *
+     * @return HasMany<LeadWatcher, $this>
+     */
+    public function watchers(): HasMany
+    {
+        return $this->hasMany(LeadWatcher::class)->oldest('id');
+    }
+
+    /**
      * @return BelongsTo<User, $this>
      */
     public function assignee(): BelongsTo
@@ -293,11 +303,12 @@ class Lead extends Model
     /**
      * Biens de l'annuaire rattachés au dossier (sélection proposée au client).
      *
-     * @return BelongsToMany<Property, $this>
+     * @return BelongsToMany<Property, $this, LeadPropertyLink>
      */
     public function properties(): BelongsToMany
     {
-        return $this->belongsToMany(Property::class)->withPivot(['created_by'])->withTimestamps();
+        // `LeadPropertyLink` porte le cast de `refused_at` : le pivot brut rendrait une chaîne.
+        return $this->belongsToMany(Property::class)->using(LeadPropertyLink::class)->withPivot(['created_by', 'status', 'status_at'])->withTimestamps();
     }
 
     /**

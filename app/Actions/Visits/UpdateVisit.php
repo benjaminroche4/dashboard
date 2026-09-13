@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Actions\Visits;
 
 use App\Data\VisitUpdateData;
-use App\Enums\VisitMode;
 use App\Enums\VisitStatus;
 use App\Events\DashboardUpdated;
 use App\Models\Visit;
@@ -21,10 +20,6 @@ final class UpdateVisit
     {
         if ($data->status instanceof VisitStatus) {
             $visit->status = $data->status;
-        }
-
-        if ($data->mode instanceof VisitMode) {
-            $visit->mode = $data->mode;
         }
 
         if ($data->scheduledAt instanceof CarbonImmutable) {

@@ -21,7 +21,7 @@ test('the command reminds visit assignees and runs every fifteen minutes', funct
         ->assertSuccessful();
     Mail::assertQueued(VisitReportDue::class);
 
-    $this->artisan('visits:remind-reports')->expectsOutput('Aucun compte rendu à rappeler.');
+    $this->artisan('visits:remind-reports')->expectsOutput('Rien à rappeler.');
 
     $events = collect(resolve(Schedule::class)->events())
         ->filter(fn ($event): bool => str_contains((string) $event->command, 'visits:remind-reports'));

@@ -9,13 +9,17 @@ import {
     InputOTPSlot,
 } from '@/components/ui/input-otp';
 import { Spinner } from '@/components/ui/spinner';
+import {
+    TrustNotice,
+    type TrustLabels,
+} from '@/components/public/trust-notice';
 import type { DocumentLanguage } from '@/types';
 
 type Props = {
     request: { name: string; language: DocumentLanguage };
     verifyUrl: string;
     company: { name: string; email: string; phone: string };
-    labels: Record<'title' | 'intro' | 'code' | 'submit' | 'contact', string>;
+    labels: Record<'title' | 'intro' | 'code' | 'submit', string> & TrustLabels;
 };
 
 /**
@@ -115,16 +119,7 @@ export default function PublicDocumentCode({
                         {processing && <Spinner />}
                         {labels.submit}
                     </Button>
-                    <p className="text-muted-foreground text-sm">
-                        {labels.contact}{' '}
-                        <a
-                            href={`mailto:${company.email}`}
-                            className="text-foreground underline-offset-4 hover:underline"
-                        >
-                            {company.email}
-                        </a>{' '}
-                        · {company.phone}
-                    </p>
+                    <TrustNotice labels={labels} />
                 </form>
             </main>
         </>

@@ -3,6 +3,7 @@ import { Plus, Send } from 'lucide-react';
 import { useState } from 'react';
 import { PartnerContactDialog } from '@/components/partners/partner-contact-dialog';
 import { PartnerForwardDialog } from '@/components/partners/partner-forward-dialog';
+import { DetailSection } from '@/components/real-estate/detail-header';
 import { RealEstateRowActions } from '@/components/real-estate/real-estate-row-actions';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -29,20 +30,10 @@ export function PartnerContacts({
     const initials = useInitials();
 
     return (
-        <section
-            aria-label="Interlocuteurs"
-            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-        >
-            <header className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="flex items-center gap-2 text-base font-medium">
-                    Interlocuteurs
-                    <Badge
-                        variant="secondary"
-                        className="font-medium tabular-nums"
-                    >
-                        {contacts.length}
-                    </Badge>
-                </h2>
+        <DetailSection
+            title="Interlocuteurs"
+            count={contacts.length}
+            action={
                 <Button
                     variant="outline"
                     size="sm"
@@ -54,17 +45,18 @@ export function PartnerContacts({
                     <Plus aria-hidden />
                     Ajouter un interlocuteur
                 </Button>
-            </header>
+            }
+        >
             {contacts.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
                     Aucun interlocuteur enregistré.
                 </p>
             ) : (
-                <ul role="list" className="grid gap-2">
+                <ul role="list" className="divide-border grid divide-y">
                     {contacts.map((contact) => (
                         <li
                             key={contact.id}
-                            className="bg-background flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border p-3 text-sm"
+                            className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3 text-sm first:pt-0 last:pb-0"
                         >
                             <div className="flex min-w-0 flex-1 items-center gap-3">
                                 <Avatar className="size-9 shrink-0">
@@ -139,7 +131,7 @@ export function PartnerContacts({
                 partnerUuid={partnerUuid}
                 contact={editing}
             />
-        </section>
+        </DetailSection>
     );
 }
 
@@ -160,16 +152,7 @@ export function PartnerLeads({
     const [forwarding, setForwarding] = useState<PartnerLead | null>(null);
 
     return (
-        <section
-            aria-label="Dossiers"
-            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-        >
-            <h2 className="flex items-center gap-2 text-base font-medium">
-                Dossiers
-                <Badge variant="secondary" className="font-medium tabular-nums">
-                    {leads.length}
-                </Badge>
-            </h2>
+        <DetailSection title="Dossiers" count={leads.length}>
             {roles.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                     {roles.map((role) => (
@@ -184,22 +167,17 @@ export function PartnerLeads({
                 </div>
             )}
             {leads.length === 0 ? (
-                <div className="bg-background rounded-lg border p-4">
-                    <p className="text-muted-foreground text-sm">
-                        Ce partenaire n’intervient sur rien pour l’instant.
-                        Rattachez-le depuis un lead, un dossier client, un
-                        propriétaire ou un bien.
-                    </p>
-                </div>
+                <p className="text-muted-foreground text-sm">
+                    Ce partenaire n’intervient sur rien pour l’instant.
+                    Rattachez-le depuis un lead, un dossier client, un
+                    propriétaire ou un bien.
+                </p>
             ) : (
-                <ul
-                    role="list"
-                    className="bg-background divide-border grid divide-y rounded-lg border px-4"
-                >
+                <ul role="list" className="divide-border grid divide-y">
                     {leads.map((lead) => (
                         <li
                             key={lead.id}
-                            className="flex items-baseline justify-between gap-2 py-3 text-sm first:pt-4 last:pb-4"
+                            className="flex items-baseline justify-between gap-2 py-3 text-sm first:pt-0 last:pb-0"
                         >
                             <span className="grid min-w-0">
                                 <Link
@@ -237,6 +215,6 @@ export function PartnerLeads({
                     onOpenChange={(open) => !open && setForwarding(null)}
                 />
             )}
-        </section>
+        </DetailSection>
     );
 }

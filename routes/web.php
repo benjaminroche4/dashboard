@@ -80,12 +80,17 @@ Route::middleware(['auth'])->group(function (): void {
     Route::delete('tools/documents/catalog/{catalogDocument}', [CatalogDocumentController::class, 'destroy'])->name('tools.documents.catalog.destroy');
     Route::get('tools/documents/{documentRequest}', [DocumentRequestController::class, 'show'])->name('tools.documents.show');
     Route::get('tools/documents/{documentRequest}/pdf', [DocumentRequestController::class, 'pdf'])->name('tools.documents.pdf');
+    // Page de garde du dossier fusionné, que le navigateur met devant les pièces.
+    Route::get('tools/documents/{documentRequest}/cover', [DocumentRequestController::class, 'cover'])->name('tools.documents.cover');
+    // Toutes les pièces déposées, non fusionnées, dans une archive zip.
+    Route::get('tools/documents/{documentRequest}/archive', [DocumentRequestController::class, 'archive'])->name('tools.documents.archive');
     Route::post('tools/documents/{documentRequest}/send-link', [DocumentRequestController::class, 'sendLink'])->name('tools.documents.send-link');
     Route::patch('tools/documents/{documentRequest}/lead', [DocumentRequestController::class, 'link'])->name('tools.documents.link');
     Route::get('tools/documents/{documentRequest}/edit', [DocumentRequestController::class, 'edit'])->name('tools.documents.edit');
     Route::put('tools/documents/{documentRequest}', [DocumentRequestController::class, 'update'])->name('tools.documents.update');
     Route::delete('tools/documents/{documentRequest}', [DocumentRequestController::class, 'destroy'])->name('tools.documents.destroy');
     Route::get('tools/documents/{documentRequest}/uploads/{upload}', [DocumentUploadController::class, 'download'])->scopeBindings()->name('tools.documents.uploads.download');
+    Route::patch('tools/documents/{documentRequest}/uploads/{upload}', [DocumentUploadController::class, 'review'])->scopeBindings()->name('tools.documents.uploads.review');
     Route::delete('tools/documents/{documentRequest}/uploads/{upload}', [DocumentUploadController::class, 'destroy'])->scopeBindings()->name('tools.documents.uploads.destroy');
     // Devis : même cycle que les factures, transformables en facture d'un clic.
     // Rapports : chiffres clés de l'activité sur les derniers mois.
@@ -110,7 +115,6 @@ Route::middleware(['auth'])->group(function (): void {
     Route::put('tools/quotes/{quote}', [QuoteController::class, 'update'])->name('tools.quotes.update');
     Route::get('real-estate/agencies', [AgencyController::class, 'index'])->name('agencies.index');
     Route::get('real-estate/agencies/duplicates', [AgencyController::class, 'duplicates'])->middleware('throttle:60,1')->name('agencies.duplicates');
-    Route::post('real-estate/agencies/import', [AgencyController::class, 'import'])->name('agencies.import');
     Route::get('real-estate/agencies/search', [AgencyController::class, 'search'])->middleware('throttle:60,1')->name('agencies.search');
     Route::post('real-estate/agencies', [AgencyController::class, 'store'])->name('agencies.store');
     Route::delete('real-estate/agencies/bulk', [AgencyController::class, 'bulkDestroy'])->name('agencies.bulk-destroy');
@@ -192,12 +196,16 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('clients/{lead}', [ClientController::class, 'show'])->name('clients.show');
     Route::post('clients/{lead}/properties/explain', [ClientPropertyController::class, 'explain'])->middleware('throttle:20,1')->name('clients.properties.explain');
     Route::post('clients/{lead}/properties', [ClientPropertyController::class, 'store'])->name('clients.properties.store');
+    Route::patch('clients/{lead}/properties/{property}/status', [ClientPropertyController::class, 'status'])->name('clients.properties.status');
     Route::delete('clients/{lead}/properties/{property}', [ClientPropertyController::class, 'destroy'])->name('clients.properties.destroy');
     Route::patch('clients/{lead}/priority', [ClientController::class, 'priority'])->name('clients.priority');
     Route::patch('clients/{lead}/people', [ClientController::class, 'people'])->name('clients.people');
     Route::post('clients/{lead}/guarantors', [ClientController::class, 'saveGuarantor'])->name('clients.guarantors.store');
     Route::patch('clients/{lead}/guarantors/{guarantor}', [ClientController::class, 'saveGuarantor'])->name('clients.guarantors.update');
     Route::delete('clients/{lead}/guarantors/{guarantor}', [ClientController::class, 'destroyGuarantor'])->name('clients.guarantors.destroy');
+    Route::post('clients/{lead}/watchers', [ClientController::class, 'saveWatcher'])->name('clients.watchers.store');
+    Route::patch('clients/{lead}/watchers/{watcher}', [ClientController::class, 'saveWatcher'])->name('clients.watchers.update');
+    Route::delete('clients/{lead}/watchers/{watcher}', [ClientController::class, 'destroyWatcher'])->name('clients.watchers.destroy');
     Route::patch('clients/{lead}/tenants/{slot}', [ClientController::class, 'tenantProfile'])->name('clients.tenant-profile');
     Route::get('locataires', [LeadController::class, 'index'])->name('leads.index');
     Route::get('locataires/search', [LeadController::class, 'search'])->middleware('throttle:60,1')->name('leads.search');

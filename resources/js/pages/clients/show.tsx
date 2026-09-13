@@ -1,3 +1,4 @@
+import { parisFormat } from '@/lib/datetime';
 import { Head, Link } from '@inertiajs/react';
 import {
     Building2,
@@ -23,6 +24,7 @@ import { ClientPriorityMenu } from '@/components/clients/client-priority';
 import { ArrivalProgress } from '@/components/clients/arrival-progress';
 import { ClientPeople } from '@/components/clients/client-people';
 import { ClientProperties } from '@/components/clients/client-properties';
+import { DossierReadinessCard } from '@/components/clients/dossier-readiness';
 import { CreatedBy } from '@/components/created-by';
 import {
     DropdownMenu,
@@ -36,6 +38,7 @@ import { LeadDocumentRequests } from '@/components/leads/lead-document-requests'
 import { LeadInvoices } from '@/components/leads/lead-invoices';
 import { LeadQuotes } from '@/components/leads/lead-quotes';
 import { PartnerTypeBadge } from '@/components/partners/columns';
+import { DetailSection } from '@/components/real-estate/detail-header';
 import { VisitDaySection } from '@/components/visits/visit-day-section';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -47,7 +50,6 @@ import { groupVisitsByDay } from '@/lib/visits';
 import { index as clientsIndex } from '@/routes/clients';
 import { create as invoiceCreate } from '@/routes/invoices';
 import { create as visitCreate } from '@/routes/clients/visits';
-import { cn } from '@/lib/utils';
 import { show as leadShow } from '@/routes/leads';
 import { index as activityIndex } from '@/routes/tools/activity';
 import { create as quoteCreate } from '@/routes/tools/quotes';
@@ -55,8 +57,10 @@ import type {
     Activity,
     ClientDetail,
     ClientGuarantor,
+    ClientWatcher,
     ClientNote,
     ClientPriorityOption,
+    DossierReadiness,
     ClientProperty,
     ClientPropertyOption,
     ClientPropertySuggestion,
@@ -73,6 +77,8 @@ import type {
 type Props = {
     client: ClientDetail;
     priorities: ClientPriorityOption[];
+    /** Où en est le dossier de location : la mesure qui dit s'il est présentable. */
+    readiness?: DossierReadiness;
     totals: ClientTotals[];
     invoices: LeadInvoice[];
     quotes: LeadQuote[];
@@ -89,13 +95,15 @@ type Props = {
     activities?: Activity[];
     /** Garants du dossier, repris des listes de documents. */
     guarantors?: ClientGuarantor[];
+    /** Personnes en copie des e-mails du dossier. */
+    watchers?: ClientWatcher[];
     /** Détails des locataires du dossier, par emplacement. */
     tenantProfiles?: Partial<Record<TenantSlot, TenantProfile>>;
     residencyStatuses?: { value: string; label: string }[];
     employmentStatuses?: { value: string; label: string }[];
 };
 
-const dateTime = new Intl.DateTimeFormat('fr-FR', {
+const dateTime = parisFormat({
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -166,14 +174,11 @@ function Tab({
     return (
         <TabsTrigger value={value} className="flex-none px-3">
             {label}
-            {/* Compteur toujours visible, atténué à zéro. */}
-            {count !== undefined && (
+            {/* À partir de 1 : un zéro n'apprend rien et charge l'onglet. */}
+            {count !== undefined && count > 0 && (
                 <Badge
                     variant="secondary"
-                    className={cn(
-                        'font-medium tabular-nums',
-                        count === 0 && 'text-muted-foreground',
-                    )}
+                    className="font-medium tabular-nums"
                     aria-label={`${count} ${count > 1 ? 'éléments' : 'élément'}`}
                 >
                     {count}
@@ -183,21 +188,19 @@ function Tab({
     );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
-    return (
-        <section
-            aria-label={title}
-            className="grid gap-3 py-6 first:pt-0 last:pb-0"
-        >
-            <h2 className="text-sm font-medium">{title}</h2>
-            {children}
-        </section>
-    );
-}
-
 export default function ClientShow({
     client,
     priorities,
+    readiness = {
+        status: 'not_started',
+        status_label: 'Pas commencé',
+        total: 0,
+        accepted: 0,
+        to_check: 0,
+        refused: 0,
+        missing: 0,
+        percent: 0,
+    },
     totals,
     invoices,
     quotes,
@@ -210,6 +213,7 @@ export default function ClientShow({
     suggestedProperties = [],
     notes,
     guarantors = [],
+    watchers = [],
     tenantProfiles = {},
     residencyStatuses = [],
     employmentStatuses = [],
@@ -428,9 +432,23 @@ export default function ClientShow({
                             }
                         />
                     </TabsList>
-                    <TabsContent value="apercu" className="divide-y">
-                        <Section title="Coordonnées">
-                            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {/* Les deux blocs côte à côte sur grand écran : ils tiennent
+                        chacun dans une demi-largeur, sans faire défiler. */}
+                    <TabsContent
+                        value="apercu"
+                        className="grid items-start gap-4 lg:grid-cols-2"
+                    >
+                        <DetailSection
+                            title="Dossier de location"
+                            className="lg:col-span-2"
+                        >
+                            <DossierReadinessCard
+                                readiness={readiness}
+                                leadUuid={client.uuid}
+                            />
+                        </DetailSection>
+                        <DetailSection title="Coordonnées">
+                            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <Fact
                                     icon={Mail}
                                     label="E-mail"
@@ -457,9 +475,9 @@ export default function ClientShow({
                                     value={client.origin_city}
                                 />
                             </dl>
-                        </Section>
-                        <Section title="Projet de logement">
-                            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        </DetailSection>
+                        <DetailSection title="Projet de logement">
+                            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <Fact
                                     icon={Wallet}
                                     label="Budget mensuel"
@@ -513,21 +531,22 @@ export default function ClientShow({
                                     {client.message}
                                 </p>
                             )}
-                        </Section>
+                        </DetailSection>
                     </TabsContent>
                     <TabsContent value="personnes">
                         <ClientPeople
                             client={client}
                             guarantors={guarantors}
+                            watchers={watchers}
                             tenantProfiles={tenantProfiles}
                             residencyStatuses={residencyStatuses}
                             employmentStatuses={employmentStatuses}
                         />
                     </TabsContent>
                     <TabsContent value="visites">
-                        <Section title="Visites">
+                        <DetailSection title="Visites">
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                                <p className="text-muted-foreground -mt-2 text-sm">
+                                <p className="text-muted-foreground text-sm">
                                     Les visites de biens planifiées pour ce
                                     client.
                                 </p>
@@ -556,28 +575,28 @@ export default function ClientShow({
                                     ))}
                                 </div>
                             )}
-                        </Section>
+                        </DetailSection>
                     </TabsContent>
                     <TabsContent value="documents">
-                        <Section title="Documents">
+                        <DetailSection title="Documents">
                             <LeadDocumentRequests
                                 leadUuid={client.uuid}
                                 requests={documentRequests}
                             />
-                        </Section>
+                        </DetailSection>
                     </TabsContent>
                     <TabsContent value="biens">
-                        <Section title="Biens du dossier">
+                        <DetailSection title="Biens du dossier">
                             <ClientProperties
                                 clientUuid={client.uuid}
                                 properties={properties}
                                 options={propertyOptions}
                                 suggestions={suggestedProperties}
                             />
-                        </Section>
+                        </DetailSection>
                     </TabsContent>
-                    <TabsContent value="notes" className="divide-y">
-                        <Section title="Notes">
+                    <TabsContent value="notes" className="grid gap-4">
+                        <DetailSection title="Notes">
                             <p className="text-muted-foreground -mt-2 text-sm">
                                 Les dernières notes de l'équipe sur ce dossier.
                             </p>
@@ -622,8 +641,8 @@ export default function ClientShow({
                                     </Link>
                                 </p>
                             )}
-                        </Section>
-                        <Section title="Journal">
+                        </DetailSection>
+                        <DetailSection title="Journal">
                             <p className="text-muted-foreground -mt-2 text-sm">
                                 Les dernières actions de l'équipe sur ce
                                 dossier.
@@ -675,25 +694,25 @@ export default function ClientShow({
                                     Tout le journal
                                 </Link>
                             </p>
-                        </Section>
+                        </DetailSection>
                     </TabsContent>
-                    <TabsContent value="autre" className="divide-y">
-                        <Section title="Devis">
+                    <TabsContent value="autre" className="grid gap-4">
+                        <DetailSection title="Devis">
                             <LeadQuotes
                                 leadUuid={client.uuid}
                                 quotes={quotes}
                                 canEdit
                             />
-                        </Section>
-                        <Section title="Factures">
+                        </DetailSection>
+                        <DetailSection title="Factures">
                             <LeadInvoices
                                 leadId={client.id}
                                 leadUuid={client.uuid}
                                 invoices={invoices}
                                 canEdit
                             />
-                        </Section>
-                        <Section title="Partenaires du dossier">
+                        </DetailSection>
+                        <DetailSection title="Partenaires du dossier">
                             <p className="text-muted-foreground -mt-2 text-sm">
                                 Garantie, assurance, déménagement… gérés depuis
                                 la fiche lead.
@@ -728,7 +747,7 @@ export default function ClientShow({
                                     ))}
                                 </ul>
                             )}
-                        </Section>
+                        </DetailSection>
                     </TabsContent>
                 </Tabs>
             </div>

@@ -18,6 +18,7 @@ final readonly class VisitReportData
     public function __construct(
         public string $report,
         public array $photos = [],
+        public bool $notifyClient = false,
     ) {}
 
     /**
@@ -31,6 +32,7 @@ final readonly class VisitReportData
                 is_array($data['photos'] ?? null) ? $data['photos'] : [],
                 fn (mixed $file): bool => $file instanceof UploadedFile,
             )),
+            notifyClient: (bool) ($data['notify_client'] ?? false),
         );
     }
 

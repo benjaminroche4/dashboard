@@ -1,13 +1,6 @@
 /// <reference types="google.maps" />
 import { Link, usePage } from '@inertiajs/react';
-import {
-    CalendarDays,
-    ChevronLeft,
-    ChevronRight,
-    MapPin,
-    MapPinOff,
-    Route,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, MapPinOff } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { VisitStatusBadge } from '@/components/visits/visit-status-badge';
@@ -19,6 +12,7 @@ import {
     dayKey,
     timeFormat,
     visitAddress,
+    visitTours,
     type VisitDay,
 } from '@/lib/visits';
 import { show as clientShow } from '@/routes/clients';
@@ -85,25 +79,17 @@ function located(visits: Visit[]): Stop[] {
 function GoogleVisitsMap({
     apiKey,
     visits,
-    showRoute,
     onError,
-    onRouteError,
 }: {
     apiKey: string;
     visits: Visit[];
-    /** Tracer la tournée d'une étape à l'autre, sur la carte. */
-    showRoute: boolean;
     onError: () => void;
-    onRouteError: (failed: boolean) => void;
 }) {
     const container = useRef<HTMLDivElement>(null);
     const map = useRef<google.maps.Map | null>(null);
     const markers = useRef<google.maps.Marker[]>([]);
-    const directions = useRef<google.maps.DirectionsRenderer | null>(null);
     const errorRef = useRef(onError);
     errorRef.current = onError;
-    const routeErrorRef = useRef(onRouteError);
-    routeErrorRef.current = onRouteError;
 
     useEffect(() => {
         let cancelled = false;
@@ -149,60 +135,6 @@ function GoogleVisitsMap({
                 } else if (markers.current.length > 1) {
                     map.current.fitBounds(bounds, 48);
                 }
-
-                // Tournée tracée sur la carte, pastilles numérotées conservées.
-                // Un itinéraire indisponible ne doit jamais emporter la carte.
-                const stops = located(visits);
-
-                if (!showRoute || stops.length < 2) {
-                    directions.current?.setMap(null);
-                    routeErrorRef.current(false);
-
-                    return;
-                }
-
-                const point = (stop: Stop) => ({
-                    lat: stop.position.lat,
-                    lng: stop.position.lng,
-                });
-
-                try {
-                    directions.current ??= new maps.DirectionsRenderer({
-                        suppressMarkers: true,
-                        preserveViewport: true,
-                        polylineOptions: {
-                            strokeColor: BLUE,
-                            strokeOpacity: 0.85,
-                            strokeWeight: 5,
-                        },
-                    });
-
-                    return new maps.DirectionsService()
-                        .route({
-                            origin: point(stops[0]!),
-                            destination: point(stops[stops.length - 1]!),
-                            waypoints: stops
-                                .slice(1, -1)
-                                .map((stop) => ({ location: point(stop) })),
-                            travelMode: maps.TravelMode.DRIVING,
-                        })
-                        .then((result) => {
-                            if (cancelled || !directions.current) {
-                                return;
-                            }
-                            directions.current.setDirections(result);
-                            directions.current.setMap(map.current);
-                            routeErrorRef.current(false);
-                        })
-                        .catch((error: unknown) => {
-                            console.error('Itinéraire indisponible :', error);
-                            directions.current?.setMap(null);
-                            routeErrorRef.current(true);
-                        });
-                } catch (error) {
-                    console.error('Itinéraire indisponible :', error);
-                    routeErrorRef.current(true);
-                }
             })
             .catch((error: unknown) => {
                 console.error('Carte des visites indisponible :', error);
@@ -212,7 +144,7 @@ function GoogleVisitsMap({
         return () => {
             cancelled = true;
         };
-    }, [apiKey, visits, showRoute]);
+    }, [apiKey, visits]);
 
     return (
         <div
@@ -240,39 +172,37 @@ export function VisitsDayMap({
     const { features } = usePage().props;
     const ordered = chronologicalDays(days);
     const [key, setKey] = useState(initialDay.key);
+    const [tourKey, setTourKey] = useState('all');
     const [mapFailed, setMapFailed] = useState(false);
-    // Itinéraire tracé sur la carte, jamais dans un onglet Google Maps.
-    const [showRoute, setShowRoute] = useState(false);
-    const [routeFailed, setRouteFailed] = useState(false);
     const index = ordered.findIndex((day) => day.key === key);
     const day = ordered[index] ?? initialDay;
     const previous = ordered[index - 1];
     const next = ordered[index + 1];
     const todayKey = dayKey(now);
     const today = ordered.find((candidate) => candidate.key === todayKey);
-    const stops = located(day.visits);
-    const unlocated = day.visits.length - stops.length;
+    // Une journée chargée mêle les itinéraires de plusieurs membres : un
+    // onglet par tournée, et la carte suit celle qu'on regarde.
+    const tours = visitTours(day.visits);
+    const tour = tours.find((candidate) => candidate.key === tourKey);
+    const shown = tour?.visits ?? day.visits;
+    const stops = located(shown);
+    const unlocated = shown.length - stops.length;
     const approximate = stops.filter(
         (stop) => stop.position.approximate,
     ).length;
-    const routable = stops.length >= 2;
     const title = day.relative ? `${day.relative} · ${day.label}` : day.label;
 
     return (
         <section
             aria-label="Visites du jour"
-            className="bg-sidebar grid gap-4 rounded-xl border p-4"
+            className="bg-card grid gap-4 rounded-xl border p-4"
         >
-            <header className="flex flex-wrap items-center justify-between gap-2">
+            <header className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
                 <div className="flex items-center gap-2">
-                    <CalendarDays
-                        className="text-muted-foreground size-4"
-                        aria-hidden
-                    />
-                    <h2 className="text-base font-medium first-letter:uppercase">
+                    <h2 className="text-muted-foreground text-xs tracking-wide uppercase">
                         {title}
                     </h2>
-                    <span className="text-muted-foreground text-sm tabular-nums">
+                    <span className="text-muted-foreground text-xs tabular-nums">
                         {day.visits.length} visite
                         {day.visits.length > 1 ? 's' : ''}
                     </span>
@@ -315,10 +245,8 @@ export function VisitsDayMap({
                 {features.googleMapsKey && !mapFailed ? (
                     <GoogleVisitsMap
                         apiKey={features.googleMapsKey}
-                        visits={day.visits}
-                        showRoute={showRoute}
+                        visits={shown}
                         onError={() => setMapFailed(true)}
-                        onRouteError={setRouteFailed}
                     />
                 ) : (
                     <div
@@ -335,115 +263,142 @@ export function VisitsDayMap({
                         </div>
                     </div>
                 )}
-                <ol
-                    aria-label="Tournée du jour"
-                    className="grid content-start gap-2"
-                >
-                    {day.visits.map((visit, position) => {
-                        const spot = propertyPosition(visit.property);
-
-                        return (
-                            <li
-                                key={visit.id}
-                                className="bg-background flex items-start gap-3 rounded-lg border p-3 text-sm"
+                {/* Une journée chargée ne fait pas grandir la carte : la
+                    tournée défile dans sa propre hauteur, à la taille de la
+                    carte Google à côté. */}
+                <div className="grid max-h-72 content-start overflow-y-auto overscroll-contain pr-1 sm:max-h-80">
+                    {tours.length > 1 && (
+                        /* Les onglets restent visibles pendant le défilement :
+                           on sait toujours quelle tournée on suit. */
+                        <div className="bg-card sticky top-0 z-10 -mx-1 overflow-x-auto px-1 pb-2">
+                            <div
+                                role="tablist"
+                                aria-label="Tournée par membre"
+                                className="flex w-max items-center gap-1 border-b"
                             >
-                                <span
-                                    aria-hidden
-                                    className={cn(
-                                        'flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white',
-                                        visit.status === 'planned'
-                                            ? 'bg-blue-600'
-                                            : 'bg-slate-400',
-                                    )}
-                                >
-                                    {position + 1}
-                                </span>
-                                <div className="grid min-w-0 flex-1 gap-0.5">
-                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                        <span className="font-medium tabular-nums">
-                                            {timeFormat.format(
-                                                new Date(visit.scheduled_at),
-                                            )}
-                                        </span>
-                                        <Link
-                                            href={clientShow({
-                                                lead: visit.client.uuid,
-                                            })}
-                                            className="font-medium underline-offset-4 hover:underline"
-                                        >
-                                            {visit.client.name}
-                                        </Link>
-                                        <VisitStatusBadge
-                                            status={visit.status}
-                                            label={visit.status_label}
-                                        />
-                                    </div>
-                                    <span className="truncate">
-                                        {visit.property.label}
-                                    </span>
-                                    <span className="text-muted-foreground flex items-center gap-1 truncate text-xs">
-                                        {spot === null ? (
-                                            <MapPinOff
-                                                className="size-3"
-                                                aria-label="Adresse non localisée"
-                                            />
-                                        ) : spot.approximate ? (
-                                            <MapPin
-                                                className="size-3 opacity-60"
-                                                aria-label="Position approximative, au centre de l’arrondissement"
-                                            />
-                                        ) : (
-                                            <MapPin
-                                                className="size-3"
-                                                aria-hidden
-                                            />
+                                {[
+                                    {
+                                        key: 'all',
+                                        label: 'Tous',
+                                        visits: day.visits,
+                                    },
+                                    ...tours,
+                                ].map((candidate) => (
+                                    <button
+                                        key={candidate.key}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={
+                                            candidate.key === tourKey
+                                        }
+                                        onClick={() =>
+                                            setTourKey(candidate.key)
+                                        }
+                                        className={cn(
+                                            'relative -mb-px border-b-2 px-2 pb-2 text-sm whitespace-nowrap transition-colors',
+                                            candidate.key === tourKey
+                                                ? 'border-foreground text-foreground font-medium'
+                                                : 'text-muted-foreground hover:text-foreground border-transparent',
                                         )}
-                                        {visitAddress(visit)}
-                                    </span>
-                                </div>
-                            </li>
-                        );
-                    })}
-                    {approximate > 0 && (
-                        <li className="text-muted-foreground text-xs">
-                            {approximate} adresse{approximate > 1 ? 's' : ''}{' '}
-                            non géocodée{approximate > 1 ? 's' : ''} : pastille
-                            au centre de l’arrondissement.
-                        </li>
+                                    >
+                                        {candidate.label}
+                                        <span className="text-muted-foreground ml-1.5 text-xs tabular-nums">
+                                            {candidate.visits.length}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     )}
-                    {unlocated > 0 && (
-                        <li className="text-muted-foreground text-xs">
-                            {unlocated} adresse{unlocated > 1 ? 's' : ''} non
-                            localisée{unlocated > 1 ? 's' : ''} : absente
-                            {unlocated > 1 ? 's' : ''} de la carte.
-                        </li>
-                    )}
-                    {routable && features.googleMapsKey && !mapFailed && (
-                        <li className="grid gap-1 pt-1">
-                            <Button
-                                type="button"
-                                variant={showRoute ? 'default' : 'outline'}
-                                size="sm"
-                                aria-pressed={showRoute}
-                                className="justify-self-start"
-                                onClick={() => setShowRoute((on) => !on)}
-                            >
-                                <Route aria-hidden />
-                                {showRoute
-                                    ? 'Masquer l’itinéraire'
-                                    : 'Itinéraire de la tournée'}
-                            </Button>
-                            {showRoute && routeFailed && (
-                                <p
-                                    role="note"
-                                    className="text-muted-foreground text-xs"
+                    <ol
+                        aria-label="Tournée du jour"
+                        className="grid content-start gap-2"
+                    >
+                        {shown.map((visit, position) => {
+                            const spot = propertyPosition(visit.property);
+
+                            return (
+                                <li
+                                    key={visit.id}
+                                    className="bg-background flex items-start gap-3 rounded-lg border p-3 text-sm"
                                 >
-                                    Itinéraire indisponible pour cette tournée.
-                                </p>
-                            )}
-                        </li>
-                    )}
-                </ol>
+                                    <span
+                                        aria-hidden
+                                        className={cn(
+                                            'flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white',
+                                            visit.status === 'planned'
+                                                ? 'bg-blue-600'
+                                                : 'bg-slate-400',
+                                        )}
+                                    >
+                                        {position + 1}
+                                    </span>
+                                    <div className="grid min-w-0 flex-1 gap-0.5">
+                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                            <span className="font-medium tabular-nums">
+                                                {timeFormat.format(
+                                                    new Date(
+                                                        visit.scheduled_at,
+                                                    ),
+                                                )}
+                                            </span>
+                                            <Link
+                                                href={clientShow({
+                                                    lead: visit.client.uuid,
+                                                })}
+                                                className="font-medium underline-offset-4 hover:underline"
+                                            >
+                                                {visit.client.name}
+                                            </Link>
+                                            <VisitStatusBadge
+                                                status={visit.status}
+                                                label={visit.status_label}
+                                            />
+                                        </div>
+                                        <span className="truncate">
+                                            {visit.property.label}
+                                        </span>
+                                        <span className="text-muted-foreground flex items-center gap-1 truncate text-xs">
+                                            {spot === null ? (
+                                                <MapPinOff
+                                                    className="size-3"
+                                                    aria-label="Adresse non localisée"
+                                                />
+                                            ) : spot.approximate ? (
+                                                <MapPin
+                                                    className="size-3 opacity-60"
+                                                    aria-label="Position approximative, au centre de l’arrondissement"
+                                                />
+                                            ) : (
+                                                <MapPin
+                                                    className="size-3"
+                                                    aria-hidden
+                                                />
+                                            )}
+                                            {visitAddress(visit)}
+                                        </span>
+                                    </div>
+                                </li>
+                            );
+                        })}
+                        {approximate > 0 && (
+                            <li className="text-muted-foreground text-xs">
+                                {approximate} adresse
+                                {approximate > 1 ? 's' : ''} non géocodée
+                                {approximate > 1 ? 's' : ''} : pastille au
+                                centre de l’arrondissement.
+                            </li>
+                        )}
+                        {unlocated > 0 && (
+                            <li className="text-muted-foreground text-xs">
+                                {unlocated} adresse{unlocated > 1 ? 's' : ''}{' '}
+                                non localisée{unlocated > 1 ? 's' : ''} :
+                                absente
+                                {unlocated > 1 ? 's' : ''} de la carte.
+                            </li>
+                        )}
+                    </ol>
+                </div>
             </div>
         </section>
     );

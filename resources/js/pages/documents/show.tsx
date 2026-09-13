@@ -5,9 +5,9 @@ import { CountryFlag } from '@/components/country-flag';
 import { CreatedBy } from '@/components/created-by';
 import { DocumentRequestRowActions } from '@/components/documents/document-request-row-actions';
 import { HouseholdPersonPanel } from '@/components/documents/household-person-panel';
+import { DetailSection } from '@/components/real-estate/detail-header';
 import { DocumentRequestLeadLink } from '@/components/documents/document-request-lead-link';
 import { PublicUploadLink } from '@/components/documents/public-upload-link';
-import { Panel } from '@/components/panel';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { downloadDocumentRequestPdf } from '@/lib/download-document-request-pdf';
@@ -81,8 +81,11 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                 </div>
 
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-                    {/* content-start : une carte repliée ne s'étire pas à la hauteur de la colonne. */}
-                    <div className="grid content-start gap-6">
+                    {/* Deux personnes par ligne dès qu'il y a la place ; un
+                        foyer en compte jusqu'à quatre. `items-start` et
+                        `content-start` : une carte repliée ne s'étire ni sur la
+                        hauteur de sa voisine, ni sur celle de la colonne. */}
+                    <div className="grid content-start items-start gap-6 sm:grid-cols-2">
                         {request.persons.map((person, index) => (
                             <HouseholdPersonPanel
                                 key={index}
@@ -94,8 +97,8 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                     </div>
 
                     <div className="grid h-fit gap-6">
-                        <Panel title="Client">
-                            <dl className="bg-background grid gap-3 rounded-lg border p-3 text-sm">
+                        <DetailSection title="Client">
+                            <dl className="grid gap-3 text-sm">
                                 <div>
                                     <dt className="text-muted-foreground text-xs">
                                         Nom
@@ -116,23 +119,21 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                                     </dd>
                                 </div>
                             </dl>
-                        </Panel>
+                        </DetailSection>
 
-                        <Panel
-                            title="Lead"
-                            description="Le dossier auquel cette liste se rattache."
-                        >
+                        <DetailSection title="Lead">
                             <DocumentRequestLeadLink
                                 requestUuid={request.uuid}
                                 lead={request.lead}
                                 canEdit={request.can_update}
                             />
-                        </Panel>
+                        </DetailSection>
 
-                        <Panel
-                            title="Lien de dépôt"
-                            description="À transmettre au client avec le code d’appairage : il y dépose ses pièces sans compte."
-                        >
+                        <DetailSection title="Lien de dépôt">
+                            <p className="text-muted-foreground text-sm">
+                                À transmettre au client avec le code d’appairage
+                                : il y dépose ses pièces sans compte.
+                            </p>
                             <PublicUploadLink
                                 requestUuid={request.uuid}
                                 url={request.public_url}
@@ -142,28 +143,28 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                                 linkSentTo={request.link_sent_to}
                                 linkSentAt={request.link_sent_at}
                             />
-                        </Panel>
+                        </DetailSection>
 
                         {request.upload_url && (
-                            <Panel title="Dossier Google Drive">
+                            <DetailSection title="Dossier Google Drive">
                                 <a
                                     href={request.upload_url}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="bg-background flex items-start gap-2 rounded-lg border p-3 text-sm break-all hover:underline"
+                                    className="flex items-start gap-2 text-sm break-all hover:underline"
                                 >
                                     <ExternalLink className="mt-0.5 size-4 shrink-0" />
                                     {request.upload_url}
                                 </a>
-                            </Panel>
+                            </DetailSection>
                         )}
 
                         {request.message && (
-                            <Panel title="Message au client">
-                                <p className="bg-background rounded-lg border p-3 text-sm whitespace-pre-line">
+                            <DetailSection title="Message au client">
+                                <p className="text-sm whitespace-pre-line">
                                     {request.message}
                                 </p>
-                            </Panel>
+                            </DetailSection>
                         )}
                     </div>
                 </div>

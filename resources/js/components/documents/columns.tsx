@@ -8,8 +8,9 @@ import { DocumentRequestRowActions } from '@/components/documents/document-reque
 import { show as documentsShow } from '@/routes/tools/documents';
 import { languageFlag } from '@/lib/language-flag';
 import type { DocumentRequestSummary } from '@/types';
+import { parisFormat } from '@/lib/datetime';
 
-const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
+const dateFormatter = parisFormat({
     day: '2-digit',
     month: 'short',
     year: 'numeric',

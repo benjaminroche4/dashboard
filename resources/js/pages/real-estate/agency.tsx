@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { Globe, House, Mail, Phone, Plus } from 'lucide-react';
+import { Globe, Mail, Phone, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { AddressMapButton } from '@/components/address-map-dialog';
 import { AgencyDialog } from '@/components/real-estate/agency-dialog';
@@ -9,6 +9,7 @@ import { formatAddress } from '@/components/real-estate/columns';
 import { DirectoryRelationCard } from '@/components/real-estate/directory-relation-card';
 import {
     DetailHeader,
+    DetailSection,
     missingValue,
 } from '@/components/real-estate/detail-header';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -24,6 +25,7 @@ import {
 import { index as agentsIndex, show as agentShow } from '@/routes/agents';
 import { show as propertyShow } from '@/routes/properties';
 import type { Activity, AgencyDetail } from '@/types';
+import { parisFormat } from '@/lib/datetime';
 
 type Props = {
     agency: AgencyDetail;
@@ -33,7 +35,7 @@ type Props = {
     activities?: Activity[];
 };
 
-const visitDate = new Intl.DateTimeFormat('fr-FR', {
+const visitDate = parisFormat({
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -84,16 +86,9 @@ export default function AgencyShow({
 
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                     <div className="flex flex-col gap-6">
-                        <section
-                            aria-label="Coordonnées"
-                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                        >
-                            {/* Titre et action sur le fond gris, contenu en blanc :
-                                même découpe que les autres sections de la fiche. */}
-                            <header className="flex flex-wrap items-center justify-between gap-2">
-                                <h2 className="text-base font-medium">
-                                    Coordonnées
-                                </h2>
+                        <DetailSection
+                            title="Coordonnées"
+                            action={
                                 <AddressMapButton
                                     place={{
                                         name: agency.name,
@@ -103,8 +98,9 @@ export default function AgencyShow({
                                         longitude: agency.longitude,
                                     }}
                                 />
-                            </header>
-                            <div className="bg-background grid gap-4 rounded-lg border p-4">
+                            }
+                        >
+                            <div className="grid gap-4">
                                 {mapUrl && (
                                     <img
                                         src={mapUrl}
@@ -173,22 +169,11 @@ export default function AgencyShow({
                                     ))}
                                 </dl>
                             </div>
-                        </section>
-                        {/* Même carte que « Interlocuteurs » sur la fiche partenaire. */}
-                        <section
-                            aria-label="Agents"
-                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                        >
-                            <header className="flex flex-wrap items-center justify-between gap-2">
-                                <h2 className="flex items-center gap-2 text-base font-medium">
-                                    Agents
-                                    <Badge
-                                        variant="secondary"
-                                        className="font-medium tabular-nums"
-                                    >
-                                        {agency.agents.length}
-                                    </Badge>
-                                </h2>
+                        </DetailSection>
+                        <DetailSection
+                            title="Agents"
+                            count={agency.agents.length}
+                            action={
                                 <Button
                                     variant="outline"
                                     size="sm"
@@ -197,17 +182,21 @@ export default function AgencyShow({
                                     <Plus aria-hidden />
                                     Ajouter un agent
                                 </Button>
-                            </header>
+                            }
+                        >
                             {agency.agents.length === 0 ? (
                                 <p className="text-muted-foreground text-sm">
                                     Aucun agent rattaché pour le moment.
                                 </p>
                             ) : (
-                                <ul role="list" className="grid gap-2">
+                                <ul
+                                    role="list"
+                                    className="divide-border grid divide-y"
+                                >
                                     {agency.agents.map((agent) => (
                                         <li
                                             key={agent.id}
-                                            className="bg-background grid gap-2 rounded-lg border p-3 text-sm"
+                                            className="grid gap-2 py-3 text-sm first:pt-0 last:pb-0"
                                         >
                                             {/* Identité d'abord, moyens de contact ensuite : la
                                                 colonne est étroite, rien ne se dispute la ligne. */}
@@ -287,56 +276,32 @@ export default function AgencyShow({
                                     ))}
                                 </ul>
                             )}
-                        </section>
+                        </DetailSection>
                         <DirectoryRelationCard
                             lastContactedAt={agency.last_contacted_at}
                             touchUrl={agencyTouch({ agency: agency.uuid }).url}
+                            notes={agency.notes}
                         />
-                        <section
-                            aria-label="Notes"
-                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
-                        >
-                            <h2 className="text-base font-medium">Notes</h2>
-                            {/* Contenu sur fond blanc, comme les coordonnées. */}
-                            <div className="bg-background rounded-lg border p-4">
-                                {agency.notes ? (
-                                    <p className="text-sm/6 whitespace-pre-line">
-                                        {agency.notes}
-                                    </p>
-                                ) : (
-                                    <p className="text-muted-foreground text-sm">
-                                        Aucune note.
-                                    </p>
-                                )}
-                            </div>
-                        </section>
                     </div>
                     <aside className="grid h-fit content-start gap-6 lg:sticky lg:top-6">
-                        <section
-                            aria-label="Biens visités"
-                            className="bg-sidebar grid gap-3 rounded-xl border p-4"
+                        <DetailSection
+                            title="Biens visités"
+                            count={agency.properties.length}
                         >
-                            <h2 className="flex items-center gap-2 text-base font-medium">
-                                <House className="size-4" aria-hidden />
-                                Biens visités
-                                <Badge
-                                    variant="secondary"
-                                    className="font-medium tabular-nums"
-                                >
-                                    {agency.properties.length}
-                                </Badge>
-                            </h2>
                             {agency.properties.length === 0 ? (
                                 <p className="text-muted-foreground text-sm">
                                     Aucun bien n’a encore été visité avec cette
                                     agence.
                                 </p>
                             ) : (
-                                <ul role="list" className="grid gap-2">
+                                <ul
+                                    role="list"
+                                    className="divide-border grid divide-y"
+                                >
                                     {agency.properties.map((property) => (
                                         <li
                                             key={property.uuid}
-                                            className="bg-background grid gap-1 rounded-lg border px-3 py-2 text-sm"
+                                            className="grid gap-1 py-3 text-sm first:pt-0 last:pb-0"
                                         >
                                             <span className="flex items-baseline justify-between gap-2">
                                                 <Link
@@ -370,7 +335,7 @@ export default function AgencyShow({
                                     ))}
                                 </ul>
                             )}
-                        </section>
+                        </DetailSection>
                         {activities.length > 0 && (
                             <ActivityFeed
                                 groups={[

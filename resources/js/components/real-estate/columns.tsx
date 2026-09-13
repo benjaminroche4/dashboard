@@ -19,6 +19,7 @@ import {
     show as agentShow,
 } from '@/routes/agents';
 import type { Agency, Agent } from '@/types';
+import { parisFormat } from '@/lib/datetime';
 
 function SortableHeader({
     label,
@@ -71,7 +72,7 @@ export const agencyColumnLabels: Record<string, string> = {
     creator: 'Ajouté par',
 };
 
-const exchangeDate = new Intl.DateTimeFormat('fr-FR', {
+const exchangeDate = parisFormat({
     day: '2-digit',
     month: 'short',
     year: 'numeric',
