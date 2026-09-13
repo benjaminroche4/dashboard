@@ -260,4 +260,46 @@ describe('Public document upload page', () => {
         expect(file).toHaveAttribute('href', '/depot/jeton/fichiers/up-1');
         expect(file).toHaveAttribute('target', '_blank');
     });
+
+    it('tells the client what the team decided, and why a document was refused', () => {
+        const person = makePublicPerson();
+        renderPage([
+            {
+                ...person,
+                categories: [
+                    {
+                        ...person.categories[0]!,
+                        documents: [
+                            {
+                                key: 'payslips',
+                                label: '3 derniers bulletins de salaire',
+                                hint: null,
+                                uploads: [
+                                    {
+                                        uuid: 'up-1',
+                                        name: 'bulletin-juin.pdf',
+                                        size: 120_000,
+                                        uploaded_at: null,
+                                        status: 'refused',
+                                        status_label: 'Rejected',
+                                        review_note: 'Page missing.',
+                                        url: '/depot/jeton/fichiers/up-1',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ]);
+
+        const item = screen
+            .getByText('bulletin-juin.pdf')
+            .closest('li') as HTMLElement;
+        // Rouge sur un refus, et le motif dit quoi redéposer.
+        expect(item.querySelector('.bg-red-50')).not.toBeNull();
+        expect(
+            within(item).getByText('Rejected — Page missing.'),
+        ).toBeInTheDocument();
+    });
 });

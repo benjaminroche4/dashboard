@@ -3,12 +3,13 @@ import { cn } from '@/lib/utils';
 import type { OfferValue } from '@/types';
 
 /**
- * Teinte par formule : deux nuances proches et discrètes, juste assez
- * différentes pour distinguer les deux offres en balayant une liste.
+ * Teinte par formule : « Confié » en bleu, « Accompagné » en jaune. Deux
+ * couleurs franches, reconnues d'un coup d'œil en balayant une liste.
  */
 export const offerTones: Record<OfferValue, string> = {
-    accompagne: 'bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300',
-    confie: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300',
+    accompagne:
+        'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+    confie: 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
 };
 
 /** Formule d'un lead ou d'un client (« Accompagné », « Confié »). */

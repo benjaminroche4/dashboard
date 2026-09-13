@@ -20,10 +20,12 @@ function pieces(person: HouseholdPersonDetail) {
 function PersonDocuments({
     person,
     requestUuid,
+    canReview = false,
 }: {
     person: HouseholdPersonDetail;
     /** UUID de la liste, pour supprimer un fichier déposé ; sans lui, les fichiers ne sont pas listés. */
     requestUuid?: string;
+    canReview?: boolean;
 }) {
     return (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -64,6 +66,7 @@ function PersonDocuments({
                                                 <DocumentUploadList
                                                     requestUuid={requestUuid}
                                                     uploads={document.uploads}
+                                                    canReview={canReview}
                                                 />
                                             </div>
                                         )}
@@ -86,9 +89,12 @@ function PersonDocuments({
 export function HouseholdPersonTabs({
     persons,
     requestUuid,
+    canReview = false,
 }: {
     persons: HouseholdPersonDetail[];
     requestUuid?: string;
+    /** Valider ou refuser une pièce : réservé à qui peut modifier la liste. */
+    canReview?: boolean;
 }) {
     if (persons.length === 0) {
         return null;
@@ -132,6 +138,7 @@ export function HouseholdPersonTabs({
                     <PersonDocuments
                         person={person}
                         requestUuid={requestUuid}
+                        canReview={canReview}
                     />
                 </TabsContent>
             ))}

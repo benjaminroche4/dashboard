@@ -8,6 +8,7 @@ import {
     Pencil,
     UserRound,
 } from 'lucide-react';
+import { OfferBadge } from '@/components/clients/offer-badge';
 import { CreatedBy } from '@/components/created-by';
 import { PhotoGallery } from '@/components/photo-gallery';
 import { PropertyOutcomeMenu } from '@/components/clients/property-outcome';
@@ -144,13 +145,6 @@ export default function VisitShow({
                             date={visit.created_at}
                             verb="planifiée par"
                         />
-                        {' · '}
-                        <Link
-                            href={clientsVisits()}
-                            className="underline-offset-4 hover:underline"
-                        >
-                            Toutes les visites
-                        </Link>
                     </p>
                     <div className="bg-muted/40 flex flex-wrap items-center gap-4 rounded-xl border p-4">
                         <span
@@ -380,19 +374,23 @@ export default function VisitShow({
                     <div className="flex flex-col gap-4">
                         <Section title="Qui est présent">
                             <dl className="grid gap-4">
-                                <Row label="Membre de l’équipe">
-                                    {visit.assignee ? (
-                                        <span className="flex items-center gap-2">
-                                            <UserRound
-                                                className="text-muted-foreground size-3.5"
-                                                aria-hidden
-                                            />
-                                            {visit.assignee.name}
-                                        </span>
-                                    ) : (
-                                        missing
-                                    )}
-                                </Row>
+                                {/* Visite autonome : le client y va seul, il
+                                    n'y a pas de membre à annoncer. */}
+                                {visit.mode !== 'client_alone' && (
+                                    <Row label="Membre de l’équipe">
+                                        {visit.assignee ? (
+                                            <span className="flex items-center gap-2">
+                                                <UserRound
+                                                    className="text-muted-foreground size-3.5"
+                                                    aria-hidden
+                                                />
+                                                {visit.assignee.name}
+                                            </span>
+                                        ) : (
+                                            missing
+                                        )}
+                                    </Row>
+                                )}
                                 <Row label="Agent immobilier">
                                     {visit.agent ? (
                                         <Link
@@ -414,14 +412,22 @@ export default function VisitShow({
                                     )}
                                 </Row>
                                 <Row label="Dossier client">
-                                    <Link
-                                        href={clientShow({
-                                            lead: visit.client.uuid,
-                                        })}
-                                        className="underline-offset-4 hover:underline"
-                                    >
-                                        {visit.client.name}
-                                    </Link>
+                                    {/* La formule dit qui visite : elle se lit
+                                        à côté du nom, pas ailleurs. */}
+                                    <span className="flex flex-wrap items-center gap-2">
+                                        <Link
+                                            href={clientShow({
+                                                lead: visit.client.uuid,
+                                            })}
+                                            className="underline-offset-4 hover:underline"
+                                        >
+                                            {visit.client.name}
+                                        </Link>
+                                        <OfferBadge
+                                            offer={visit.client.offer}
+                                            label={visit.client.offer_label}
+                                        />
+                                    </span>
                                 </Row>
                             </dl>
                         </Section>

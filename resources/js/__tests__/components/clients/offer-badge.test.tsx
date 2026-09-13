@@ -17,10 +17,10 @@ describe('OfferBadge', () => {
         const { rerender } = render(
             <OfferBadge offer="accompagne" label="Accompagné" />,
         );
-        expect(screen.getByText('Accompagné').className).toContain('sky');
+        expect(screen.getByText('Accompagné').className).toContain('amber');
 
         rerender(<OfferBadge offer="confie" label="Confié" />);
-        expect(screen.getByText('Confié').className).toContain('indigo');
+        expect(screen.getByText('Confié').className).toContain('blue');
 
         rerender(<OfferBadge offer={null} label={null} />);
         expect(screen.getByText('—')).toBeInTheDocument();

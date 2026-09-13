@@ -86,6 +86,7 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                     <HouseholdPersonTabs
                         persons={request.persons}
                         requestUuid={request.uuid}
+                        canReview={request.can_update}
                     />
 
                     <div className="grid h-fit gap-6">

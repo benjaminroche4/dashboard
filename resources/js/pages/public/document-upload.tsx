@@ -12,6 +12,10 @@ import { Dropzone, DropzoneEmptyState } from '@/components/ui/dropzone';
 import type { FileRejection } from 'react-dropzone';
 import { Spinner } from '@/components/ui/spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+    uploadStatusText,
+    uploadStatusTones,
+} from '@/components/documents/upload-status';
 import { TrustNotice } from '@/components/public/trust-notice';
 import { useFlashToast } from '@/hooks/use-flash-toast';
 import { categoryIcon } from '@/lib/document-category-icons';
@@ -339,7 +343,7 @@ export default function PublicDocumentUpload({
                                                                                     key={
                                                                                         upload.uuid
                                                                                     }
-                                                                                    className="flex min-w-0"
+                                                                                    className="grid min-w-0 gap-1"
                                                                                 >
                                                                                     {/* Relire ce qu'on vient
                                                                                         de déposer : le PDF
@@ -355,7 +359,13 @@ export default function PublicDocumentUpload({
                                                                                     >
                                                                                         <Attachment
                                                                                             size="sm"
-                                                                                            className="bg-background hover:border-foreground/30 transition-colors"
+                                                                                            className={cn(
+                                                                                                'hover:border-foreground/30 transition-colors',
+                                                                                                uploadStatusTones[
+                                                                                                    upload
+                                                                                                        .status
+                                                                                                ],
+                                                                                            )}
                                                                                         >
                                                                                             <AttachmentMedia>
                                                                                                 <FileText
@@ -380,6 +390,24 @@ export default function PublicDocumentUpload({
                                                                                             </AttachmentContent>
                                                                                         </Attachment>
                                                                                     </a>
+                                                                                    {/* La décision de l'équipe, et
+                                                                                        le motif d'un refus : le
+                                                                                        client sait quoi redéposer. */}
+                                                                                    <p
+                                                                                        className={cn(
+                                                                                            'px-1 text-xs',
+                                                                                            uploadStatusText[
+                                                                                                upload
+                                                                                                    .status
+                                                                                            ],
+                                                                                        )}
+                                                                                    >
+                                                                                        {
+                                                                                            upload.status_label
+                                                                                        }
+                                                                                        {upload.review_note &&
+                                                                                            ` — ${upload.review_note}`}
+                                                                                    </p>
                                                                                 </li>
                                                                             ),
                                                                         )}

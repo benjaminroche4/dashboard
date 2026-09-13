@@ -258,4 +258,54 @@ describe('Visit detail page', () => {
             expect.objectContaining({ preserveScroll: true }),
         );
     });
+
+    it('shows the offer of the client next to their dossier', () => {
+        render(
+            <VisitShow
+                visit={makeVisitDetail({
+                    client: {
+                        ...makeVisitDetail().client,
+                        offer: 'confie',
+                        offer_label: 'Confié',
+                    },
+                })}
+                otherVisits={[]}
+            />,
+        );
+
+        // La formule dit qui réalise la visite : elle se lit avec le nom.
+        const present = within(
+            screen.getByRole('region', { name: 'Qui est présent' }),
+        );
+
+        expect(present.getByText('Confié')).toBeInTheDocument();
+    });
+
+    it('drops the team member when the client visits alone', () => {
+        const { unmount } = render(
+            <VisitShow visit={makeVisitDetail()} otherVisits={[]} />,
+        );
+        expect(screen.getByText('Membre de l’équipe')).toBeInTheDocument();
+        unmount();
+
+        render(
+            <VisitShow
+                visit={makeVisitDetail({ mode: 'client_alone' })}
+                otherVisits={[]}
+            />,
+        );
+        // Personne de l'équipe n'y va : la ligne n'a rien à dire.
+        expect(
+            screen.queryByText('Membre de l’équipe'),
+        ).not.toBeInTheDocument();
+        expect(screen.getByText('Agent immobilier')).toBeInTheDocument();
+    });
+
+    it('no longer repeats a link to every visit in the overline', () => {
+        render(<VisitShow visit={makeVisitDetail()} otherVisits={[]} />);
+
+        expect(
+            screen.queryByRole('link', { name: 'Toutes les visites' }),
+        ).not.toBeInTheDocument();
+    });
 });
