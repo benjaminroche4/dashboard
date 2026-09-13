@@ -34,7 +34,9 @@ function NavBadge({ value }: { value: NavItem['badge'] }) {
 
     return (
         <>
-            <SidebarMenuBadge className="bg-sidebar-primary text-sidebar-primary-foreground peer-hover/menu-button:bg-sidebar-primary-foreground peer-hover/menu-button:text-sidebar-primary peer-data-[active=true]/menu-button:bg-sidebar-primary-foreground peer-data-[active=true]/menu-button:text-sidebar-primary size-5 rounded-full px-0 transition-colors duration-150">
+            {/* Exactement le compteur des sous-entrées (« Leads propriétaires ») :
+                même pastille, et rien qui bouge au survol ni sur le lien actif. */}
+            <SidebarMenuBadge className="bg-sidebar-primary text-sidebar-primary-foreground peer-hover/menu-button:text-sidebar-primary-foreground peer-data-[active=true]/menu-button:text-sidebar-primary-foreground rounded-full">
                 {value}
             </SidebarMenuBadge>
             {/* Mode icône : le compteur devient un point sur l'icône. */}

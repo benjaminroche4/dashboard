@@ -57,13 +57,7 @@ import OwnerShow from '@/pages/owners/show';
 import { makeOwner, ownerKinds } from '@/test/fixtures/owner';
 import { makeProperty } from '@/test/fixtures/property';
 
-const stats = {
-    properties: 1,
-    open: 1,
-    rented: 0,
-    rent_cents: 150000,
-    last_visit_at: null,
-};
+const stats = { properties: 1, last_visit_at: null };
 
 describe('Owner detail page', () => {
     it('shows contact, the properties held and opens the edit dialog', async () => {
@@ -129,7 +123,7 @@ describe('Owner detail page', () => {
                     contact_name: 'Zoé Martin',
                 })}
                 properties={[]}
-                stats={{ ...stats, properties: 0, open: 0, rent_cents: 0 }}
+                stats={{ ...stats, properties: 0 }}
                 kinds={ownerKinds}
             />,
         );
@@ -170,9 +164,6 @@ describe('Owner detail page', () => {
                 properties={[makeProperty()]}
                 stats={{
                     properties: 3,
-                    open: 2,
-                    rented: 1,
-                    rent_cents: 450000,
                     last_visit_at: '2026-09-08T10:00:00+00:00',
                 }}
                 kinds={ownerKinds}
@@ -207,10 +198,11 @@ describe('Owner detail page', () => {
             lead.getByText('LD-4242 · En signature · Admin'),
         ).toBeInTheDocument();
 
-        // L'état du parc, que la liste des biens ne dit pas.
+        // Le parc ne recompte pas ce que la liste des biens dit déjà : il
+        // rappelle seulement la dernière visite, tous biens confondus.
         const parc = within(screen.getByRole('region', { name: 'Biens' }));
-        expect(parc.getByText('Disponibles')).toBeInTheDocument();
-        expect(parc.getByText('4 500,00 €')).toBeInTheDocument();
+        expect(parc.queryByText('Disponibles')).not.toBeInTheDocument();
+        expect(parc.queryByText('Loyers cumulés')).not.toBeInTheDocument();
         expect(
             parc.getByText('Dernière visite le 8 septembre 2026.'),
         ).toBeInTheDocument();

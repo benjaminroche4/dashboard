@@ -228,13 +228,10 @@ function Tab({
     value,
     label,
     count,
-    matches,
 }: {
     value: string;
     label: string;
     count?: number;
-    /** Biens qui correspondent au projet : une pastille verte, à côté du compte. */
-    matches?: number;
 }) {
     return (
         <TabsTrigger value={value} className="flex-none px-3">
@@ -247,17 +244,6 @@ function Tab({
                     aria-label={`${count} ${count > 1 ? 'éléments' : 'élément'}`}
                 >
                     {count}
-                </Badge>
-            )}
-            {/* Suggestions : elles ne sont pas rattachées au dossier, elles ne
-                se comptent donc pas avec, mais elles appellent un coup d'œil. */}
-            {matches !== undefined && matches > 0 && (
-                <Badge
-                    variant="outline"
-                    className="border-emerald-200 bg-emerald-50 font-medium text-emerald-700 tabular-nums dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
-                    aria-label={`${matches} bien${matches > 1 ? 's' : ''} correspond${matches > 1 ? 'ent' : ''} au projet`}
-                >
-                    +{matches}
                 </Badge>
             )}
         </TabsTrigger>
@@ -500,11 +486,12 @@ export default function ClientShow({
                             label="Documents"
                             count={documentRequests.length}
                         />
+                        {/* Un seul compteur : les biens du dossier. Les
+                            suggestions se voient dans l'onglet. */}
                         <Tab
                             value="biens"
                             label="Biens"
                             count={properties.length}
-                            matches={suggestedProperties.length}
                         />
                         <Tab value="notes" label="Notes" count={notes.length} />
                         <Tab

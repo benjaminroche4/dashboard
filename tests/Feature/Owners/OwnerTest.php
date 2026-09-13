@@ -166,7 +166,7 @@ test('an owner has a detail page with the properties held, addressed by uuid', f
             ->where('owner.properties_count', 2)
             ->has('properties', 2)
             ->has('kinds', 2)
-            // Le parc en trois chiffres, et aucun lead d'origine ici.
+            // Le parc : le nombre de biens, et aucun lead d'origine ici.
             ->where('stats.properties', 2)
             ->where('owner.lead', null));
 

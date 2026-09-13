@@ -201,42 +201,6 @@ export default function OwnerShow({
                                 </Button>
                             }
                         >
-                            {properties.length > 0 && (
-                                <dl className="grid grid-cols-3 divide-x rounded-lg border text-center">
-                                    {[
-                                        {
-                                            label: 'Disponibles',
-                                            value: String(stats.open),
-                                        },
-                                        {
-                                            label: 'Loués',
-                                            value: String(stats.rented),
-                                        },
-                                        {
-                                            label: 'Loyers cumulés',
-                                            value:
-                                                stats.rent_cents > 0
-                                                    ? formatMoney(
-                                                          stats.rent_cents,
-                                                          'EUR',
-                                                      )
-                                                    : '—',
-                                        },
-                                    ].map((figure) => (
-                                        <div
-                                            key={figure.label}
-                                            className="grid gap-0.5 px-2 py-3"
-                                        >
-                                            <dt className="text-muted-foreground text-xs">
-                                                {figure.label}
-                                            </dt>
-                                            <dd className="text-sm font-medium tabular-nums">
-                                                {figure.value}
-                                            </dd>
-                                        </div>
-                                    ))}
-                                </dl>
-                            )}
                             {stats.last_visit_at && (
                                 <p className="text-muted-foreground text-xs">
                                     Dernière visite le{' '}

@@ -14,7 +14,6 @@ use App\Data\OwnerData;
 use App\Enums\LeadLossReason;
 use App\Enums\LeadStatus;
 use App\Enums\OwnerKind;
-use App\Enums\PropertyStatus;
 use App\Enums\VisitStatus;
 use App\Enums\WebsiteHelpType;
 use App\Http\Controllers\Controller;
@@ -297,29 +296,15 @@ class OwnerController extends Controller
     }
 
     /**
-     * Parc d'un propriétaire : ce qui est ouvert, ce qui est loué, le total des
-     * loyers et la dernière visite, tous biens confondus.
+     * Parc d'un propriétaire : le nombre de biens et la dernière visite, tous
+     * biens confondus. Le statut et le loyer se lisent sur chaque bien de la
+     * liste juste en dessous : les recompter en haut de la carte n'apprenait
+     * rien.
      *
-     * @return array{properties: int, open: int, rented: int, rent_cents: int, last_visit_at: string|null}
+     * @return array{properties: int, last_visit_at: string|null}
      */
     private function parcStats(Owner $owner): array
     {
-        $rent = 0;
-        $open = 0;
-        $rented = 0;
-
-        foreach ($owner->properties as $property) {
-            $rent += (int) $property->rent_cents;
-
-            if ($property->status->isOpen()) {
-                $open++;
-            }
-
-            if ($property->status === PropertyStatus::Rented) {
-                $rented++;
-            }
-        }
-
         $lastVisit = Visit::query()
             ->whereIn('property_id', $owner->properties->modelKeys())
             ->where('status', '!=', VisitStatus::Cancelled)
@@ -328,9 +313,6 @@ class OwnerController extends Controller
 
         return [
             'properties' => $owner->properties->count(),
-            'open' => $open,
-            'rented' => $rented,
-            'rent_cents' => $rent,
             'last_visit_at' => is_string($lastVisit) ? Date::parse($lastVisit)->toIso8601String() : null,
         ];
     }

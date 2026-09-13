@@ -208,9 +208,9 @@ describe('Client file page', () => {
             'Visites1',
             // Un compteur à zéro ne s'affiche pas : il n'apprend rien.
             'Documents',
-            // Aucun bien rattaché, mais un bien correspond au projet : la
-            // pastille verte « +1 » appelle le coup d'œil.
-            'Biens+1',
+            // Un seul badge par onglet : les biens du dossier. Les biens
+            // suggérés se comptent dans l'onglet, pas sur sa pastille.
+            'Biens',
             'Notes1',
             'Autre2',
         ]);

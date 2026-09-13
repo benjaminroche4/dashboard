@@ -50,9 +50,6 @@ export type OwnerLeadLink = {
 /** Parc d'un propriétaire, en trois chiffres. */
 export type OwnerParcStats = {
     properties: number;
-    open: number;
-    rented: number;
-    rent_cents: number;
     last_visit_at: string | null;
 };
 
