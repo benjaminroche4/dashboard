@@ -56,18 +56,6 @@ export type OwnerParcStats = {
     last_visit_at: string | null;
 };
 
-/** Une ligne de propriétaire collée depuis un tableur. */
-export type OwnerImportRow = {
-    first_name: string;
-    last_name: string;
-    company: string;
-    email: string;
-    phone: string;
-    street: string;
-    postal_code: string;
-    city: string;
-};
-
 export type OwnerForm = {
     kind: OwnerKind;
     first_name: string;

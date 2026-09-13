@@ -9,15 +9,12 @@ use App\Actions\Directory\TouchDirectoryContact;
 use App\Actions\RealEstate\CreateAgent;
 use App\Actions\RealEstate\DeleteAgent;
 use App\Actions\RealEstate\DeleteAgents;
-use App\Actions\RealEstate\ImportAgents;
 use App\Actions\RealEstate\UpdateAgent;
 use App\Data\AgentData;
-use App\Data\AgentImportRowData;
 use App\Enums\LeadStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Tools\ActivityController;
 use App\Http\Requests\RealEstate\BulkAgentsRequest;
-use App\Http\Requests\RealEstate\ImportAgentsRequest;
 use App\Http\Requests\RealEstate\IndexAgentsRequest;
 use App\Http\Requests\RealEstate\StoreAgentRequest;
 use App\Http\Requests\RealEstate\TouchDirectoryRequest;
@@ -233,39 +230,6 @@ class AgentController extends Controller
             ->all());
     }
 
-    public function import(ImportAgentsRequest $request, ImportAgents $import): RedirectResponse
-    {
-        $this->authorize('create', Agent::class);
-
-        /** @var list<array<string, mixed>> $rows */
-        $rows = $request->validated('rows');
-
-        if (array_filter(array_column($rows, 'agency')) !== []) {
-            // L'import peut créer des agences : il faut aussi ce droit-là.
-            $this->authorize('create', Agency::class);
-        }
-
-        $result = $import->handle(array_map(AgentImportRowData::from(...), $rows), $request->user());
-
-        $message = __(':created agent(s) importé(s), :skipped ignoré(s) car déjà présent(s), :agencies agence(s) créée(s).', [
-            'created' => $result['created'],
-            'skipped' => $result['skipped'],
-            'agencies' => $result['agencies_created'],
-        ]);
-
-        // Une fonction non reconnue atterrit en « Autre » : on le dit, plutôt que de la perdre.
-        $unknown = $result['unknown_positions'];
-
-        if ($unknown !== []) {
-            $message .= ' '.__('Fonction(s) à relire, rangée(s) en « Autre » : :list.', ['list' => implode(', ', $unknown)]);
-        }
-
-        Inertia::flash('toast', ['type' => $unknown === [] ? 'success' : 'warning', 'message' => $message]);
-
-        return back();
-    }
-
-    /** Note un échange avec cet agent. */
     public function touch(TouchDirectoryRequest $request, Agent $agent, TouchDirectoryContact $touch): RedirectResponse
     {
         $this->authorize('update', $agent);

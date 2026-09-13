@@ -8,11 +8,9 @@ use App\Actions\Owners\AddLeadToDirectory;
 use App\Actions\Owners\CreateOwner;
 use App\Actions\Owners\DeleteOwner;
 use App\Actions\Owners\DeleteOwners;
-use App\Actions\Owners\ImportOwners;
 use App\Actions\Owners\TouchOwnerContact;
 use App\Actions\Owners\UpdateOwner;
 use App\Data\OwnerData;
-use App\Data\OwnerImportRowData;
 use App\Enums\LeadLossReason;
 use App\Enums\LeadStatus;
 use App\Enums\OwnerKind;
@@ -23,7 +21,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Leads\LeadController;
 use App\Http\Controllers\Properties\PropertyController;
 use App\Http\Requests\Owners\BulkOwnersRequest;
-use App\Http\Requests\Owners\ImportOwnersRequest;
 use App\Http\Requests\Owners\IndexOwnersRequest;
 use App\Http\Requests\Owners\StoreOwnerRequest;
 use App\Http\Requests\Owners\TouchOwnerRequest;
@@ -270,22 +267,6 @@ class OwnerController extends Controller
         $delete->handle($owner);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Propriétaire :name supprimé.', ['name' => $name])]);
-
-        return back();
-    }
-
-    /** Importe des propriétaires collés depuis un tableur. */
-    public function import(ImportOwnersRequest $request, ImportOwners $import): RedirectResponse
-    {
-        $this->authorize('create', Owner::class);
-
-        /** @var array<int, array<string, mixed>> $rows */
-        $rows = $request->validated('rows');
-        $result = $import->handle(array_map(OwnerImportRowData::from(...), array_values($rows)), $request->user());
-
-        Inertia::flash('toast', $result['created'] > 0
-            ? ['type' => 'success', 'message' => __(':count propriétaire(s) importé(s), :skipped ignoré(s) (déjà connus).', ['count' => $result['created'], 'skipped' => $result['skipped']])]
-            : ['type' => 'warning', 'message' => __('Aucun propriétaire importé : les :count ligne(s) étaient déjà connues.', ['count' => $result['skipped']])]);
 
         return back();
     }

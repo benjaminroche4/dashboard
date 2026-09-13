@@ -234,6 +234,11 @@ class QuoteController extends Controller
                 'accepted_at' => $quote->accepted_at?->toIso8601String(),
                 'declined_at' => $quote->declined_at?->toIso8601String(),
                 'notes' => $quote->notes,
+                // Même raison que la facture : l'aperçu imprime le compte du
+                // document, il lui faut donc ses coordonnées.
+                'bank_name' => $quote->bank_name,
+                'bank_iban' => $quote->bank_iban,
+                'bank_reference' => $quote->bank_reference,
                 'created_by' => $quote->creator?->name,
                 'created_by_avatar' => $quote->creator?->avatar,
             ],

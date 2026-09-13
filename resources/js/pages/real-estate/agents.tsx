@@ -1,11 +1,10 @@
 import { Head, usePage } from '@inertiajs/react';
-import { Plus, Upload } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { DataTable } from '@/components/data-table';
 import { DirectoryBulkActions } from '@/components/real-estate/directory-bulk-actions';
 import { FavoritesFilter } from '@/components/favorites-filter';
 import { AgentDialog } from '@/components/real-estate/agent-dialog';
-import { AgentImportDialog } from '@/components/real-estate/agent-import-dialog';
 import {
     agentColumnLabels,
     agentColumns,
@@ -39,7 +38,6 @@ export default function Agents({
     const { auth } = usePage().props;
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editing, setEditing] = useState<Agent | null>(null);
-    const [importOpen, setImportOpen] = useState(false);
 
     const add = () => {
         setEditing(null);
@@ -80,13 +78,6 @@ export default function Agents({
                             }
                             count={favoritesCount}
                         />
-                        <Button
-                            variant="outline"
-                            onClick={() => setImportOpen(true)}
-                        >
-                            <Upload />
-                            Importer
-                        </Button>
                         <Button onClick={add}>
                             <Plus />
                             Nouvel agent
@@ -119,7 +110,6 @@ export default function Agents({
                 agencies={agencies}
                 agent={editing}
             />
-            <AgentImportDialog open={importOpen} onOpenChange={setImportOpen} />
         </>
     );
 }

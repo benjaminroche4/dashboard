@@ -158,4 +158,24 @@ describe('Invoice detail page', () => {
             expect.objectContaining({ preserveScroll: true }),
         );
     });
+
+    it('prints the account of the invoice, not the one of the company', () => {
+        render(
+            <InvoicesShow
+                invoice={makeInvoiceDetail({
+                    bank_name: 'Qonto',
+                    bank_iban: 'FR76 1234',
+                    bank_reference: 'RIP-2026-04',
+                })}
+                history={[]}
+                company={company}
+                offers={offers}
+            />,
+        );
+
+        // L'IBAN modifié sur le document doit se lire dans l'aperçu.
+        expect(screen.getByText(/FR76 1234/)).toBeInTheDocument();
+        expect(screen.getByText(/RIP-2026-04/)).toBeInTheDocument();
+        expect(screen.queryByText(/CH00/)).toBeNull();
+    });
 });

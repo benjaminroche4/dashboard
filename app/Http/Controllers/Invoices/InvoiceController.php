@@ -400,6 +400,12 @@ class InvoiceController extends Controller
                 'sent_at' => $invoice->sent_at?->toIso8601String(),
                 'paid_at' => $invoice->paid_at?->toDateString(),
                 'notes' => $invoice->notes,
+                // L'aperçu de la fiche imprime le compte du document, pas
+                // celui de la configuration : sans ces champs, il retombait
+                // sur le compte par défaut et ignorait l'IBAN saisi.
+                'bank_name' => $invoice->bank_name,
+                'bank_iban' => $invoice->bank_iban,
+                'bank_reference' => $invoice->bank_reference,
                 'created_by' => $invoice->creator?->name,
                 'created_by_avatar' => $invoice->creator?->avatar,
                 'lead' => $this->leadSummary($invoice),

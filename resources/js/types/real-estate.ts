@@ -97,16 +97,6 @@ export type ContactDuplicate = {
     phone: string | null;
 };
 
-/** Ligne d'import collée depuis un tableur. */
-export type AgentImportRow = {
-    first_name: string;
-    last_name: string;
-    agency: string;
-    position: string;
-    email: string;
-    phone: string;
-};
-
 export type AgencyForm = {
     name: string;
     street: string;

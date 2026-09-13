@@ -130,7 +130,6 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('real-estate/agents', [AgentController::class, 'index'])->name('agents.index');
     Route::get('real-estate/agents/duplicates', [AgentController::class, 'duplicates'])->middleware('throttle:60,1')->name('agents.duplicates');
     Route::get('real-estate/agents/search', [AgentController::class, 'search'])->middleware('throttle:60,1')->name('agents.search');
-    Route::post('real-estate/agents/import', [AgentController::class, 'import'])->name('agents.import');
     Route::post('real-estate/agents', [AgentController::class, 'store'])->name('agents.store');
     Route::delete('real-estate/agents/bulk', [AgentController::class, 'bulkDestroy'])->name('agents.bulk-destroy');
     Route::get('real-estate/agents/{agent}', [AgentController::class, 'show'])->name('agents.show');
@@ -148,7 +147,6 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('owners/duplicates', [OwnerController::class, 'duplicates'])->middleware('throttle:60,1')->name('owners.duplicates');
     Route::get('owners/search', [OwnerController::class, 'search'])->middleware('throttle:60,1')->name('owners.search');
     Route::post('owners', [OwnerController::class, 'store'])->name('owners.store');
-    Route::post('owners/import', [OwnerController::class, 'import'])->name('owners.import');
     // Un lead propriétaire signé entre dans l'annuaire sans ressaisie.
     Route::post('owners/from-lead/{lead}', [OwnerController::class, 'fromLead'])->name('owners.from-lead');
     Route::delete('owners/bulk', [OwnerController::class, 'bulkDestroy'])->name('owners.bulk-destroy');

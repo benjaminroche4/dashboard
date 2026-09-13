@@ -83,47 +83,6 @@ test('a member notes an exchange with an owner', function (): void {
     Event::assertDispatched(DashboardUpdated::class);
 });
 
-test('owners are imported from a spreadsheet, already known contacts are skipped', function (): void {
-    $member = User::factory()->create();
-    Owner::factory()->create(['email' => 'deja@example.com']);
-
-    $this->actingAs($member)
-        ->from(route('owners.index'))
-        ->post(route('owners.import'), ['rows' => [
-            ['first_name' => 'zoé', 'last_name' => 'martin', 'email' => 'zoe@example.com', 'phone' => '', 'company' => '', 'street' => '8 rue de Rivoli', 'postal_code' => '75004', 'city' => 'Paris'],
-            ['first_name' => '', 'last_name' => '', 'company' => 'SCI du Marais', 'email' => '', 'phone' => '+33 6 12 34 56 78'],
-            ['first_name' => 'Autre', 'last_name' => 'Personne', 'email' => 'DEJA@example.com'],
-        ]])
-        ->assertRedirect(route('owners.index'));
-
-    expect(Owner::query()->count())->toBe(3);
-
-    $person = Owner::query()->where('email', 'zoe@example.com')->sole();
-    // Les noms sont capitalisés, comme partout ailleurs.
-    expect($person->fullName())->toBe('Zoé Martin')
-        ->and($person->kind)->toBe(OwnerKind::Individual)
-        ->and($person->city)->toBe('Paris');
-
-    // Une ligne sans personne nommée est une société.
-    expect(Owner::query()->where('company', 'SCI du Marais')->sole()->kind)->toBe(OwnerKind::Company);
-});
-
-test('an import row needs a name and a way to reach the owner', function (): void {
-    $member = User::factory()->create();
-
-    $this->actingAs($member)
-        ->from(route('owners.index'))
-        ->post(route('owners.import'), ['rows' => [['first_name' => 'Zoé', 'last_name' => '', 'company' => '', 'email' => 'zoe@example.com']]])
-        ->assertSessionHasErrors('rows.0.last_name');
-
-    $this->actingAs($member)
-        ->from(route('owners.index'))
-        ->post(route('owners.import'), ['rows' => [['last_name' => 'Martin', 'email' => '', 'phone' => '']]])
-        ->assertSessionHasErrors('rows.0.email');
-
-    expect(Owner::query()->count())->toBe(0);
-});
-
 test('an owner lead joins the directory once, and its page links back to it', function (): void {
     $member = User::factory()->create();
     $lead = Lead::factory()->create([

@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Actions\RealEstate\ImportAgents;
-use App\Data\AgentImportRowData;
 use App\Enums\AgentPosition;
 use App\Events\DashboardUpdated;
 use App\Mail\DirectoryWelcome;
@@ -204,19 +202,4 @@ test('the fiche of an agent counts the visits made with him and the primary agen
             ->where('agency.agents.1.name', 'Ali Bensaïd'));
 
     expect($second->refresh()->is_primary)->toBeFalse();
-});
-
-test('an imported job title that is not recognised is flagged for review', function (): void {
-    $result = (new ImportAgents)->handle([
-        AgentImportRowData::from(['first_name' => 'Zoé', 'last_name' => 'Martin', 'position' => 'Chef de cabinet', 'email' => 'zoe@example.com']),
-        AgentImportRowData::from(['first_name' => 'Ali', 'last_name' => 'Bensaïd', 'position' => 'Négociateur', 'email' => 'ali@example.com']),
-        AgentImportRowData::from(['first_name' => 'Léa', 'last_name' => 'Durand', 'position' => '', 'email' => 'lea@example.com']),
-    ]);
-
-    // La fonction inconnue atterrit en « Autre », mais elle est remontée telle quelle.
-    expect($result['created'])->toBe(3)
-        ->and($result['unknown_positions'])->toBe(['Chef de cabinet'])
-        ->and(Agent::query()->where('first_name', 'Zoé')->first()?->position)->toBe(AgentPosition::Other)
-        ->and(Agent::query()->where('first_name', 'Ali')->first()?->position)->toBe(AgentPosition::Negotiator)
-        ->and(Agent::query()->where('first_name', 'Léa')->first()?->position)->toBeNull();
 });

@@ -1,12 +1,11 @@
 import { Head, usePage } from '@inertiajs/react';
-import { Building2, Plus, Upload, UserRound } from 'lucide-react';
+import { Building2, Plus, UserRound } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { DataTable } from '@/components/data-table';
 import { FilterMenu } from '@/components/filter-menu';
 import { OwnerBulkActions } from '@/components/owners/owner-bulk-actions';
 import { ownerColumnLabels, ownerColumns } from '@/components/owners/columns';
 import { OwnerDialog } from '@/components/owners/owner-dialog';
-import { OwnerImportDialog } from '@/components/owners/owner-import-dialog';
 import { Button } from '@/components/ui/button';
 import {
     useServerTable,
@@ -54,7 +53,6 @@ export default function OwnersIndex({
 }: Props) {
     const { auth } = usePage().props;
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [importOpen, setImportOpen] = useState(false);
     const [editing, setEditing] = useState<Owner | null>(null);
 
     const add = () => {
@@ -93,13 +91,6 @@ export default function OwnersIndex({
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                            variant="outline"
-                            onClick={() => setImportOpen(true)}
-                        >
-                            <Upload />
-                            Importer
-                        </Button>
                         <Button onClick={add}>
                             <Plus />
                             Nouveau propriétaire
@@ -160,7 +151,6 @@ export default function OwnersIndex({
                 kinds={kinds}
                 owner={editing}
             />
-            <OwnerImportDialog open={importOpen} onOpenChange={setImportOpen} />
         </>
     );
 }

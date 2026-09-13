@@ -112,9 +112,6 @@ describe('Agents page', () => {
         expect(screen.getByText('Indépendant')).toBeInTheDocument();
         expect(screen.getAllByText('Admin')).toHaveLength(2);
         expect(
-            screen.getByRole('button', { name: 'Importer' }),
-        ).toBeInTheDocument();
-        expect(
             screen.getByText('5 rue de Bretagne, 75003 Paris'),
         ).toBeInTheDocument();
         expect(

@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\AgentPosition;
 use App\Events\DashboardUpdated;
 use App\Models\Agency;
 use App\Models\Agent;
@@ -13,39 +12,6 @@ use Inertia\Testing\AssertableInertia;
 
 beforeEach(function (): void {
     Event::fake([DashboardUpdated::class]);
-});
-
-test('agents pasted from a spreadsheet are imported, agencies found or created, known contacts skipped', function (): void {
-    $marais = Agency::factory()->create(['name' => 'Agence du Marais']);
-    Agent::factory()->create(['email' => 'deja@example.com']);
-    $member = User::factory()->create();
-
-    $this->actingAs($member)
-        ->from(route('agents.index'))
-        ->post(route('agents.import'), ['rows' => [
-            ['first_name' => 'zoé', 'last_name' => 'martin', 'agency' => 'agence du marais', 'position' => 'Négociatrice', 'email' => 'zoe@example.com', 'phone' => '+33 6 11 22 33 44'],
-            ['first_name' => 'Ali', 'last_name' => 'Bensaïd', 'agency' => 'Bureau Paris Ouest', 'email' => '', 'phone' => '06 55 66 77 88'],
-            ['first_name' => 'Déjà', 'last_name' => 'Là', 'agency' => '', 'email' => 'DEJA@example.com', 'phone' => ''],
-        ]])
-        ->assertRedirect(route('agents.index'))
-        ->assertSessionHasNoErrors();
-
-    expect(Agent::query()->count())->toBe(3)
-        ->and(Agency::query()->count())->toBe(2)
-        ->and(Agent::query()->where('email', 'zoe@example.com')->firstOrFail())
-        ->agency_id->toBe($marais->id)
-        ->first_name->toBe('Zoé')
-        ->position->toBe(AgentPosition::Negotiator)
-        ->created_by->toBe($member->id)
-        ->and(Agency::query()->where('name', 'Bureau Paris Ouest')->firstOrFail()->agents()->count())->toBe(1);
-
-    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->resource === 'agents' && str_contains((string) $event->message, '2 agent(s)'));
-});
-
-test('the import payload is validated', function (): void {
-    $this->actingAs(User::factory()->create())
-        ->post(route('agents.import'), ['rows' => [['first_name' => 'X', 'last_name' => '', 'email' => 'nope']]])
-        ->assertSessionHasErrors(['rows.0.last_name', 'rows.0.email']);
 });
 
 test('duplicate lookups find agents and agencies by e-mail or phone ending, excluding the edited one', function (): void {

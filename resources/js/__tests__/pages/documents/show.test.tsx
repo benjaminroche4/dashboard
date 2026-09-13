@@ -39,7 +39,7 @@ describe('Documents show page', () => {
         download.mockClear();
     });
 
-    it('shows each person by name with their documents, the client and the upload link, without sending', () => {
+    it('shows each person by name with their documents, the client and the upload link, without sending', async () => {
         render(
             <DocumentsShow
                 request={makeDocumentRequestDetail({
@@ -77,8 +77,12 @@ describe('Documents show page', () => {
         expect(screen.getByText('créée par')).toBeInTheDocument();
         expect(screen.getByText('Admin')).toBeInTheDocument();
         expect(screen.getByText('6 septembre 2026')).toBeInTheDocument();
-        expect(screen.getByText('Paul Martin')).toBeInTheDocument();
-        expect(screen.getByText('Garant')).toBeInTheDocument();
+        // Chaque personne a son onglet ; le rôle se lit dans l'onglet ouvert.
+        expect(
+            screen.getByRole('tab', { name: /Paul Martin/ }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Locataire')).toBeInTheDocument();
+        expect(screen.queryByText('Garant')).not.toBeInTheDocument();
         expect(
             screen.getByText("Passeport ou carte d'identité"),
         ).toBeInTheDocument();
@@ -86,6 +90,9 @@ describe('Documents show page', () => {
         expect(
             screen.getByRole('region', { name: 'Identité' }),
         ).toHaveTextContent("Passeport ou carte d'identité");
+        // Les pièces du garant s'affichent une fois son onglet ouvert.
+        await userEvent.click(screen.getByRole('tab', { name: /Paul Martin/ }));
+        expect(screen.getByText('Garant')).toBeInTheDocument();
         expect(
             screen.getByRole('region', { name: 'Finance' }),
         ).toHaveTextContent('Avis d’imposition');

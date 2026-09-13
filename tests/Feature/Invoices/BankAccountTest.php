@@ -146,3 +146,36 @@ test('the reference to quote on the transfer travels with the account', function
 
     expect($default->bankAccount()['reference'])->toBe('RIP-FR');
 });
+
+test('the fiche prints the account of the document, not the one of the configuration', function (): void {
+    config(['company.accounts' => [
+        ['label' => 'Compte par défaut', 'bank' => 'Banque Exemple SA', 'iban' => 'CH00', 'currency' => 'EUR'],
+    ]]);
+    $admin = User::factory()->admin()->create();
+    $invoice = Invoice::factory()->create([
+        'currency' => Currency::EUR,
+        'bank_name' => 'Qonto',
+        'bank_iban' => 'FR76 1234',
+        'bank_reference' => 'RIP-2026-04',
+    ]);
+
+    // L'aperçu de la fiche est bâti depuis ces champs : sans eux, il retombe
+    // sur le compte par défaut et le changement d'IBAN passe inaperçu.
+    $this->actingAs($admin)
+        ->get(route('invoices.show', $invoice))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('invoice.bank_name', 'Qonto')
+            ->where('invoice.bank_iban', 'FR76 1234')
+            ->where('invoice.bank_reference', 'RIP-2026-04'));
+
+    $quote = Quote::factory()->create([
+        'currency' => Currency::EUR,
+        'bank_name' => 'Qonto',
+        'bank_iban' => 'FR76 1234',
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('tools.quotes.show', $quote))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('quote.bank_iban', 'FR76 1234'));
+});

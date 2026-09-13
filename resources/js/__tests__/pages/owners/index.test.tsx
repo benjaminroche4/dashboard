@@ -247,31 +247,4 @@ describe('Owners index page', () => {
             expect.objectContaining({ preserveState: true }),
         );
     });
-
-    it('imports owners pasted from a spreadsheet', async () => {
-        const user = userEvent.setup();
-        render(<OwnersIndex {...listProps} />);
-
-        await user.click(screen.getByRole('button', { name: 'Importer' }));
-        const dialog = within(
-            screen.getByRole('dialog', { name: 'Importer des propriétaires' }),
-        );
-        await user.type(
-            dialog.getByLabelText('Lignes à importer'),
-            'Zoé\tMartin\t\tzoe@example.com',
-        );
-
-        expect(dialog.getByTestId('import-preview')).toHaveTextContent(
-            '1 propriétaire(s) reconnu(s)',
-        );
-        await user.click(dialog.getByRole('button', { name: /^Importer/ }));
-
-        expect(post).toHaveBeenCalledWith(
-            '/owners/import',
-            expect.objectContaining({
-                rows: [expect.objectContaining({ last_name: 'Martin' })],
-            }),
-            expect.objectContaining({ preserveScroll: true }),
-        );
-    });
 });

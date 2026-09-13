@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { CountryFlag } from '@/components/country-flag';
 import { CreatedBy } from '@/components/created-by';
 import { DocumentRequestRowActions } from '@/components/documents/document-request-row-actions';
-import { HouseholdPersonPanel } from '@/components/documents/household-person-panel';
+import { HouseholdPersonTabs } from '@/components/documents/household-person-tabs';
 import { DetailSection } from '@/components/real-estate/detail-header';
 import { DocumentRequestLeadLink } from '@/components/documents/document-request-lead-link';
 import { PublicUploadLink } from '@/components/documents/public-upload-link';
@@ -81,20 +81,12 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                 </div>
 
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-                    {/* Deux personnes par ligne dès qu'il y a la place ; un
-                        foyer en compte jusqu'à quatre. `items-start` et
-                        `content-start` : une carte repliée ne s'étire ni sur la
-                        hauteur de sa voisine, ni sur celle de la colonne. */}
-                    <div className="grid content-start items-start gap-6 sm:grid-cols-2">
-                        {request.persons.map((person, index) => (
-                            <HouseholdPersonPanel
-                                key={index}
-                                person={person}
-                                index={index}
-                                requestUuid={request.uuid}
-                            />
-                        ))}
-                    </div>
+                    {/* Un onglet par personne du foyer (quatre au plus) :
+                        ses pièces prennent toute la largeur. */}
+                    <HouseholdPersonTabs
+                        persons={request.persons}
+                        requestUuid={request.uuid}
+                    />
 
                     <div className="grid h-fit gap-6">
                         <DetailSection title="Client">
