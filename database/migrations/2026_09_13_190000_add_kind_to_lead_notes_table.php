@@ -22,7 +22,7 @@ return new class extends Migration
      *
      * @var list<string>
      */
-    private const TRACKING_PREFIXES = [
+    private const array TRACKING_PREFIXES = [
         'Appel %',
         'SMS reçu%',
         'Bien attribué au dossier :%',

@@ -12,7 +12,7 @@ it('marks a note written by a member as a team note', function (): void {
     $admin = User::factory()->staff()->create();
     $lead = Lead::factory()->create();
 
-    $note = app(AddLeadNote::class)->handle($lead, 'Rappeler mardi.', $admin);
+    $note = resolve(AddLeadNote::class)->handle($lead, 'Rappeler mardi.', $admin);
 
     expect($note->kind)->toBe(LeadNoteKind::Team);
 });
@@ -31,7 +31,7 @@ it('exposes the note kind to the lead page', function (): void {
     $admin = User::factory()->staff()->create();
     $lead = Lead::factory()->create();
 
-    app(AddLeadNote::class)->handle($lead, 'Rappeler mardi.', $admin);
+    resolve(AddLeadNote::class)->handle($lead, 'Rappeler mardi.', $admin);
     $lead->notes()->create(['body' => 'Lead converti en client : le dossier est ouvert.', 'user_id' => $admin->id]);
 
     $this->actingAs($admin)
