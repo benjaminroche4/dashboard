@@ -270,7 +270,7 @@ test('a visit cannot be scheduled in the past, but a past visit stays editable',
 
     // Un créneau plus tôt dans la journée passe : la borne est au jour près.
     $this->actingAs($member)
-        ->post(route('clients.visits.store'), $payload(now()->startOfDay()->format('Y-m-d H:i')))
+        ->post(route('clients.visits.store'), $payload(today()->format('Y-m-d H:i')))
         ->assertRedirect(route('clients.visits'))
         ->assertSessionHasNoErrors();
     expect(Visit::query()->count())->toBe(1);
