@@ -65,6 +65,10 @@ Route::post('depot/{documentRequest:public_token}', [PublicDocumentUploadControl
 Route::post('depot/{documentRequest:public_token}/code', [PublicDocumentUploadController::class, 'verify'])
     ->middleware('throttle:10,1')
     ->name('documents.public.verify');
+// Relire une pièce qu'on vient de déposer : on vérifie ce qu'on a envoyé.
+Route::get('depot/{documentRequest:public_token}/fichiers/{upload}', [PublicDocumentUploadController::class, 'download'])
+    ->middleware('throttle:60,1')
+    ->name('documents.public.download');
 
 Route::middleware(['auth'])->group(function (): void {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
@@ -167,6 +171,8 @@ Route::middleware(['auth'])->group(function (): void {
     Route::patch('partners/{partner}/contacts/{contact}', [PartnerContactController::class, 'update'])->scopeBindings()->name('partners.contacts.update');
     Route::delete('partners/{partner}/contacts/{contact}', [PartnerContactController::class, 'destroy'])->scopeBindings()->name('partners.contacts.destroy');
     Route::get('clients', [ClientController::class, 'index'])->name('clients.index');
+    // Dossier client ouvert sans passer par un lead (recommandation, client déjà signé).
+    Route::post('clients', [ClientController::class, 'store'])->name('clients.store');
     Route::get('clients/visits', [VisitController::class, 'index'])->name('clients.visits');
     Route::get('clients/visits/create', [VisitController::class, 'create'])->name('clients.visits.create');
     Route::post('clients/visits', [VisitController::class, 'store'])->name('clients.visits.store');

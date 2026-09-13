@@ -3,10 +3,27 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 
+const { post } = vi.hoisted(() => ({ post: vi.fn() }));
+
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
-    // La page lit le membre connecté pour le filtre « Mes dossiers ».
-    usePage: () => ({ props: { auth: { user: { id: 1, role: 'admin' } } } }),
+    // La page lit le membre connecté pour le filtre « Mes dossiers », et
+    // l'annuaire de l'équipe pour le dialogue « Nouveau dossier ».
+    usePage: () => ({
+        props: {
+            auth: { user: { id: 1, role: 'admin' } },
+            staff: [{ id: 1, name: 'Admin', avatar: null, functions: [] }],
+        },
+    }),
+    useForm: (initial: Record<string, unknown>) => ({
+        data: initial,
+        errors: {} as Record<string, string | undefined>,
+        processing: false,
+        setData: vi.fn(),
+        clearErrors: vi.fn(),
+        transform: vi.fn(),
+        post,
+    }),
     Link: ({
         href,
         children,
@@ -100,6 +117,46 @@ describe('Clients index page', () => {
         // La colonne montre aussi « Normale », que la pastille cache ailleurs.
         expect(screen.getByLabelText('Priorité : Urgente')).toBeInTheDocument();
         expect(screen.getByLabelText('Priorité : Normale')).toBeInTheDocument();
+    });
+
+    it('opens a dossier without any lead, from the list', async () => {
+        const user = userEvent.setup();
+        render(
+            <ClientsIndex
+                priorities={clientPriorities}
+                clients={[makeClient()]}
+                languages={[
+                    { value: 'fr', label: 'Français' },
+                    { value: 'en', label: 'Anglais' },
+                ]}
+                offers={[{ value: 'confie', label: 'Confié' }]}
+                currencies={['EUR']}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Nouveau dossier' }),
+        );
+
+        const dialog = within(
+            await screen.findByRole('dialog', {
+                name: 'Nouveau dossier client',
+            }),
+        );
+        expect(dialog.getByText(/sans passer par un lead/)).toBeInTheDocument();
+        // Le contact et l'essentiel du projet, rien de plus.
+        expect(dialog.getByLabelText(/Prénom/)).toBeInTheDocument();
+        expect(dialog.getByLabelText(/^Nom/)).toBeInTheDocument();
+        expect(dialog.getByLabelText('E-mail')).toBeInTheDocument();
+        expect(dialog.getByLabelText('Suivi par')).toBeInTheDocument();
+
+        await user.click(
+            dialog.getByRole('button', { name: 'Ouvrir le dossier' }),
+        );
+        expect(post).toHaveBeenCalledWith(
+            '/clients',
+            expect.objectContaining({ preserveScroll: true }),
+        );
     });
 
     it('puts a miniature folder next to each client name that opens when the row is hovered', () => {

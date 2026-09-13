@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Clients;
 
+use App\Actions\Clients\CreateClientDossier;
 use App\Actions\Clients\DeleteClientGuarantor;
 use App\Actions\Clients\DeleteClientWatcher;
 use App\Actions\Clients\SaveClientGuarantor;
@@ -15,12 +16,15 @@ use App\Actions\Clients\SummarizeDossierReadiness;
 use App\Actions\Clients\UpdateClientPeople;
 use App\Actions\Clients\UpdateTenantProfile;
 use App\Data\ClientPeopleData;
+use App\Data\LeadData;
 use App\Data\LeadGuarantorData;
 use App\Data\LeadWatcherData;
 use App\Data\TenantProfileData;
 use App\Enums\ClientPriority;
+use App\Enums\Currency;
 use App\Enums\EmploymentStatus;
 use App\Enums\GuarantorType;
+use App\Enums\LeadLanguage;
 use App\Enums\LeadStatus;
 use App\Enums\PropertyApplicationStatus;
 use App\Enums\PropertyType;
@@ -34,6 +38,7 @@ use App\Http\Controllers\Tools\ActivityController;
 use App\Http\Requests\Clients\SaveClientGuarantorRequest;
 use App\Http\Requests\Clients\SaveClientWatcherRequest;
 use App\Http\Requests\Clients\SetClientPriorityRequest;
+use App\Http\Requests\Clients\StoreClientRequest;
 use App\Http\Requests\Clients\UpdateClientPeopleRequest;
 use App\Http\Requests\Clients\UpdateTenantProfileRequest;
 use App\Models\Activity;
@@ -85,10 +90,28 @@ class ClientController extends Controller
         return Inertia::render('clients/index', [
             'clients' => $clients,
             'priorities' => ClientPriority::options(),
+            // Listes du dialogue « Nouveau dossier », créé sans passer par un lead.
+            'languages' => LeadLanguage::options(),
+            'currencies' => array_map(fn (Currency $currency): string => $currency->value, Currency::cases()),
             // Filtres de la liste : priorité, formule, suivi et arrivée.
             'offers' => LeadController::offers(),
             'realtimeOnly' => ['clients'],
         ]);
+    }
+
+    /**
+     * Ouvre un dossier client sans lead : recommandation, client déjà signé…
+     * Le dossier reste un lead converti, avec sa référence et son historique.
+     */
+    public function store(StoreClientRequest $request, CreateClientDossier $create): RedirectResponse
+    {
+        $this->authorize('create', Lead::class);
+
+        $lead = $create->handle(LeadData::from($request->validated()), $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Dossier client ouvert pour :name.', ['name' => $lead->fullName()])]);
+
+        return to_route('clients.show', $lead);
     }
 
     /** Priorité d'un dossier (menu de la fiche). */

@@ -88,3 +88,31 @@ test('the browser Google Maps key is shared with the front when configured', fun
         ->get(route('dashboard'))
         ->assertInertia(fn ($page) => $page->where('features.googleMapsKey', 'browser-key'));
 });
+
+test('the city search asks Google for localities only, without a country filter', function (): void {
+    Http::fake([
+        'maps.googleapis.com/maps/api/place/autocomplete/*' => Http::response([
+            'status' => 'OK',
+            'predictions' => [[
+                'place_id' => 'c1',
+                'description' => 'Genève, Suisse',
+                'structured_formatting' => ['main_text' => 'Genève', 'secondary_text' => 'Suisse'],
+            ]],
+        ]),
+    ]);
+
+    $this->actingAs(User::factory()->create())
+        ->getJson(route('places.suggest', ['input' => 'Gen', 'kind' => 'cities']))
+        ->assertOk()
+        ->assertJson(['suggestions' => [['id' => 'c1', 'main' => 'Genève', 'secondary' => 'Suisse']]]);
+
+    // Une ville d'origine peut être n'importe où : pas de « country: » imposé.
+    Http::assertSent(fn ($request): bool => str_contains(urldecode($request->url()), 'types=(cities)')
+        && ! str_contains($request->url(), 'components='));
+});
+
+test('an unknown kind is refused', function (): void {
+    $this->actingAs(User::factory()->create())
+        ->getJson(route('places.suggest', ['input' => 'Gen', 'kind' => 'restaurants']))
+        ->assertJsonValidationErrors('kind');
+});

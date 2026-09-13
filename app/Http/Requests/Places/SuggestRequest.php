@@ -24,6 +24,8 @@ class SuggestRequest extends FormRequest
             'regions' => ['nullable', 'array', 'max:5'],
             'regions.*' => ['string', 'size:2', 'alpha'],
             'session' => ['nullable', 'string', 'max:64'],
+            // « cities » restreint les suggestions aux villes (ville d'origine).
+            'kind' => ['nullable', 'string', 'in:address,cities'],
         ];
     }
 }

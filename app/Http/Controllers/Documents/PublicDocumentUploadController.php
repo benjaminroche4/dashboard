@@ -17,8 +17,10 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Page publique de dépôt des pièces (/depot/{jeton}) : seule page hors
@@ -94,6 +96,27 @@ class PublicDocumentUploadController extends Controller
     }
 
     /**
+     * Relit une pièce déposée : le client vérifie ce qu'il a envoyé sans
+     * attendre l'équipe. Même porte que le dépôt — il faut le jeton dans
+     * l'URL et le code d'appairage validé dans la session —, et le fichier
+     * doit appartenir à cette liste.
+     */
+    public function download(Request $request, DocumentRequest $documentRequest, DocumentUpload $upload): StreamedResponse
+    {
+        abort_unless($this->unlocked($request, $documentRequest), 403);
+        abort_unless($upload->document_request_id === $documentRequest->id, 404);
+
+        // Affiché dans l'onglet plutôt que téléchargé : on relit un PDF, on ne
+        // le collectionne pas. `nosniff` interdit au navigateur de deviner un
+        // autre type que celui annoncé.
+        return Storage::disk(DocumentUpload::DISK)->response($upload->path, $upload->original_name, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.addslashes($upload->original_name).'"',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    /**
      * Personnes et pièces demandées, avec les fichiers déjà déposés pour chacune.
      *
      * @return list<array<string, mixed>>
@@ -120,6 +143,11 @@ class PublicDocumentUploadController extends Controller
                             'status' => $upload->status->value,
                             'status_label' => $upload->status->clientLabel(),
                             'review_note' => $upload->status === DocumentUploadStatus::Refused ? $upload->review_note : null,
+                            // Le client peut rouvrir ce qu'il a déposé.
+                            'url' => route('documents.public.download', [
+                                'documentRequest' => $documentRequest->public_token,
+                                'upload' => $upload->uuid,
+                            ]),
                         ])
                         ->all();
 
@@ -150,6 +178,7 @@ class PublicDocumentUploadController extends Controller
             'too_many' => __(':count fichiers au maximum à la fois.', ['count' => UploadLimits::maxFiles()]),
             'too_heavy' => __('Envoi trop lourd (:size au maximum) : déposez vos fichiers en plusieurs fois.', ['size' => StoreDocumentUploadRequest::megabytes(UploadLimits::perRequest())]),
             'uploaded' => __('Fichiers reçus'),
+            'view' => __('Ouvrir'),
             'none' => __('Aucun fichier pour le moment'),
             'sending' => __('Envoi en cours…'),
             'done' => __('Pièce reçue'),

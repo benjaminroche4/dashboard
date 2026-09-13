@@ -50,7 +50,7 @@ export default function LeadsIndex({
                     <Button asChild>
                         <Link href={leadsCreate()}>
                             <Sparkles />
-                            Converting Machine
+                            Nouveau lead
                         </Link>
                     </Button>
                 }
@@ -58,9 +58,9 @@ export default function LeadsIndex({
                     icon: <Sparkles className="text-muted-foreground size-5" />,
                     title: 'Aucun lead pour le moment',
                     description:
-                        'Ajoutez votre premier prospect avec la Converting Machine : il apparaîtra ici dans la colonne « À traiter ».',
+                        'Ajoutez votre premier prospect : il apparaîtra ici dans la colonne « À traiter ».',
                     href: leadsCreate(),
-                    label: 'Ouvrir la Converting Machine',
+                    label: 'Nouveau lead',
                 }}
             />
         </>

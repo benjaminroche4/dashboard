@@ -139,6 +139,10 @@ export function BankAccountDialog({
                     className="grid gap-4"
                     onSubmit={(event) => {
                         event.preventDefault();
+                        // La modale est dans un portail, mais React fait
+                        // remonter l'événement dans l'arbre des composants :
+                        // sans cela, le formulaire du document se soumet aussi.
+                        event.stopPropagation();
                         save();
                     }}
                 >
@@ -233,9 +237,9 @@ export function BankAccountField({
         selected !== '' && !known.some((account) => account.iban === selected);
 
     return (
-        <div className="grid gap-2">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2">
             <Label htmlFor="invoice-bank-account">Compte d’encaissement</Label>
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
                 {options.length > 0 && (
                     <Select
                         value={selected}
@@ -244,16 +248,25 @@ export function BankAccountField({
                                 (candidate) => candidate.iban === value,
                             );
 
+                            // Radix annonce une valeur vide quand la liste
+                            // change dans le même rendu — le compte qu'on vient
+                            // d'ajouter. Une valeur inconnue n'efface rien.
+                            if (!account) {
+                                return;
+                            }
+
                             onChange({
-                                bank_name: account?.bank ?? '',
-                                bank_iban: account?.iban ?? '',
-                                bank_reference: account?.reference ?? '',
+                                bank_name: account.bank,
+                                bank_iban: account.iban,
+                                bank_reference: account.reference,
                             });
                         }}
                     >
                         <SelectTrigger
                             id="invoice-bank-account"
-                            className="w-full"
+                            // `min-w-0` : l'IBAN est long, le déclencheur doit
+                            // pouvoir rétrécir plutôt que pousser la carte.
+                            className="w-full min-w-0 flex-1"
                         >
                             <Landmark
                                 aria-hidden

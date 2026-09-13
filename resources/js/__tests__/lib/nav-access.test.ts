@@ -27,7 +27,7 @@ const groups: NavGroup[] = [
                         section: 'leads',
                     },
                     {
-                        title: 'Converting Machine',
+                        title: 'Nouveau lead',
                         href: '/locataires/create',
                         section: 'leads_create',
                     },
@@ -85,7 +85,7 @@ describe('nav access', () => {
             'Outils',
         ]);
         expect(filtered[1]?.items[0]?.items?.map((sub) => sub.title)).toEqual([
-            'Converting Machine',
+            'Nouveau lead',
         ]);
         // Le menu dépliable mène au premier sous-lien restant.
         expect(filtered[1]?.items[0]?.href).toBe('/locataires/create');

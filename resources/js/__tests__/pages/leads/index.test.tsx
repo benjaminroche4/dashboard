@@ -283,7 +283,7 @@ describe('Leads kanban page', () => {
         expect(screen.getByText('Arrive dans 5 j')).toBeInTheDocument();
     });
 
-    it('shows an empty state with a call to the Converting Machine', () => {
+    it('shows an empty state with a call to create a lead', () => {
         render(
             <LeadsIndex
                 leads={[]}
@@ -297,9 +297,13 @@ describe('Leads kanban page', () => {
         expect(
             screen.getByText('Aucun lead pour le moment'),
         ).toBeInTheDocument();
-        expect(
-            screen.getByRole('link', { name: 'Ouvrir la Converting Machine' }),
-        ).toHaveAttribute('href', '/locataires/create');
+        // Le bouton de l'en-tête et l'appel de l'état vide mènent au même
+        // formulaire et portent le même libellé.
+        const create = screen.getAllByRole('link', { name: 'Nouveau lead' });
+        expect(create).toHaveLength(2);
+        for (const link of create) {
+            expect(link).toHaveAttribute('href', '/locataires/create');
+        }
         expect(
             screen.queryByRole('list', { name: 'Kanban des leads' }),
         ).not.toBeInTheDocument();

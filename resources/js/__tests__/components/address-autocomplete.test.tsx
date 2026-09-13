@@ -90,6 +90,7 @@ describe('AddressAutocomplete', () => {
             'Rue des',
             ['ch', 'fr'],
             expect.any(Object),
+            'address',
         );
 
         await user.click(option);

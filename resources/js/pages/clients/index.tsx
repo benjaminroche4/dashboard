@@ -1,5 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
+import { FolderPlus } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { ClientDialog } from '@/components/clients/client-dialog';
 import {
     clientColumnLabels,
     clientColumns,
@@ -10,16 +12,26 @@ import {
 } from '@/components/clients/my-clients-filter';
 import { priorityTones } from '@/components/clients/client-priority';
 import { DataTable } from '@/components/data-table';
+import { Button } from '@/components/ui/button';
 import { FilterMenu } from '@/components/filter-menu';
 import { cn } from '@/lib/utils';
 import { index as clientsIndex } from '@/routes/clients';
-import type { Client, ClientPriority, ClientPriorityOption } from '@/types';
+import type {
+    Client,
+    ClientPriority,
+    ClientPriorityOption,
+    DocumentLanguage,
+    LabeledOption,
+} from '@/types';
 
 type Props = {
     clients: Client[];
     priorities: ClientPriorityOption[];
     /** Formules proposées (`Offer::options()`). */
     offers?: { value: string; label: string }[];
+    /** Listes du dialogue « Nouveau dossier ». */
+    languages?: LabeledOption<DocumentLanguage>[];
+    currencies?: string[];
 };
 
 /** Clé du choix « Sans formule », qui n'a pas de valeur d'enum. */
@@ -58,8 +70,11 @@ export default function ClientsIndex({
     clients,
     priorities,
     offers = [],
+    languages = [],
+    currencies = ['EUR'],
 }: Props) {
     const { auth } = usePage().props;
+    const [creating, setCreating] = useState(false);
     const [mineOnly, setMineOnly] = useState(false);
     const [priorityFilter, setPriorityFilter] = useState<ClientPriority[]>([]);
     const [offerFilter, setOfferFilter] = useState<string[]>([]);
@@ -130,13 +145,21 @@ export default function ClientsIndex({
         <>
             <Head title="Dossiers" />
             <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-10">
-                <div className="pt-8 pb-6">
-                    <h1 className="text-lg font-medium">Dossiers</h1>
-                    <p className="text-muted-foreground text-sm">
-                        {visible.length} client
-                        {visible.length > 1 ? 's' : ''} : les leads convertis,
-                        suivis jusqu’à l’installation.
-                    </p>
+                <div className="flex flex-wrap items-end justify-between gap-4 pt-8 pb-6">
+                    <div>
+                        <h1 className="text-lg font-medium">Dossiers</h1>
+                        <p className="text-muted-foreground text-sm">
+                            {visible.length} client
+                            {visible.length > 1 ? 's' : ''} : les leads
+                            convertis, suivis jusqu’à l’installation.
+                        </p>
+                    </div>
+                    {/* Un client recommandé n'a jamais été un lead : son
+                        dossier s'ouvre directement. */}
+                    <Button onClick={() => setCreating(true)}>
+                        <FolderPlus />
+                        Nouveau dossier
+                    </Button>
                 </div>
                 <DataTable
                     columns={clientColumns}
@@ -213,6 +236,14 @@ export default function ClientsIndex({
                     rowProps={() => ({ className: 'group' })}
                 />
             </div>
+
+            <ClientDialog
+                open={creating}
+                onOpenChange={setCreating}
+                languages={languages}
+                offers={offers}
+                currencies={currencies}
+            />
         </>
     );
 }

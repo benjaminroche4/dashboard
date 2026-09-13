@@ -8,6 +8,9 @@ export type ResolvedAddress = {
     countryName: string;
 };
 
+/** Ce qu'on cherche : une adresse précise, ou seulement une ville. */
+export type PlaceKind = 'address' | 'cities';
+
 export type PlaceSuggestion = {
     id: string;
     main: string;
@@ -51,17 +54,36 @@ export async function fetchPlaceSuggestions(
     input: string,
     regionCodes: string[],
     session: PlacesSession,
+    kind: PlaceKind = 'address',
 ): Promise<PlaceSuggestion[]> {
     session.token ??= newToken();
     const token = session.token;
 
     const { suggestions } = await getJson<{
         suggestions: { id: string; main: string; secondary: string }[];
-    }>(suggest.url({ query: { input, regions: regionCodes, session: token } }));
+    }>(
+        suggest.url({
+            query: { input, regions: regionCodes, session: token, kind },
+        }),
+    );
 
     return suggestions.map((suggestion) => ({
         ...suggestion,
         resolve: async () => {
+            // Une ville se lit dans la suggestion elle-même : pas de requête
+            // « details » à payer pour apprendre ce qu'on affiche déjà.
+            if (kind === 'cities') {
+                session.token = undefined;
+
+                return {
+                    street: '',
+                    postalCode: '',
+                    city: suggestion.main,
+                    countryCode: null,
+                    countryName: suggestion.secondary,
+                };
+            }
+
             const { address } = await getJson<{ address: ResolvedAddress }>(
                 details.url({
                     query: { place_id: suggestion.id, session: token },

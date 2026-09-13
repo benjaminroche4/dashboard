@@ -19,6 +19,39 @@ describe('fetchPlaceSuggestions', () => {
         vi.unstubAllGlobals();
     });
 
+    it('asks only for cities, and reads the city from the suggestion itself', async () => {
+        const fetchMock = fakeFetch({
+            '/places/suggest': {
+                suggestions: [
+                    { id: 'c1', main: 'Genève', secondary: 'Suisse' },
+                ],
+            },
+        });
+        vi.stubGlobal('fetch', fetchMock);
+
+        const session = {};
+        const [city] = await fetchPlaceSuggestions(
+            'Gen',
+            [],
+            session,
+            'cities',
+        );
+
+        const url = new URL(
+            fetchMock.mock.calls[0][0] as string,
+            'http://localhost',
+        );
+        expect(url.searchParams.get('kind')).toBe('cities');
+
+        // Aucune requête « details » : la ville est déjà dans la suggestion.
+        await expect(city!.resolve()).resolves.toMatchObject({
+            city: 'Genève',
+            countryName: 'Suisse',
+            street: '',
+        });
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
     it('queries the Laravel proxy with a session token and resolves details', async () => {
         const fetchMock = fakeFetch({
             '/places/suggest': {

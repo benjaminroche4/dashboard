@@ -1,5 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { FormEvent } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import {
     accountsFor,
@@ -188,5 +189,56 @@ describe('BankAccountField', () => {
         expect(
             screen.getByRole('button', { name: 'Ajouter un compte' }),
         ).toBeInTheDocument();
+    });
+
+    it('never erases the account when the list announces an unknown value', async () => {
+        // Radix annonce une valeur vide quand la liste change dans le même
+        // rendu — le compte qu'on vient d'ajouter. C'est ce qui vidait le
+        // formulaire et laissait une page blanche.
+        const onChange = render_({
+            bankName: 'Revolut',
+            bankIban: 'LT44 1234',
+        });
+        const select = screen.getByRole('combobox', {
+            name: 'Compte d’encaissement',
+        });
+
+        fireEvent.keyDown(select, { key: 'Escape' });
+        expect(onChange).not.toHaveBeenCalledWith({
+            bank_name: '',
+            bank_iban: '',
+            bank_reference: '',
+        });
+    });
+
+    it('submits the dialog without submitting the document around it', async () => {
+        const user = userEvent.setup();
+        const onSubmit = vi.fn((event: FormEvent) => event.preventDefault());
+        const onChange = vi.fn();
+        render(
+            <form onSubmit={onSubmit}>
+                <BankAccountField
+                    accounts={accounts}
+                    currency="EUR"
+                    bankName=""
+                    bankIban=""
+                    bankReference=""
+                    errors={{}}
+                    onChange={onChange}
+                />
+            </form>,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Ajouter un compte' }),
+        );
+        await user.type(screen.getByLabelText('IBAN'), 'LT44 1234');
+        await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+        expect(onChange).toHaveBeenCalledWith(
+            expect.objectContaining({ bank_iban: 'LT44 1234' }),
+        );
+        // La modale vit dans un portail, mais React fait remonter l'événement.
+        expect(onSubmit).not.toHaveBeenCalled();
     });
 });

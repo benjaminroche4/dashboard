@@ -36,6 +36,11 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
                     { id: 1, name: 'Admin', role: 'admin', avatar: null },
                     { id: 2, name: 'Camille', role: 'member', avatar: null },
                 ],
+                features: {
+                    addressAutocomplete: false,
+                    googleMapsKey: null,
+                    assistant: false,
+                },
             },
         }),
         useForm: (initial: Record<string, unknown>) => useFormStub(initial),
@@ -153,7 +158,7 @@ async function fillContact(user: ReturnType<typeof userEvent.setup>) {
     await user.type(screen.getByLabelText('E-mail'), 'lea@example.com');
 }
 
-describe('Converting Machine page', () => {
+describe('Lead creation page', () => {
     beforeEach(() => vi.clearAllMocks());
 
     it('offers the closing guide next to the title', async () => {
@@ -186,7 +191,7 @@ describe('Converting Machine page', () => {
         render(<LeadsCreate {...props} />);
 
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-            'Converting Machine',
+            'Nouveau lead',
         );
         expect(
             screen.getByRole('heading', { name: 'Contact' }),

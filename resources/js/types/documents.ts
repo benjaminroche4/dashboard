@@ -185,6 +185,13 @@ export type PublicDocumentUpload = {
     name: string;
     size: number;
     uploaded_at: string | null;
+    /** Décision de l'équipe sur la pièce, telle que le client la lit. */
+    status: DocumentUploadStatus;
+    status_label: string;
+    /** Motif d'un refus, pour que le client sache quoi redéposer. */
+    review_note: string | null;
+    /** Adresse pour rouvrir la pièce déposée (PDF affiché dans l'onglet). */
+    url: string;
 };
 
 /** Pièce demandée sur la page publique, avec les fichiers déjà reçus. */

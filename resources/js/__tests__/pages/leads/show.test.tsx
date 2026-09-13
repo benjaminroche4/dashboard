@@ -119,7 +119,7 @@ const base = {
 };
 
 describe('Lead detail page', () => {
-    it('shows the proposed property of an owner lead and edits it in the owner Converting Machine', () => {
+    it('shows the proposed property of an owner lead and edits it on the owner lead form', () => {
         render(
             <LeadsShow
                 {...base}

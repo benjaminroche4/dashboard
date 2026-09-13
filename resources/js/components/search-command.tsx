@@ -120,7 +120,7 @@ const destinations: Destination[] = [
         icon: Contact,
     },
     {
-        title: 'Converting Machine',
+        title: 'Nouveau lead',
         keywords: 'lead prospect nouveau formulaire qualification',
         url: leadsCreate().url,
         icon: Sparkles,

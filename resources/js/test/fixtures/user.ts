@@ -166,7 +166,7 @@ export const siteSections: SiteSectionOption[] = [
     },
     {
         value: 'leads_create',
-        label: 'Converting Machine (locataires)',
+        label: 'Nouveau lead (locataires)',
         group: 'Leads',
         manage_hint: 'aucune action supplémentaire',
         has_manage: false,

@@ -37,6 +37,7 @@ const labels = {
     too_heavy:
         'Envoi trop lourd (7,5 Mo au maximum) : déposez vos fichiers en plusieurs fois.',
     uploaded: 'Fichiers reçus',
+    view: 'Ouvrir',
     none: 'Aucun fichier pour le moment',
     sending: 'Envoi en cours…',
     done: 'Pièce reçue',
@@ -248,5 +249,15 @@ describe('Public document upload page', () => {
                 preserveScroll: true,
             }),
         );
+    });
+
+    it('lets the client reopen a file they have just sent', () => {
+        renderPage();
+
+        // Le nom du fichier est un lien : on relit ce qu'on a déposé.
+        const file = screen.getByTitle('Ouvrir · bulletin-juin.pdf');
+
+        expect(file).toHaveAttribute('href', '/depot/jeton/fichiers/up-1');
+        expect(file).toHaveAttribute('target', '_blank');
     });
 });

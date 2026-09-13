@@ -339,7 +339,10 @@ export default function InvoicesCreate({
                     <form
                         id="invoice-form"
                         onSubmit={submit}
-                        className="grid gap-8"
+                        // `minmax(0,1fr)` : sans lui, la colonne se dimensionne
+                        // sur son contenu le plus large (le compte bancaire) et
+                        // les cartes débordent sous l'aperçu.
+                        className="grid grid-cols-[minmax(0,1fr)] gap-8"
                         data-test="invoice-form"
                     >
                         <FormSection
@@ -881,7 +884,12 @@ export default function InvoicesCreate({
                                     bank_iban: errors.bank_iban,
                                     bank_reference: errors.bank_reference,
                                 }}
-                                onChange={(values) => form.setData(values)}
+                                // `setData` avec un objet **remplace** les données du
+                                // formulaire : le compte se fusionne, sinon tout le
+                                // reste (lignes, devise, client) disparaît.
+                                onChange={(values) =>
+                                    form.setData({ ...form.data, ...values })
+                                }
                             />
                         </FormSection>
 

@@ -35,7 +35,10 @@ export function FormSection({
         <section
             aria-label={title}
             className={cn(
-                'grid gap-4',
+                // `min-w-0` et une colonne `minmax(0,1fr)` : une section ne
+                // doit jamais s'élargir sur son contenu le plus long (un IBAN,
+                // une URL), qui se tronque ou passe à la ligne à la place.
+                'grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4',
                 variant === 'card' && 'bg-background rounded-lg border p-4',
                 className,
             )}

@@ -350,3 +350,29 @@ test('an english client reads the refusal in english', function (): void {
     // ce message serait resté en français.
     expect($message)->toBe('Only PDF files are accepted.');
 });
+
+test('the client can reopen a file they have deposited, but only with the code', function (): void {
+    Storage::fake('local');
+    $request = DocumentRequest::factory()->create();
+    $upload = DocumentUpload::factory()->for($request, 'request')->create(['path' => 'document-uploads/bulletin.pdf']);
+    Storage::disk('local')->put('document-uploads/bulletin.pdf', '%PDF-1.4 fake');
+
+    $url = route('documents.public.download', ['documentRequest' => $request->public_token, 'upload' => $upload->uuid]);
+
+    // Sans le code d'appairage, la porte reste fermée.
+    $this->get($url)->assertForbidden();
+
+    $this->post(route('documents.public.verify', ['documentRequest' => $request->public_token]), ['code' => $request->access_code]);
+
+    // Le PDF s'affiche dans l'onglet plutôt que de se télécharger.
+    $this->get($url)
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf')
+        ->assertHeader('x-content-type-options', 'nosniff')
+        ->assertHeader('content-disposition', 'inline; filename="'.$upload->original_name.'"');
+
+    // Un fichier d'une autre liste n'est pas lisible depuis ce jeton.
+    $other = DocumentUpload::factory()->create();
+    $this->get(route('documents.public.download', ['documentRequest' => $request->public_token, 'upload' => $other->uuid]))
+        ->assertNotFound();
+});

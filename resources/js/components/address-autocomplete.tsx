@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import {
     fetchPlaceSuggestions,
+    type PlaceKind,
     type PlaceSuggestion,
     type PlacesSession,
     type ResolvedAddress,
@@ -16,8 +17,10 @@ type Props = {
     onSelect: (address: ResolvedAddress) => void;
     /** Faux quand la clé Google n'est pas configurée : champ texte ordinaire. */
     enabled?: boolean;
-    /** Codes pays (ISO alpha-2) qui restreignent la recherche. */
+    /** Codes pays (ISO alpha-2) qui restreignent la recherche ; vide = le monde entier. */
     regionCodes?: string[];
+    /** « cities » ne propose que des villes (ville d'origine d'un lead). */
+    kind?: PlaceKind;
     placeholder?: string;
     className?: string;
 };
@@ -32,6 +35,7 @@ export function AddressAutocomplete({
     onSelect,
     enabled = true,
     regionCodes = ['ch', 'fr'],
+    kind = 'address',
     placeholder = 'Rue et numéro',
     className,
 }: Props) {
@@ -79,6 +83,7 @@ export function AddressAutocomplete({
                     input,
                     regionCodes,
                     session.current,
+                    kind,
                 );
 
                 // Ignore une réponse arrivée après une saisie plus récente.

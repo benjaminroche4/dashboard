@@ -64,6 +64,7 @@ type Props = {
         | 'too_many'
         | 'too_heavy'
         | 'uploaded'
+        | 'view'
         | 'none'
         | 'sending'
         | 'done'
@@ -340,28 +341,45 @@ export default function PublicDocumentUpload({
                                                                                     }
                                                                                     className="flex min-w-0"
                                                                                 >
-                                                                                    <Attachment
-                                                                                        size="sm"
-                                                                                        className="bg-background"
+                                                                                    {/* Relire ce qu'on vient
+                                                                                        de déposer : le PDF
+                                                                                        s'ouvre dans un onglet. */}
+                                                                                    <a
+                                                                                        href={
+                                                                                            upload.url
+                                                                                        }
+                                                                                        target="_blank"
+                                                                                        rel="noreferrer"
+                                                                                        title={`${labels.view} · ${upload.name}`}
+                                                                                        className="focus-visible:ring-ring flex min-w-0 rounded-md focus-visible:ring-2 focus-visible:outline-none"
                                                                                     >
-                                                                                        <AttachmentMedia>
-                                                                                            <FileText
-                                                                                                aria-hidden
-                                                                                            />
-                                                                                        </AttachmentMedia>
-                                                                                        <AttachmentContent>
-                                                                                            <AttachmentTitle>
-                                                                                                {
-                                                                                                    upload.name
-                                                                                                }
-                                                                                            </AttachmentTitle>
-                                                                                            <AttachmentDescription>
-                                                                                                {formatFileSize(
-                                                                                                    upload.size,
-                                                                                                )}
-                                                                                            </AttachmentDescription>
-                                                                                        </AttachmentContent>
-                                                                                    </Attachment>
+                                                                                        <Attachment
+                                                                                            size="sm"
+                                                                                            className="bg-background hover:border-foreground/30 transition-colors"
+                                                                                        >
+                                                                                            <AttachmentMedia>
+                                                                                                <FileText
+                                                                                                    aria-hidden
+                                                                                                />
+                                                                                            </AttachmentMedia>
+                                                                                            <AttachmentContent>
+                                                                                                <AttachmentTitle>
+                                                                                                    {
+                                                                                                        upload.name
+                                                                                                    }
+                                                                                                </AttachmentTitle>
+                                                                                                <AttachmentDescription>
+                                                                                                    {formatFileSize(
+                                                                                                        upload.size,
+                                                                                                    )}{' '}
+                                                                                                    ·{' '}
+                                                                                                    {
+                                                                                                        labels.view
+                                                                                                    }
+                                                                                                </AttachmentDescription>
+                                                                                            </AttachmentContent>
+                                                                                        </Attachment>
+                                                                                    </a>
                                                                                 </li>
                                                                             ),
                                                                         )}

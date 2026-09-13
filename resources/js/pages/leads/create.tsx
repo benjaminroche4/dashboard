@@ -14,6 +14,7 @@ import {
     Wallet,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { AddressAutocomplete } from '@/components/address-autocomplete';
 import { CountryFlag } from '@/components/country-flag';
 import { DatePicker } from '@/components/date-picker';
 import InputError from '@/components/input-error';
@@ -208,7 +209,7 @@ export default function LeadsCreate({
 }: Props) {
     const editing = lead !== undefined;
     const owner = (lead?.segment ?? segment) === 'owner';
-    const { auth, staff } = usePage().props;
+    const { auth, staff, features } = usePage().props;
     const form = useForm<LeadForm>(
         lead
             ? { ...toForm(lead) }
@@ -435,9 +436,7 @@ export default function LeadsCreate({
 
     return (
         <>
-            <Head
-                title={editing ? `Modifier ${lead.name}` : 'Converting Machine'}
-            />
+            <Head title={editing ? `Modifier ${lead.name}` : 'Nouveau lead'} />
             <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4">
                 <div className="grid gap-6 pt-8 pb-8">
                     <div className="flex flex-wrap items-start justify-between gap-4">
@@ -445,7 +444,7 @@ export default function LeadsCreate({
                             <h1 className="text-2xl font-semibold tracking-tight">
                                 {editing
                                     ? `Modifier ${lead.name}`
-                                    : 'Converting Machine'}
+                                    : 'Nouveau lead'}
                             </h1>
                             <p className="text-muted-foreground text-sm">
                                 {editing
@@ -927,15 +926,25 @@ export default function LeadsCreate({
                                             htmlFor="origin_city"
                                             error={errors.origin_city}
                                         >
-                                            <Input
+                                            {/* Une ville, pas une adresse : la
+                                                recherche Google ne propose que
+                                                des localités, partout dans le
+                                                monde (nos clients arrivent de
+                                                loin). */}
+                                            <AddressAutocomplete
                                                 id="origin_city"
-                                                name="origin_city"
-                                                autoComplete="off"
+                                                kind="cities"
+                                                regionCodes={[]}
+                                                enabled={
+                                                    features.addressAutocomplete
+                                                }
+                                                placeholder="Genève, Londres, New York…"
                                                 className="bg-background"
                                                 value={form.data.origin_city}
-                                                onChange={(e) =>
+                                                onChange={set('origin_city')}
+                                                onSelect={(place) =>
                                                     set('origin_city')(
-                                                        e.target.value,
+                                                        place.city,
                                                     )
                                                 }
                                             />
@@ -1311,6 +1320,6 @@ export default function LeadsCreate({
 LeadsCreate.layout = {
     breadcrumbs: [
         { title: 'Leads', href: leadsIndex() },
-        { title: 'Converting Machine', href: '#' },
+        { title: 'Nouveau lead', href: '#' },
     ],
 };

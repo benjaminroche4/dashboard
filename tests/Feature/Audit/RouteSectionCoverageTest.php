@@ -32,7 +32,7 @@ const FREE_ROUTES = [
     'team.index', 'team.show', 'team.store', 'team.destroy', 'team.access',
     // Hors session : webhooks signés et dépôt public des pièces.
     'webhooks.rip.contact', 'webhooks.allo',
-    'documents.public.show', 'documents.public.store', 'documents.public.verify',
+    'documents.public.show', 'documents.public.store', 'documents.public.verify', 'documents.public.download',
     // Proxy Google Places : sert l'autocomplétion d'adresse de tous les formulaires.
     'places.suggest', 'places.details',
     // Supervision, et routes techniques publiées par les paquets.

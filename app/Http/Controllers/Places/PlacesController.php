@@ -21,14 +21,20 @@ class PlacesController extends Controller
 
         abort_unless($places->isConfigured(), 503, __('L\'autocomplétion d\'adresse n\'est pas configurée.'));
 
-        /** @var array{input: string, regions?: list<string>, session?: string} $validated */
+        /** @var array{input: string, regions?: list<string>, session?: string, kind?: 'address'|'cities'} $validated */
         $validated = $request->validated();
+
+        $kind = $validated['kind'] ?? 'address';
+        // Une adresse se cherche là où l'agence travaille ; une ville d'origine
+        // peut être n'importe où dans le monde, on ne la restreint pas.
+        $regions = $validated['regions'] ?? ($kind === 'cities' ? [] : ['ch', 'fr']);
 
         return response()->json([
             'suggestions' => $places->suggest(
                 $validated['input'],
-                array_map(strtolower(...), $validated['regions'] ?? ['ch', 'fr']),
+                array_map(strtolower(...), $regions),
                 $validated['session'] ?? null,
+                $kind,
             ),
         ]);
     }

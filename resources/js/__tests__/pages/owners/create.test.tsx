@@ -135,7 +135,7 @@ async function fillContact(user: ReturnType<typeof userEvent.setup>) {
     await user.type(screen.getByLabelText('E-mail'), 'paul@example.com');
 }
 
-describe('Owner Converting Machine page', () => {
+describe('Owner lead creation page', () => {
     beforeEach(() => vi.clearAllMocks());
 
     it('walks through the three steps and posts the property with amounts in cents', async () => {
@@ -143,7 +143,7 @@ describe('Owner Converting Machine page', () => {
         render(<OwnerLeadCreate {...props} />);
 
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-            'Converting Machine',
+            'Nouveau lead',
         );
         expect(
             screen.getByRole('button', {

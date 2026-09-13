@@ -30,14 +30,17 @@ final readonly class GooglePlaces
 
     /**
      * @param  list<string>  $regionCodes  Codes pays ISO alpha-2 (minuscules)
+     * @param  'address'|'cities'  $kind  Adresses précises, ou villes seulement
      * @return list<array{id: string, main: string, secondary: string}>
      */
-    public function suggest(string $input, array $regionCodes, ?string $sessionToken = null): array
+    public function suggest(string $input, array $regionCodes, ?string $sessionToken = null, string $kind = 'address'): array
     {
         $response = Http::timeout(10)->get(self::AUTOCOMPLETE, array_filter([
             'input' => $input,
             'language' => 'fr',
-            'types' => 'address',
+            // « (cities) » ne propose que des localités : une ville d'origine
+            // n'est ni une rue ni un commerce.
+            'types' => $kind === 'cities' ? '(cities)' : 'address',
             'components' => implode('|', array_map(fn (string $code): string => 'country:'.$code, $regionCodes)),
             'sessiontoken' => $sessionToken,
             'key' => $this->key,

@@ -37,7 +37,11 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
     };
 });
 
-// Stub minimal d'Inertia useForm : setData(clé, valeur) ou setData(objet).
+/**
+ * Stub d'Inertia `useForm`, fidèle à l'adaptateur : `setData(clé, valeur)`
+ * fusionne, mais `setData(objet)` **remplace** toutes les données. Un stub qui
+ * fusionnerait masquerait les appels qui perdent le reste du formulaire.
+ */
 function useFormStub(initial: Record<string, unknown>) {
     const [data, setDataState] = useState(initial);
 
@@ -52,7 +56,7 @@ function useFormStub(initial: Record<string, unknown>) {
             setDataState((current) =>
                 typeof keyOrData === 'string'
                     ? { ...current, [keyOrData]: value }
-                    : { ...current, ...keyOrData },
+                    : keyOrData,
             ),
         transform,
         post,

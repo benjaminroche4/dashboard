@@ -37,7 +37,11 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
     };
 });
 
-// Stub minimal d'Inertia useForm : setData(clé, valeur) ou setData(objet).
+/**
+ * Stub d'Inertia `useForm`, fidèle à l'adaptateur : `setData(clé, valeur)`
+ * fusionne, mais `setData(objet)` **remplace** toutes les données. Un stub qui
+ * fusionnerait masquerait les appels qui perdent le reste du formulaire.
+ */
 function useFormStub(initial: Record<string, unknown>) {
     const [data, setDataState] = useState(initial);
 
@@ -52,7 +56,7 @@ function useFormStub(initial: Record<string, unknown>) {
             setDataState((current) =>
                 typeof keyOrData === 'string'
                     ? { ...current, [keyOrData]: value }
-                    : { ...current, ...keyOrData },
+                    : keyOrData,
             ),
         transform,
         post,
@@ -251,5 +255,24 @@ describe('Quote creation page', () => {
         expect(
             QuotesCreate.layout.breadcrumbs.map((crumb) => crumb.title),
         ).toEqual(['Outils', 'Devis', 'Nouveau devis']);
+    });
+
+    it('keeps the rest of the quote when a bank account is added', async () => {
+        const user = userEvent.setup();
+        render(<QuotesCreate {...props} />);
+
+        await user.type(screen.getByLabelText('Nom / Prénom'), 'Acme SA');
+        await user.click(
+            screen.getByRole('button', { name: 'Ajouter un compte' }),
+        );
+        await user.type(screen.getByLabelText('IBAN'), 'LT44 1234');
+        await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+        // Le compte se fusionne : les lignes et le client survivent. Sans cela,
+        // `form.data.items` disparaissait et la page rendait un écran blanc.
+        expect(screen.getByLabelText('Nom / Prénom')).toHaveValue('Acme SA');
+        expect(
+            screen.getByLabelText('Prix unitaire ligne 1'),
+        ).toBeInTheDocument();
     });
 });

@@ -31,9 +31,9 @@ enum SiteSection: string
     {
         return match ($this) {
             self::Leads => 'Leads locataires',
-            self::LeadsCreate => 'Converting Machine (locataires)',
+            self::LeadsCreate => 'Nouveau lead (locataires)',
             self::OwnerLeads => 'Leads propriétaires',
-            self::OwnerLeadsCreate => 'Converting Machine (propriétaires)',
+            self::OwnerLeadsCreate => 'Nouveau lead (propriétaires)',
             self::Clients => 'Dossiers clients',
             self::Visits => 'Visites',
             self::Agents => 'Agents et agences',

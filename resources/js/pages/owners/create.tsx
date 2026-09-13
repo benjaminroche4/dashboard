@@ -446,9 +446,7 @@ export default function OwnerLeadCreate({
 
     return (
         <>
-            <Head
-                title={editing ? `Modifier ${lead.name}` : 'Converting Machine'}
-            />
+            <Head title={editing ? `Modifier ${lead.name}` : 'Nouveau lead'} />
             <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4">
                 <div className="grid gap-6 pt-8 pb-8">
                     <div className="flex flex-wrap items-start justify-between gap-4">
@@ -456,7 +454,7 @@ export default function OwnerLeadCreate({
                             <h1 className="text-2xl font-semibold tracking-tight">
                                 {editing
                                     ? `Modifier ${lead.name}`
-                                    : 'Converting Machine'}
+                                    : 'Nouveau lead'}
                             </h1>
                             <p className="text-muted-foreground text-sm">
                                 {editing
@@ -1294,6 +1292,6 @@ export default function OwnerLeadCreate({
 OwnerLeadCreate.layout = {
     breadcrumbs: [
         { title: 'Propriétaires', href: ownersLeads() },
-        { title: 'Converting Machine', href: '#' },
+        { title: 'Nouveau lead', href: '#' },
     ],
 };
