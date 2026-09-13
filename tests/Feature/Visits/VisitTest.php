@@ -256,6 +256,33 @@ test('the schedule page is dedicated, lists clients and properties, and preselec
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->where('defaultClientId', null));
 });
 
+test('a visit cannot be scheduled in the past, but a past visit stays editable', function (): void {
+    $client = Lead::factory()->converted()->create(['offer' => Offer::Accompagne]);
+    $property = Property::factory()->create();
+    $member = User::factory()->create();
+
+    $payload = fn (string $at): array => ['lead_id' => $client->id, 'property_id' => $property->id, 'scheduled_at' => $at];
+
+    $this->actingAs($member)
+        ->post(route('clients.visits.store'), $payload(now()->subDay()->format('Y-m-d H:i')))
+        ->assertSessionHasErrors(['scheduled_at']);
+    expect(Visit::query()->count())->toBe(0);
+
+    // Un créneau plus tôt dans la journée passe : la borne est au jour près.
+    $this->actingAs($member)
+        ->post(route('clients.visits.store'), $payload(now()->startOfDay()->format('Y-m-d H:i')))
+        ->assertRedirect(route('clients.visits'))
+        ->assertSessionHasNoErrors();
+    expect(Visit::query()->count())->toBe(1);
+
+    // Une visite passée se replanifie et se complète : le compte rendu en dépend.
+    $visit = Visit::factory()->create(['scheduled_at' => now()->subWeek()]);
+    $this->actingAs($member)
+        ->patch(route('clients.visits.update', $visit), ['scheduled_at' => now()->subDays(2)->format('Y-m-d H:i')])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+});
+
 test('a visit is marked done or cancelled, rescheduled, and only admins delete it', function (): void {
     $visit = Visit::factory()->create();
     $member = User::factory()->create();

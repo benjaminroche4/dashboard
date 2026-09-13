@@ -31,6 +31,7 @@ import {
     propertyFormToPayload,
 } from '@/lib/property-form';
 import { cn } from '@/lib/utils';
+import { parisDayKey } from '@/lib/datetime';
 import { visitModeForOffer } from '@/lib/visits';
 import { visits as clientsVisits } from '@/routes/clients';
 import { show as visitShow, store, update } from '@/routes/clients/visits';
@@ -133,6 +134,11 @@ export function VisitForm({
               ),
     );
     const errors = form.errors as Record<string, string | undefined>;
+    // Borne basse du créneau : aujourd'hui, ou le jour d'une visite déjà passée.
+    const today = parisDayKey(new Date());
+    const visitDay =
+        visit === null ? null : parisDayKey(new Date(visit.scheduled_at));
+    const minDay = visitDay !== null && visitDay < today ? visitDay : today;
     // « AAAA-MM-JJTHH:MM » découpé pour le sélecteur de date et la liste des heures.
     const [datePart = '', timePart = ''] = form.data.scheduled_at.split('T');
     // Erreurs `property.xxx` renvoyées par Laravel, remises sur les champs du bien.
@@ -159,6 +165,11 @@ export function VisitForm({
             ...form.data,
             lead_id: value,
             notify_client: chosen?.offer === 'accompagne',
+            // Visite autonome : personne de l'équipe n'y va.
+            assigned_to:
+                visitModeForOffer(chosen?.offer) === 'client_alone'
+                    ? ''
+                    : form.data.assigned_to,
         });
     };
 
@@ -261,6 +272,11 @@ export function VisitForm({
                             <DatePicker
                                 id="visit-date"
                                 value={datePart}
+                                // Pas de créneau dans le passé : le calendrier
+                                // s'ouvre à partir d'aujourd'hui. Une visite
+                                // déjà passée garde sa date pour borne, elle
+                                // reste modifiable — son compte rendu en dépend.
+                                min={minDay}
                                 onChange={(iso) =>
                                     form.setData(
                                         'scheduled_at',
@@ -322,48 +338,56 @@ export function VisitForm({
                     </div>
                 )}
 
-                <div className="grid gap-2">
-                    <Label htmlFor="visit-assigned-to">
-                        Visite réalisée par
-                    </Label>
-                    <SearchSelect
-                        id="visit-assigned-to"
-                        value={form.data.assigned_to}
-                        onChange={(value) => form.setData('assigned_to', value)}
-                        placeholder={
-                            entrusted
-                                ? 'Choisir un membre'
-                                : 'Personne pour l’instant'
-                        }
-                        emptyLabel={
-                            entrusted ? undefined : 'Personne pour l’instant'
-                        }
-                        searchPlaceholder="Rechercher un membre…"
-                        noResults="Aucun membre ne correspond."
-                        options={staff.map((member) => ({
-                            value: String(member.id),
-                            label:
-                                member.id === currentUserId
-                                    ? `${member.name} · moi`
-                                    : member.name,
-                            hint: member.functions?.join(', ') || null,
-                            leading: (
-                                <Avatar className="size-6">
-                                    {member.avatar && (
-                                        <AvatarImage
-                                            src={member.avatar}
-                                            alt=""
-                                        />
-                                    )}
-                                    <AvatarFallback className="text-[10px]">
-                                        {initials(member.name)}
-                                    </AvatarFallback>
-                                </Avatar>
-                            ),
-                        }))}
-                    />
-                    <InputError message={errors.assigned_to} />
-                </div>
+                {/* Visite autonome : le client y va seul, personne de
+                    l’équipe n’est à désigner. */}
+                {visitMode !== 'client_alone' && (
+                    <div className="grid gap-2">
+                        <Label htmlFor="visit-assigned-to">
+                            Visite réalisée par
+                        </Label>
+                        <SearchSelect
+                            id="visit-assigned-to"
+                            value={form.data.assigned_to}
+                            onChange={(value) =>
+                                form.setData('assigned_to', value)
+                            }
+                            placeholder={
+                                entrusted
+                                    ? 'Choisir un membre'
+                                    : 'Personne pour l’instant'
+                            }
+                            emptyLabel={
+                                entrusted
+                                    ? undefined
+                                    : 'Personne pour l’instant'
+                            }
+                            searchPlaceholder="Rechercher un membre…"
+                            noResults="Aucun membre ne correspond."
+                            options={staff.map((member) => ({
+                                value: String(member.id),
+                                label:
+                                    member.id === currentUserId
+                                        ? `${member.name} · moi`
+                                        : member.name,
+                                hint: member.functions?.join(', ') || null,
+                                leading: (
+                                    <Avatar className="size-6">
+                                        {member.avatar && (
+                                            <AvatarImage
+                                                src={member.avatar}
+                                                alt=""
+                                            />
+                                        )}
+                                        <AvatarFallback className="text-[10px]">
+                                            {initials(member.name)}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                ),
+                            }))}
+                        />
+                        <InputError message={errors.assigned_to} />
+                    </div>
+                )}
 
                 {!entrusted && !editing && (
                     <label

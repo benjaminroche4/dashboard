@@ -82,20 +82,17 @@ describe('Client file page', () => {
         expect(section.getByText('3/6 pièces validées')).toBeInTheDocument();
     });
 
-    it('shows the client, the money figures, the project, the dossier tabs and the actions', async () => {
+    it('shows the client, where the search stands, the project, the dossier tabs and the actions', async () => {
         const user = userEvent.setup();
         render(
             <ClientShow
                 priorities={clientPriorities}
                 client={makeClientDetail()}
-                totals={[
-                    {
-                        currency: 'EUR',
-                        invoiced_cents: 219_000,
-                        paid_cents: 100_000,
-                        due_cents: 119_000,
-                    },
-                ]}
+                progress={{
+                    visits_done: 3,
+                    properties_refused: 2,
+                    applications: 1,
+                }}
                 invoices={[
                     {
                         id: 1,
@@ -158,8 +155,13 @@ describe('Client file page', () => {
         const stats = within(
             screen.getByRole('region', { name: 'Chiffres du dossier' }),
         );
-        expect(stats.getByText(/2.190,00 €/)).toBeInTheDocument();
-        expect(stats.getByText(/1.190,00 €/)).toBeInTheDocument();
+        // Le dossier dit où en est la recherche, pas la facturation : elle a
+        // ses propres sections.
+        expect(stats.getByText('Visites réalisées')).toBeInTheDocument();
+        expect(stats.getByText('3')).toBeInTheDocument();
+        expect(stats.getByText('Biens refusés')).toBeInTheDocument();
+        expect(stats.getByText('2')).toBeInTheDocument();
+        expect(stats.queryByText('Facturé')).not.toBeInTheDocument();
         expect(
             within(
                 screen.getByRole('region', { name: 'Projet de logement' }),

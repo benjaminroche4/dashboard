@@ -93,107 +93,111 @@ export default function AgentShow({
                         active: agent.is_favorite,
                         url: agentFavorite({ agent: agent.uuid }).url,
                     }}
-                >
-                    <div className="grid gap-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                            <h2 className="text-muted-foreground text-xs tracking-wide uppercase">
-                                Coordonnées
-                            </h2>
-                            <AddressMapButton
-                                place={{
-                                    name: agent.name,
-                                    address,
-                                    street: agent.street,
-                                    latitude: agent.latitude,
-                                    longitude: agent.longitude,
-                                }}
-                            />
-                        </div>
-                        <dl className="grid gap-4 sm:grid-cols-2">
-                            {[
-                                {
-                                    label: 'Téléphone',
-                                    value: agent.phone,
-                                    href: agent.phone
-                                        ? `tel:${agent.phone.replace(/\s+/g, '')}`
-                                        : null,
-                                },
-                                {
-                                    label: 'E-mail',
-                                    value: agent.email,
-                                    href: agent.email
-                                        ? `mailto:${agent.email}`
-                                        : null,
-                                },
-                                { label: 'Adresse', value: address },
-                            ].map((row) => (
-                                <div
-                                    key={row.label}
-                                    className="grid min-w-0 gap-1"
-                                >
-                                    <dt className="text-muted-foreground text-sm">
-                                        {row.label}
-                                    </dt>
-                                    <dd className="min-w-0 font-medium break-words">
-                                        {row.value ? (
-                                            row.href ? (
-                                                <a
-                                                    href={row.href}
-                                                    className="underline-offset-4 hover:underline"
-                                                >
-                                                    {row.value}
-                                                </a>
+                />
+
+                <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                    <div className="flex flex-col gap-4">
+                        {/* Même carte que sur les fiches agence, partenaire et
+                            propriétaire : les coordonnées ne flottent pas sous
+                            le titre. */}
+                        <DetailSection
+                            title="Coordonnées"
+                            action={
+                                <AddressMapButton
+                                    place={{
+                                        name: agent.name,
+                                        address,
+                                        street: agent.street,
+                                        latitude: agent.latitude,
+                                        longitude: agent.longitude,
+                                    }}
+                                />
+                            }
+                        >
+                            <dl className="grid gap-4 sm:grid-cols-2">
+                                {[
+                                    {
+                                        label: 'Téléphone',
+                                        value: agent.phone,
+                                        href: agent.phone
+                                            ? `tel:${agent.phone.replace(/\s+/g, '')}`
+                                            : null,
+                                    },
+                                    {
+                                        label: 'E-mail',
+                                        value: agent.email,
+                                        href: agent.email
+                                            ? `mailto:${agent.email}`
+                                            : null,
+                                    },
+                                    { label: 'Adresse', value: address },
+                                ].map((row) => (
+                                    <div
+                                        key={row.label}
+                                        className="grid min-w-0 gap-1"
+                                    >
+                                        <dt className="text-muted-foreground text-sm">
+                                            {row.label}
+                                        </dt>
+                                        <dd className="min-w-0 font-medium break-words">
+                                            {row.value ? (
+                                                row.href ? (
+                                                    <a
+                                                        href={row.href}
+                                                        className="underline-offset-4 hover:underline"
+                                                    >
+                                                        {row.value}
+                                                    </a>
+                                                ) : (
+                                                    row.value
+                                                )
                                             ) : (
-                                                row.value
-                                            )
+                                                missingValue
+                                            )}
+                                        </dd>
+                                    </div>
+                                ))}
+                                <div className="grid min-w-0 gap-1">
+                                    <dt className="text-muted-foreground text-sm">
+                                        Qualité de la relation
+                                    </dt>
+                                    <dd>
+                                        {agent.relationship_quality_label ? (
+                                            <Badge
+                                                variant="secondary"
+                                                className={cn(
+                                                    'font-medium',
+                                                    relationshipQualityTones[
+                                                        agent.relationship_quality as RelationshipQualityValue
+                                                    ],
+                                                )}
+                                            >
+                                                {
+                                                    agent.relationship_quality_label
+                                                }
+                                            </Badge>
                                         ) : (
                                             missingValue
                                         )}
                                     </dd>
                                 </div>
-                            ))}
-                            <div className="grid min-w-0 gap-1">
-                                <dt className="text-muted-foreground text-sm">
-                                    Qualité de la relation
-                                </dt>
-                                <dd>
-                                    {agent.relationship_quality_label ? (
-                                        <Badge
-                                            variant="secondary"
-                                            className={cn(
-                                                'font-medium',
-                                                relationshipQualityTones[
-                                                    agent.relationship_quality as RelationshipQualityValue
-                                                ],
-                                            )}
-                                        >
-                                            {agent.relationship_quality_label}
-                                        </Badge>
-                                    ) : (
-                                        missingValue
-                                    )}
-                                </dd>
-                            </div>
-                            <div className="grid min-w-0 gap-1">
-                                <dt className="text-muted-foreground text-sm">
-                                    Visites avec cet agent
-                                </dt>
-                                <dd className="tabular-nums">
-                                    {agent.visits_count > 0
-                                        ? `${agent.visits_count} visite(s)${
-                                              agent.last_visit_at
-                                                  ? ` · dernière le ${visitDate.format(new Date(agent.last_visit_at))}`
-                                                  : ''
-                                          }`
-                                        : missingValue}
-                                </dd>
-                            </div>
-                        </dl>
-                    </div>
-                </DetailHeader>
+                                <div className="grid min-w-0 gap-1">
+                                    <dt className="text-muted-foreground text-sm">
+                                        Visites avec cet agent
+                                    </dt>
+                                    <dd className="tabular-nums">
+                                        {agent.visits_count > 0
+                                            ? `${agent.visits_count} visite(s)${
+                                                  agent.last_visit_at
+                                                      ? ` · dernière le ${visitDate.format(new Date(agent.last_visit_at))}`
+                                                      : ''
+                                              }`
+                                            : missingValue}
+                                    </dd>
+                                </div>
+                            </dl>
+                        </DetailSection>
 
-                <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                    <div className="flex flex-col gap-4">
                         <DirectoryRelationCard
                             lastContactedAt={agent.last_contacted_at}
                             touchUrl={agentTouch({ agent: agent.uuid }).url}

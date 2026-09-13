@@ -76,8 +76,9 @@ test('the dossier counts what is out of the running and the applications in play
         ->get(route('clients.show', $client))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->where('progress.visits_done', 1)
-            // Écarté par le client ou refusé par le bailleur : le bien est hors course.
-            ->where('progress.properties_refused', 2)
+            // Seuls les refus du client : une candidature refusée par le
+            // bailleur n'est pas son choix.
+            ->where('progress.properties_refused', 1)
             ->where('progress.applications', 2)
             ->has('propertyStatuses', 5));
 });
@@ -111,4 +112,31 @@ test('the follow-up needs a converted lead', function (): void {
     $this->actingAs($member)
         ->patch(route('clients.properties.status', ['lead' => $lead, 'property' => $property]), ['status' => 'applied'])
         ->assertNotFound();
+});
+
+test('a visit row carries the outcome of the property for that client', function (): void {
+    $staff = User::factory()->staff()->create();
+    $lead = Lead::factory()->converted()->create();
+    $property = Property::factory()->create();
+    $visit = Visit::factory()->for($lead)->for($property)->create(['status' => VisitStatus::Done]);
+
+    // Sans lien dossier ↔ bien, rien n'est tranché.
+    $this->actingAs($staff)->get(route('clients.visits'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('visits.0.outcome', 'pending')
+            ->where('visits.0.outcome_label', 'À décider'));
+
+    $lead->properties()->attach($property, ['status' => PropertyApplicationStatus::Applied->value, 'created_by' => $staff->id]);
+
+    // La liste des visites et le dossier lisent la même décision.
+    $this->actingAs($staff)->get(route('clients.visits'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('visits.0.outcome', 'applied')
+            ->where('visits.0.outcome_label', 'Dossier déposé'));
+
+    $this->actingAs($staff)->get(route('clients.show', $lead))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('visits.0.outcome', 'applied'));
+
+    expect($visit->refresh()->status)->toBe(VisitStatus::Done);
 });

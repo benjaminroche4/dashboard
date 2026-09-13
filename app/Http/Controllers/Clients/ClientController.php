@@ -270,7 +270,7 @@ class ClientController extends Controller
             'visits.assignee',
             'visits.creator',
             'visits.reportAuthor',
-            'visits.lead',
+            'visits.lead.properties',
         ]);
         $lead->loadCount(['invoices', 'documentRequests']);
 
@@ -341,8 +341,10 @@ class ClientController extends Controller
             // et les candidatures en jeu.
             'progress' => [
                 'visits_done' => $lead->visits->where('status', VisitStatus::Done)->count(),
+                // Les refus **du client** : les biens qu'il a écartés. Une
+                // candidature refusée par le bailleur n'est pas son choix.
                 'properties_refused' => $lead->properties()
-                    ->wherePivotIn('status', [PropertyApplicationStatus::Declined->value, PropertyApplicationStatus::Rejected->value])
+                    ->wherePivot('status', PropertyApplicationStatus::Declined->value)
                     ->count(),
                 'applications' => $lead->properties()
                     ->wherePivotIn('status', [PropertyApplicationStatus::Applied->value, PropertyApplicationStatus::Accepted->value])

@@ -64,6 +64,7 @@ import type {
     ClientProperty,
     ClientPropertyOption,
     ClientPropertySuggestion,
+    ClientProgress,
     ClientTotals,
     LeadDocumentRequest,
     LeadInvoice,
@@ -79,7 +80,10 @@ type Props = {
     priorities: ClientPriorityOption[];
     /** Où en est le dossier de location : la mesure qui dit s'il est présentable. */
     readiness?: DossierReadiness;
-    totals: ClientTotals[];
+    /** Totaux par devise, lus par la facturation du dossier. */
+    totals?: ClientTotals[];
+    /** Où en est la recherche : visites faites, biens écartés par le client. */
+    progress?: ClientProgress;
     invoices: LeadInvoice[];
     quotes: LeadQuote[];
     documentRequests: LeadDocumentRequest[];
@@ -201,7 +205,6 @@ export default function ClientShow({
         missing: 0,
         percent: 0,
     },
-    totals,
     invoices,
     quotes,
     documentRequests,
@@ -217,6 +220,7 @@ export default function ClientShow({
     tenantProfiles = {},
     residencyStatuses = [],
     employmentStatuses = [],
+    progress = { visits_done: 0, properties_refused: 0, applications: 0 },
 }: Props) {
     const initials = useInitials();
     // Onglet « Personnes » : locataires, garants et membres du suivi.
@@ -228,7 +232,6 @@ export default function ClientShow({
         (client.co_assignee ? 1 : 0);
     const money = (cents: number, currency: string) =>
         formatMoney(cents, currency);
-    const main = totals[0] ?? null;
 
     return (
         <>
@@ -345,7 +348,7 @@ export default function ClientShow({
 
                 <section
                     aria-label="Chiffres du dossier"
-                    className="grid grid-cols-1 rounded-xl border px-4 sm:grid-cols-4"
+                    className="grid grid-cols-1 rounded-xl border px-4 sm:grid-cols-3"
                 >
                     <Stat label="Arrivée">
                         {client.arrival_at ? (
@@ -360,41 +363,17 @@ export default function ClientShow({
                             </p>
                         )}
                     </Stat>
+                    {/* Où en est la recherche, plutôt que la facturation :
+                        elle a ses propres sections. */}
                     <Stat
-                        label="Facturé"
-                        value={
-                            main
-                                ? money(main.invoiced_cents, main.currency)
-                                : '—'
-                        }
+                        label="Visites réalisées"
+                        value={String(progress.visits_done)}
                     />
                     <Stat
-                        label="Encaissé"
-                        value={
-                            main ? money(main.paid_cents, main.currency) : '—'
-                        }
-                    />
-                    <Stat
-                        label="Reste dû"
-                        value={
-                            main ? money(main.due_cents, main.currency) : '—'
-                        }
+                        label="Biens refusés"
+                        value={String(progress.properties_refused)}
                     />
                 </section>
-                {totals.length > 1 && (
-                    <p className="text-muted-foreground -mt-4 text-sm">
-                        Autres devises :{' '}
-                        {totals
-                            .slice(1)
-                            .map(
-                                (total) =>
-                                    `${money(total.invoiced_cents, total.currency)} facturés, ${money(total.paid_cents, total.currency)} encaissés`,
-                            )
-                            .join(' · ')}
-                        .
-                    </p>
-                )}
-
                 <Tabs defaultValue="apercu" className="gap-6">
                     <TabsList
                         variant="line"

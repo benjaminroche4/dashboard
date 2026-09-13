@@ -1,6 +1,14 @@
-import { render, screen, within } from '@testing-library/react';
+import { configure, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+
+// La page compare plusieurs habillages de carte : les variantes non choisies
+// restent dans le DOM avec `hidden`. Les requêtes par texte les ignorent, pour
+// n'interroger que ce que le client voit vraiment.
+beforeAll(() =>
+    configure({ defaultIgnore: 'script, style, [hidden], [hidden] *' }),
+);
+afterAll(() => configure({ defaultIgnore: 'script, style' }));
 
 const { post } = vi.hoisted(() => ({ post: vi.fn() }));
 
@@ -100,7 +108,6 @@ describe('Public document upload page', () => {
         expect(
             screen.getByText("Passeport ou carte d'identité"),
         ).toBeInTheDocument();
-        expect(screen.getByText('Pièce reçue')).toBeInTheDocument();
         expect(
             within(
                 screen.getByRole('list', {
@@ -301,5 +308,52 @@ describe('Public document upload page', () => {
         expect(
             within(item).getByText('Rejected — Page missing.'),
         ).toBeInTheDocument();
+    });
+
+    it('marks the step by the review, not by the mere arrival of a file', () => {
+        const step = (status: 'pending' | 'accepted' | 'refused') =>
+            makePublicPerson({
+                categories: [
+                    {
+                        value: 'finance',
+                        label: 'Finance',
+                        documents: [
+                            {
+                                key: 'rib',
+                                label: 'RIB',
+                                hint: null,
+                                uploads: [
+                                    {
+                                        uuid: 'u1',
+                                        name: 'rib.pdf',
+                                        size: 1000,
+                                        uploaded_at: null,
+                                        status,
+                                        status_label: status,
+                                        review_note: null,
+                                        url: '/depot/jeton/fichiers/u1',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            });
+
+        // Déposée mais pas encore relue : rien n'est promis au client.
+        const deposited = renderPage([step('pending')]);
+        expect(screen.queryByText('Pièce reçue')).toBeNull();
+        expect(screen.queryByText(/Pièce refusée/)).toBeNull();
+        deposited.unmount();
+
+        // Validée par l'équipe : la coche verte, et elle se dit à voix haute.
+        const approved = renderPage([step('accepted')]);
+        expect(screen.getByText('Pièce reçue')).toBeInTheDocument();
+        approved.unmount();
+
+        // Refusée : une croix, jamais une coche.
+        renderPage([step('refused')]);
+        expect(screen.getByText(/Pièce refusée/)).toBeInTheDocument();
+        expect(screen.queryByText('Pièce reçue')).toBeNull();
     });
 });

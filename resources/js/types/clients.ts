@@ -94,6 +94,15 @@ export type PropertyApplicationStatus =
     | 'rejected';
 
 /** Une étape proposée dans le menu, avec ce qu'elle veut dire. */
+/** Où en est la recherche du client, en quelques chiffres. */
+export type ClientProgress = {
+    visits_done: number;
+    /** Biens que le client a écartés : ses refus à lui. */
+    properties_refused: number;
+    /** Candidatures en jeu : déposées ou acceptées. */
+    applications: number;
+};
+
 export type PropertyStatusOption = {
     value: PropertyApplicationStatus;
     label: string;

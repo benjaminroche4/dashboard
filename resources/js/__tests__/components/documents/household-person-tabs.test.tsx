@@ -15,14 +15,16 @@ describe('HouseholdPersonTabs', () => {
         expect(first).toHaveAttribute('data-state', 'active');
         expect(screen.getAllByRole('tab')).toHaveLength(persons.length);
 
+        // Les pièces se lisent en tableau : une ligne par pièce, la
+        // catégorie en tête de son groupe.
+        const row = (label: string) =>
+            screen.getByText(label).closest('tr') as HTMLElement;
         expect(
-            within(screen.getByRole('region', { name: 'Identité' })).getByText(
-                "Passeport ou carte d'identité",
-            ),
+            within(row("Passeport ou carte d'identité")).getByText('Identité'),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('region', { name: 'Travail' }),
-        ).toHaveTextContent('3 derniers bulletins de salaire');
+            within(row('3 derniers bulletins de salaire')).getByText('Travail'),
+        ).toBeInTheDocument();
         expect(screen.getByText('Locataire')).toBeInTheDocument();
     });
 

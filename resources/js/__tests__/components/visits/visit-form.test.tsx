@@ -64,15 +64,33 @@ const clients = [
         name: 'Léa Durand',
         reference: 'LD-4821',
     }),
+    // Sans formule : le membre se choisit, et peut être retiré.
+    makeVisitClient({
+        id: 3,
+        uuid: 'client-3',
+        name: 'Sans Formule',
+        reference: 'LD-4823',
+        offer: null,
+        offer_label: null,
+    }),
+    // Confié : l'équipe visite, un membre est donc désigné.
+    makeVisitClient({
+        id: 2,
+        uuid: 'client-2',
+        name: 'Bruno Petit',
+        reference: 'LD-4822',
+        offer: 'confie',
+        offer_label: 'Confié',
+    }),
 ];
 
-function renderForm() {
+function renderForm(defaultClientId = 1) {
     return render(
         <VisitForm
             clients={clients}
             properties={[]}
             options={propertyFormOptions}
-            defaultClientId={1}
+            defaultClientId={defaultClientId}
         />,
     );
 }
@@ -84,7 +102,8 @@ describe('VisitForm', () => {
 
     it('assigns the visit to the current member by default and sends floor, lease type and charges of a new property', async () => {
         const user = userEvent.setup();
-        renderForm();
+        // Formule Confié : l'équipe visite, le membre se choisit.
+        renderForm(2);
         const dialog = within(
             screen.getByRole('form', { name: 'Planifier une visite' }),
         );
@@ -123,7 +142,7 @@ describe('VisitForm', () => {
         expect(post).toHaveBeenCalledWith(
             '/clients/visits',
             expect.objectContaining({
-                lead_id: 1,
+                lead_id: 2,
                 assigned_to: 2,
                 notes: 'Client très intéressé.',
                 property: expect.objectContaining({
@@ -206,9 +225,10 @@ describe('VisitForm', () => {
                 name: /Informer le client par e-mail/,
             }),
         ).toBeChecked();
+        // Visite autonome : le client y va seul, personne à désigner.
         expect(
-            screen.getByLabelText('Visite réalisée par'),
-        ).toBeInTheDocument();
+            screen.queryByLabelText('Visite réalisée par'),
+        ).not.toBeInTheDocument();
 
         await user.click(screen.getByLabelText('Client'));
         await user.click(
@@ -228,6 +248,32 @@ describe('VisitForm', () => {
         ).toBeInTheDocument();
     });
 
+    it('does not let a visit be planned in the past', async () => {
+        const user = userEvent.setup({ delay: null });
+        renderForm();
+
+        const input = screen.getByLabelText('Date et heure');
+        const slashed = (date: Date) =>
+            `${String(date.getDate()).padStart(2, '0')}/${String(
+                date.getMonth() + 1,
+            ).padStart(2, '0')}/${date.getFullYear()}`;
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const nextMonth = new Date();
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+        await user.clear(input);
+        await user.type(input, slashed(yesterday));
+        // La date passée n'est pas retenue : au retrait du focus, le champ
+        // retombe sur la valeur du formulaire, restée vide.
+        await user.tab();
+        expect(input).toHaveValue('');
+
+        await user.type(input, slashed(nextMonth));
+        await user.tab();
+        expect(input).not.toHaveValue('');
+    });
+
     it('cancels back to the visits list', () => {
         renderForm();
 
@@ -239,7 +285,8 @@ describe('VisitForm', () => {
 
     it('lets the assignee be cleared', async () => {
         const user = userEvent.setup();
-        renderForm();
+        // Sans formule, rien n'impose un membre : il peut être retiré.
+        renderForm(3);
         const dialog = within(
             screen.getByRole('form', { name: 'Planifier une visite' }),
         );
@@ -302,5 +349,39 @@ describe('VisitForm', () => {
 
         expect(screen.getByText('Par l’équipe')).toBeInTheDocument();
         expect(screen.queryByText('Visite autonome')).toBeNull();
+    });
+
+    it('drops the member when the client visits alone', async () => {
+        const user = userEvent.setup();
+        // Confié : l'équipe visite, le membre se choisit.
+        renderForm(2);
+        expect(
+            screen.getByLabelText('Visite réalisée par'),
+        ).toBeInTheDocument();
+
+        await user.click(screen.getByLabelText('Client'));
+        await user.click(
+            await screen.findByRole('option', { name: /Léa Durand/ }),
+        );
+
+        // Accompagné : le client y va seul, personne de l'équipe n'y va.
+        expect(screen.getByRole('note')).toHaveTextContent(
+            'le client visite lui-même.',
+        );
+        expect(
+            screen.queryByLabelText('Visite réalisée par'),
+        ).not.toBeInTheDocument();
+
+        await user.type(screen.getByLabelText('Adresse'), '1 rue x');
+        await user.click(
+            screen.getByRole('button', { name: 'Planifier la visite' }),
+        );
+
+        // Le membre choisi avant de changer de client ne part pas quand même.
+        expect(post).toHaveBeenCalledWith(
+            '/clients/visits',
+            expect.objectContaining({ lead_id: 1, assigned_to: null }),
+            expect.anything(),
+        );
     });
 });

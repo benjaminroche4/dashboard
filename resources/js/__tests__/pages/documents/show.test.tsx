@@ -88,14 +88,14 @@ describe('Documents show page', () => {
         ).toBeInTheDocument();
         expect(screen.getByText('Recto et verso')).toBeInTheDocument();
         expect(
-            screen.getByRole('region', { name: 'Identité' }),
-        ).toHaveTextContent("Passeport ou carte d'identité");
+            screen.getByText("Passeport ou carte d'identité").closest('tr'),
+        ).toHaveTextContent('Identité');
         // Les pièces du garant s'affichent une fois son onglet ouvert.
         await userEvent.click(screen.getByRole('tab', { name: /Paul Martin/ }));
         expect(screen.getByText('Garant')).toBeInTheDocument();
         expect(
-            screen.getByRole('region', { name: 'Finance' }),
-        ).toHaveTextContent('Avis d’imposition');
+            screen.getByText('Avis d’imposition').closest('tr'),
+        ).toHaveTextContent('Finance');
         expect(
             screen.getByRole('link', { name: /drive.google.com/ }),
         ).toHaveAttribute('href', 'https://drive.google.com/drive/folders/abc');

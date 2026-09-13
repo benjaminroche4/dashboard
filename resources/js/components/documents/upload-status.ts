@@ -18,3 +18,25 @@ export const uploadStatusText: Record<DocumentUploadStatus, string> = {
     accepted: 'text-green-700 dark:text-green-300',
     refused: 'text-red-700 dark:text-red-300',
 };
+
+/**
+ * État d'une pièce vu du client : ce qu'il lui reste à faire. Un fichier
+ * refusé l'emporte sur le reste — c'est lui qui demande une action ; une
+ * pièce déposée mais pas encore relue reste **neutre**, on ne lui promet pas
+ * une validation que l'équipe n'a pas donnée.
+ */
+export function documentReview(
+    uploads: { status: DocumentUploadStatus }[],
+): 'none' | 'pending' | 'accepted' | 'refused' {
+    if (uploads.length === 0) {
+        return 'none';
+    }
+
+    if (uploads.some((upload) => upload.status === 'refused')) {
+        return 'refused';
+    }
+
+    return uploads.some((upload) => upload.status === 'accepted')
+        ? 'accepted'
+        : 'pending';
+}

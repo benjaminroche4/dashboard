@@ -427,4 +427,44 @@ describe('Clients visits page', () => {
             screen.queryByRole('region', { name: /9 septembre 2026/ }),
         ).toBeNull();
     });
+
+    it('says in the status column what the client decided, once the report is written', async () => {
+        const user = userEvent.setup();
+        render(
+            <ClientsVisits
+                visits={[
+                    makeVisit({
+                        id: 9,
+                        uuid: 'visit-9',
+                        scheduled_at: '2026-09-09T13:00:00+00:00',
+                        status: 'done',
+                        status_label: 'Effectuée',
+                        report: 'Le client a aimé la lumière.',
+                        report_due: false,
+                        outcome: 'applied',
+                        outcome_label: 'Dossier déposé',
+                    }),
+                    makeVisit({
+                        id: 10,
+                        uuid: 'visit-10',
+                        scheduled_at: '2026-09-20T11:00:00+00:00',
+                        outcome: 'pending',
+                        outcome_label: 'À décider',
+                    }),
+                ]}
+                statuses={visitStatuses}
+            />,
+        );
+
+        // Une visite racontée sort de la liste des choses à faire : on la
+        // retrouve avec « Visites passées ».
+        await user.click(
+            screen.getByRole('button', { name: /Visites passées/ }),
+        );
+
+        // La suite donnée au bien se lit à côté du statut de la visite.
+        expect(screen.getByText('Dossier déposé')).toBeInTheDocument();
+        // Visite à venir : rien à décider, rien à afficher.
+        expect(screen.queryByText('À décider')).toBeNull();
+    });
 });

@@ -88,6 +88,10 @@ describe('ClientProperties', () => {
 
         const item = screen.getByRole('listitem');
         expect(item).toHaveTextContent('T2 lumineux · 11e');
+        // Le nom du bien mène à sa fiche.
+        expect(
+            within(item).getByRole('link', { name: 'T2 lumineux · 11e' }),
+        ).toHaveAttribute('href', '/properties/prop-1');
         expect(item).toHaveTextContent(
             '12 rue Oberkampf, 75011 Paris · T2 · 42 m²',
         );
@@ -209,6 +213,9 @@ describe('ClientProperties', () => {
         );
         const item = section.getByRole('listitem');
         expect(item).toHaveTextContent('T2 · 11e');
+        expect(
+            within(item).getByRole('link', { name: 'T2 · 11e' }),
+        ).toHaveAttribute('href', '/properties/prop-9');
         expect(item).toHaveTextContent('Dans le budget');
         expect(item).toHaveTextContent('Arrondissement recherché (11e)');
         expect(

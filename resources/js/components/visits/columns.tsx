@@ -5,6 +5,7 @@ import { CreatedBy } from '@/components/created-by';
 import { formatAddress } from '@/components/real-estate/columns';
 import { Button } from '@/components/ui/button';
 import { VisitRowActions } from '@/components/visits/visit-row-actions';
+import { PropertyOutcomeBadge } from '@/components/clients/property-outcome';
 import { VisitReportBadge } from '@/components/visits/visit-report-badge';
 import { VisitModeBadge } from '@/components/visits/visit-mode-badge';
 import { VisitStatusBadge } from '@/components/visits/visit-status-badge';
@@ -121,6 +122,14 @@ export const visitColumns: ColumnDef<Visit>[] = [
                     label={row.original.status_label}
                 />
                 <VisitReportBadge visit={row.original} />
+                {/* Ce que le client a décidé du bien, dès que la visite est racontée. */}
+                {row.original.report && (
+                    <PropertyOutcomeBadge
+                        status={row.original.outcome}
+                        label={row.original.outcome_label}
+                        visitedAt={row.original.scheduled_at}
+                    />
+                )}
             </div>
         ),
     },

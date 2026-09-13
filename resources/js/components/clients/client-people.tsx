@@ -1,8 +1,17 @@
 import { router, useForm, usePage } from '@inertiajs/react';
-import { Mail, Pencil, Phone, Plus, UserRound, X } from 'lucide-react';
-import { useState } from 'react';
+import {
+    Pencil,
+    Plus,
+    ShieldCheck,
+    UserRound,
+    UserRoundCheck,
+    X,
+    type LucideIcon,
+} from 'lucide-react';
+import React, { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PhoneInput } from '@/components/phone-input';
+import { DetailSection } from '@/components/real-estate/detail-header';
 import { SearchSelect } from '@/components/search-select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -64,51 +73,59 @@ function initials(name: string): string {
         .join('');
 }
 
-/** Bloc d'une catégorie de personnes du dossier. */
+/**
+ * Bloc d'une catégorie de personnes : la carte commune des fiches
+ * (`DetailSection`), avec le compte et le bouton d'ajout dans son en-tête.
+ */
 function Group({
     title,
+    count,
     hint,
     action,
+    icon,
     children,
 }: {
     title: string;
+    count: number;
+    /** Pictogramme de la catégorie : locataires, garants, suivi. */
+    icon?: LucideIcon;
+    /** Phrase d'aide, seulement là où elle apprend quelque chose. */
     hint?: string;
-    /** Bouton ou lien de la catégorie (ajouter, attribuer…). */
+    /** Bouton ou lien de la catégorie (ajouter, modifier…). */
     action?: React.ReactNode;
     children: React.ReactNode;
 }) {
     return (
-        <section aria-label={title} className="grid gap-3">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                    <h3 className="text-sm font-medium">{title}</h3>
-                    {hint && (
-                        <p className="text-muted-foreground text-sm">{hint}</p>
-                    )}
-                </div>
-                {action}
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2">{children}</div>
-        </section>
+        // Un « 0 » à côté de l'intitulé n'apprend rien : le compte n'apparaît
+        // qu'à partir d'une personne.
+        <DetailSection
+            title={title}
+            count={count > 0 ? count : undefined}
+            action={action}
+            icon={icon}
+        >
+            {hint && <p className="text-muted-foreground text-xs">{hint}</p>}
+            {children}
+        </DetailSection>
     );
 }
 
-/** Une ligne de détail, alignée avec les autres de la carte. */
+/** Une ligne de détail d'un locataire : libellé discret, puis la valeur. */
 function Detail({ label, value }: { label: string; value: string }) {
     return (
         <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] items-baseline gap-2">
-            <dt className="text-muted-foreground truncate text-xs">{label}</dt>
+            <dt className="text-muted-foreground truncate">{label}</dt>
             <dd className="truncate">{value}</dd>
         </div>
     );
 }
 
 /**
- * Carte d'une personne : nom, rôle, moyens de la joindre et, pour un
- * locataire seulement, ses détails (état civil, séjour, situation
- * professionnelle) avec le bouton qui ouvre sa fiche.
+ * Une personne du dossier, sur une ligne comme sur les fiches d'annuaire :
+ * identité à gauche, coordonnées cliquables alignées à droite, actions au
+ * bout ; pour un locataire, ses détails sous un filet.
  */
-function PersonCard({
+function PersonRow({
     name,
     role,
     email,
@@ -131,27 +148,48 @@ function PersonCard({
     const details = profile ? tenantDetails(profile) : [];
 
     return (
-        <div className="bg-card grid content-start gap-2 rounded-xl border p-4">
-            <div className="flex items-center gap-3">
-                <Avatar className="size-9">
+        <li className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3 text-sm first:pt-0 last:pb-0">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+                <Avatar className="size-9 shrink-0">
                     {avatar && <AvatarImage src={avatar} alt="" />}
                     <AvatarFallback className="text-xs">
                         {initials(name) || <UserRound className="size-4" />}
                     </AvatarFallback>
                 </Avatar>
-                <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{name}</p>
-                    <p className="text-muted-foreground text-xs">{role}</p>
+                <div className="grid min-w-0 gap-0.5">
+                    <span className="truncate font-medium">{name}</span>
+                    <span className="text-muted-foreground truncate text-xs">
+                        {role}
+                    </span>
                 </div>
+            </div>
+            <div className="text-muted-foreground grid gap-0.5 text-right text-xs">
+                {phone && (
+                    <a
+                        href={`tel:${phone.replace(/\s+/g, '')}`}
+                        className="hover:text-foreground tabular-nums underline-offset-4 hover:underline"
+                    >
+                        {phone}
+                    </a>
+                )}
+                {email && (
+                    <a
+                        href={`mailto:${email}`}
+                        className="hover:text-foreground max-w-64 truncate underline-offset-4 hover:underline"
+                    >
+                        {email}
+                    </a>
+                )}
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
                 {onEdit && (
                     <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
                         aria-label={`Modifier les informations de ${name}`}
                         onClick={onEdit}
                     >
-                        <Pencil />
-                        Modifier
+                        <Pencil aria-hidden />
                     </Button>
                 )}
                 {onRemove && (
@@ -165,54 +203,45 @@ function PersonCard({
                     </Button>
                 )}
             </div>
-            {(email || phone) && (
-                <div className="text-muted-foreground grid gap-1 text-sm">
-                    {email && (
-                        <a
-                            href={`mailto:${email}`}
-                            className="hover:text-foreground flex min-w-0 items-center gap-2 underline-offset-4 hover:underline"
-                        >
-                            <Mail className="size-3.5 shrink-0" aria-hidden />
-                            <span className="truncate">{email}</span>
-                        </a>
-                    )}
-                    {phone && (
-                        <a
-                            href={`tel:${phone}`}
-                            className="hover:text-foreground flex items-center gap-2 underline-offset-4 hover:underline"
-                        >
-                            <Phone className="size-3.5 shrink-0" aria-hidden />
-                            {phone}
-                        </a>
+            {profile && (
+                <div className="w-full border-t pt-2 text-xs">
+                    {details.length > 0 ? (
+                        <dl className="grid gap-1 sm:grid-cols-2 sm:gap-x-6">
+                            {details.map((detail) => (
+                                <Detail
+                                    key={detail.label}
+                                    label={detail.label}
+                                    value={detail.value}
+                                />
+                            ))}
+                        </dl>
+                    ) : (
+                        <p className="text-muted-foreground">
+                            Aucune information renseignée.
+                        </p>
                     )}
                 </div>
             )}
-            {profile &&
-                (details.length > 0 ? (
-                    <dl className="grid gap-1 border-t pt-2 text-sm">
-                        {details.map((detail) => (
-                            <Detail
-                                key={detail.label}
-                                label={detail.label}
-                                value={detail.value}
-                            />
-                        ))}
-                    </dl>
-                ) : (
-                    <p className="text-muted-foreground border-t pt-2 text-sm">
-                        Aucune information renseignée.
-                    </p>
-                ))}
-        </div>
+        </li>
     );
 }
 
-/** Ligne vide d'une catégorie sans personne. */
-function Empty({ children }: { children: React.ReactNode }) {
-    return (
-        <p className="text-muted-foreground rounded-xl border border-dashed p-4 text-sm">
-            {children}
-        </p>
+/** Liste des personnes d'une catégorie, ou la phrase qui dit qu'il n'y en a pas. */
+function People({
+    empty,
+    children,
+}: {
+    empty: string;
+    children: React.ReactNode;
+}) {
+    const rows = React.Children.toArray(children).filter(Boolean);
+
+    return rows.length === 0 ? (
+        <p className="text-muted-foreground text-sm">{empty}</p>
+    ) : (
+        <ul role="list" className="divide-border grid divide-y">
+            {rows}
+        </ul>
     );
 }
 
@@ -294,12 +323,7 @@ export function ClientPeople({
     };
 
     return (
-        <div className="grid gap-8">
-            <p className="text-muted-foreground text-sm">
-                Les personnes du dossier : locataires, garants et suivi par
-                l’équipe.
-            </p>
-
+        <div className="grid gap-4">
             <RentAffordabilityAlert
                 incomeCents={totalIncomeCents([
                     client.income_cents,
@@ -311,60 +335,65 @@ export function ClientPeople({
             />
 
             <Group
+                icon={UserRound}
                 title="Locataires"
-                hint="Un dossier peut compter deux locataires ; les e-mails partent aux deux."
+                count={client.co_tenant?.name ? 2 : 1}
+                hint="Les e-mails du dossier partent aux deux locataires."
                 action={
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setEditing(true)}
                     >
-                        <Pencil />
+                        <Pencil aria-hidden />
                         {client.co_tenant
                             ? 'Modifier le second locataire'
                             : 'Ajouter un second locataire'}
                     </Button>
                 }
             >
-                <PersonCard
-                    name={client.name}
-                    role="Locataire"
-                    email={client.email}
-                    phone={client.phone}
-                    profile={tenantProfiles.primary}
-                    onEdit={() => setTenant('primary')}
-                />
-                {client.co_tenant?.name ? (
-                    <PersonCard
-                        name={client.co_tenant.name}
-                        role="Second locataire"
-                        email={client.co_tenant.email}
-                        phone={client.co_tenant.phone}
-                        profile={tenantProfiles.co}
-                        onEdit={() => setTenant('co')}
+                <People empty="Aucun locataire sur ce dossier.">
+                    <PersonRow
+                        key="primary"
+                        name={client.name}
+                        role="Locataire"
+                        email={client.email}
+                        phone={client.phone}
+                        profile={tenantProfiles.primary}
+                        onEdit={() => setTenant('primary')}
                     />
-                ) : (
-                    <Empty>Aucun second locataire sur ce dossier.</Empty>
-                )}
+                    {client.co_tenant?.name ? (
+                        <PersonRow
+                            key="co"
+                            name={client.co_tenant.name}
+                            role="Second locataire"
+                            email={client.co_tenant.email}
+                            phone={client.co_tenant.phone}
+                            profile={tenantProfiles.co}
+                            onEdit={() => setTenant('co')}
+                        />
+                    ) : null}
+                </People>
             </Group>
 
             <Group
+                icon={ShieldCheck}
                 title="Garants"
-                hint="Les personnes qui se portent garantes du dossier."
+                count={guarantors.length}
                 action={
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setGuarantor('new')}
                     >
-                        <Plus />
+                        <Plus aria-hidden />
                         Ajouter un garant
                     </Button>
                 }
             >
-                {guarantors.length > 0 ? (
-                    guarantors.map((person) => (
-                        <PersonCard
+                <People empty="Aucun garant sur ce dossier.">
+                    {guarantors.map((person) => (
+                        <PersonRow
                             key={person.uuid}
                             name={person.name}
                             role={guarantorRole(person, client.currency)}
@@ -372,16 +401,14 @@ export function ClientPeople({
                             phone={person.phone}
                             onEdit={() => setGuarantor(person)}
                         />
-                    ))
-                ) : (
-                    <Empty>
-                        Aucun garant sur ce dossier : ajoutez ses informations.
-                    </Empty>
-                )}
+                    ))}
+                </People>
             </Group>
 
             <Group
+                icon={UserRoundCheck}
                 title="Personnes de suivi"
+                count={watchers.length}
                 hint="Des proches ou des contacts du client, en copie des e-mails du dossier."
                 action={
                     <Button
@@ -389,14 +416,14 @@ export function ClientPeople({
                         size="sm"
                         onClick={() => setWatcher('new')}
                     >
-                        <Plus />
+                        <Plus aria-hidden />
                         Ajouter une personne
                     </Button>
                 }
             >
-                {watchers.length > 0 ? (
-                    watchers.map((person) => (
-                        <PersonCard
+                <People empty="Personne en copie pour l’instant.">
+                    {watchers.map((person) => (
+                        <PersonRow
                             key={person.uuid}
                             name={person.name}
                             role={person.role ?? 'En copie des e-mails'}
@@ -405,13 +432,8 @@ export function ClientPeople({
                             onEdit={() => setWatcher(person)}
                             onRemove={() => removeWatcher(person)}
                         />
-                    ))
-                ) : (
-                    <Empty>
-                        Personne en copie : ajoutez un proche ou un contact du
-                        client pour qu’il reçoive les e-mails du dossier.
-                    </Empty>
-                )}
+                    ))}
+                </People>
             </Group>
 
             <WatcherDialog

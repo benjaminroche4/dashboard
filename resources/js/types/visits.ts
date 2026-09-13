@@ -1,4 +1,4 @@
-import type { Currency, OfferValue } from '@/types';
+import type { Currency, OfferValue, PropertyApplicationStatus } from '@/types';
 
 export type VisitStatus = 'planned' | 'done' | 'cancelled';
 
@@ -28,6 +28,9 @@ export type Visit = {
     report_due: boolean;
     /** Le compte rendu peut s'écrire : visite passée et non annulée. */
     can_report: boolean;
+    /** Ce que le client a décidé du bien visité, une fois le compte rendu écrit. */
+    outcome: PropertyApplicationStatus;
+    outcome_label: string;
     client: {
         id: number;
         uuid: string;

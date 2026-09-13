@@ -39,7 +39,7 @@ class VisitController extends Controller
         $this->authorize('viewAny', Visit::class);
 
         $visits = Visit::query()
-            ->with(['lead', 'property', 'agent.agency', 'assignee', 'creator', 'reportAuthor'])
+            ->with(['lead.properties', 'property', 'agent.agency', 'assignee', 'creator', 'reportAuthor'])
             ->latest('scheduled_at')
             ->get()
             ->map(fn (Visit $visit): array => self::summary($visit))
@@ -112,7 +112,7 @@ class VisitController extends Controller
             ],
             // Les autres visites du même client, pour situer celle-ci dans le dossier.
             'otherVisits' => $visit->lead->visits()
-                ->with(['property', 'agent.agency', 'assignee', 'creator', 'reportAuthor', 'lead'])
+                ->with(['property', 'agent.agency', 'assignee', 'creator', 'reportAuthor', 'lead.properties'])
                 ->whereKeyNot($visit->id)
                 ->latest('scheduled_at')
                 ->limit(5)
@@ -137,7 +137,21 @@ class VisitController extends Controller
     /** État du bien visité dans le dossier ; « à décider » tant qu'il n'y est pas rattaché. */
     private function propertyStatus(Visit $visit): PropertyApplicationStatus
     {
-        $link = $visit->lead->properties()->whereKey($visit->property_id)->first();
+        return self::outcomeOf($visit);
+    }
+
+    /**
+     * Suite donnée au bien pour ce client. Lue dans la relation déjà chargée
+     * quand elle l'est : une liste de visites ferait sinon une requête par
+     * ligne.
+     */
+    public static function outcomeOf(Visit $visit): PropertyApplicationStatus
+    {
+        $properties = $visit->lead->relationLoaded('properties')
+            ? $visit->lead->properties
+            : $visit->lead->properties()->whereKey($visit->property_id)->get();
+
+        $link = $properties->firstWhere('id', $visit->property_id);
 
         return $link?->getRelationValue('pivot')->status ?? PropertyApplicationStatus::Pending;
     }
@@ -260,6 +274,10 @@ class VisitController extends Controller
             'mode' => $visit->mode->value,
             'mode_label' => $visit->mode->shortLabel(),
             'notes' => $visit->notes,
+            // Ce que le client a décidé du bien : lisible dans la colonne
+            // Statut dès que le compte rendu est écrit.
+            'outcome' => self::outcomeOf($visit)->value,
+            'outcome_label' => self::outcomeOf($visit)->label(),
             // Compte rendu post-visite ; `report_due` = visite passée, non annulée, sans compte rendu.
             'report' => $visit->report,
             'report_photos' => $visit->reportPhotoUrls(),

@@ -12,6 +12,7 @@ import { VisitModeBadge } from '@/components/visits/visit-mode-badge';
 import { VisitReportBadge } from '@/components/visits/visit-report-badge';
 import { PropertyThumb } from '@/components/visits/property-picker';
 import { VisitRowActions } from '@/components/visits/visit-row-actions';
+import { PropertyOutcomeBadge } from '@/components/clients/property-outcome';
 import { VisitStatusBadge } from '@/components/visits/visit-status-badge';
 import { WriteReportButton } from '@/components/visits/write-report-button';
 import { formatMoney } from '@/lib/format';
@@ -131,6 +132,18 @@ export function VisitDaySection({ day }: { day: VisitDay }) {
                                                 label={visit.status_label}
                                             />
                                             <VisitReportBadge visit={visit} />
+                                            {/* Une fois la visite racontée, ce
+                                                qu'il en est advenu pour le
+                                                client se lit dans la foulée. */}
+                                            {visit.report && (
+                                                <PropertyOutcomeBadge
+                                                    status={visit.outcome}
+                                                    label={visit.outcome_label}
+                                                    visitedAt={
+                                                        visit.scheduled_at
+                                                    }
+                                                />
+                                            )}
                                         </div>
                                     </TableCell>
                                     <TableCell>

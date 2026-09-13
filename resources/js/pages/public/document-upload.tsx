@@ -1,30 +1,13 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { CheckCircle2, FileText, UploadCloud } from 'lucide-react';
 import { useState } from 'react';
-import {
-    Attachment,
-    AttachmentContent,
-    AttachmentDescription,
-    AttachmentMedia,
-    AttachmentTitle,
-} from '@/components/ui/attachment';
-import { Dropzone, DropzoneEmptyState } from '@/components/ui/dropzone';
 import type { FileRejection } from 'react-dropzone';
-import { Spinner } from '@/components/ui/spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-    uploadStatusText,
-    uploadStatusTones,
-} from '@/components/documents/upload-status';
+import { DocumentCard } from '@/components/public/document-card';
 import { TrustNotice } from '@/components/public/trust-notice';
 import { useFlashToast } from '@/hooks/use-flash-toast';
 import { categoryIcon } from '@/lib/document-category-icons';
-import { formatFileSize } from '@/lib/format';
 import { notify } from '@/lib/toast';
-import { cn } from '@/lib/utils';
 import type { DocumentLanguage, PublicDocumentPerson } from '@/types';
-
-const ACCEPT = { 'application/pdf': ['.pdf'] };
 
 /** Ce que le serveur accepte, calculé d'après les limites de PHP. */
 export type UploadLimits = { file: number; files: number; total: number };
@@ -283,11 +266,8 @@ export default function PublicDocumentUpload({
                                                 className="grid gap-3"
                                             >
                                                 {category.documents.map(
-                                                    (document) => {
+                                                    (document, index) => {
                                                         const slot = `${person.index}:${document.key}`;
-                                                        const received =
-                                                            document.uploads
-                                                                .length > 0;
                                                         const busy =
                                                             pending === slot;
 
@@ -296,138 +276,22 @@ export default function PublicDocumentUpload({
                                                                 key={
                                                                     document.key
                                                                 }
-                                                                className={cn(
-                                                                    'grid gap-3 rounded-xl border p-4',
-                                                                    received &&
-                                                                        'border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/60 dark:bg-emerald-950/20',
-                                                                )}
                                                             >
-                                                                <div className="flex items-start justify-between gap-3">
-                                                                    <div className="min-w-0">
-                                                                        <p className="text-sm font-medium">
-                                                                            {
-                                                                                document.label
-                                                                            }
-                                                                        </p>
-                                                                        {document.hint && (
-                                                                            <p className="text-muted-foreground text-sm">
-                                                                                {
-                                                                                    document.hint
-                                                                                }
-                                                                            </p>
-                                                                        )}
-                                                                    </div>
-                                                                    {received && (
-                                                                        <span className="flex shrink-0 items-center gap-1 text-sm text-emerald-700 dark:text-emerald-300">
-                                                                            <CheckCircle2
-                                                                                className="size-4"
-                                                                                aria-hidden
-                                                                            />
-                                                                            {
-                                                                                labels.done
-                                                                            }
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                                {received && (
-                                                                    <ul
-                                                                        role="list"
-                                                                        aria-label={`${labels.uploaded} · ${document.label}`}
-                                                                        className="flex flex-wrap gap-2"
-                                                                    >
-                                                                        {document.uploads.map(
-                                                                            (
-                                                                                upload,
-                                                                            ) => (
-                                                                                <li
-                                                                                    key={
-                                                                                        upload.uuid
-                                                                                    }
-                                                                                    className="grid min-w-0 gap-1"
-                                                                                >
-                                                                                    {/* Relire ce qu'on vient
-                                                                                        de déposer : le PDF
-                                                                                        s'ouvre dans un onglet. */}
-                                                                                    <a
-                                                                                        href={
-                                                                                            upload.url
-                                                                                        }
-                                                                                        target="_blank"
-                                                                                        rel="noreferrer"
-                                                                                        title={`${labels.view} · ${upload.name}`}
-                                                                                        className="focus-visible:ring-ring flex min-w-0 rounded-md focus-visible:ring-2 focus-visible:outline-none"
-                                                                                    >
-                                                                                        <Attachment
-                                                                                            size="sm"
-                                                                                            className={cn(
-                                                                                                'hover:border-foreground/30 transition-colors',
-                                                                                                uploadStatusTones[
-                                                                                                    upload
-                                                                                                        .status
-                                                                                                ],
-                                                                                            )}
-                                                                                        >
-                                                                                            <AttachmentMedia>
-                                                                                                <FileText
-                                                                                                    aria-hidden
-                                                                                                />
-                                                                                            </AttachmentMedia>
-                                                                                            <AttachmentContent>
-                                                                                                <AttachmentTitle>
-                                                                                                    {
-                                                                                                        upload.name
-                                                                                                    }
-                                                                                                </AttachmentTitle>
-                                                                                                <AttachmentDescription>
-                                                                                                    {formatFileSize(
-                                                                                                        upload.size,
-                                                                                                    )}{' '}
-                                                                                                    ·{' '}
-                                                                                                    {
-                                                                                                        labels.view
-                                                                                                    }
-                                                                                                </AttachmentDescription>
-                                                                                            </AttachmentContent>
-                                                                                        </Attachment>
-                                                                                    </a>
-                                                                                    {/* La décision de l'équipe, et
-                                                                                        le motif d'un refus : le
-                                                                                        client sait quoi redéposer. */}
-                                                                                    <p
-                                                                                        className={cn(
-                                                                                            'px-1 text-xs',
-                                                                                            uploadStatusText[
-                                                                                                upload
-                                                                                                    .status
-                                                                                            ],
-                                                                                        )}
-                                                                                    >
-                                                                                        {
-                                                                                            upload.status_label
-                                                                                        }
-                                                                                        {upload.review_note &&
-                                                                                            ` — ${upload.review_note}`}
-                                                                                    </p>
-                                                                                </li>
-                                                                            ),
-                                                                        )}
-                                                                    </ul>
-                                                                )}
-                                                                <Dropzone
-                                                                    accept={
-                                                                        ACCEPT
+                                                                <DocumentCard
+                                                                    document={
+                                                                        document
                                                                     }
-                                                                    maxFiles={
-                                                                        limits.files
+                                                                    labels={
+                                                                        labels
                                                                     }
-                                                                    maxSize={
-                                                                        limits.file
+                                                                    limits={
+                                                                        limits
                                                                     }
-                                                                    multiple
-                                                                    disabled={
-                                                                        busy
+                                                                    busy={busy}
+                                                                    position={
+                                                                        index +
+                                                                        1
                                                                     }
-                                                                    aria-label={`${labels.drop} · ${document.label}`}
                                                                     onDrop={(
                                                                         files,
                                                                     ) =>
@@ -447,31 +311,7 @@ export default function PublicDocumentUpload({
                                                                             ),
                                                                         )
                                                                     }
-                                                                    className="bg-background p-5"
-                                                                >
-                                                                    <DropzoneEmptyState>
-                                                                        <div className="flex flex-col items-center justify-center gap-1 text-center">
-                                                                            {busy ? (
-                                                                                <Spinner />
-                                                                            ) : (
-                                                                                <UploadCloud
-                                                                                    className="text-muted-foreground size-5"
-                                                                                    aria-hidden
-                                                                                />
-                                                                            )}
-                                                                            <p className="text-sm font-medium text-wrap">
-                                                                                {busy
-                                                                                    ? labels.sending
-                                                                                    : labels.drop}
-                                                                            </p>
-                                                                            <p className="text-muted-foreground text-xs text-wrap">
-                                                                                {
-                                                                                    labels.formats
-                                                                                }
-                                                                            </p>
-                                                                        </div>
-                                                                    </DropzoneEmptyState>
-                                                                </Dropzone>
+                                                                />
                                                             </li>
                                                         );
                                                     },

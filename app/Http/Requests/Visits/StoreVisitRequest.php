@@ -39,7 +39,10 @@ class StoreVisitRequest extends FormRequest
             ...$propertyRules,
             'agent_id' => ['nullable', 'integer', Rule::exists('agents', 'id')],
             'assigned_to' => [Rule::requiredIf($entrusted), 'nullable', 'integer', Rule::exists('users', 'id')],
-            'scheduled_at' => ['required', 'date'],
+            // Une visite se planifie pour aujourd'hui ou plus tard : on ne
+            // « réserve » pas un créneau déjà passé. La borne est au jour près,
+            // pour qu'un créneau plus tôt dans la journée reste acceptable.
+            'scheduled_at' => ['required', 'date', 'after_or_equal:today'],
             'notes' => ['nullable', 'string', 'max:3000'],
             // Informer le client par e-mail (décoché par défaut).
             'notify_client' => ['nullable', 'boolean'],
@@ -78,6 +81,16 @@ class StoreVisitRequest extends FormRequest
             'scheduled_at' => 'date de la visite',
             'notes' => 'notes',
             'notify_client' => 'information du client',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'scheduled_at.after_or_equal' => 'Une visite ne se planifie pas dans le passé.',
         ];
     }
 }

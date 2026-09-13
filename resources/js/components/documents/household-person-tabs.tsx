@@ -1,5 +1,13 @@
 import { DocumentUploadList } from '@/components/documents/document-upload-list';
 import { Badge } from '@/components/ui/badge';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { categoryIcon } from '@/lib/document-category-icons';
 import type { HouseholdPersonDetail } from '@/types';
@@ -16,76 +24,98 @@ function pieces(person: HouseholdPersonDetail) {
     );
 }
 
-/** Les pièces demandées à une personne, groupées par catégorie. */
+/** Les pièces demandées à une personne : un tableau, groupé par catégorie. */
 function PersonDocuments({
     person,
     requestUuid,
     canReview = false,
 }: {
     person: HouseholdPersonDetail;
-    /** UUID de la liste, pour supprimer un fichier déposé ; sans lui, les fichiers ne sont pas listés. */
+    /** UUID de la liste, pour agir sur un fichier déposé ; sans lui, les fichiers ne sont pas listés. */
     requestUuid?: string;
     canReview?: boolean;
 }) {
     return (
-        <div className="grid gap-4 sm:grid-cols-2">
-            {person.categories.map((category) => {
-                const Icon = categoryIcon(category.value);
+        // Même cadre que les autres tableaux du backoffice : panneau gris,
+        // tableau blanc à l'intérieur — les cartes blanches sur fond blanc ne
+        // se voyaient pas.
+        <div className="bg-sidebar grid gap-3 rounded-xl border p-3">
+            <div className="bg-background overflow-hidden rounded-lg border">
+                <Table className="table-fixed">
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-[22%]">Catégorie</TableHead>
+                            <TableHead className="w-[34%]">Pièce</TableHead>
+                            <TableHead>Fichiers reçus</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {person.categories.map((category) => {
+                            const Icon = categoryIcon(category.value);
 
-                return (
-                    <section
-                        key={category.value}
-                        aria-label={category.label}
-                        className="bg-card grid content-start gap-1.5 rounded-xl border p-4"
-                    >
-                        <h3 className="text-muted-foreground flex items-center gap-2 text-xs font-medium tracking-wide uppercase">
-                            <Icon
-                                aria-hidden="true"
-                                className="size-4 shrink-0"
-                            />
-                            {category.label}
-                            <span className="text-foreground inline-flex min-w-5 items-center justify-center rounded-full border px-1.5 text-[11px] font-medium tabular-nums">
-                                {category.documents.length}
-                            </span>
-                        </h3>
-                        <ul className="divide-border divide-y">
-                            {category.documents.map((document) => (
-                                <li key={document.label} className="py-2">
-                                    <div className="text-sm">
-                                        {document.label}
-                                    </div>
-                                    {document.hint && (
-                                        <div className="text-muted-foreground text-xs">
-                                            {document.hint}
-                                        </div>
-                                    )}
-                                    {requestUuid &&
-                                        document.uploads &&
-                                        document.uploads.length > 0 && (
-                                            <div className="mt-2">
-                                                <DocumentUploadList
-                                                    requestUuid={requestUuid}
-                                                    uploads={document.uploads}
-                                                    canReview={canReview}
+                            return category.documents.map((document, index) => (
+                                <TableRow
+                                    key={`${category.value}-${document.label}`}
+                                    className="align-top"
+                                >
+                                    {/* La catégorie ne se répète pas : elle
+                                            coiffe ses pièces. */}
+                                    <TableCell>
+                                        {index === 0 && (
+                                            <span className="flex items-center gap-2 text-sm font-medium">
+                                                <Icon
+                                                    aria-hidden="true"
+                                                    className="text-muted-foreground size-4 shrink-0"
                                                 />
-                                            </div>
+                                                <span className="truncate">
+                                                    {category.label}
+                                                </span>
+                                                <Badge
+                                                    variant="secondary"
+                                                    className="tabular-nums"
+                                                >
+                                                    {category.documents.length}
+                                                </Badge>
+                                            </span>
                                         )}
-                                </li>
-                            ))}
-                        </ul>
-                    </section>
-                );
-            })}
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="grid gap-0.5">
+                                            <span className="text-sm">
+                                                {document.label}
+                                            </span>
+                                            {document.hint && (
+                                                <span className="text-muted-foreground text-xs">
+                                                    {document.hint}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        {requestUuid &&
+                                        document.uploads &&
+                                        document.uploads.length > 0 ? (
+                                            <DocumentUploadList
+                                                requestUuid={requestUuid}
+                                                uploads={document.uploads}
+                                                canReview={canReview}
+                                            />
+                                        ) : (
+                                            <span className="text-muted-foreground text-sm">
+                                                Rien de déposé
+                                            </span>
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ));
+                        })}
+                    </TableBody>
+                </Table>
+            </div>
         </div>
     );
 }
 
-/**
- * Les personnes du foyer en onglets — un foyer en compte jusqu'à quatre, et
- * des cartes côte à côte obligeaient à comparer des colonnes de hauteurs
- * différentes. Un onglet par personne : son rôle et son nombre de pièces se
- * lisent sur l'onglet, ses pièces occupent toute la largeur.
- */
 export function HouseholdPersonTabs({
     persons,
     requestUuid,

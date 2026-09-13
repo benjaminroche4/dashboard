@@ -1,5 +1,6 @@
-import { Pencil } from 'lucide-react';
+import { Pencil, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { CreatedBy } from '@/components/created-by';
 import { FavoriteStar } from '@/components/favorite-star';
 import { RealEstateRowActions } from '@/components/real-estate/real-estate-row-actions';
@@ -118,10 +119,13 @@ export function DetailSection({
     title,
     count,
     action,
+    icon: Icon,
     className,
     children,
 }: {
     title: string;
+    /** Pictogramme posé devant l'intitulé, quand il aide à repérer la carte. */
+    icon?: LucideIcon;
     /** Nombre d'éléments, rappelé discrètement à côté de l'intitulé. */
     count?: number;
     action?: ReactNode;
@@ -139,9 +143,18 @@ export function DetailSection({
         >
             <header className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
                 <h2 className="text-muted-foreground flex items-center gap-2 text-xs tracking-wide uppercase">
+                    {Icon && <Icon aria-hidden className="size-3.5 shrink-0" />}
                     {title}
                     {count !== undefined && (
-                        <span className="tabular-nums">{count}</span>
+                        /* Le compte se détache de l'intitulé : à côté d'un
+                           titre en petites capitales grises, un chiffre nu
+                           se lisait comme une partie du mot. */
+                        <Badge
+                            variant="secondary"
+                            className="px-1.5 py-0 text-[11px] font-medium tabular-nums"
+                        >
+                            {count}
+                        </Badge>
                     )}
                 </h2>
                 {action}

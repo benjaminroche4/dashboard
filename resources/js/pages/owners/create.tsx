@@ -459,7 +459,7 @@ export default function OwnerLeadCreate({
                             <p className="text-muted-foreground text-sm">
                                 {editing
                                     ? 'Le statut et la place dans le kanban ne changent pas.'
-                                    : 'Lead propriétaire : le même formulaire que « Proposer un bien » sur le site. Le contact suffit pour commencer.'}
+                                    : 'Lead propriétaire : le contact suffit pour commencer.'}
                             </p>
                         </div>
                         <LeadClosingGuide

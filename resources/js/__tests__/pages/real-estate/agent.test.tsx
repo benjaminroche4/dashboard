@@ -187,4 +187,24 @@ describe('Agent detail page', () => {
         // Adresse, fonction, qualité de la relation et visites : rien de renseigné.
         expect(screen.getAllByText('Non renseigné')).toHaveLength(4);
     });
+
+    it('puts the contact details in their own card, like the other directory pages', () => {
+        render(
+            <AgentShow
+                agent={makeAgent()}
+                agency={null}
+                agencies={agencyOptions}
+            />,
+        );
+
+        const card = within(
+            screen.getByRole('region', { name: 'Coordonnées' }),
+        );
+        expect(card.getByText('Téléphone')).toBeInTheDocument();
+        expect(
+            card.getByRole('link', { name: '+33 6 12 34 56 78' }),
+        ).toHaveAttribute('href', 'tel:+33612345678');
+        expect(card.getByText('Qualité de la relation')).toBeInTheDocument();
+        expect(card.getByText('Visites avec cet agent')).toBeInTheDocument();
+    });
 });

@@ -95,4 +95,32 @@ describe('DatePicker', () => {
         await user.tab();
         expect(input).toHaveValue('12 octobre 2026');
     });
+    it('refuses a day before the minimum, typed or picked', async () => {
+        const user = userEvent.setup({ delay: null });
+        const onChange = vi.fn();
+        render(
+            <DatePicker
+                value=""
+                min="2026-09-15"
+                onChange={onChange}
+                aria-label="Date"
+            />,
+        );
+
+        const input = screen.getByRole('textbox', { name: 'Date' });
+        await user.type(input, '14/09/2026');
+        expect(onChange).not.toHaveBeenCalled();
+
+        await user.clear(input);
+        await user.type(input, '15/09/2026');
+        expect(onChange).toHaveBeenLastCalledWith('2026-09-15');
+
+        await user.click(
+            screen.getByRole('button', { name: 'Ouvrir le calendrier' }),
+        );
+        const past = await screen.findByRole('button', {
+            name: /14 septembre 2026/,
+        });
+        expect(past).toBeDisabled();
+    });
 });

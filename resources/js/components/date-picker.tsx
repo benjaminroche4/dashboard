@@ -17,6 +17,8 @@ type Props = {
     /** Date ISO (AAAA-MM-JJ) ou chaîne vide. */
     value: string;
     onChange: (iso: string) => void;
+    /** Date ISO minimale sélectionnable (AAAA-MM-JJ) : les jours d'avant sont refusés. */
+    min?: string;
     placeholder?: string;
     className?: string;
     'aria-label'?: string;
@@ -66,6 +68,7 @@ export function DatePicker({
     id,
     value,
     onChange,
+    min,
     placeholder = '4 septembre 2026',
     className,
     'aria-label': ariaLabel,
@@ -76,6 +79,14 @@ export function DatePicker({
     const date = parsed && isValid(parsed) ? parsed : undefined;
     const [month, setMonth] = useState<Date | undefined>(date);
     const [focused, setFocused] = useState(false);
+    const parsedMin = min ? parseISO(min) : undefined;
+    const minDate = parsedMin && isValid(parsedMin) ? parsedMin : undefined;
+
+    /** Une date avant la borne n'est jamais retenue : le champ ne peut pas produire d'interdit. */
+    const allowed = (next: Date | undefined): boolean =>
+        next === undefined ||
+        minDate === undefined ||
+        format(next, 'yyyy-MM-dd') >= format(minDate, 'yyyy-MM-dd');
 
     // Une valeur imposée de l'extérieur (ex. réinitialisation) rafraîchit le
     // texte, sauf pendant la frappe : on ne remplace pas ce que l'utilisateur tape.
@@ -86,6 +97,10 @@ export function DatePicker({
     }, [value, focused]);
 
     const commit = (next: Date | undefined) => {
+        if (!allowed(next)) {
+            return;
+        }
+
         onChange(next ? format(next, 'yyyy-MM-dd') : '');
         setMonth(next);
     };
@@ -143,10 +158,15 @@ export function DatePicker({
                         mode="single"
                         locale={fr}
                         selected={date}
+                        disabled={minDate ? { before: minDate } : undefined}
                         month={month}
                         onMonthChange={setMonth}
                         captionLayout="dropdown"
                         onSelect={(selected) => {
+                            if (!allowed(selected)) {
+                                return;
+                            }
+
                             commit(selected);
                             setText(
                                 selected

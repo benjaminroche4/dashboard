@@ -28,6 +28,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { formatMoney } from '@/lib/format';
 import { destroy, explain, store } from '@/routes/clients/properties';
 import { create as visitCreate } from '@/routes/clients/visits';
+import { show as propertyShow } from '@/routes/properties';
 import type {
     ClientProperty,
     ClientPropertyExplanation,
@@ -179,7 +180,16 @@ export function ClientProperties({
                         >
                             <div className="grid min-w-0 gap-0.5">
                                 <span className="flex flex-wrap items-center gap-2 font-medium">
-                                    {property.label}
+                                    {/* Le nom mène à la fiche du bien : c'est là
+                                        que se lisent photos, loyer et visites. */}
+                                    <Link
+                                        href={propertyShow({
+                                            property: property.uuid,
+                                        })}
+                                        className="underline-offset-4 hover:underline"
+                                    >
+                                        {property.label}
+                                    </Link>
                                     {property.listing_url && (
                                         <a
                                             href={property.listing_url}
@@ -326,7 +336,14 @@ export function ClientProperties({
                             >
                                 <div className="grid min-w-0 gap-1">
                                     <span className="flex flex-wrap items-center gap-2 font-medium">
-                                        {suggestion.label}
+                                        <Link
+                                            href={propertyShow({
+                                                property: suggestion.uuid,
+                                            })}
+                                            className="underline-offset-4 hover:underline"
+                                        >
+                                            {suggestion.label}
+                                        </Link>
                                         {suggestion.listing_url && (
                                             <a
                                                 href={suggestion.listing_url}

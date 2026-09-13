@@ -29,6 +29,8 @@ export function makeVisit(overrides: Partial<Visit> = {}): Visit {
         report_author: null,
         report_due: false,
         can_report: false,
+        outcome: 'pending',
+        outcome_label: 'À décider',
         client: {
             id: 1,
             uuid: '0199a9a0-0000-7000-8000-000000000001',
