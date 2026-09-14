@@ -1,7 +1,8 @@
-import { Building2, House, Plus } from 'lucide-react';
+import { House, Plus } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { SearchSelect } from '@/components/search-select';
 import { Label } from '@/components/ui/label';
+import { PropertyThumb } from '@/components/properties/property-thumb';
 import { cn } from '@/lib/utils';
 import type { VisitPropertyOption } from '@/types';
 
@@ -28,35 +29,6 @@ const sources: {
 ];
 
 /** Vignette de la photo principale d'un bien, ou une icône à défaut. */
-export function PropertyThumb({
-    photo,
-    label,
-    className,
-}: {
-    photo?: string | null;
-    label: string;
-    className?: string;
-}) {
-    return photo ? (
-        <img
-            src={photo}
-            alt={`Photo de ${label}`}
-            loading="lazy"
-            className={cn('size-8 shrink-0 rounded-md object-cover', className)}
-        />
-    ) : (
-        <span
-            aria-hidden
-            className={cn(
-                'bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md',
-                className,
-            )}
-        >
-            <Building2 className="size-4" />
-        </span>
-    );
-}
-
 /**
  * Choix du bien d'une visite : deux cartes « Un bien de l'annuaire » / « Nouveau
  * bien », puis, pour l'annuaire, la liste des biens avec leur photo principale.

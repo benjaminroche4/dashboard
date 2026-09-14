@@ -204,3 +204,39 @@ export function visitPropertyLine(visit: Visit): string {
 
     return address.startsWith(label) ? address : `${label} · ${address}`;
 }
+
+/** Ce qu'une visite attend encore de quelqu'un. */
+export type VisitPendingKind = 'report' | 'client';
+
+export const visitPendingOptions: { value: VisitPendingKind; label: string }[] =
+    [
+        { value: 'report', label: 'Compte rendu à rédiger (équipe)' },
+        { value: 'client', label: 'Retour du client attendu' },
+    ];
+
+/**
+ * Retours attendus sur une visite : le compte rendu que l'équipe doit
+ * encore écrire, puis — une fois écrit — la décision du client sur le bien
+ * visité tant qu'elle n'est pas tranchée. Une visite annulée n'attend rien.
+ */
+export function visitPendingKinds(visit: Visit): VisitPendingKind[] {
+    if (visit.status === 'cancelled') {
+        return [];
+    }
+
+    const kinds: VisitPendingKind[] = [];
+
+    if (visit.report_due) {
+        kinds.push('report');
+    }
+
+    if (
+        visit.status === 'done' &&
+        visit.report !== null &&
+        visit.outcome === 'pending'
+    ) {
+        kinds.push('client');
+    }
+
+    return kinds;
+}

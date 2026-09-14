@@ -20,8 +20,11 @@ export function LeadActivitySheet({
     filters,
     composer,
     children,
+    className = 'w-full justify-center',
 }: {
     count: number;
+    /** Classe du bouton d'ouverture : plein largeur dans une carte, compact dans un en-tête. */
+    className?: string;
     /** Filtres Tout / Notes / Envois / Statuts. */
     filters?: ReactNode;
     /** Zone de saisie d'une note, en bas du volet. */
@@ -32,7 +35,7 @@ export function LeadActivitySheet({
     return (
         <Sheet>
             <SheetTrigger asChild>
-                <Button variant="outline" className="w-full justify-center">
+                <Button variant="outline" className={className}>
                     <History aria-hidden />
                     Voir l’activité
                 </Button>

@@ -7,8 +7,11 @@ namespace App\Services;
 use Anthropic\Client;
 use Anthropic\Core\Exceptions\APIConnectionException;
 use Anthropic\Core\Exceptions\APIStatusException;
+use Anthropic\Messages\Base64PDFSource;
+use Anthropic\Messages\DocumentBlockParam;
 use Anthropic\Messages\OutputConfig\Effort;
 use Anthropic\Messages\TextBlock;
+use Anthropic\Messages\TextBlockParam;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
@@ -48,12 +51,43 @@ class Assistant
      */
     public function extract(string $system, string $prompt, array $schema, int $maxTokens = 8_000, Effort $effort = Effort::LOW): array
     {
+        return $this->request($system, $prompt, $schema, $maxTokens, $effort);
+    }
+
+    /**
+     * Même chose, avec un ou plusieurs PDF à lire : la pièce déposée par un
+     * client, par exemple. Méthode distincte plutôt qu'un paramètre de plus
+     * sur `extract()`, que les doublures de test redéfinissent avec la
+     * signature d'origine.
+     *
+     * @param  list<string>  $pdfs  Contenus bruts des fichiers PDF
+     * @param  array<string, mixed>  $schema
+     * @return array<string, mixed>
+     */
+    public function extractFromPdf(string $system, string $prompt, array $schema, array $pdfs, int $maxTokens = 8_000, Effort $effort = Effort::LOW): array
+    {
+        $content = array_map(
+            fn (string $pdf): DocumentBlockParam => DocumentBlockParam::with(source: Base64PDFSource::with(base64_encode($pdf))),
+            $pdfs,
+        );
+        $content[] = TextBlockParam::with($prompt);
+
+        return $this->request($system, $content, $schema, $maxTokens, $effort);
+    }
+
+    /**
+     * @param  string|list<DocumentBlockParam|TextBlockParam>  $content
+     * @param  array<string, mixed>  $schema
+     * @return array<string, mixed>
+     */
+    private function request(string $system, string|array $content, array $schema, int $maxTokens, Effort $effort): array
+    {
         throw_unless($this->isConfigured(), RuntimeException::class, 'Assistant IA non configuré (ANTHROPIC_API_KEY).');
 
         try {
             $message = $this->client()->messages->create(
                 maxTokens: $maxTokens,
-                messages: [['role' => 'user', 'content' => $prompt]],
+                messages: [['role' => 'user', 'content' => $content]],
                 model: $this->model,
                 outputConfig: ['effort' => $effort, 'format' => ['type' => 'json_schema', 'schema' => $schema]],
                 system: $system,

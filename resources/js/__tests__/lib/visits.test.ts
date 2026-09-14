@@ -9,6 +9,7 @@ import {
     visitModeForOffer,
     visitPropertyLine,
     visitTours,
+    visitPendingKinds,
 } from '@/lib/visits';
 import { makeVisit } from '@/test/fixtures/visit';
 
@@ -222,5 +223,41 @@ describe('visitTours', () => {
         expect(
             visitTours([withMember(1, 'Alice'), withMember(1, 'Alice')]),
         ).toHaveLength(1);
+    });
+});
+
+describe('visitPendingKinds', () => {
+    it('names what a visit still waits for: the report, then the client', () => {
+        expect(
+            visitPendingKinds(
+                makeVisit({ status: 'done', report: null, report_due: true }),
+            ),
+        ).toEqual(['report']);
+        expect(
+            visitPendingKinds(
+                makeVisit({
+                    status: 'done',
+                    report: 'Bien lumineux.',
+                    report_due: false,
+                    outcome: 'pending',
+                }),
+            ),
+        ).toEqual(['client']);
+        // Tranché, ou annulé : plus rien à attendre.
+        expect(
+            visitPendingKinds(
+                makeVisit({
+                    status: 'done',
+                    report: 'Vu.',
+                    report_due: false,
+                    outcome: 'applied',
+                }),
+            ),
+        ).toEqual([]);
+        expect(
+            visitPendingKinds(
+                makeVisit({ status: 'cancelled', report_due: false }),
+            ),
+        ).toEqual([]);
     });
 });

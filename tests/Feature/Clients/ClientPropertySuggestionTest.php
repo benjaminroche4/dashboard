@@ -57,5 +57,7 @@ test('a client without any project criteria gets no suggestion, and the dossier 
             ->has('suggestedProperties', 1)
             ->where('suggestedProperties.0.label', 'T2 · 5e')
             ->where('suggestedProperties.0.score', 6)
+            // La vignette de la liste : première photo, null sans photo.
+            ->has('suggestedProperties.0.photo')
             ->where('suggestedProperties.0.reasons', ['Dans le budget', 'Arrondissement recherché (5e)']));
 });

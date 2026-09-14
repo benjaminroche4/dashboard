@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\VisitMode;
 use App\Enums\VisitStatus;
 use App\Models\Lead;
 use App\Models\Property;
@@ -26,6 +27,8 @@ class VisitFactory extends Factory
             'agent_id' => null,
             'scheduled_at' => fake()->dateTimeBetween('+1 day', '+3 weeks'),
             'status' => VisitStatus::Planned,
+            // Le défaut de la colonne, posé ici aussi : un modèle tout juste créé doit le porter.
+            'mode' => VisitMode::ForClient,
             'notes' => fake()->boolean(30) ? fake()->sentence(6) : null,
             'created_by' => null,
         ];

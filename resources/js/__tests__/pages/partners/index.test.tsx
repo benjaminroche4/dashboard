@@ -165,6 +165,37 @@ describe('Partners index page', () => {
         );
     });
 
+    it('remembers the type filter after a reload', async () => {
+        const user = userEvent.setup();
+        const page = () => (
+            <PartnersIndex
+                partners={partners}
+                types={partnerTypes}
+                favoritesCount={0}
+            />
+        );
+        const { unmount } = render(page());
+
+        await user.click(screen.getByRole('button', { name: 'Filtres' }));
+        await user.click(
+            await screen.findByRole('menuitemcheckbox', { name: /Gestion/ }),
+        );
+        await user.keyboard('{Escape}');
+        expect(
+            screen.queryByRole('link', { name: 'Zen Assurances' }),
+        ).not.toBeInTheDocument();
+
+        unmount();
+        render(page());
+        expect(
+            screen.queryByRole('link', { name: 'Zen Assurances' }),
+        ).not.toBeInTheDocument();
+        // Le bouton porte alors le compteur dans son nom : « Filtres 1 ».
+        expect(
+            screen.getByRole('button', { name: /Filtres/ }),
+        ).toHaveTextContent('1');
+    });
+
     it('does not offer the welcome e-mail when editing a partner', async () => {
         const user = userEvent.setup();
         render(

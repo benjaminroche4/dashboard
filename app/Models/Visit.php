@@ -34,6 +34,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonInterface|null $report_submitted_at
  * @property int|null $report_submitted_by
  * @property CarbonInterface|null $report_reminded_at
+ * @property string|null $calendar_event_id
+ * @property string|null $calendar_email
  * @property int|null $created_by
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at

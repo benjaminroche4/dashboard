@@ -85,6 +85,7 @@ const agency = {
         {
             uuid: 'property-1',
             label: 'T2 lumineux · 11e',
+            photo: null,
             visits_count: 2,
             last_visit_at: '2026-09-08T10:00:00+00:00',
             last_visit_status: 'Effectuée',

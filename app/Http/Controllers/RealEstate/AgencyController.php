@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\RealEstate;
 
+use App\Actions\Agencies\ApplyAgencyEnrichment;
+use App\Actions\Agencies\DismissAgencyEnrichment;
+use App\Actions\Agencies\EnrichAgency;
+use App\Actions\Agencies\UpdateAgencyProfile;
 use App\Actions\Directory\ToggleFavorite;
 use App\Actions\Directory\TouchDirectoryContact;
 use App\Actions\RealEstate\CreateAgency;
@@ -11,8 +15,13 @@ use App\Actions\RealEstate\DeleteAgencies;
 use App\Actions\RealEstate\DeleteAgency;
 use App\Actions\RealEstate\UpdateAgency;
 use App\Data\AgencyData;
+use App\Data\AgencyProfileData;
+use App\Enums\AgencySpecialty;
+use App\Enums\MandateType;
+use App\Enums\SpokenLanguage;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Tools\ActivityController;
+use App\Http\Requests\Agencies\UpdateAgencyProfileRequest;
 use App\Http\Requests\RealEstate\BulkAgenciesRequest;
 use App\Http\Requests\RealEstate\IndexAgenciesRequest;
 use App\Http\Requests\RealEstate\StoreAgencyRequest;
@@ -31,6 +40,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
 
 class AgencyController extends Controller
 {
@@ -120,7 +130,12 @@ class AgencyController extends Controller
                 ])->all(),
                 // Biens visités avec l'un des agents de l'agence, le plus récent d'abord.
                 'properties' => $this->visitedProperties($agency),
+                // Profil de matching, renseigné après coup sur la fiche (jamais à la création).
+                ...self::profileOf($agency),
+                'ai_profile' => $agency->ai_profile,
+                'ai_profile_at' => $agency->ai_profile_at?->toIso8601String(),
             ],
+            'profileOptions' => self::profileOptions(),
             // Journal : les dernières actions du backoffice sur cette fiche.
             'activities' => Activity::query()
                 ->with(['actor', 'lead', 'partner'])
@@ -151,6 +166,7 @@ class AgencyController extends Controller
             $rows[] = [
                 'uuid' => $last->property->uuid,
                 'label' => $last->property->label(),
+                'photo' => $last->property->coverUrl(),
                 'visits_count' => $visits->count(),
                 'last_visit_at' => $last->scheduled_at->toIso8601String(),
                 'last_visit_status' => $last->status->label(),
@@ -189,6 +205,36 @@ class AgencyController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Échange noté.')]);
 
         return back();
+    }
+
+    /**
+     * Les agences sur une carte : toutes celles dont l'adresse est géocodée,
+     * pas seulement la page affichée. Une agence sans position est comptée à
+     * part par la modale, elle n'est pas devinée.
+     */
+    public function map(): JsonResponse
+    {
+        $this->authorize('viewAny', Agency::class);
+
+        return response()->json(Agency::query()
+            ->withCount('agents')
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Agency $agency): array => [
+                'uuid' => $agency->uuid,
+                'name' => $agency->name,
+                'street' => $agency->street,
+                'postal_code' => $agency->postal_code,
+                'city' => $agency->city,
+                'latitude' => (float) $agency->latitude,
+                'longitude' => (float) $agency->longitude,
+                'phone' => $agency->phone,
+                'agents_count' => (int) $agency->agents_count,
+                'url' => route('agencies.show', $agency),
+            ])
+            ->all());
     }
 
     /** Recherche ⌘K : nom de l'agence, e-mail, téléphone ou ville. */
@@ -284,6 +330,100 @@ class AgencyController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Agence :name supprimée.', ['name' => $name])]);
 
         return back();
+    }
+
+    /** Profil de matching saisi à la main. */
+    public function profile(UpdateAgencyProfileRequest $request, Agency $agency, UpdateAgencyProfile $update): RedirectResponse
+    {
+        $this->authorize('update', $agency);
+
+        $update->handle($agency, AgencyProfileData::from($request->validated()), $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Profil de :name enregistré.', ['name' => $agency->name])]);
+
+        return back();
+    }
+
+    /** L'assistant lit le site de l'agence et propose un profil, à relire. */
+    public function enrich(Request $request, Agency $agency, EnrichAgency $enrich): RedirectResponse
+    {
+        $this->authorize('update', $agency);
+
+        try {
+            $enrich->handle($agency, $request->user());
+        } catch (RuntimeException $exception) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => $exception->getMessage()]);
+
+            return back();
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Profil proposé par l’assistant : relisez-le avant de l’appliquer.')]);
+
+        return back();
+    }
+
+    /** Applique la proposition de l'assistant aux champs encore vides. */
+    public function applyEnrichment(Request $request, Agency $agency, ApplyAgencyEnrichment $apply): RedirectResponse
+    {
+        $this->authorize('update', $agency);
+
+        $written = $apply->handle($agency, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => $written === []
+            ? __('Rien à appliquer : le profil était déjà renseigné.')
+            : __(':count champ(s) du profil appliqué(s).', ['count' => count($written)])]);
+
+        return back();
+    }
+
+    /** Écarte la proposition de l'assistant. */
+    public function dismissEnrichment(Agency $agency, DismissAgencyEnrichment $dismiss): RedirectResponse
+    {
+        $this->authorize('update', $agency);
+
+        $dismiss->handle($agency);
+
+        Inertia::flash('toast', ['type' => 'info', 'message' => __('Proposition écartée.')]);
+
+        return back();
+    }
+
+    /**
+     * Profil de matching d'une agence, tel que la fiche l'affiche et le modifie.
+     *
+     * @return array<string, mixed>
+     */
+    public static function profileOf(Agency $agency): array
+    {
+        return [
+            'districts' => array_map(intval(...), $agency->districts ?? []),
+            'specialties' => $agency->specialties?->map(fn (AgencySpecialty $s): string => $s->value)->values()->all() ?? [],
+            'specialty_labels' => $agency->specialties?->map(fn (AgencySpecialty $s): string => $s->label())->values()->all() ?? [],
+            'languages' => $agency->languages?->map(fn (SpokenLanguage $l): string => $l->value)->values()->all() ?? [],
+            'language_labels' => $agency->languages?->map(fn (SpokenLanguage $l): string => $l->label())->values()->all() ?? [],
+            'mandate_types' => $agency->mandate_types?->map(fn (MandateType $m): string => $m->value)->values()->all() ?? [],
+            'mandate_labels' => $agency->mandate_types?->map(fn (MandateType $m): string => $m->label())->values()->all() ?? [],
+            'fee_note' => $agency->fee_note,
+            'rent_min_cents' => $agency->rent_min_cents,
+            'rent_max_cents' => $agency->rent_max_cents,
+            'accepts_garantme' => $agency->accepts_garantme,
+            'accepts_foreign_files' => $agency->accepts_foreign_files,
+            'has_profile' => $agency->hasProfile(),
+        ];
+    }
+
+    /**
+     * Listes du dialogue de profil (agence et agent).
+     *
+     * @return array{specialties: list<array{value: string, label: string}>, languages: list<array{value: string, label: string}>, mandateTypes: list<array{value: string, label: string}>}
+     */
+    public static function profileOptions(): array
+    {
+        return [
+            'specialties' => AgencySpecialty::options(),
+            'languages' => SpokenLanguage::options(),
+            'mandateTypes' => MandateType::options(),
+        ];
     }
 
     /**

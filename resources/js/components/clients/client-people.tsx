@@ -1,6 +1,8 @@
 import { router, useForm, usePage } from '@inertiajs/react';
 import {
+    Mail,
     Pencil,
+    Phone,
     Plus,
     ShieldCheck,
     UserRound,
@@ -14,6 +16,7 @@ import { PhoneInput } from '@/components/phone-input';
 import { DetailSection } from '@/components/real-estate/detail-header';
 import { SearchSelect } from '@/components/search-select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -27,6 +30,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ClientTenantProfileDialog } from '@/components/clients/client-tenant-profile-dialog';
 import { capitalizeName } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { tenantDetails } from '@/lib/tenant-profile';
 import { GuarantorDialog } from '@/components/clients/guarantor-dialog';
 import { WatcherDialog } from '@/components/clients/watcher-dialog';
@@ -155,104 +159,130 @@ function PersonCard({
     onRemove?: () => void;
 }) {
     const details = profile ? tenantDetails(profile) : [];
+    const hasAmount = amount !== undefined && amount !== null;
+    const telHref = phone ? `tel:${phone.replace(/\s+/g, '')}` : null;
+    const mailHref = email ? `mailto:${email}` : null;
+
+    const actions = (
+        <div className="flex shrink-0 items-center gap-1">
+            {onEdit && (
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Modifier les informations de ${name}`}
+                    onClick={onEdit}
+                >
+                    <Pencil aria-hidden />
+                </Button>
+            )}
+            {onRemove && (
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Retirer ${name}`}
+                    onClick={onRemove}
+                >
+                    <X aria-hidden />
+                </Button>
+            )}
+        </div>
+    );
+    const avatarNode = (size = 'size-9') => (
+        <Avatar className={cn(size, 'shrink-0')}>
+            {avatar && <AvatarImage src={avatar} alt="" />}
+            <AvatarFallback className="text-xs">
+                {initials(name) || <UserRound className="size-4" />}
+            </AvatarFallback>
+        </Avatar>
+    );
+    const contactRows = (
+        <ul role="list" className="grid gap-1.5 text-sm">
+            {phone && telHref && (
+                <li>
+                    <a
+                        href={telHref}
+                        className="hover:text-foreground inline-flex items-center gap-2 tabular-nums underline-offset-4 hover:underline"
+                    >
+                        <Phone
+                            className="text-muted-foreground size-3.5 shrink-0"
+                            aria-hidden
+                        />
+                        {phone}
+                    </a>
+                </li>
+            )}
+            {email && mailHref && (
+                <li className="min-w-0">
+                    <a
+                        href={mailHref}
+                        className="hover:text-foreground inline-flex max-w-full items-center gap-2 underline-offset-4 hover:underline"
+                    >
+                        <Mail
+                            className="text-muted-foreground size-3.5 shrink-0"
+                            aria-hidden
+                        />
+                        <span className="truncate">{email}</span>
+                    </a>
+                </li>
+            )}
+            {!phone && !email && (
+                <li className="text-muted-foreground">Aucune coordonnée.</li>
+            )}
+        </ul>
+    );
+    const detailsList = profile ? (
+        details.length > 0 ? (
+            <dl className="grid gap-1 text-xs sm:grid-cols-2 sm:gap-x-6">
+                {details.map((detail) => (
+                    <Detail
+                        key={detail.label}
+                        label={detail.label}
+                        value={detail.value}
+                    />
+                ))}
+            </dl>
+        ) : (
+            <p className="text-muted-foreground text-xs">
+                Aucune information renseignée.
+            </p>
+        )
+    ) : null;
+    const amountNode = hasAmount ? (
+        <div className="grid gap-0.5 text-right">
+            <span className="text-muted-foreground text-xs">{amountLabel}</span>
+            <span className="font-medium tabular-nums">{amount}</span>
+        </div>
+    ) : null;
 
     return (
-        <li className="bg-sidebar grid gap-4 rounded-lg border p-4">
-            <div className="flex items-center justify-between gap-2">
-                <p className="text-muted-foreground text-xs font-medium uppercase">
-                    {overline}
-                </p>
-                <div className="flex shrink-0 items-center gap-1">
-                    {onEdit && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label={`Modifier les informations de ${name}`}
-                            onClick={onEdit}
-                        >
-                            <Pencil aria-hidden />
-                        </Button>
-                    )}
-                    {onRemove && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label={`Retirer ${name}`}
-                            onClick={onRemove}
-                        >
-                            <X aria-hidden />
-                        </Button>
-                    )}
-                </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 text-sm">
-                <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <Avatar className="size-9 shrink-0">
-                        {avatar && <AvatarImage src={avatar} alt="" />}
-                        <AvatarFallback className="text-xs">
-                            {initials(name) || <UserRound className="size-4" />}
-                        </AvatarFallback>
-                    </Avatar>
+        <li className="bg-card grid gap-3 rounded-lg border p-4">
+            <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                    {avatarNode('size-11')}
                     <div className="grid min-w-0 gap-0.5">
-                        <span className="truncate font-medium">{name}</span>
-                        {subtitle && (
-                            <span className="text-muted-foreground truncate text-xs">
-                                {subtitle}
-                            </span>
-                        )}
-                    </div>
-                </div>
-                <div className="text-muted-foreground grid gap-0.5 text-xs">
-                    {phone && (
-                        <a
-                            href={`tel:${phone.replace(/\s+/g, '')}`}
-                            className="hover:text-foreground tabular-nums underline-offset-4 hover:underline"
-                        >
-                            {phone}
-                        </a>
-                    )}
-                    {email && (
-                        <a
-                            href={`mailto:${email}`}
-                            className="hover:text-foreground max-w-64 truncate underline-offset-4 hover:underline"
-                        >
-                            {email}
-                        </a>
-                    )}
-                </div>
-                {amount !== undefined && amount !== null && (
-                    /* Le chiffre se lit à droite, comme le total d'une ligne. */
-                    <div className="grid gap-1.5 text-right">
-                        <span className="text-muted-foreground text-sm">
-                            {amountLabel}
+                        <span className="truncate text-base font-medium">
+                            {name}
                         </span>
-                        <span className="font-medium tabular-nums">
-                            {amount}
+                        <span className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
+                            <Badge
+                                variant="secondary"
+                                className="px-1.5 py-0 text-[11px] font-medium"
+                            >
+                                {overline}
+                            </Badge>
+                            {subtitle}
                         </span>
                     </div>
-                )}
+                </div>
+                {actions}
             </div>
-
-            {profile && (
-                <div className="border-t pt-3 text-xs">
-                    {details.length > 0 ? (
-                        <dl className="grid gap-1 sm:grid-cols-2 sm:gap-x-6">
-                            {details.map((detail) => (
-                                <Detail
-                                    key={detail.label}
-                                    label={detail.label}
-                                    value={detail.value}
-                                />
-                            ))}
-                        </dl>
-                    ) : (
-                        <p className="text-muted-foreground">
-                            Aucune information renseignée.
-                        </p>
-                    )}
-                </div>
-            )}
+            {/* Téléphone et e-mail sur leur propre ligne, cliquables ; le
+                chiffre (revenu) à droite comme le total d'une ligne. */}
+            <div className="grid gap-3 border-t pt-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                {contactRows}
+                {amountNode}
+            </div>
+            {profile && <div className="border-t pt-3">{detailsList}</div>}
         </li>
     );
 }

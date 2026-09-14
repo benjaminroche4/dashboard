@@ -149,7 +149,8 @@ class OwnerController extends Controller
     {
         $this->authorize('view', $owner);
 
-        $owner->load(['creator', 'lead.assignee', 'properties.agent.agency', 'properties.creator']);
+        // Tout ce que `PropertyController::summary()` lit sur chaque bien, chargé en une fois.
+        $owner->load(['creator', 'lead.assignee', 'properties.agent.agency', 'properties.creator', 'properties.partner', 'properties.assignedLead', 'properties.owner']);
         $owner->loadCount('properties');
         $owner->properties->loadCount('visits');
 

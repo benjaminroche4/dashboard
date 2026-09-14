@@ -5,7 +5,7 @@ import { CreatedBy } from '@/components/created-by';
 import { PropertyRowActions } from '@/components/properties/property-row-actions';
 import { PropertyAssignmentBadge } from '@/components/properties/property-assignment';
 import { PropertyStatusBadge } from '@/components/properties/property-status-badge';
-import { PropertyThumb } from '@/components/visits/property-picker';
+import { PropertyThumb } from '@/components/properties/property-thumb';
 import { formatAddress } from '@/components/real-estate/columns';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';

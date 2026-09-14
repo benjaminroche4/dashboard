@@ -73,6 +73,15 @@ return [
     'property_decision' => [
         'delay_hours' => (int) env('PROPERTY_DECISION_REMINDER_HOURS', 48),
     ],
+    // Installation d'un client : paliers (en jours avant l'arrivée) auxquels
+    // les personnes de suivi reçoivent une alerte. Du plus lointain au plus
+    // proche ; un palier par e-mail, jamais deux fois le même.
+    'arrival_alert' => [
+        'days' => array_values(array_filter(array_map(
+            intval(...),
+            explode(',', (string) env('ARRIVAL_ALERT_DAYS', '15,7,3')),
+        ), fn (int $day): bool => $day > 0)),
+    ],
     'default_currency' => env('COMPANY_DEFAULT_CURRENCY', 'EUR'),
     'default_payment_terms_days' => (int) env('COMPANY_PAYMENT_TERMS_DAYS', 30),
     // Durée de validité d'un devis, en jours, proposée par défaut.

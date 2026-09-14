@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { UserRoundCheck } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
@@ -12,7 +12,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Spinner } from '@/components/ui/spinner';
-import { convert } from '@/routes/leads';
+import { convert, edit as leadEdit } from '@/routes/leads';
 
 /**
  * Bouton « Convertir en client » de la fiche lead, avec confirmation :
@@ -22,10 +22,13 @@ export function LeadConvertDialog({
     leadUuid,
     leadName,
     status,
+    offerLabel = null,
 }: {
     leadUuid: string;
     leadName: string;
     status: string;
+    /** Formule du lead : sans elle, pas de dossier — le dialogue renvoie la choisir. */
+    offerLabel?: string | null;
 }) {
     const [open, setOpen] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -62,9 +65,9 @@ export function LeadConvertDialog({
                             Convertir {leadName} en client ?
                         </DialogTitle>
                         <DialogDescription>
-                            Le lead passe en « Converti », quitte le kanban et
-                            rejoint les dossiers clients. Factures, devis et
-                            documents restent rattachés.
+                            {offerLabel
+                                ? `Formule ${offerLabel}. Le lead passe en « Converti », quitte le kanban et rejoint les dossiers clients. Factures, devis et documents restent rattachés.`
+                                : 'Un dossier client se construit sur une formule : choisissez Accompagné ou Confié sur la fiche du lead, puis revenez ici.'}
                         </DialogDescription>
                     </DialogHeader>
                     <InputError message={error} />
@@ -77,19 +80,27 @@ export function LeadConvertDialog({
                         >
                             Annuler
                         </Button>
-                        <Button
-                            type="button"
-                            onClick={submit}
-                            disabled={busy}
-                            data-test="confirm-convert-lead"
-                        >
-                            {busy ? (
-                                <Spinner />
-                            ) : (
-                                <UserRoundCheck aria-hidden />
-                            )}
-                            Confirmer
-                        </Button>
+                        {offerLabel ? (
+                            <Button
+                                type="button"
+                                onClick={submit}
+                                disabled={busy}
+                                data-test="confirm-convert-lead"
+                            >
+                                {busy ? (
+                                    <Spinner />
+                                ) : (
+                                    <UserRoundCheck aria-hidden />
+                                )}
+                                Confirmer
+                            </Button>
+                        ) : (
+                            <Button asChild>
+                                <Link href={leadEdit({ lead: leadUuid })}>
+                                    Choisir la formule
+                                </Link>
+                            </Button>
+                        )}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

@@ -71,6 +71,7 @@ export default function DocumentsIndex({ requests }: Props) {
                     </div>
                 </div>
                 <DataTable
+                    storageKey="documents"
                     columns={documentColumns}
                     data={requests}
                     filterColumn="name"
@@ -93,6 +94,6 @@ export default function DocumentsIndex({ requests }: Props) {
 DocumentsIndex.layout = {
     breadcrumbs: [
         { title: 'Outils', href: toolsIndex() },
-        { title: 'Documents', href: documentsIndex() },
+        { title: 'Listes de pièces', href: documentsIndex() },
     ],
 };

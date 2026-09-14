@@ -39,11 +39,11 @@ vi.mock('@inertiajs/react', () => ({
         prefetch: _prefetch,
         ...props
     }: {
-        href: { url: string };
+        href: string | { url: string };
         children: ReactNode;
         prefetch?: boolean;
     }) => (
-        <a href={href.url} {...props}>
+        <a href={typeof href === 'string' ? href : href.url} {...props}>
             {children}
         </a>
     ),
@@ -55,7 +55,6 @@ import {
     makeClientDetail,
     makeDossierReadiness,
 } from '@/test/fixtures/client';
-import { makeActivity } from '@/test/fixtures/activity';
 import { makeVisit } from '@/test/fixtures/visit';
 
 describe('Client file page', () => {
@@ -132,6 +131,7 @@ describe('Client file page', () => {
                         rent_cents: 60_200,
                         currency: 'EUR',
                         listing_url: null,
+                        photo: null,
                         agent: null,
                         score: 8,
                         reasons: ['Dans le budget'],
@@ -211,14 +211,14 @@ describe('Client file page', () => {
             // Un seul badge par onglet : les biens du dossier. Les biens
             // suggérés se comptent dans l'onglet, pas sur sa pastille.
             'Biens',
-            'Notes1',
-            'Autre2',
+            'Commercial1',
+            'Partenaires1',
         ]);
         expect(
             screen.queryByRole('link', { name: /RP-27001/ }),
         ).not.toBeInTheDocument();
 
-        await user.click(screen.getByRole('tab', { name: /Autre/ }));
+        await user.click(screen.getByRole('tab', { name: /Commercial/ }));
         expect(screen.getByRole('link', { name: /RP-27001/ })).toHaveAttribute(
             'href',
             '/invoices/inv-1',
@@ -226,6 +226,8 @@ describe('Client file page', () => {
         expect(
             screen.getByText('Aucun devis pour ce lead.'),
         ).toBeInTheDocument();
+        // Les partenaires ont leur onglet, comme sur la fiche lead.
+        await user.click(screen.getByRole('tab', { name: /Partenaires/ }));
         expect(screen.getByText('Garantme')).toBeInTheDocument();
         // La carte « Partenaires du dossier » est celle de la fiche lead :
         // le rôle, la note, et de quoi en ajouter un depuis le dossier.
@@ -237,8 +239,14 @@ describe('Client file page', () => {
         expect(
             partnerCard.getByRole('button', { name: 'Ajouter' }),
         ).toBeInTheDocument();
-        await user.click(screen.getByRole('tab', { name: /Notes/ }));
-        expect(screen.getByText('Visite prévue lundi.')).toBeInTheDocument();
+        // Les notes s'ouvrent dans un volet, comme sur la fiche lead.
+        await user.click(
+            screen.getByRole('button', { name: 'Voir l’activité' }),
+        );
+        expect(
+            await screen.findByText('Visite prévue lundi.'),
+        ).toBeInTheDocument();
+        await user.keyboard('{Escape}');
         await user.click(screen.getByRole('tab', { name: /Visites/ }));
         expect(screen.getByText('T2 lumineux · 11e')).toBeInTheDocument();
         expect(
@@ -299,7 +307,7 @@ describe('Client file page', () => {
 
         expect(screen.getByText(/non attribué/)).toBeInTheDocument();
         expect(screen.getAllByText('Non renseigné').length).toBeGreaterThan(0);
-        await user.click(screen.getByRole('tab', { name: /Autre/ }));
+        await user.click(screen.getByRole('tab', { name: /Partenaires/ }));
         expect(
             screen.getByText(
                 'Aucun partenaire dans l’annuaire pour le moment.',
@@ -309,56 +317,42 @@ describe('Client file page', () => {
         expect(
             screen.getByText('Aucune visite pour ce client.'),
         ).toBeInTheDocument();
-        await user.click(screen.getByRole('tab', { name: /Notes/ }));
+        await user.click(
+            screen.getByRole('button', { name: 'Voir l’activité' }),
+        );
         // Fil vide, mais la note s'écrit tout de suite : même compositeur que
         // la fiche lead.
         expect(
-            screen.getByText('Aucune activité pour le moment.'),
+            await screen.findByText('Aucune activité pour le moment.'),
         ).toBeInTheDocument();
         expect(
             screen.getByRole('textbox', { name: 'Nouvelle note' }),
         ).toBeInTheDocument();
     });
 
-    it('lists the journal of the dossier with a link to the full log', async () => {
+    it('opens the map of the districts from the overview', async () => {
         const user = userEvent.setup();
         render(
             <ClientShow
+                client={makeClientDetail({ districts: [9, 6] })}
                 priorities={clientPriorities}
-                client={makeClientDetail()}
                 totals={[]}
                 invoices={[]}
                 quotes={[]}
                 documentRequests={[]}
                 partners={[]}
                 notes={[]}
-                activities={[
-                    makeActivity({
-                        message: 'a rattaché le bien Rue Oberkampf au dossier',
-                        resource_label: 'Dossiers',
-                    }),
-                    makeActivity({
-                        id: 2,
-                        actor: null,
-                        message: 'a reçu un appel',
-                    }),
-                ]}
             />,
         );
 
-        await user.click(screen.getByRole('tab', { name: /Notes/ }));
-        const journal = screen.getByRole('region', { name: 'Journal' });
-        expect(journal).toHaveTextContent(
-            'Admin a rattaché le bien Rue Oberkampf au dossier',
+        await user.click(
+            screen.getByRole('button', { name: 'Voir sur la carte' }),
         );
-        expect(journal).toHaveTextContent('Le système a reçu un appel');
-        expect(journal).toHaveTextContent('Dossiers ·');
-        expect(
-            within(journal).getByRole('link', { name: 'Tout le journal' }),
-        ).toHaveAttribute(
-            'href',
-            '/tools/activity?lead=0199a9a0-0000-7000-8000-0000000000e1',
-        );
+
+        const dialog = await screen.findByRole('dialog', {
+            name: 'Arrondissements recherchés',
+        });
+        expect(dialog).toHaveTextContent('9e, 6e');
     });
 
     it('changes who follows the file from the header', async () => {
@@ -526,7 +520,7 @@ describe('Client file page', () => {
         ).toBeInTheDocument();
     });
 
-    it('takes a note from the overview and manages agent and partners from the file', async () => {
+    it('takes a note from the activity sheet and manages agent and partners from the file', async () => {
         const user = userEvent.setup();
         render(
             <ClientShow
@@ -559,16 +553,17 @@ describe('Client file page', () => {
             />,
         );
 
-        // Aperçu : le bouton ouvre le compositeur, sans changer d'onglet.
+        // La note se prend dans le volet d'activité, sans changer d'onglet.
         await user.click(
-            screen.getByRole('button', { name: 'Ajouter une note' }),
+            screen.getByRole('button', { name: 'Voir l’activité' }),
         );
         expect(
             await screen.findByRole('textbox', { name: 'Nouvelle note' }),
         ).toBeInTheDocument();
+        await user.keyboard('{Escape}');
 
-        // Onglet « Autre » : l'agent et les partenaires se gèrent ici.
-        await user.click(screen.getByRole('tab', { name: /Autre/ }));
+        // Onglet « Partenaires » : l'agent et les partenaires se gèrent ici.
+        await user.click(screen.getByRole('tab', { name: /Partenaires/ }));
         expect(
             screen.getByRole('region', { name: 'Agent en contact' }),
         ).toBeInTheDocument();
@@ -578,6 +573,58 @@ describe('Client file page', () => {
         expect(
             partnerCard.getByRole('button', { name: 'Ajouter' }),
         ).toBeEnabled();
+    });
+
+    it('opens on what is pending: the report to write and the next visit', async () => {
+        const user = userEvent.setup();
+        render(
+            <ClientShow
+                priorities={clientPriorities}
+                client={makeClientDetail()}
+                visits={[
+                    makeVisit({
+                        uuid: 'v-late',
+                        status: 'done',
+                        scheduled_at: '2026-09-11T14:00:00+02:00',
+                        report_due: true,
+                    }),
+                ]}
+                readiness={makeDossierReadiness({ total: 3, to_check: 2 })}
+                invoices={[]}
+                quotes={[]}
+                documentRequests={[]}
+                partners={[]}
+                notes={[]}
+            />,
+        );
+
+        const pending = within(
+            screen.getByRole('region', { name: 'En attente' }),
+        );
+        expect(pending.getByText(/Compte rendu à rédiger/)).toBeInTheDocument();
+        expect(pending.getByRole('link', { name: 'Rédiger' })).toHaveAttribute(
+            'href',
+            '/clients/visits/v-late?report=1',
+        );
+        // Dans l'onglet Visites, pas de raccourci « Rédiger » au bout de la
+        // ligne : l'en-tête du dossier porte déjà le bouton.
+        await user.click(screen.getByRole('tab', { name: /Visites/ }));
+        expect(
+            screen.queryByRole('button', { name: 'Rédiger' }),
+        ).not.toBeInTheDocument();
+        await user.click(screen.getByRole('tab', { name: /Aperçu/ }));
+
+        // « Vérifier » ouvre l'onglet Documents sans quitter la page (la carte
+        // est remontée avec l'onglet : on la retrouve avant de cliquer).
+        await user.click(
+            within(
+                screen.getByRole('region', { name: 'En attente' }),
+            ).getByRole('button', { name: 'Vérifier' }),
+        );
+        expect(screen.getByRole('tab', { name: /Documents/ })).toHaveAttribute(
+            'data-state',
+            'active',
+        );
     });
 
     it('tints the offer badge in the header, like everywhere else', () => {

@@ -43,6 +43,7 @@ use App\Enums\RecontactChannel;
 use App\Enums\WebsiteHelpType;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Owners\OwnerLeadController;
+use App\Http\Controllers\RealEstate\AgentController;
 use App\Http\Requests\Leads\ApplyLeadQualificationRequest;
 use App\Http\Requests\Leads\AssignLeadRequest;
 use App\Http\Requests\Leads\MoveLeadSegmentRequest;
@@ -293,14 +294,7 @@ class LeadController extends Controller
             'lossReasons' => LeadLossReason::options(),
             // Annuaire des agents immobiliers pour la carte « Agent en contact ».
             'agents' => Agent::query()->with('agency')->withFavoriteOf($request->user())->orderBy('last_name')->orderBy('first_name')->get()
-                ->map(fn (Agent $agent): array => [
-                    'id' => $agent->id,
-                    'uuid' => $agent->uuid,
-                    'name' => $agent->fullName(),
-                    'agency' => $agent->agency?->name,
-                    'phone' => $agent->phone,
-                    'is_favorite' => (bool) $agent->is_favorite,
-                ])->all(),
+                ->map(fn (Agent $agent): array => AgentController::option($agent))->all(),
             // Partenaires du dossier, annuaire et rôles possibles pour la carte « Partenaires du dossier ».
             'partners' => $lead->partnerLinks->map(fn (LeadPartner $link): array => [
                 'id' => $link->id,

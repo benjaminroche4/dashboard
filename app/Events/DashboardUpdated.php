@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Events;
 
+use App\Models\Lead;
 use App\Models\User;
+use App\Support\ActivityResource;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
@@ -54,6 +56,30 @@ final class DashboardUpdated implements ShouldBroadcastNow, ShouldDispatchAfterC
     }
 
     /**
+     * Identifiants des membres qui suivent le lead visé par le payload
+     * (`lead_id`, ou `id` d'une ressource lead). Vide quand l'événement ne
+     * touche aucun lead : il ne concerne personne en particulier.
+     *
+     * @return list<int>
+     */
+    public function concerns(): array
+    {
+        $id = $this->payload['lead_id'] ?? null;
+
+        if ($id === null && ActivityResource::concernsLead($this->resource)) {
+            $id = $this->payload['id'] ?? null;
+        }
+
+        if (! is_int($id) && (! is_string($id) || ! ctype_digit($id))) {
+            return [];
+        }
+
+        $lead = Lead::query()->with(['assignee', 'coAssignee'])->find((int) $id);
+
+        return $lead instanceof Lead ? array_map(fn (User $member): int => $member->id, $lead->followers()) : [];
+    }
+
+    /**
      * @return array<int, PresenceChannel>
      */
     public function broadcastOn(): array
@@ -76,6 +102,9 @@ final class DashboardUpdated implements ShouldBroadcastNow, ShouldDispatchAfterC
             'payload' => $this->payload,
             'message' => $this->message ?? "a modifié {$this->resource}",
             'actor' => $this->actor,
+            // Membres que l'événement concerne (suivi du lead touché) : le
+            // front ne fait de bruit que chez eux, les autres rechargent en silence.
+            'concerns' => $this->concerns(),
             'at' => now()->toIso8601String(),
         ];
     }

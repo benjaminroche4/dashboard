@@ -12,8 +12,10 @@ use Illuminate\Support\Facades\Storage;
  * Supprime une visite et les photos de son compte rendu (le bien reste dans
  * l'annuaire).
  */
-final class DeleteVisit
+final readonly class DeleteVisit
 {
+    public function __construct(private SyncVisitCalendarEvent $calendar) {}
+
     public function handle(Visit $visit): void
     {
         $visit->loadMissing('lead');
@@ -21,6 +23,8 @@ final class DeleteVisit
         $name = $visit->lead->fullName();
         $photos = $visit->report_photos ?? [];
 
+        // L'événement de l'agenda part avec la visite.
+        $this->calendar->forget($visit);
         $visit->delete();
 
         if ($photos !== []) {

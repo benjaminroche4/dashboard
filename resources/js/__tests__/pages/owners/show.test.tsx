@@ -207,4 +207,35 @@ describe('Owner detail page', () => {
             parc.getByText('Dernière visite le 8 septembre 2026.'),
         ).toBeInTheDocument();
     });
+
+    it('montre la photo principale du bien devant ses informations', () => {
+        render(
+            <OwnerShow
+                owner={makeOwner()}
+                properties={[
+                    makeProperty({
+                        label: 'T3 meublé · 100 m² · 1er',
+                        photos: ['https://exemple.test/bien.jpg'],
+                    }),
+                    // Sans photo, la vignette de repli garde l'alignement.
+                    makeProperty({
+                        uuid: 'prop-2',
+                        label: 'Studio · 11e',
+                        photos: [],
+                    }),
+                ]}
+                stats={stats}
+                kinds={ownerKinds}
+            />,
+        );
+
+        expect(
+            screen.getByRole('img', {
+                name: 'Photo de T3 meublé · 100 m² · 1er',
+            }),
+        ).toHaveAttribute('src', 'https://exemple.test/bien.jpg');
+        expect(
+            screen.queryByRole('img', { name: 'Photo de Studio · 11e' }),
+        ).not.toBeInTheDocument();
+    });
 });

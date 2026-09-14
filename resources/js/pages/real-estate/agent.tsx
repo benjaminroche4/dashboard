@@ -4,6 +4,7 @@ import { ArrowRight, Building2, Globe, Mail, Phone } from 'lucide-react';
 import { useState } from 'react';
 import { AddressMapButton } from '@/components/address-map-dialog';
 import { AgentDialog } from '@/components/real-estate/agent-dialog';
+import { AgencyProfileCard } from '@/components/real-estate/agency-profile-card';
 import { ActivityFeed } from '@/components/activity/activity-feed';
 import { formatAddress } from '@/components/real-estate/columns';
 import { DirectoryRelationCard } from '@/components/real-estate/directory-relation-card';
@@ -24,9 +25,16 @@ import {
     destroy as agentDestroy,
     favorite as agentFavorite,
     index as agentsIndex,
+    profile as agentProfile,
     touch as agentTouch,
 } from '@/routes/agents';
-import type { Activity, AgencyOption, Agent, AgentAgencyCard } from '@/types';
+import type {
+    Activity,
+    AgencyOption,
+    Agent,
+    AgentAgencyCard,
+    ProfileOptions,
+} from '@/types';
 import { parisFormat } from '@/lib/datetime';
 
 type Props = {
@@ -36,6 +44,13 @@ type Props = {
     agencies: AgencyOption[];
     /** Dix dernières actions du backoffice sur cette fiche. */
     activities?: Activity[];
+    profileOptions?: ProfileOptions;
+};
+
+const emptyOptions: ProfileOptions = {
+    specialties: [],
+    languages: [],
+    mandateTypes: [],
 };
 
 const visitDate = parisFormat({
@@ -49,6 +64,7 @@ export default function AgentShow({
     agency,
     agencies,
     activities = [],
+    profileOptions = emptyOptions,
 }: Props) {
     const [editing, setEditing] = useState(false);
     const agencyAddress = agency ? formatAddress(agency) : null;
@@ -295,6 +311,15 @@ export default function AgentShow({
                                 </Button>
                             </DetailSection>
                         )}
+                        <AgencyProfileCard
+                            scope="agent"
+                            agent={agent}
+                            options={profileOptions}
+                            urls={{
+                                profile: agentProfile({ agent: agent.uuid })
+                                    .url,
+                            }}
+                        />
                         <DetailSection
                             title="Leads et clients"
                             count={agent.leads.length}

@@ -235,26 +235,23 @@ export function ClientDialog({
                     >
                         <FormGrid>
                             <div className="grid gap-2">
+                                {/* Un dossier se construit sur une formule :
+                                    pas de « pas encore choisie » ici. */}
                                 <Label htmlFor="client-offer">Formule</Label>
                                 <Select
-                                    value={form.data.offer || NONE}
+                                    value={form.data.offer}
                                     onValueChange={(value) =>
-                                        form.setData(
-                                            'offer',
-                                            value === NONE ? '' : value,
-                                        )
+                                        form.setData('offer', value)
                                     }
                                 >
                                     <SelectTrigger
                                         id="client-offer"
                                         className="w-full"
+                                        aria-required
                                     >
-                                        <SelectValue placeholder="Pas encore choisie" />
+                                        <SelectValue placeholder="Choisir la formule" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value={NONE}>
-                                            Pas encore choisie
-                                        </SelectItem>
                                         {offers.map((offer) => (
                                             <SelectItem
                                                 key={offer.value}

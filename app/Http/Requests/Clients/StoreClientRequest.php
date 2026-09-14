@@ -37,7 +37,8 @@ class StoreClientRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:40', 'required_without:email'],
             'company' => ['nullable', 'string', 'max:120'],
             'language' => ['nullable', Rule::enum(LeadLanguage::class)],
-            'offer' => ['nullable', Rule::enum(Offer::class)],
+            // Un dossier client se construit sur une formule.
+            'offer' => ['required', Rule::enum(Offer::class)],
             'budget_cents' => ['nullable', 'integer', 'min:0'],
             'currency' => ['nullable', Rule::enum(Currency::class)],
             'arrival_at' => ['nullable', 'date'],

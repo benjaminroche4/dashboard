@@ -1,5 +1,11 @@
-import { Head, Link } from '@inertiajs/react';
-import { Download, ExternalLink, Pencil } from 'lucide-react';
+import { Head, router, usePage } from '@inertiajs/react';
+import {
+    Download,
+    ExternalLink,
+    FileStack,
+    FolderArchive,
+    Sparkles,
+} from 'lucide-react';
 import { useState } from 'react';
 import { CountryFlag } from '@/components/country-flag';
 import { CreatedBy } from '@/components/created-by';
@@ -7,16 +13,26 @@ import { DocumentRequestRowActions } from '@/components/documents/document-reque
 import { HouseholdPersonTabs } from '@/components/documents/household-person-tabs';
 import { DetailSection } from '@/components/real-estate/detail-header';
 import { DocumentRequestLeadLink } from '@/components/documents/document-request-lead-link';
+import { PresentationLetterCard } from '@/components/documents/presentation-letter-card';
 import { PublicUploadLink } from '@/components/documents/public-upload-link';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { downloadDocumentRequestPdf } from '@/lib/download-document-request-pdf';
+import { mergeDossierPdf } from '@/lib/merge-dossier-pdf';
 import { languageFlag } from '@/lib/language-flag';
 import { index as toolsIndex } from '@/routes/tools';
 import {
-    index as documentsIndex,
-    edit as documentsEdit,
+    analyze as analyzeRequest,
+    archive as archiveRequest,
 } from '@/routes/tools/documents';
+import { index as documentsIndex } from '@/routes/tools/documents';
 import type { DocumentRequestDetail } from '@/types';
 
 type Props = {
@@ -27,6 +43,19 @@ type Props = {
 
 export default function DocumentsShow({ request, pdfAvailable }: Props) {
     const [downloading, setDownloading] = useState(false);
+    const [merging, setMerging] = useState(false);
+    const { features } = usePage().props;
+    // Seules les pièces validées par l'équipe sortent du backoffice.
+    const validated = request.valid_uploads_count ?? 0;
+
+    const merge = async () => {
+        setMerging(true);
+        try {
+            await mergeDossierPdf(request, { withCover: pdfAvailable });
+        } finally {
+            setMerging(false);
+        }
+    };
 
     const download = async () => {
         setDownloading(true);
@@ -54,16 +83,85 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" asChild>
-                            <Link
-                                href={documentsEdit({
-                                    documentRequest: request.uuid,
-                                })}
+                        {request.can_update && features?.assistant && (
+                            /* Le bouton dit combien de pièces il relira — celles
+                               à vérifier, jamais lues — et se désactive quand il
+                               n'y en a pas : un clic sans effet visible passait
+                               pour une panne. Une pièce déjà tranchée se relit
+                               depuis sa carte. */
+                            <Button
+                                variant="outline"
+                                disabled={(request.pending_ai_count ?? 0) === 0}
+                                title={
+                                    (request.pending_ai_count ?? 0) === 0
+                                        ? 'Aucune pièce à relire : toutes sont déjà vérifiées ou déjà lues. Une pièce se relit depuis sa carte.'
+                                        : undefined
+                                }
+                                onClick={() =>
+                                    router.post(
+                                        analyzeRequest({
+                                            documentRequest: request.uuid,
+                                        }).url,
+                                        {},
+                                        { preserveScroll: true },
+                                    )
+                                }
                             >
-                                <Pencil />
-                                Modifier
-                            </Link>
-                        </Button>
+                                <Sparkles />
+                                Relire les pièces avec l’IA
+                                {(request.pending_ai_count ?? 0) > 0 && (
+                                    <Badge
+                                        variant="secondary"
+                                        className="font-medium tabular-nums"
+                                    >
+                                        {request.pending_ai_count}
+                                    </Badge>
+                                )}
+                            </Button>
+                        )}
+                        {/* Le dossier ne part qu'avec des pièces validées :
+                            le menu le dit dans son intitulé et se grise
+                            tant qu'il n'y en a aucune. */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    disabled={validated === 0 || merging}
+                                    title={
+                                        validated === 0
+                                            ? 'Aucune pièce validée : le dossier ne part qu’avec des pièces vérifiées par l’équipe.'
+                                            : undefined
+                                    }
+                                >
+                                    {merging ? <Spinner /> : <FileStack />}
+                                    Pièces validées
+                                    <Badge
+                                        variant="secondary"
+                                        className="font-medium tabular-nums"
+                                    >
+                                        {validated}
+                                    </Badge>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onSelect={() => void merge()}>
+                                    <FileStack aria-hidden />
+                                    Dossier fusionné (PDF)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <a
+                                        href={
+                                            archiveRequest({
+                                                documentRequest: request.uuid,
+                                            }).url
+                                        }
+                                    >
+                                        <FolderArchive aria-hidden />
+                                        Toutes les pièces (.zip)
+                                    </a>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <Button
                             onClick={download}
                             disabled={!pdfAvailable || downloading}
@@ -81,13 +179,25 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                 </div>
 
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-                    {/* Un onglet par personne du foyer (quatre au plus) :
-                        ses pièces prennent toute la largeur. */}
-                    <HouseholdPersonTabs
-                        persons={request.persons}
-                        requestUuid={request.uuid}
-                        canReview={request.can_update}
-                    />
+                    {/* Deux colonnes, comme sur les autres fiches : les pièces
+                        du foyer à gauche (un onglet par personne), la colonne
+                        de 320 px à droite pour le client, le lead et le dépôt. */}
+                    <div className="grid gap-6">
+                        <HouseholdPersonTabs
+                            persons={request.persons}
+                            requestUuid={request.uuid}
+                            canReview={request.can_update}
+                        />
+
+                        {request.can_update && (
+                            <DetailSection title="Lettre de présentation">
+                                <PresentationLetterCard
+                                    requestUuid={request.uuid}
+                                    letter={request.presentation_letter}
+                                />
+                            </DetailSection>
+                        )}
+                    </div>
 
                     <div className="grid h-fit gap-6">
                         <DetailSection title="Client">
@@ -111,10 +221,20 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                                         {request.language_label}
                                     </dd>
                                 </div>
+                                {request.message && (
+                                    <div>
+                                        <dt className="text-muted-foreground text-xs">
+                                            Message au client
+                                        </dt>
+                                        <dd className="whitespace-pre-line">
+                                            {request.message}
+                                        </dd>
+                                    </div>
+                                )}
                             </dl>
                         </DetailSection>
 
-                        <DetailSection title="Lead">
+                        <DetailSection title="Lead ou dossier client">
                             <DocumentRequestLeadLink
                                 requestUuid={request.uuid}
                                 lead={request.lead}
@@ -123,10 +243,6 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                         </DetailSection>
 
                         <DetailSection title="Lien de dépôt">
-                            <p className="text-muted-foreground text-sm">
-                                À transmettre au client avec le code d’appairage
-                                : il y dépose ses pièces sans compte.
-                            </p>
                             <PublicUploadLink
                                 requestUuid={request.uuid}
                                 url={request.public_url}
@@ -136,29 +252,18 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                                 linkSentTo={request.link_sent_to}
                                 linkSentAt={request.link_sent_at}
                             />
-                        </DetailSection>
-
-                        {request.upload_url && (
-                            <DetailSection title="Dossier Google Drive">
+                            {request.upload_url && (
                                 <a
                                     href={request.upload_url}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="flex items-start gap-2 text-sm break-all hover:underline"
+                                    className="text-muted-foreground flex items-start gap-2 text-sm break-all hover:underline"
                                 >
                                     <ExternalLink className="mt-0.5 size-4 shrink-0" />
-                                    {request.upload_url}
+                                    Dossier Google Drive
                                 </a>
-                            </DetailSection>
-                        )}
-
-                        {request.message && (
-                            <DetailSection title="Message au client">
-                                <p className="text-sm whitespace-pre-line">
-                                    {request.message}
-                                </p>
-                            </DetailSection>
-                        )}
+                            )}
+                        </DetailSection>
                     </div>
                 </div>
             </div>
@@ -169,7 +274,7 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
 DocumentsShow.layout = {
     breadcrumbs: [
         { title: 'Outils', href: toolsIndex() },
-        { title: 'Documents', href: documentsIndex() },
+        { title: 'Listes de pièces', href: documentsIndex() },
         { title: 'Détail', href: '#' },
     ],
 };

@@ -27,6 +27,7 @@
         .count { width: 70px; text-align: right; color: #737373; font-size: 9.5pt; }
         .missing li { color: #a3a3a3; }
         .missing .mark { color: #a3a3a3; }
+        .letter { margin: 8px 0 18px; line-height: 1.55; }
         .summary { background: #f5f5f5; border-radius: 8px; padding: 12px 14px; margin: 16px 0; }
         .footer { margin-top: 28px; border-top: 1px solid #e5e5e5; padding-top: 10px; font-size: 9pt; color: #737373; }
     </style>
@@ -51,10 +52,16 @@
     <div class="label">Dossier de</div>
     <div><strong>{{ $request->fullName() }}</strong></div>
 
+    @if (! empty($request->presentation_letter))
+        <h2>Présentation du dossier</h2>
+        <div class="letter">{!! nl2br(e($request->presentation_letter)) !!}</div>
+    @endif
+
     <div class="summary">
         Ce document réunit les pièces justificatives du dossier, dans l’ordre du
         sommaire ci-dessous : les locataires d’abord, puis les garants, et pour
-        chaque personne ses pièces par catégorie.
+        chaque personne ses pièces par catégorie. Seules les pièces vérifiées et
+        validées par notre équipe y figurent.
     </div>
 
     @foreach ($persons as $person)
@@ -70,6 +77,18 @@
                         <span class="mark">&#10003;</span>
                         <span>{{ $document['label'] }}</span>
                         <span class="count">{{ $document['files'] }} fichier{{ $document['files'] > 1 ? 's' : '' }}</span>
+                    </li>
+                @endforeach
+            </ul>
+        @endif
+
+        @if ($person['pending'] !== [])
+            <h3>Reçues, en attente de vérification</h3>
+            <ul class="missing">
+                @foreach ($person['pending'] as $label)
+                    <li>
+                        <span class="mark">&#8230;</span>
+                        <span>{{ $label }}</span>
                     </li>
                 @endforeach
             </ul>

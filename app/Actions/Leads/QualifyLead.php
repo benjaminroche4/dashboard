@@ -6,8 +6,10 @@ namespace App\Actions\Leads;
 
 use App\Data\LeadInboundMessageData;
 use App\Data\LeadQualificationData;
+use App\Enums\LeadNoteKind;
 use App\Events\DashboardUpdated;
 use App\Models\Lead;
+use App\Models\LeadNote;
 use App\Services\Assistant;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -76,7 +78,19 @@ TXT;
             $sources[] = "Note sur le projet :\n{$lead->message}";
         }
 
-        $notes = $lead->notes->sortBy('created_at')->take(10)->map(fn ($note): string => '- '.$note->body)->implode("\n");
+        // Les dix notes les plus **récentes**, et seulement celles qui disent
+        // quelque chose du client : ce que l'équipe a écrit et ce que le
+        // téléphone a rapporté. Le suivi automatique (« Facture RP-… rattachée »)
+        // n'apprend rien à l'assistant et diluait le signal ; et lire les dix
+        // premières notes, c'était qualifier un lead de deux mois d'après son
+        // premier jour.
+        $notes = $lead->notes
+            ->filter(fn (LeadNote $note): bool => $note->kind === LeadNoteKind::Team || LeadInboundMessageData::isPhoneNote($note))
+            ->sortByDesc('created_at')
+            ->take(10)
+            ->sortBy('created_at')
+            ->map(fn (LeadNote $note): string => '- '.$note->body)
+            ->implode("\n");
         if ($notes !== '') {
             $sources[] = "Notes de l'équipe :\n{$notes}";
         }

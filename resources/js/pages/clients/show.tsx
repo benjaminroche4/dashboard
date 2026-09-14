@@ -1,34 +1,18 @@
-import { parisFormat } from '@/lib/datetime';
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
-    Building2,
+    Archive,
+    ArchiveRestore,
     CalendarClock,
-    CalendarDays,
-    Contact,
     ExternalLink,
-    History,
     FilePlus2,
     FileSignature,
-    Home,
     Info,
-    Languages,
-    Mail,
-    MapPin,
-    MessageSquarePlus,
     MoreHorizontal,
     Pencil,
-    Phone,
-    ShieldCheck,
-    Sofa,
-    Wallet,
 } from 'lucide-react';
-import {
-    useState,
-    type ComponentType,
-    type ReactNode,
-    type SVGProps,
-} from 'react';
+import { useState, type ReactNode } from 'react';
 import { ClientAssigneeMenu } from '@/components/clients/client-assignee-menu';
+import { LeadActivitySheet } from '@/components/leads/lead-activity-sheet';
 import { ClientPriorityMenu } from '@/components/clients/client-priority';
 import { ArrivalProgress } from '@/components/clients/arrival-progress';
 import { OfferBadge } from '@/components/clients/offer-badge';
@@ -40,7 +24,9 @@ import {
 } from '@/components/ui/tooltip';
 import { ClientPeople } from '@/components/clients/client-people';
 import { ClientProperties } from '@/components/clients/client-properties';
-import { DossierReadinessCard } from '@/components/clients/dossier-readiness';
+import { ClientOverview } from '@/components/clients/client-overview';
+import { ClientAgencyMatches } from '@/components/clients/client-agency-matches';
+import { dossierAttention } from '@/lib/dossier-attention';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -60,11 +46,6 @@ import { LeadNoteComposer } from '@/components/leads/lead-note-composer';
 import { LeadPartnersCard } from '@/components/leads/lead-partners-card';
 import { LeadInvoices } from '@/components/leads/lead-invoices';
 import { LeadQuotes } from '@/components/leads/lead-quotes';
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from '@/components/ui/popover';
 import { DetailSection } from '@/components/real-estate/detail-header';
 import { VisitDaySection } from '@/components/visits/visit-day-section';
 import { Badge } from '@/components/ui/badge';
@@ -72,16 +53,24 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatDate, formatMoney } from '@/lib/format';
 import { groupVisitsByDay } from '@/lib/visits';
-import { edit as clientEdit, index as clientsIndex } from '@/routes/clients';
+import {
+    edit as clientEdit,
+    index as clientsIndex,
+    reopen as reopenClient,
+} from '@/routes/clients';
 import { create as invoiceCreate } from '@/routes/invoices';
-import { create as visitCreate } from '@/routes/clients/visits';
+import {
+    create as visitCreate,
+    show as visitShow,
+} from '@/routes/clients/visits';
 import { show as leadShow } from '@/routes/leads';
 import { store as storeNote } from '@/routes/leads/notes';
-import { index as activityIndex } from '@/routes/tools/activity';
 import { create as quoteCreate } from '@/routes/tools/quotes';
+import { useSettle } from '@/hooks/use-settle';
+import { cn } from '@/lib/utils';
 import type {
-    Activity,
     AgentOption,
+    ClientAgentSuggestion,
     ClientDetail,
     ClientGuarantor,
     ClientWatcher,
@@ -103,7 +92,6 @@ import type {
     TenantSlot,
     Visit,
 } from '@/types';
-
 type Props = {
     client: ClientDetail;
     priorities: ClientPriorityOption[];
@@ -125,11 +113,12 @@ type Props = {
     properties?: ClientProperty[];
     propertyOptions?: ClientPropertyOption[];
     suggestedProperties?: ClientPropertySuggestion[];
+    /** Agences (et agents) à contacter pour ce dossier, du score à points. */
+    suggestedAgents?: ClientAgentSuggestion[];
     notes: ClientNote[];
     /** Visites du client, les plus récentes en premier. */
     visits?: Visit[];
     /** Journal : les 10 dernières actions du backoffice sur ce dossier. */
-    activities?: Activity[];
     /** Garants du dossier, repris des listes de documents. */
     guarantors?: ClientGuarantor[];
     /** Personnes en copie des e-mails du dossier. */
@@ -139,46 +128,6 @@ type Props = {
     residencyStatuses?: { value: string; label: string }[];
     employmentStatuses?: { value: string; label: string }[];
 };
-
-const dateTime = parisFormat({
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-});
-
-type IconType = ComponentType<SVGProps<SVGSVGElement>>;
-
-/** Une information du dossier dans une petite carte : icône, libellé, valeur. Une valeur absente : une seule formulation, en gris. */
-function Fact({
-    icon: Icon,
-    label,
-    value,
-}: {
-    icon: IconType;
-    label: string;
-    value: string | null;
-}) {
-    return (
-        <div className="bg-sidebar flex items-start gap-3 rounded-lg border p-3">
-            <span className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md">
-                <Icon className="size-4" aria-hidden />
-            </span>
-            <div className="grid min-w-0 gap-0.5">
-                <dt className="text-muted-foreground text-xs">{label}</dt>
-                <dd className="text-sm font-medium [overflow-wrap:anywhere]">
-                    {value ?? (
-                        <span className="text-muted-foreground font-normal">
-                            Non renseigné
-                        </span>
-                    )}
-                </dd>
-            </div>
-        </div>
-    );
-}
-
 function Stat({
     label,
     value,
@@ -223,7 +172,6 @@ function Stat({
         </div>
     );
 }
-
 function Tab({
     value,
     label,
@@ -233,6 +181,9 @@ function Tab({
     label: string;
     count?: number;
 }) {
+    // Un compteur qui change se signale : sans cela, une visite ajoutée par
+    // un collègue ne se voyait nulle part.
+    const settling = useSettle(count);
     return (
         <TabsTrigger value={value} className="flex-none px-3">
             {label}
@@ -240,7 +191,10 @@ function Tab({
             {count !== undefined && count > 0 && (
                 <Badge
                     variant="secondary"
-                    className="font-medium tabular-nums"
+                    className={cn(
+                        'font-medium tabular-nums',
+                        settling && 'animate-settle motion-reduce:animate-none',
+                    )}
                     aria-label={`${count} ${count > 1 ? 'éléments' : 'élément'}`}
                 >
                     {count}
@@ -249,7 +203,6 @@ function Tab({
         </TabsTrigger>
     );
 }
-
 export default function ClientShow({
     client,
     priorities,
@@ -272,9 +225,9 @@ export default function ClientShow({
     partnerRoles = [],
     properties = [],
     visits = [],
-    activities = [],
     propertyOptions = [],
     suggestedProperties = [],
+    suggestedAgents = [],
     notes,
     guarantors = [],
     watchers = [],
@@ -287,10 +240,20 @@ export default function ClientShow({
     // Les notes du dossier passent par les routes du lead : c'est le même
     // enregistrement, et le même fil que la fiche lead.
     const noteForm = useForm({ body: '' });
-    const [noteOpen, setNoteOpen] = useState(false);
     // Les notes de l'équipe et le suivi se lisent séparément, ici comme sur
     // la fiche lead.
     const [noteFilter, setNoteFilter] = useState<ActivityFilter>('all');
+    // Onglets pilotés : le bouton principal et « Voir les pièces » ouvrent
+    // l'onglet Documents sans que l'utilisateur le cherche.
+    const [tab, setTab] = useState('apercu');
+    // Ce qui retient le dossier, en tête de l'aperçu.
+    const attention = dossierAttention({
+        visits,
+        properties,
+        suggestions: suggestedProperties,
+        readiness,
+        visitPath: (visit) => visitShow({ visit: visit.uuid }).url,
+    });
     const submitNote = (onDone?: () => void) => {
         noteForm.post(storeNote({ lead: client.uuid }).url, {
             preserveScroll: true,
@@ -313,7 +276,6 @@ export default function ClientShow({
             }))}
         />
     );
-
     // Onglet « Personnes » : locataires, garants et membres du suivi.
     const peopleCount =
         1 +
@@ -323,7 +285,7 @@ export default function ClientShow({
         (client.co_assignee ? 1 : 0);
     const money = (cents: number, currency: string) =>
         formatMoney(cents, currency);
-
+    const closed = client.closed_at !== null;
     return (
         <>
             <Head title={`Dossier ${client.name}`} />
@@ -341,7 +303,6 @@ export default function ClientShow({
                             <h1 className="text-lg font-medium">
                                 {client.name}
                             </h1>
-                            <Badge variant="secondary">Client</Badge>
                             {/* La formule garde sa couleur partout : bleu
                                 Confié, jaune Accompagné. */}
                             <OfferBadge
@@ -372,14 +333,45 @@ export default function ClientShow({
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        {/* Le dossier se modifie chez lui : sa propre page,
-                            sans passer par la fiche lead. */}
-                        <Button variant="outline" asChild>
-                            <Link href={clientEdit({ lead: client.uuid })}>
-                                <Pencil aria-hidden />
-                                Modifier
-                            </Link>
-                        </Button>
+                        {/* Un dossier clôturé se lit et se rouvre ; il ne se
+                            modifie plus. */}
+                        {closed ? (
+                            <Button
+                                variant="outline"
+                                onClick={() =>
+                                    router.post(
+                                        reopenClient({ lead: client.uuid }).url,
+                                        {},
+                                        { preserveScroll: true },
+                                    )
+                                }
+                            >
+                                <ArchiveRestore aria-hidden />
+                                Rouvrir le dossier
+                            </Button>
+                        ) : null}
+                        {/* Les notes et le suivi, dans le même volet que la
+                            fiche lead : filtres, fil, saisie en bas. */}
+                        <LeadActivitySheet
+                            count={notes.length}
+                            className="w-auto"
+                            filters={
+                                <ActivityFilterBar
+                                    value={noteFilter}
+                                    onChange={setNoteFilter}
+                                />
+                            }
+                            composer={composer()}
+                        >
+                            <LeadActivity
+                                leadUuid={client.uuid}
+                                notes={notes}
+                                history={[]}
+                                staffNames={staff.map((member) => member.name)}
+                                filter={noteFilter}
+                                className="max-h-none"
+                            />
+                        </LeadActivitySheet>
                         {/* Actions secondaires du dossier, derrière le menu « ⋯ ». */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -393,6 +385,20 @@ export default function ClientShow({
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                {/* Le dossier se modifie chez lui : sa propre
+                                    page, sans passer par la fiche lead. */}
+                                {!closed && (
+                                    <DropdownMenuItem asChild>
+                                        <Link
+                                            href={clientEdit({
+                                                lead: client.uuid,
+                                            })}
+                                        >
+                                            <Pencil />
+                                            Modifier
+                                        </Link>
+                                    </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem asChild>
                                     <Link
                                         href={leadShow({ lead: client.uuid })}
@@ -435,7 +441,6 @@ export default function ClientShow({
                         </DropdownMenu>
                     </div>
                 </div>
-
                 <section
                     aria-label="Chiffres du dossier"
                     className="grid grid-cols-1 rounded-xl border px-4 sm:grid-cols-3"
@@ -465,7 +470,24 @@ export default function ClientShow({
                         value={String(progress.properties_refused)}
                     />
                 </section>
-                <Tabs defaultValue="apercu" className="gap-6">
+                {closed && (
+                    <div
+                        role="note"
+                        aria-label="Dossier clôturé"
+                        className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-stone-300 bg-stone-50 px-4 py-3 text-sm text-stone-800 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200"
+                    >
+                        <Archive className="size-4 shrink-0" aria-hidden />
+                        <span>
+                            <span className="font-medium">Dossier clôturé</span>
+                            {client.closed_at &&
+                                ` le ${formatDate(client.closed_at.slice(0, 10))}`}
+                            {client.closing_reason_label &&
+                                ` · ${client.closing_reason_label}`}
+                            {client.closing_note && ` — ${client.closing_note}`}
+                        </span>
+                    </div>
+                )}
+                <Tabs value={tab} onValueChange={setTab} className="gap-6">
                     <TabsList
                         variant="line"
                         className="w-full justify-start border-b"
@@ -493,136 +515,29 @@ export default function ClientShow({
                             label="Biens"
                             count={properties.length}
                         />
-                        <Tab value="notes" label="Notes" count={notes.length} />
+                        {/* Les mêmes onglets que la fiche lead : « Autre »
+                            disait seulement qu'on ne savait pas où ranger. */}
                         <Tab
-                            value="autre"
-                            label="Autre"
-                            count={
-                                quotes.length +
-                                invoices.length +
-                                partners.length
-                            }
+                            value="commercial"
+                            label="Commercial"
+                            count={quotes.length + invoices.length}
+                        />
+                        <Tab
+                            value="partenaires"
+                            label="Partenaires"
+                            count={partners.length}
                         />
                     </TabsList>
                     {/* Les deux blocs côte à côte sur grand écran : ils tiennent
                         chacun dans une demi-largeur, sans faire défiler. */}
-                    <TabsContent
-                        value="apercu"
-                        className="grid items-start gap-4 lg:grid-cols-2"
-                    >
-                        {/* Une note se prend sans quitter l'aperçu : le
-                            bouton ouvre le même compositeur que l'onglet
-                            Notes (mentions comprises). */}
-                        <div className="flex justify-end lg:col-span-2">
-                            <Popover open={noteOpen} onOpenChange={setNoteOpen}>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" size="sm">
-                                        <MessageSquarePlus aria-hidden />
-                                        Ajouter une note
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent
-                                    align="end"
-                                    className="w-[min(24rem,calc(100vw-2rem))]"
-                                >
-                                    {composer(() => setNoteOpen(false))}
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                        <DetailSection
-                            title="Dossier de location"
-                            className="lg:col-span-2"
-                        >
-                            <DossierReadinessCard
-                                readiness={readiness}
-                                leadUuid={client.uuid}
-                            />
-                        </DetailSection>
-                        <DetailSection title="Coordonnées">
-                            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                <Fact
-                                    icon={Mail}
-                                    label="E-mail"
-                                    value={client.email}
-                                />
-                                <Fact
-                                    icon={Phone}
-                                    label="Téléphone"
-                                    value={client.phone}
-                                />
-                                <Fact
-                                    icon={Building2}
-                                    label="Société"
-                                    value={client.company}
-                                />
-                                <Fact
-                                    icon={Languages}
-                                    label="Langue"
-                                    value={client.language_label}
-                                />
-                                <Fact
-                                    icon={MapPin}
-                                    label="Ville d'origine"
-                                    value={client.origin_city}
-                                />
-                            </dl>
-                        </DetailSection>
-                        <DetailSection title="Projet de logement">
-                            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                <Fact
-                                    icon={Wallet}
-                                    label="Budget mensuel"
-                                    value={
-                                        client.budget_cents === null
-                                            ? null
-                                            : money(
-                                                  client.budget_cents,
-                                                  client.currency,
-                                              )
-                                    }
-                                />
-                                <Fact
-                                    icon={MapPin}
-                                    label="Arrondissements"
-                                    value={
-                                        client.districts.length > 0
-                                            ? client.districts
-                                                  .map((d) => `${d}e`)
-                                                  .join(', ')
-                                            : null
-                                    }
-                                />
-                                <Fact
-                                    icon={Home}
-                                    label="Type de bien"
-                                    value={
-                                        client.property_types.length > 0
-                                            ? client.property_types.join(', ')
-                                            : null
-                                    }
-                                />
-                                <Fact
-                                    icon={CalendarDays}
-                                    label="Durée"
-                                    value={client.duration_label}
-                                />
-                                <Fact
-                                    icon={Sofa}
-                                    label="Meublé"
-                                    value={client.furnished_label}
-                                />
-                                <Fact
-                                    icon={ShieldCheck}
-                                    label="Garants"
-                                    value={client.guarantor_label}
-                                />
-                            </dl>
-                            {client.message && (
-                                <p className="text-muted-foreground mt-4 text-sm whitespace-pre-line">
-                                    {client.message}
-                                </p>
-                            )}
-                        </DetailSection>
+                    <TabsContent value="apercu" className="grid gap-4">
+                        <ClientOverview
+                            client={client}
+                            attention={attention}
+                            readiness={readiness}
+                            onOpenTab={setTab}
+                            money={money}
+                        />
                     </TabsContent>
                     <TabsContent value="personnes">
                         <ClientPeople
@@ -686,98 +601,7 @@ export default function ClientShow({
                             />
                         </DetailSection>
                     </TabsContent>
-                    <TabsContent value="notes" className="grid gap-4">
-                        {/* Même fil et mêmes bulles que la fiche lead : on
-                            écrit ici, on relit et on corrige ici. */}
-                        <DetailSection
-                            title="Notes"
-                            count={notes.length}
-                            action={
-                                <ActivityFilterBar
-                                    value={noteFilter}
-                                    onChange={setNoteFilter}
-                                />
-                            }
-                        >
-                            <p className="text-muted-foreground -mt-2 text-sm">
-                                Ce que l’équipe s’écrit, et le suivi que
-                                l’application note au fil des actions. « @ »
-                                mentionne un membre.
-                            </p>
-                            {composer()}
-                            <LeadActivity
-                                leadUuid={client.uuid}
-                                notes={notes}
-                                history={[]}
-                                staffNames={staff.map((member) => member.name)}
-                                filter={noteFilter}
-                                className="max-h-none"
-                            />
-                            <p className="text-muted-foreground text-xs">
-                                <Link
-                                    href={leadShow({ lead: client.uuid })}
-                                    className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
-                                >
-                                    <Contact className="size-3" aria-hidden />
-                                    Tout le fil d’activité sur la fiche lead
-                                </Link>
-                            </p>
-                        </DetailSection>
-                        <DetailSection title="Journal">
-                            <p className="text-muted-foreground -mt-2 text-sm">
-                                Les dernières actions de l'équipe sur ce
-                                dossier.
-                            </p>
-                            {activities.length === 0 ? (
-                                <p className="text-muted-foreground text-sm">
-                                    Aucune activité.
-                                </p>
-                            ) : (
-                                <ul role="list" className="grid gap-3">
-                                    {activities.map((activity) => (
-                                        <li
-                                            key={activity.id}
-                                            className="grid gap-0.5 text-sm"
-                                        >
-                                            <p>
-                                                <span className="font-medium">
-                                                    {activity.actor?.name ??
-                                                        'Le système'}
-                                                </span>{' '}
-                                                {activity.message}
-                                            </p>
-                                            <p className="text-muted-foreground text-xs">
-                                                {activity.resource_label} ·{' '}
-                                                <time
-                                                    dateTime={
-                                                        activity.created_at
-                                                    }
-                                                >
-                                                    {dateTime.format(
-                                                        new Date(
-                                                            activity.created_at,
-                                                        ),
-                                                    )}
-                                                </time>
-                                            </p>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                            <p className="text-muted-foreground mt-1 text-xs">
-                                <Link
-                                    href={activityIndex({
-                                        query: { lead: client.uuid },
-                                    })}
-                                    className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
-                                >
-                                    <History className="size-3" aria-hidden />
-                                    Tout le journal
-                                </Link>
-                            </p>
-                        </DetailSection>
-                    </TabsContent>
-                    <TabsContent value="autre" className="grid gap-4">
+                    <TabsContent value="commercial" className="grid gap-4">
                         <DetailSection title="Devis">
                             <LeadQuotes
                                 leadUuid={client.uuid}
@@ -793,9 +617,17 @@ export default function ClientShow({
                                 canEdit
                             />
                         </DetailSection>
+                    </TabsContent>
+                    <TabsContent value="partenaires" className="grid gap-4">
                         {/* Le dossier se gère ici : agent immobilier et
                             partenaires s'ajoutent sans repasser par la fiche
                             lead — mêmes cartes, mêmes routes. */}
+                        <ClientAgencyMatches
+                            clientUuid={client.uuid}
+                            currentAgentId={client.agent?.id ?? null}
+                            districts={client.districts}
+                            suggestions={suggestedAgents}
+                        />
                         <LeadAgentCard lead={client} agents={agents} />
                         <LeadPartnersCard
                             lead={client}
@@ -809,7 +641,6 @@ export default function ClientShow({
         </>
     );
 }
-
 ClientShow.layout = {
     breadcrumbs: [
         { title: 'Clients', href: clientsIndex() },

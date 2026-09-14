@@ -202,6 +202,35 @@ describe('Leads kanban page', () => {
         expect(screen.queryByText('Marc Petit')).not.toBeInTheDocument();
     });
 
+    it('remembers the chosen filters after a reload, but not the searched text', async () => {
+        const user = userEvent.setup();
+        const page = () => (
+            <LeadsIndex
+                leads={leads}
+                archived={{ loaded: true, count: 0 }}
+                statuses={leadStatuses}
+                offers={offers}
+                lossReasons={lossReasons}
+            />
+        );
+        const { unmount } = render(page());
+
+        await user.type(screen.getByLabelText('Filtrer les leads'), 'marc');
+        await user.click(screen.getByRole('button', { name: /Filtres/ }));
+        await user.click(await screen.findByRole('combobox', { name: 'Note' }));
+        await user.click(
+            await screen.findByRole('option', { name: /4 étoiles et plus/ }),
+        );
+        await user.keyboard('{Escape}');
+
+        unmount();
+        render(page());
+        // La note reste filtrée ; le mot tapé, lui, est reparti.
+        expect(screen.getByLabelText('Filtrer les leads')).toHaveValue('');
+        expect(screen.getByText('Léa Durand')).toBeInTheDocument();
+        expect(screen.queryByText('Marc Petit')).not.toBeInTheDocument();
+    });
+
     it('opens the lead page when a card is clicked', async () => {
         const user = userEvent.setup();
         render(

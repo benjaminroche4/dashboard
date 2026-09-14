@@ -87,7 +87,7 @@ function addressLine(property: MapPoint): string {
 }
 
 /** Contenu de l'infobulle : nom cliquable, adresse, loyer et statut. */
-function bubble(property: MapPoint): string {
+export function bubble(property: MapPoint): string {
     const rent =
         property.rent_cents === null
             ? 'Loyer non renseigné'
@@ -103,12 +103,22 @@ function bubble(property: MapPoint): string {
                     '"': '&quot;',
                 })[char] ?? char,
         );
+    const dot = property.is_available ? GREEN : SLATE;
 
-    return `<div style="display:grid;gap:2px;font:400 13px/1.4 system-ui;max-width:15rem">
-        <a href="${propertyShow({ property: property.uuid }).url}" style="font-weight:600;color:#0a0a0a">${escape(property.label)}</a>
+    // L'infobulle vit hors de React : tout est en styles en ligne. La largeur
+    // est bornée et les mots longs (une adresse, un nom de rue) passent à la
+    // ligne — sans quoi le texte déborde de la carte.
+    return `<div style="box-sizing:border-box;display:grid;gap:6px;width:16rem;max-width:100%;padding:12px 14px;font:400 13px/1.45 system-ui,-apple-system,sans-serif;overflow-wrap:anywhere">
+        <a href="${propertyShow({ property: property.uuid }).url}" style="font-weight:600;font-size:14px;color:#0a0a0a;text-decoration:none">${escape(property.label)}</a>
         <span style="color:#64748b">${escape(addressLine(property) || 'Adresse non renseignée')}</span>
-        <span>${escape(rent)} · ${escape(property.status_label)}</span>
-        ${property.assigned_to ? `<span style="color:#15803d;font-weight:600">Attribué à ${escape(property.assigned_to)}</span>` : ''}
+        <span style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding-top:6px;border-top:1px solid #e2e8f0">
+            <span style="font-weight:600;color:#0a0a0a">${escape(rent)}</span>
+            <span style="display:inline-flex;align-items:center;gap:4px;color:#475569">
+                <span style="width:6px;height:6px;border-radius:9999px;background:${dot}"></span>
+                ${escape(property.status_label)}
+            </span>
+        </span>
+        ${property.assigned_to ? `<span style="color:${GREEN};font-weight:600">Attribué à ${escape(property.assigned_to)}</span>` : ''}
     </div>`;
 }
 
@@ -184,7 +194,12 @@ export function PropertiesMapDialog({
                     clickableIcons: false,
                     styles: mapStyles,
                 });
-                const info = new maps.InfoWindow();
+                // En-tête désactivé : la croix de Google réservait une bande
+                // vide en haut de la carte. On referme au clic sur le fond,
+                // ou en ouvrant une autre pastille.
+                const info = new maps.InfoWindow({ headerDisabled: true });
+
+                map.addListener('click', () => info.close());
                 const bounds = new maps.LatLngBounds();
 
                 for (const { property, position } of stops) {

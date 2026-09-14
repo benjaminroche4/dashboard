@@ -9,6 +9,7 @@ import { OfferBadge } from '@/components/clients/offer-badge';
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/format';
 import { show as clientShow } from '@/routes/clients';
+import { ClientRowActions } from '@/components/clients/client-row-actions';
 import type { Client } from '@/types';
 
 function SortableHeader({
@@ -34,6 +35,7 @@ export const clientColumnLabels: Record<string, string> = {
     converted_at: 'Client depuis',
     assignee: 'Suivi par',
     arrival_at: 'Arrivée',
+    actions: 'Actions',
 };
 
 const initials = (name: string) =>
@@ -199,5 +201,12 @@ export const clientColumns: ColumnDef<Client>[] = [
                 arrivalAt={row.original.arrival_at}
             />
         ),
+    },
+    {
+        id: 'actions',
+        header: () => <span className="sr-only">Actions</span>,
+        enableSorting: false,
+        enableHiding: false,
+        cell: ({ row }) => <ClientRowActions client={row.original} />,
     },
 ];

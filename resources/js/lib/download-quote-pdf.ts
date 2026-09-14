@@ -30,7 +30,9 @@ export async function downloadQuotePdf(
         document.body.append(link);
         link.click();
         link.remove();
-        URL.revokeObjectURL(url);
+        // Révoquer tout de suite annule parfois un téléchargement qui n'a pas
+        // encore démarré : on laisse le navigateur prendre le fichier.
+        setTimeout(() => URL.revokeObjectURL(url), 10_000);
 
         notify.resolve(pending, `PDF ${quoteNumber} téléchargé.`);
 

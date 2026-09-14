@@ -1,6 +1,7 @@
 import { Timer } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { firstContactLabel, type FirstContactTimer } from '@/lib/lead-urgency';
+import { useSettle } from '@/hooks/use-settle';
 import { cn } from '@/lib/utils';
 
 /**
@@ -14,6 +15,11 @@ export function FirstContactBadge({
     timer: FirstContactTimer | null;
     className?: string;
 }) {
+    // Une seule pulsation au passage des 30 minutes : le chrono qui vire au
+    // rouge se remarque, sans clignoter ensuite.
+    const crossed =
+        useSettle(timer?.late ?? false, 700) && timer?.late === true;
+
     if (timer === null) {
         return null;
     }
@@ -27,6 +33,7 @@ export function FirstContactBadge({
             data-late={timer.late ? 'true' : 'false'}
             className={cn(
                 'gap-1 py-0.5 pr-2 pl-1.5 tabular-nums',
+                crossed && 'animate-pulse-once motion-reduce:animate-none',
                 timer.late
                     ? 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'
                     : 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300',

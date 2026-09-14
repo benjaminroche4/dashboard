@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { UserEvent } from '@testing-library/user-event';
 import { type ReactNode, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -64,7 +65,11 @@ function useFormStub(initial: Record<string, unknown>) {
 }
 
 import ClientsVisits from '@/pages/clients/visits';
-import { makeVisit, visitStatuses } from '@/test/fixtures/visit';
+import {
+    makeVisit,
+    makeVisitClient,
+    visitStatuses,
+} from '@/test/fixtures/visit';
 
 const visits = [
     makeVisit(),
@@ -88,6 +93,13 @@ const visits = [
 
 function renderPage(list = visits) {
     return render(<ClientsVisits visits={list} statuses={visitStatuses} />);
+}
+
+/** Coche (ou décoche) une entrée du menu « Filtres ». */
+async function toggleFilter(user: UserEvent, name: string | RegExp) {
+    await user.click(screen.getByRole('button', { name: /Filtres/ }));
+    await user.click(await screen.findByRole('menuitemcheckbox', { name }));
+    await user.keyboard('{Escape}');
 }
 
 describe('Clients visits page', () => {
@@ -176,7 +188,7 @@ describe('Clients visits page', () => {
         );
 
         // Le filtre de statut rouvre les visites passées correspondantes.
-        await user.click(screen.getByRole('radio', { name: /Effectuée/ }));
+        await toggleFilter(user, /Effectuée/);
         expect(
             screen
                 .getAllByRole('region')
@@ -193,10 +205,8 @@ describe('Clients visits page', () => {
                 .filter((section) => section.hasAttribute('data-day'))[0],
         ).toHaveTextContent('Paul Roux');
 
-        await user.click(screen.getByRole('radio', { name: /Toutes/ }));
-        await user.click(
-            screen.getByRole('button', { name: /Visites passées/ }),
-        );
+        await toggleFilter(user, /Effectuée/);
+        await toggleFilter(user, /Visites passées/);
         await user.type(
             screen.getByRole('textbox', { name: 'Filtrer par client' }),
             'paul',
@@ -266,16 +276,12 @@ describe('Clients visits page', () => {
         );
         expect(screen.queryByText('Compte rendu')).not.toBeInTheDocument();
 
-        await user.click(
-            screen.getByRole('button', { name: /Visites passées/ }),
-        );
+        await toggleFilter(user, /Visites passées/);
         expect(screen.getByText('Compte rendu')).toHaveAttribute(
             'data-report',
             'done',
         );
-        await user.click(
-            screen.getByRole('button', { name: /Visites passées/ }),
-        );
+        await toggleFilter(user, /Visites passées/);
 
         await user.click(
             screen.getByRole('button', {
@@ -298,6 +304,10 @@ describe('Clients visits page', () => {
             dialog.getByLabelText('Compte rendu'),
             'Très bon accueil, cuisine un peu petite.',
         );
+        // La prochaine étape se choisit en un clic, sans être obligatoire.
+        await user.click(
+            dialog.getByRole('radio', { name: 'Ne se positionne pas' }),
+        );
         await user.click(
             dialog.getByRole('button', { name: 'Enregistrer le compte rendu' }),
         );
@@ -305,6 +315,7 @@ describe('Clients visits page', () => {
             '/clients/visits/visit-due/report',
             expect.objectContaining({
                 report: 'Très bon accueil, cuisine un peu petite.',
+                next_status: 'declined',
             }),
             expect.objectContaining({ preserveScroll: true }),
         );
@@ -372,6 +383,69 @@ describe('Clients visits page', () => {
                 name: 'Compte rendu de la visite de Léa Durand',
             }),
         ).toBeInTheDocument();
+    });
+
+    it('filters the visits still waiting for a return: the report, or the client', async () => {
+        const user = userEvent.setup();
+        render(
+            <ClientsVisits
+                statuses={visitStatuses}
+                visits={[
+                    makeVisit({
+                        id: 1,
+                        uuid: 'v-report',
+                        status: 'done',
+                        scheduled_at: '2026-09-10T10:00:00+02:00',
+                        report: null,
+                        report_due: true,
+                        client: makeVisitClient({ name: 'Léa Durand' }),
+                    }),
+                    makeVisit({
+                        id: 2,
+                        uuid: 'v-client',
+                        status: 'done',
+                        scheduled_at: '2026-09-08T10:00:00+02:00',
+                        report: 'Vu, lumineux.',
+                        report_due: false,
+                        outcome: 'pending',
+                        client: makeVisitClient({ name: 'Bruno Petit' }),
+                    }),
+                    makeVisit({
+                        id: 3,
+                        uuid: 'v-done',
+                        status: 'done',
+                        scheduled_at: '2026-09-07T10:00:00+02:00',
+                        report: 'Vu.',
+                        report_due: false,
+                        outcome: 'applied',
+                        client: makeVisitClient({ name: 'Camille Roux' }),
+                    }),
+                ]}
+            />,
+        );
+
+        // La liste seulement : la carte du jour, elle, ignore les filtres.
+        const listed = () =>
+            screen
+                .getAllByRole('region')
+                .filter(
+                    (region) =>
+                        region.getAttribute('aria-label') !== 'Visites du jour',
+                )
+                .map((region) => region.textContent)
+                .join(' ');
+
+        // Le retour du client : la visite faite, relue, mais rien de tranché.
+        await toggleFilter(user, /Retour du client attendu/);
+        expect(listed()).toContain('Bruno Petit');
+        expect(listed()).not.toContain('Camille Roux');
+        expect(listed()).not.toContain('Léa Durand');
+
+        // Les deux attentes cochées : la visite tranchée reste dehors.
+        await toggleFilter(user, /Compte rendu à rédiger/);
+        expect(listed()).toContain('Léa Durand');
+        expect(listed()).toContain('Bruno Petit');
+        expect(listed()).not.toContain('Camille Roux');
     });
 
     it('links the schedule button to the dedicated page', () => {
@@ -458,9 +532,7 @@ describe('Clients visits page', () => {
 
         // Une visite racontée sort de la liste des choses à faire : on la
         // retrouve avec « Visites passées ».
-        await user.click(
-            screen.getByRole('button', { name: /Visites passées/ }),
-        );
+        await toggleFilter(user, /Visites passées/);
 
         // La suite donnée au bien se lit à côté du statut de la visite.
         expect(screen.getByText('Dossier déposé')).toBeInTheDocument();

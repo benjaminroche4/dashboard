@@ -29,6 +29,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useEnteringKeys } from '@/hooks/use-entering-keys';
+import { useStoredState } from '@/hooks/use-stored-state';
 import { cn } from '@/lib/utils';
 
 /** Habillage du tableau : bordure arrondie (défaut) ou panneau gris façon sidebar. */
@@ -90,6 +92,11 @@ type DataTableProps<TData, TValue> = {
     bulkActions?: (rows: TData[], clearSelection: () => void) => ReactNode;
     /** Attributs ajoutés à chaque ligne (survol, focus, classes), à partir de sa donnée. */
     rowProps?: (row: TData) => HTMLAttributes<HTMLTableRowElement>;
+    /**
+     * Clé de mémorisation : les colonnes masquées depuis le menu « Colonnes »
+     * survivent alors au rechargement de la page. Une clé par liste.
+     */
+    storageKey?: string;
 };
 
 /**
@@ -111,6 +118,7 @@ export function DataTable<TData, TValue>({
     bulkActions,
     rowProps,
     server,
+    storageKey,
 }: DataTableProps<TData, TValue>) {
     const styles = frames[frame];
     const [localSorting, setLocalSorting] = useState<SortingState>([]);
@@ -127,9 +135,11 @@ export function DataTable<TData, TValue>({
         }
     };
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-    const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
-        {},
-    );
+    const [columnVisibility, setColumnVisibility] =
+        useStoredState<VisibilityState>(
+            storageKey === undefined ? undefined : `${storageKey}.columns`,
+            {},
+        );
     const [rowSelection, setRowSelection] = useState({});
 
     const table = useReactTable({
@@ -165,6 +175,10 @@ export function DataTable<TData, TValue>({
         manualSorting: server !== undefined,
         pageCount: server?.lastPage,
     });
+    // Lignes arrivées depuis le rendu précédent : elles entrent en fondu.
+    const entering = useEnteringKeys(
+        table.getRowModel().rows.map((row) => row.id),
+    );
 
     const selectedRows = table.getFilteredSelectedRowModel().rows;
     const totalRows = server
@@ -272,31 +286,43 @@ export function DataTable<TData, TValue>({
                     </TableHeader>
                     <TableBody>
                         {table.getRowModel().rows?.length ? (
-                            table.getRowModel().rows.map((row) => (
-                                <TableRow
-                                    key={row.id}
-                                    data-state={
-                                        row.getIsSelected() && 'selected'
-                                    }
-                                    {...rowProps?.(row.original)}
-                                >
-                                    {row.getVisibleCells().map((cell) => (
-                                        <TableCell
-                                            key={cell.id}
-                                            className={cn(
-                                                // Le menu « … » reste visible à droite quand le tableau défile.
-                                                cell.column.id === 'actions' &&
-                                                    'bg-background sticky right-0 z-10 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]',
-                                            )}
-                                        >
-                                            {flexRender(
-                                                cell.column.columnDef.cell,
-                                                cell.getContext(),
-                                            )}
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            ))
+                            table.getRowModel().rows.map((row) => {
+                                const props = rowProps?.(row.original);
+
+                                return (
+                                    <TableRow
+                                        key={row.id}
+                                        data-state={
+                                            row.getIsSelected() && 'selected'
+                                        }
+                                        {...props}
+                                        // Une ligne qui vient d'arriver (temps réel,
+                                        // enregistrement) entre en fondu.
+                                        className={cn(
+                                            props?.className,
+                                            entering.has(row.id) &&
+                                                'animate-row-enter motion-reduce:animate-none',
+                                        )}
+                                    >
+                                        {row.getVisibleCells().map((cell) => (
+                                            <TableCell
+                                                key={cell.id}
+                                                className={cn(
+                                                    // Le menu « … » reste visible à droite quand le tableau défile.
+                                                    cell.column.id ===
+                                                        'actions' &&
+                                                        'bg-background sticky right-0 z-10 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]',
+                                                )}
+                                            >
+                                                {flexRender(
+                                                    cell.column.columnDef.cell,
+                                                    cell.getContext(),
+                                                )}
+                                            </TableCell>
+                                        ))}
+                                    </TableRow>
+                                );
+                            })
                         ) : (
                             <TableRow>
                                 <TableCell

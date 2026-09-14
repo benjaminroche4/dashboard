@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge';
+import { useSettle } from '@/hooks/use-settle';
 import { cn } from '@/lib/utils';
 import type { PropertyStatus } from '@/types';
 
@@ -32,6 +33,9 @@ export function PropertyStatusBadge({
     label: string;
     className?: string;
 }) {
+    // Un statut qui change se pose, qu'il vienne d'ici ou d'un collègue.
+    const settling = useSettle(status);
+
     return (
         <Badge
             variant="secondary"
@@ -39,6 +43,7 @@ export function PropertyStatusBadge({
             className={cn(
                 'font-medium',
                 propertyStatusTones[status],
+                settling && 'animate-settle motion-reduce:animate-none',
                 className,
             )}
         >

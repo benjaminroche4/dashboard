@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Partners;
 
 use App\Actions\Partners\AttachLeadPartner;
 use App\Actions\Partners\DetachLeadPartner;
+use App\Actions\Partners\DraftPartnerMessage;
 use App\Actions\Partners\ForwardLeadDossier;
 use App\Enums\PartnerRole;
 use App\Http\Controllers\Controller;
@@ -15,8 +16,11 @@ use App\Models\Lead;
 use App\Models\LeadPartner;
 use App\Models\Partner;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
+use RuntimeException;
 
 /**
  * Partenaires intervenant sur le dossier d'un lead.
@@ -46,6 +50,21 @@ class LeadPartnerController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __(':partner retiré du dossier.', ['partner' => $name])]);
 
         return back();
+    }
+
+    /** Mot d'accompagnement proposé par l'assistant ; le conseiller relit avant d'envoyer. */
+    public function draftForward(Request $request, Lead $lead, LeadPartner $partnerLink, DraftPartnerMessage $draft): JsonResponse
+    {
+        $this->authorize('view', $lead);
+        abort_unless($partnerLink->lead_id === $lead->id, 404);
+
+        try {
+            $message = $draft->handle($partnerLink, $request->user());
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+
+        return response()->json(['message' => $message]);
     }
 
     public function forward(ForwardLeadDossierRequest $request, Lead $lead, LeadPartner $partnerLink, ForwardLeadDossier $forward): RedirectResponse

@@ -68,17 +68,23 @@ export type AgentAgencyCard = {
 export type AgencyVisitedProperty = {
     uuid: string;
     label: string;
+    /** Photo principale, affichée en vignette devant les informations. */
+    photo: string | null;
     visits_count: number;
     last_visit_at: string;
     last_visit_status: string;
     agent: string | null;
 };
 
-export type AgencyDetail = Omit<Agency, 'agents'> & {
-    agents: (AgencyAgent & { leads_count: number })[];
-    /** Biens visités avec l'un de ses agents, le plus récent d'abord. */
-    properties: AgencyVisitedProperty[];
-};
+export type AgencyDetail = Omit<Agency, 'agents'> &
+    Partial<AgencyProfile> & {
+        agents: (AgencyAgent & { leads_count: number })[];
+        /** Biens visités avec l'un de ses agents, le plus récent d'abord. */
+        properties: AgencyVisitedProperty[];
+        /** Proposition de l'assistant, tant qu'elle n'est ni appliquée ni écartée. */
+        ai_profile?: AgencyAiProfile | null;
+        ai_profile_at?: string | null;
+    };
 
 /** Agent proposé sur une fiche lead. */
 export type AgentOption = {
@@ -160,6 +166,12 @@ export type Agent = {
     creator: string | null;
     creator_avatar: string | null;
     created_at: string | null;
+    /** Profil de matching propre à l'agent ; vide, celui de son agence sert. */
+    districts?: number[];
+    specialties?: string[];
+    specialty_labels?: string[];
+    languages?: string[];
+    language_labels?: string[];
 };
 
 export type AgentForm = {
@@ -177,4 +189,64 @@ export type AgentForm = {
     notes: string;
     /** Ajout seulement : prévenir le contact par e-mail qu'il rejoint l'annuaire. Décoché par défaut. */
     notify: boolean;
+};
+
+/** Option d'une liste fermée du profil (spécialités, langues, mandats). */
+export type ProfileOption = { value: string; label: string };
+
+/** Listes du dialogue de profil, exposées par les fiches agence et agent. */
+export type ProfileOptions = {
+    specialties: ProfileOption[];
+    languages: ProfileOption[];
+    mandateTypes: ProfileOption[];
+};
+
+/**
+ * Profil de matching d'une agence : renseigné après coup sur la fiche, jamais
+ * exigé à la création. Un agent n'en porte que les trois premières listes.
+ */
+export type AgencyProfile = {
+    districts: number[];
+    specialties: string[];
+    specialty_labels: string[];
+    languages: string[];
+    language_labels: string[];
+    mandate_types: string[];
+    mandate_labels: string[];
+    fee_note: string | null;
+    rent_min_cents: number | null;
+    rent_max_cents: number | null;
+    /** null = on ne sait pas encore. */
+    accepts_garantme: boolean | null;
+    accepts_foreign_files: boolean | null;
+    has_profile: boolean;
+};
+
+/** Proposition de profil lue par l'assistant sur le site de l'agence, à relire. */
+export type AgencyAiProfile = {
+    summary: string;
+    notes: string;
+    districts: number[] | null;
+    specialties: string[] | null;
+    languages: string[] | null;
+    mandate_types: string[] | null;
+    fee_note: string | null;
+    rent_min_cents: number | null;
+    rent_max_cents: number | null;
+    accepts_garantme: boolean | null;
+    accepts_foreign_files: boolean | null;
+};
+
+export type AgencyProfileForm = {
+    districts: number[];
+    specialties: string[];
+    languages: string[];
+    mandate_types: string[];
+    fee_note: string;
+    /** Loyers en unités (euros) dans le formulaire, centimes à l'envoi. */
+    rent_min: string;
+    rent_max: string;
+    /** '' = inconnu, '1' = oui, '0' = non. */
+    accepts_garantme: '' | '1' | '0';
+    accepts_foreign_files: '' | '1' | '0';
 };

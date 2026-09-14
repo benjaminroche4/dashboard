@@ -20,6 +20,7 @@ import {
     type LeadFilters,
     hasActiveFilters,
 } from '@/lib/kanban';
+import { useStoredState } from '@/hooks/use-stored-state';
 import { cn } from '@/lib/utils';
 import { show as leadShow } from '@/routes/leads';
 import type {
@@ -95,7 +96,24 @@ export function LeadListView({
     action,
     empty,
 }: Props) {
-    const [filters, setFilters] = useState<LeadFilters>(defaultFilters);
+    // Les filtres cochés sont mémorisés avec la vue ; le texte de recherche,
+    // lui, repart vide — une liste filtrée par un mot oublié déroute.
+    const { query: defaultQuery, ...defaultChoices } = defaultFilters;
+    const [choices, setChoices] = useStoredState<Omit<LeadFilters, 'query'>>(
+        `${storageKey}.filters`,
+        defaultChoices,
+    );
+    const [query, setQuery] = useState(defaultQuery);
+    const filters: LeadFilters = { ...choices, query };
+    const setFilters = (
+        updater: LeadFilters | ((current: LeadFilters) => LeadFilters),
+    ) => {
+        const next = typeof updater === 'function' ? updater(filters) : updater;
+        const { query: nextQuery, ...nextChoices } = next;
+
+        setQuery(nextQuery);
+        setChoices(nextChoices);
+    };
     const [view, setView] = useState<LeadView>(() => readView(storageKey));
     const changeView = (next: LeadView) => {
         setView(next);
@@ -192,6 +210,7 @@ export function LeadListView({
                     />
                     {view === 'table' ? (
                         <DataTable
+                            storageKey={`${storageKey}.table`}
                             columns={leadTableColumns}
                             data={filtered}
                             filterColumn="name"

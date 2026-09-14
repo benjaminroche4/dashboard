@@ -46,6 +46,7 @@ const property: ClientProperty = {
     id: 1,
     uuid: 'prop-1',
     label: 'T2 lumineux · 11e',
+    photo: null,
     street: '12 rue Oberkampf',
     postal_code: '75011',
     city: 'Paris',
@@ -63,8 +64,17 @@ const options = [
     {
         id: 2,
         label: 'Studio · 5e',
+        photo: '/photos/studio.jpg',
         street: '3 rue Mouffetard',
         postal_code: '75005',
+        city: 'Paris',
+    },
+    {
+        id: 3,
+        label: 'T3 · 11e',
+        photo: null,
+        street: '12 rue Oberkampf',
+        postal_code: '75011',
         city: 'Paris',
     },
 ];
@@ -194,6 +204,18 @@ describe('ClientProperties', () => {
             dialog.getByRole('button', { name: 'Lier le bien' }),
         ).toBeDisabled();
         await user.click(dialog.getByRole('combobox', { name: 'Bien' }));
+        // Chaque ligne montre la photo du logement, et la recherche filtre
+        // aussi sur l'adresse.
+        expect(
+            await screen.findByRole('img', { name: 'Photo de Studio · 5e' }),
+        ).toHaveAttribute('src', '/photos/studio.jpg');
+        await user.type(
+            screen.getByPlaceholderText(/Rechercher un bien/),
+            'Mouffetard',
+        );
+        expect(
+            screen.queryByRole('option', { name: /T3 · 11e/ }),
+        ).not.toBeInTheDocument();
         await user.click(
             await screen.findByRole('option', { name: /Studio · 5e/ }),
         );
@@ -228,6 +250,7 @@ describe('ClientProperties', () => {
                         currency: 'EUR',
                         listing_url: null,
                         agent: null,
+                        photo: '/photos/t2.jpg',
                         score: 9,
                         reasons: [
                             'Dans le budget',
@@ -297,6 +320,7 @@ describe('ClientProperties', () => {
             currency: 'EUR',
             listing_url: null,
             agent: null,
+            photo: null,
             score: 9,
             reasons: ['Dans le budget'],
         };

@@ -37,6 +37,9 @@ Object.defineProperty(globalThis, 'matchMedia', {
 
 afterEach(() => {
     cleanup();
+    // Les préférences mémorisées (colonnes, filtres, vue) ne doivent pas
+    // fuir d'un test à l'autre.
+    localStorage.clear();
 });
 
 // Radix Select : jsdom n'implémente pas la capture de pointeur.

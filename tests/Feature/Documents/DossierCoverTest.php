@@ -41,7 +41,8 @@ function dossier(): DocumentRequest
     ]);
 
     foreach ([['identity_document', 'cni.pdf'], ['rib', 'rib.pdf']] as [$key, $name]) {
-        $upload = DocumentUpload::factory()->for($request, 'request')->create([
+        // Validées par l'équipe : seules celles-là entrent dans le dossier.
+        $upload = DocumentUpload::factory()->for($request, 'request')->reviewed(DocumentUploadStatus::Accepted)->create([
             'person_index' => 0,
             'document_key' => $key,
             'original_name' => $name,
@@ -163,7 +164,7 @@ test('two files on the same piece are numbered, and a missing file is skipped', 
     $request = dossier();
 
     // Un second fichier sur la même pièce (recto/verso).
-    $second = DocumentUpload::factory()->for($request, 'request')->create([
+    $second = DocumentUpload::factory()->for($request, 'request')->reviewed(DocumentUploadStatus::Accepted)->create([
         'person_index' => 0,
         'document_key' => 'rib',
         'original_name' => 'rib-page2.pdf',
@@ -171,7 +172,7 @@ test('two files on the same piece are numbered, and a missing file is skipped', 
     Storage::disk(DocumentUpload::DISK)->put($second->path, '%PDF-1.4 page2');
 
     // Une pièce dont le fichier a disparu du stockage : elle ne casse rien.
-    DocumentUpload::factory()->for($request, 'request')->create([
+    DocumentUpload::factory()->for($request, 'request')->reviewed(DocumentUploadStatus::Accepted)->create([
         'person_index' => 0,
         'document_key' => 'payslips',
         'original_name' => 'fantome.pdf',
@@ -193,6 +194,27 @@ test('two files on the same piece are numbered, and a missing file is skipped', 
     expect($zip->numFiles)->toBe(3);
     $zip->close();
     unlink($path);
+});
+
+test('a piece still to verify stays out of the archive and is listed as awaiting on the cover', function (): void {
+    $request = dossier();
+    $waiting = DocumentUpload::factory()->for($request, 'request')->create([
+        'person_index' => 0,
+        'document_key' => 'payslips',
+        'original_name' => 'paie.pdf',
+    ]);
+    Storage::disk(DocumentUpload::DISK)->put($waiting->path, '%PDF-1.4 paie');
+    $request->refresh()->load('uploads');
+
+    $persons = RenderDossierCover::persons($request);
+
+    // Reçue mais pas relue : ni dans les pièces du dossier, ni « manquante ».
+    expect(array_column($persons[0]['received'], 'label'))->not->toContain('3 derniers bulletins de salaire')
+        ->and($persons[0]['pending'])->toBe(['3 derniers bulletins de salaire'])
+        ->and($persons[0]['missing'])->toBe([])
+        ->and(RenderDossierCover::files($request))->toBe(2)
+        ->and(collect(resolve(BuildDossierArchive::class)->plan($request))->pluck('entry')->all())->not->toContain(fn (string $entry): bool => str_contains($entry, 'paie'));
+    expect(resolve(RenderDossierCover::class)->html($request))->toContain('Reçues, en attente de vérification');
 });
 
 test('a refused piece leaves the archive, the cover and the count: it is not valid', function (): void {
@@ -234,7 +256,7 @@ test('an archive of only refused pieces is refused, like an empty one', function
     $request->uploads->each(fn (DocumentUpload $upload) => $upload->forceFill(['status' => DocumentUploadStatus::Refused, 'reviewed_at' => now()])->save());
 
     expect(fn () => resolve(BuildDossierArchive::class)->handle($request->refresh()->load('uploads')))
-        ->toThrow(RuntimeException::class, 'Aucune pièce valide');
+        ->toThrow(RuntimeException::class, 'Aucune pièce validée');
 });
 
 test('the archive route says so when every piece was refused', function (): void {

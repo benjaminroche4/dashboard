@@ -7,7 +7,7 @@ namespace App\Actions\Invoices;
 use App\Enums\InvoiceStatus;
 use App\Models\Invoice;
 use App\Models\User;
-use Illuminate\Support\Collection;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * Envoie plusieurs factures d'un coup : celles qui ne sont pas envoyables
@@ -23,6 +23,10 @@ final readonly class SendInvoices
      */
     public function handle(Collection $invoices, ?User $by = null): array
     {
+        // `SendInvoice` lit le dossier de chaque facture (locataires en copie) :
+        // chargé une fois ici, quel que soit l'appelant.
+        $invoices->loadMissing('lead');
+
         $sent = [];
         $skipped = [];
 

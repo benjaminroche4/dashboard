@@ -165,3 +165,20 @@ test('an action on an agency or an agent is filed on its own fiche', function ()
     expect(Activity::query()->where('agency_id', $agency->id)->count())->toBe(2)
         ->and(Activity::query()->where('agent_id', $agent->id)->count())->toBe(2);
 });
+
+test('the map lists every geocoded agency with what the bubble shows, and nothing else', function (): void {
+    $located = Agency::factory()->create(['name' => 'Agence du Marais', 'street' => '12 rue de Turenne', 'postal_code' => '75003', 'city' => 'Paris', 'latitude' => 48.8601, 'longitude' => 2.3648]);
+    Agent::factory()->forAgency($located)->count(2)->create();
+    Agency::factory()->create(['name' => 'Sans adresse', 'latitude' => null, 'longitude' => null]);
+
+    $this->getJson(route('agencies.map'))->assertUnauthorized();
+
+    $this->actingAs(User::factory()->create())
+        ->getJson(route('agencies.map'))
+        ->assertOk()
+        ->assertJsonCount(1)
+        ->assertJsonPath('0.name', 'Agence du Marais')
+        ->assertJsonPath('0.latitude', 48.8601)
+        ->assertJsonPath('0.agents_count', 2)
+        ->assertJsonPath('0.url', route('agencies.show', $located));
+});

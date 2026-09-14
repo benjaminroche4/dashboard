@@ -1,13 +1,20 @@
 import { Head, Link } from '@inertiajs/react';
-import { CalendarClock, History, Plus } from 'lucide-react';
+import { CalendarClock, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { FilterMenu } from '@/components/filter-menu';
 import { Input } from '@/components/ui/input';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { VisitDaySection } from '@/components/visits/visit-day-section';
 import { VisitReportsDue } from '@/components/visits/visit-reports-due';
 import { VisitsDayMap } from '@/components/visits/visits-day-map';
-import { defaultVisitDay, groupVisitsByDay, openVisits } from '@/lib/visits';
+import {
+    defaultVisitDay,
+    groupVisitsByDay,
+    openVisits,
+    visitPendingKinds,
+    visitPendingOptions,
+    type VisitPendingKind,
+} from '@/lib/visits';
 import {
     index as clientsIndex,
     visits as clientsVisits,
@@ -21,7 +28,10 @@ type Props = {
 };
 
 export default function ClientsVisits({ visits, statuses }: Props) {
-    const [statusFilter, setStatusFilter] = useState<VisitStatus | ''>('');
+    const [statusFilter, setStatusFilter] = useState<VisitStatus[]>([]);
+    // « En attente » : les visites qui attendent encore un retour — le compte
+    // rendu de l'équipe, la décision du client.
+    const [pendingFilter, setPendingFilter] = useState<VisitPendingKind[]>([]);
     const [clientFilter, setClientFilter] = useState('');
     const [showPast, setShowPast] = useState(false);
     const counts = visits.reduce<Partial<Record<VisitStatus, number>>>(
@@ -31,16 +41,33 @@ export default function ClientsVisits({ visits, statuses }: Props) {
         }),
         {},
     );
+    const pendingCounts = visits.reduce<
+        Partial<Record<VisitPendingKind, number>>
+    >((acc, visit) => {
+        for (const kind of visitPendingKinds(visit)) {
+            acc[kind] = (acc[kind] ?? 0) + 1;
+        }
+
+        return acc;
+    }, {});
     const needle = clientFilter.trim().toLocaleLowerCase('fr');
     // Par défaut, la liste ne montre que ce qui reste à faire : les visites à
     // venir et les visites passées sans compte rendu. Un filtre de statut ou le
     // bouton « Voir les visites passées » rouvre les autres.
     const open = useMemo(() => openVisits(visits), [visits]);
     const closedCount = visits.length - open.length;
-    const showsPast = showPast || statusFilter !== '';
+    // Filtrer par statut rouvre les visites passées : sans cela, cocher
+    // « Annulée » ne montrerait rien.
+    const showsPast =
+        showPast || statusFilter.length > 0 || pendingFilter.length > 0;
     const visible = (showsPast ? visits : open).filter(
         (visit) =>
-            (!statusFilter || visit.status === statusFilter) &&
+            (statusFilter.length === 0 ||
+                statusFilter.includes(visit.status)) &&
+            (pendingFilter.length === 0 ||
+                visitPendingKinds(visit).some((kind) =>
+                    pendingFilter.includes(kind),
+                )) &&
             (needle === '' ||
                 visit.client.name.toLocaleLowerCase('fr').includes(needle)),
     );
@@ -98,57 +125,58 @@ export default function ClientsVisits({ visits, statuses }: Props) {
                             />
                         )}
                         <div className="flex flex-wrap items-center gap-2">
-                            <ToggleGroup
-                                type="single"
-                                value={statusFilter || 'all'}
-                                onValueChange={(value) =>
-                                    value &&
-                                    setStatusFilter(
-                                        value === 'all'
-                                            ? ''
-                                            : (value as VisitStatus),
-                                    )
-                                }
-                                aria-label="Filtrer par statut"
-                                className="flex-wrap justify-start gap-1"
-                            >
-                                <ToggleGroupItem
-                                    value="all"
-                                    className="h-8 rounded-md px-3 text-xs first:rounded-md last:rounded-md"
-                                >
-                                    Toutes
-                                    <span className="text-muted-foreground tabular-nums">
-                                        {visits.length}
-                                    </span>
-                                </ToggleGroupItem>
-                                {statuses.map((status) => (
-                                    <ToggleGroupItem
-                                        key={status.value}
-                                        value={status.value}
-                                        className="h-8 rounded-md px-3 text-xs first:rounded-md last:rounded-md"
-                                    >
-                                        {status.label}
-                                        <span className="text-muted-foreground tabular-nums">
-                                            {counts[status.value] ?? 0}
-                                        </span>
-                                    </ToggleGroupItem>
-                                ))}
-                            </ToggleGroup>
-                            {closedCount > 0 && statusFilter === '' && (
-                                <Button
-                                    type="button"
-                                    variant={showPast ? 'secondary' : 'outline'}
-                                    size="sm"
-                                    aria-pressed={showPast}
-                                    onClick={() => setShowPast(!showPast)}
-                                >
-                                    <History aria-hidden />
-                                    Visites passées
-                                    <span className="text-muted-foreground tabular-nums">
-                                        {closedCount}
-                                    </span>
-                                </Button>
-                            )}
+                            <FilterMenu
+                                groups={[
+                                    {
+                                        title: 'Statut',
+                                        options: statuses.map((status) => ({
+                                            value: status.value,
+                                            label: status.label,
+                                        })),
+                                        counts,
+                                        value: statusFilter,
+                                        onChange: (value) =>
+                                            setStatusFilter(
+                                                value as VisitStatus[],
+                                            ),
+                                    },
+                                    {
+                                        title: 'En attente',
+                                        options: visitPendingOptions,
+                                        counts: pendingCounts,
+                                        value: pendingFilter,
+                                        onChange: (value) =>
+                                            setPendingFilter(
+                                                value as VisitPendingKind[],
+                                            ),
+                                    },
+                                    ...(closedCount > 0
+                                        ? [
+                                              {
+                                                  title: 'Affichage',
+                                                  options: [
+                                                      {
+                                                          value: 'past',
+                                                          label: 'Visites passées',
+                                                      },
+                                                  ],
+                                                  counts: {
+                                                      past: closedCount,
+                                                  },
+                                                  value: showPast
+                                                      ? ['past']
+                                                      : [],
+                                                  onChange: (value: string[]) =>
+                                                      setShowPast(
+                                                          value.includes(
+                                                              'past',
+                                                          ),
+                                                      ),
+                                              },
+                                          ]
+                                        : []),
+                                ]}
+                            />
                             <Input
                                 value={clientFilter}
                                 onChange={(event) =>

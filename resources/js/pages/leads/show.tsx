@@ -521,6 +521,7 @@ export default function LeadsShow({
                             leadUuid={lead.uuid}
                             leadName={lead.name}
                             status={lead.status}
+                            offerLabel={lead.offer_label}
                         />
                         <LeadHeaderMenu
                             lead={lead}

@@ -151,6 +151,7 @@ export function makeDocumentRequestDetail(
     return {
         ...makeDocumentRequest(),
         message: 'Merci de tout déposer avant le 15.',
+        presentation_letter: null,
         upload_url: 'https://drive.google.com/drive/folders/abc',
         public_url: 'https://dashboard.test/depot/tok-abc',
         access_code: '482913',

@@ -112,6 +112,12 @@ final readonly class LeadInboundMessageData
         return $note === null ? null : self::fromNote($note);
     }
 
+    /** Vrai pour une note posée par la téléphonie (appel ou SMS) : elle rapporte les mots du client. */
+    public static function isPhoneNote(LeadNote $note): bool
+    {
+        return self::phoneKind($note->body) !== null;
+    }
+
     /** Une note « Appel entrant (…) : résumé » ou « SMS reçu : texte » découpée pour l'affichage. */
     private static function fromNote(LeadNote $note): ?self
     {

@@ -65,6 +65,7 @@ export default function InvoicesIndex({
                     </Button>
                 </div>
                 <DataTable
+                    storageKey="invoices"
                     columns={invoiceColumns(canManage)}
                     data={invoices}
                     server={server}

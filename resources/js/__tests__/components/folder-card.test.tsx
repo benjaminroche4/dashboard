@@ -19,7 +19,7 @@ vi.mock('@inertiajs/react', () => ({
     ),
 }));
 
-import { FolderCard, FolderIllustration } from '@/components/folder-card';
+import { FolderIllustration } from '@/components/folder-card';
 
 describe('FolderIllustration', () => {
     it('draws the folder from the Figma exports with the sheets hidden until hover', () => {
@@ -48,43 +48,6 @@ describe('FolderIllustration open', () => {
 
         expect(container.querySelector('[data-open]')).toHaveClass(
             'data-open:translate-y-0',
-        );
-    });
-});
-
-describe('FolderCard', () => {
-    it('shows the title, the subtitle and the extra information', () => {
-        render(
-            <FolderCard title="Documents" subtitle="10 fichiers">
-                <span>Suivi par Admin</span>
-            </FolderCard>,
-        );
-
-        expect(screen.getByText('Documents')).toBeInTheDocument();
-        expect(screen.getByText('10 fichiers')).toBeInTheDocument();
-        expect(screen.getByText('Suivi par Admin')).toBeInTheDocument();
-        expect(screen.queryByRole('link')).not.toBeInTheDocument();
-    });
-
-    it('links the title to an Inertia route', () => {
-        render(
-            <FolderCard
-                title="Léa Durand"
-                href={{ url: '/clients/abc', method: 'get' }}
-            />,
-        );
-
-        expect(
-            screen.getByRole('link', { name: 'Léa Durand' }),
-        ).toHaveAttribute('href', '/clients/abc');
-    });
-
-    it('links the title to an anchor of the page', () => {
-        render(<FolderCard title="Factures" href="#factures" />);
-
-        expect(screen.getByRole('link', { name: 'Factures' })).toHaveAttribute(
-            'href',
-            '#factures',
         );
     });
 });

@@ -266,11 +266,11 @@ export function VisitsDayMap({
                 {/* Une journée chargée ne fait pas grandir la carte : la
                     tournée défile dans sa propre hauteur, à la taille de la
                     carte Google à côté. */}
-                <div className="grid max-h-72 content-start overflow-y-auto overscroll-contain pr-1 sm:max-h-80">
+                <div className="flex max-h-72 flex-col overflow-y-auto overscroll-contain pr-1 sm:max-h-80">
                     {tours.length > 1 && (
                         /* Les onglets restent visibles pendant le défilement :
                            on sait toujours quelle tournée on suit. */
-                        <div className="bg-card sticky top-0 z-10 -mx-1 overflow-x-auto px-1 pb-2">
+                        <div className="bg-card sticky top-0 z-10 -mx-1 shrink-0 overflow-x-auto px-1 pt-px pb-2">
                             <div
                                 role="tablist"
                                 aria-label="Tournée par membre"
@@ -312,7 +312,7 @@ export function VisitsDayMap({
                     )}
                     <ol
                         aria-label="Tournée du jour"
-                        className="grid content-start gap-2"
+                        className="grid list-none content-start gap-2"
                     >
                         {shown.map((visit, position) => {
                             const spot = propertyPosition(visit.property);

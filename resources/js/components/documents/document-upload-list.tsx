@@ -5,19 +5,12 @@ import {
     Eye,
     FileText,
     RotateCcw,
+    Sparkles,
     Trash2,
+    UserRoundPen,
     X,
 } from 'lucide-react';
 import { useState } from 'react';
-import {
-    Attachment,
-    AttachmentAction,
-    AttachmentActions,
-    AttachmentContent,
-    AttachmentDescription,
-    AttachmentMedia,
-    AttachmentTitle,
-} from '@/components/ui/attachment';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -29,10 +22,14 @@ import {
 } from '@/components/ui/dialog';
 import { formatFileSize } from '@/lib/format';
 import {
+    analyze as uploadAnalyze,
     destroy as uploadDestroy,
     preview as uploadPreview,
+    profile as uploadProfile,
     review as uploadReview,
 } from '@/routes/tools/documents/uploads';
+import { AiBadge } from '@/components/ai-badge';
+import { usePage } from '@inertiajs/react';
 import { DocumentPreviewDialog } from '@/components/documents/document-preview-dialog';
 import {
     uploadStatusText,
@@ -72,6 +69,17 @@ export function DocumentUploadList({
     const [refusing, setRefusing] = useState<DocumentUpload | null>(null);
     const [note, setNote] = useState('');
     const [busy, setBusy] = useState(false);
+    const assistantEnabled = usePage().props.features?.assistant ?? false;
+
+    /** Envoi d'une action sur une pièce (lecture IA, report sur la fiche). */
+    const post = (url: string) => {
+        setBusy(true);
+        router.post(
+            url,
+            {},
+            { preserveScroll: true, onFinish: () => setBusy(false) },
+        );
+    };
 
     /** Pose la décision ; le motif n'accompagne qu'un refus. */
     const decide = (
@@ -124,123 +132,268 @@ export function DocumentUploadList({
 
     return (
         <>
-            <ul
-                role="list"
-                aria-label="Fichiers reçus"
-                className="flex flex-wrap gap-2"
-            >
+            <ul role="list" aria-label="Fichiers reçus" className="grid gap-2">
                 {uploads.map((upload) => (
-                    <li key={upload.uuid} className="grid min-w-0 gap-1">
-                        <Attachment
-                            size="sm"
-                            className={cn(
-                                'transition-colors',
-                                uploadStatusTones[upload.status],
-                            )}
-                        >
-                            <AttachmentMedia>
-                                <FileText aria-hidden />
-                            </AttachmentMedia>
-                            <AttachmentContent>
-                                <AttachmentTitle>
-                                    {/* Le nom ouvre la pièce dans la page :
-                                        on la relit avant de la valider. */}
+                    <li
+                        key={upload.uuid}
+                        className={cn(
+                            'grid min-w-0 gap-2 rounded-lg border p-2.5 text-sm transition-colors',
+                            uploadStatusTones[upload.status],
+                        )}
+                    >
+                        {/* Ligne 1 : le fichier — son nom ouvre l'aperçu,
+                            on relit avant de trancher — et la décision. */}
+                        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+                            <div className="flex min-w-0 items-start gap-2">
+                                <FileText
+                                    aria-hidden
+                                    className="text-muted-foreground mt-0.5 size-4 shrink-0"
+                                />
+                                <div className="grid min-w-0 gap-0.5">
                                     <button
                                         type="button"
                                         onClick={() => setPreviewing(upload)}
-                                        className="truncate underline-offset-4 hover:underline"
+                                        className="truncate text-left font-medium underline-offset-4 hover:underline"
                                     >
                                         {upload.name}
                                     </button>
-                                </AttachmentTitle>
-                                <AttachmentDescription>
-                                    {formatFileSize(upload.size)}
-                                    {upload.uploaded_at &&
-                                        ` · ${dateTime.format(new Date(upload.uploaded_at))}`}
-                                </AttachmentDescription>
-                            </AttachmentContent>
-                            <AttachmentActions>
-                                {canReview &&
-                                    (upload.status === 'accepted' ? (
-                                        <AttachmentAction
-                                            aria-label={`Remettre ${upload.name} en vérification`}
-                                            disabled={busy}
-                                            onClick={() =>
-                                                decide(upload, 'pending')
-                                            }
-                                        >
-                                            <RotateCcw aria-hidden />
-                                        </AttachmentAction>
-                                    ) : (
-                                        <AttachmentAction
-                                            aria-label={`Valider ${upload.name}`}
-                                            disabled={busy}
-                                            onClick={() =>
-                                                decide(upload, 'accepted')
-                                            }
-                                        >
-                                            <Check aria-hidden />
-                                        </AttachmentAction>
-                                    ))}
-                                {canReview &&
-                                    (upload.status === 'refused' ? (
-                                        <AttachmentAction
-                                            aria-label={`Remettre ${upload.name} en vérification`}
-                                            disabled={busy}
-                                            onClick={() =>
-                                                decide(upload, 'pending')
-                                            }
-                                        >
-                                            <RotateCcw aria-hidden />
-                                        </AttachmentAction>
-                                    ) : (
-                                        <AttachmentAction
-                                            aria-label={`Refuser ${upload.name}`}
-                                            disabled={busy}
-                                            onClick={() => {
-                                                setNote(
-                                                    upload.review_note ?? '',
-                                                );
-                                                setRefusing(upload);
-                                            }}
-                                        >
-                                            <X aria-hidden />
-                                        </AttachmentAction>
-                                    ))}
-                                <AttachmentAction
-                                    aria-label={`Aperçu de ${upload.name}`}
-                                    onClick={() => setPreviewing(upload)}
+                                    <span className="text-muted-foreground text-xs tabular-nums">
+                                        {formatFileSize(upload.size)}
+                                        {upload.uploaded_at &&
+                                            ` · ${dateTime.format(new Date(upload.uploaded_at))}`}
+                                    </span>
+                                </div>
+                            </div>
+                            {upload.status !== 'pending' && (
+                                <p
+                                    className={cn(
+                                        'text-xs font-medium',
+                                        uploadStatusText[upload.status],
+                                    )}
                                 >
-                                    <Eye aria-hidden />
-                                </AttachmentAction>
-                                <AttachmentAction
-                                    aria-label={`Télécharger ${upload.name}`}
-                                    asChild
+                                    {upload.status_label}
+                                    {upload.reviewer && ` · ${upload.reviewer}`}
+                                    {upload.review_note &&
+                                        ` — ${upload.review_note}`}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Ligne 2 : les décisions en toutes lettres — c'est le
+                            travail — puis les gestes secondaires en icônes. */}
+                        <div className="flex flex-wrap items-center gap-1">
+                            {canReview && upload.status === 'pending' && (
+                                <>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-7 px-2 text-xs"
+                                        aria-label={`Valider ${upload.name}`}
+                                        disabled={busy}
+                                        onClick={() =>
+                                            decide(upload, 'accepted')
+                                        }
+                                    >
+                                        <Check
+                                            aria-hidden
+                                            className="text-green-700 dark:text-green-300"
+                                        />
+                                        Valider
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-7 px-2 text-xs"
+                                        aria-label={`Refuser ${upload.name}`}
+                                        disabled={busy}
+                                        onClick={() => {
+                                            setNote(upload.review_note ?? '');
+                                            setRefusing(upload);
+                                        }}
+                                    >
+                                        <X
+                                            aria-hidden
+                                            className="text-red-700 dark:text-red-300"
+                                        />
+                                        Refuser
+                                    </Button>
+                                </>
+                            )}
+                            {canReview && upload.status !== 'pending' && (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 px-2 text-xs"
+                                    aria-label={`Remettre ${upload.name} en vérification`}
+                                    disabled={busy}
+                                    onClick={() => decide(upload, 'pending')}
                                 >
-                                    <a href={upload.download_url}>
-                                        <Download aria-hidden />
-                                    </a>
-                                </AttachmentAction>
-                                <AttachmentAction
-                                    aria-label={`Supprimer ${upload.name}`}
-                                    onClick={() => setDeleting(upload)}
+                                    <RotateCcw aria-hidden />
+                                    Remettre en vérification
+                                </Button>
+                            )}
+                            <span
+                                aria-hidden
+                                className="bg-border mx-1 hidden h-4 w-px sm:block"
+                            />
+                            {canReview && assistantEnabled && (
+                                <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    className="size-7"
+                                    aria-label={`Relire ${upload.name} avec l’assistant`}
+                                    title="Relire avec l’assistant"
+                                    disabled={busy}
+                                    onClick={() =>
+                                        post(
+                                            uploadAnalyze({
+                                                documentRequest: requestUuid,
+                                                upload: upload.uuid,
+                                            }).url,
+                                        )
+                                    }
                                 >
-                                    <Trash2 aria-hidden />
-                                </AttachmentAction>
-                            </AttachmentActions>
-                        </Attachment>
-                        {upload.status !== 'pending' && (
-                            <p
-                                className={cn(
-                                    'px-1 text-xs',
-                                    uploadStatusText[upload.status],
-                                )}
+                                    <Sparkles aria-hidden />
+                                </Button>
+                            )}
+                            <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="size-7"
+                                aria-label={`Aperçu de ${upload.name}`}
+                                title="Aperçu"
+                                onClick={() => setPreviewing(upload)}
                             >
-                                {upload.status_label}
-                                {upload.reviewer && ` · ${upload.reviewer}`}
-                                {upload.review_note &&
-                                    ` — ${upload.review_note}`}
-                            </p>
+                                <Eye aria-hidden />
+                            </Button>
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                className="size-7"
+                                aria-label={`Télécharger ${upload.name}`}
+                                title="Télécharger"
+                                asChild
+                            >
+                                <a href={upload.download_url}>
+                                    <Download aria-hidden />
+                                </a>
+                            </Button>
+                            <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="text-muted-foreground hover:text-destructive size-7"
+                                aria-label={`Supprimer ${upload.name}`}
+                                title="Supprimer"
+                                onClick={() => setDeleting(upload)}
+                            >
+                                <Trash2 aria-hidden />
+                            </Button>
+                        </div>
+                        {/* Ce que l'assistant a lu : une proposition, que le
+                            membre applique d'un clic ou ignore. Sur une pièce
+                            déjà tranchée, la lecture reste visible — sans
+                            quoi « Relire » semblait ne rien faire — mais la
+                            décision ne se propose plus. */}
+                        {upload.ai_review && (
+                            <div
+                                role="note"
+                                aria-label={`Proposition de l’assistant pour ${upload.name}`}
+                                className="grid gap-1.5 rounded-md border border-violet-200 bg-violet-50/60 p-2 text-xs dark:border-violet-900 dark:bg-violet-950/40"
+                            >
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                    <AiBadge />
+                                    <span
+                                        className={cn(
+                                            'font-medium',
+                                            upload.ai_review.verdict ===
+                                                'accepted'
+                                                ? 'text-green-800 dark:text-green-300'
+                                                : 'text-red-800 dark:text-red-300',
+                                        )}
+                                    >
+                                        {upload.ai_review.verdict === 'accepted'
+                                            ? 'Recevable'
+                                            : 'À redéposer'}
+                                    </span>
+                                    <span className="text-muted-foreground">
+                                        · {upload.ai_review.document_type}
+                                    </span>
+                                </div>
+                                <p>{upload.ai_review.reason}</p>
+                                {(upload.ai_review.holder_name ||
+                                    upload.ai_review.expires_at) && (
+                                    <p className="text-muted-foreground">
+                                        {[
+                                            upload.ai_review.holder_name &&
+                                                `Au nom de ${upload.ai_review.holder_name}`,
+                                            upload.ai_review.expires_at &&
+                                                `expire le ${upload.ai_review.expires_at}`,
+                                        ]
+                                            .filter(Boolean)
+                                            .join(' · ')}
+                                    </p>
+                                )}
+                                {canReview && upload.status === 'pending' && (
+                                    <div className="flex flex-wrap gap-1 pt-0.5">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant={
+                                                upload.ai_review.verdict ===
+                                                'accepted'
+                                                    ? 'default'
+                                                    : 'destructive'
+                                            }
+                                            className="h-7 px-2 text-xs"
+                                            disabled={busy}
+                                            onClick={() =>
+                                                upload.ai_review &&
+                                                decide(
+                                                    upload,
+                                                    upload.ai_review.verdict,
+                                                    upload.ai_review.verdict ===
+                                                        'refused'
+                                                        ? upload.ai_review
+                                                              .reason
+                                                        : '',
+                                                )
+                                            }
+                                        >
+                                            {upload.ai_review.verdict ===
+                                            'accepted'
+                                                ? 'Valider comme proposé'
+                                                : 'Refuser avec ce motif'}
+                                        </Button>
+                                        {upload.can_apply_profile && (
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-7 px-2 text-xs"
+                                                disabled={busy}
+                                                onClick={() =>
+                                                    post(
+                                                        uploadProfile({
+                                                            documentRequest:
+                                                                requestUuid,
+                                                            upload: upload.uuid,
+                                                        }).url,
+                                                    )
+                                                }
+                                            >
+                                                <UserRoundPen aria-hidden />
+                                                Reporter sur la fiche
+                                            </Button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </li>
                 ))}

@@ -51,7 +51,7 @@ class QuoteController extends Controller
         $this->authorize('viewAny', Quote::class);
 
         $quotes = Quote::query()
-            ->with('lead')
+            ->with(['lead', 'partner', 'invoice'])
             ->latest('issued_at')
             ->orderByDesc('id')
             ->get()
@@ -162,7 +162,7 @@ class QuoteController extends Controller
 
         abort_unless(UpdateQuote::isEditable($quote), 403, __('Ce devis ne peut plus être modifié.'));
 
-        $quote->load(['lead', 'partner']);
+        $quote->load(['lead', 'partner', 'invoice']);
 
         return Inertia::render('quotes/create', [
             ...$this->formOptions(),

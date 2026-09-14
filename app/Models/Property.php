@@ -133,6 +133,17 @@ class Property extends Model
         return FileUrl::all('public', $this->photos ?? []);
     }
 
+    /**
+     * Photo principale seule, pour une vignette de liste.
+     *
+     * Dans un bucket, chaque URL est signée séparément : `photoUrls()` en
+     * signerait dix pour n'en afficher qu'une.
+     */
+    public function coverUrl(): ?string
+    {
+        return FileUrl::for('public', ($this->photos ?? [])[0] ?? null);
+    }
+
     /** Titre affiché : le titre saisi, sinon l'adresse. */
     public function label(): string
     {

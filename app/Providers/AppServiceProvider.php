@@ -12,11 +12,13 @@ use App\Services\DistrictStaticMap;
 use App\Services\DocRaptor;
 use App\Services\Geocoder;
 use App\Services\GoogleCalendar;
+use App\Services\GooglePlaces;
 use App\Services\PaymentLinks;
 use App\Services\Yousign;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Broadcasting\Broadcaster;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -34,6 +36,7 @@ class AppServiceProvider extends ServiceProvider
         // Services externes construits depuis la config (injectables dans les Actions).
         $this->app->bind(DocRaptor::class, fn (): DocRaptor => DocRaptor::fromConfig());
         $this->app->bind(Geocoder::class, fn (): Geocoder => Geocoder::fromConfig());
+        $this->app->bind(GooglePlaces::class, fn (): GooglePlaces => GooglePlaces::fromConfig());
         $this->app->bind(Assistant::class, fn (): Assistant => Assistant::fromConfig());
         $this->app->bind(DistrictStaticMap::class, fn (): DistrictStaticMap => DistrictStaticMap::fromConfig());
         $this->app->singleton(GoogleCalendar::class, fn (): GoogleCalendar => GoogleCalendar::fromConfig());
@@ -77,6 +80,11 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureDefaults(): void
     {
+        // Aucun N+1 silencieux : en local et en test, lire une relation non
+        // chargée lève une exception ; en production on laisse passer (le
+        // client ne paie pas nos oublis), les logs suffisent.
+        Model::preventLazyLoading(! $this->app->isProduction());
+
         Date::use(CarbonImmutable::class);
 
         DB::prohibitDestructiveCommands(

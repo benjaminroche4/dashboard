@@ -47,17 +47,20 @@ final readonly class RenderDossierCover
     /**
      * Sommaire : une entrée par personne, ses pièces reçues (avec le nombre de
      * fichiers) et ses pièces manquantes, dans l'ordre du catalogue. Une pièce
-     * refusée par l'équipe n'entre pas dans le dossier : elle est comptée
-     * **manquante**, comme sur la page de dépôt du client.
+     * qui n'a pas encore été **validée** par l'équipe n'entre pas dans le
+     * dossier : reçue mais à vérifier, elle est listée « en attente » ;
+     * refusée ou jamais déposée, elle est comptée **manquante**.
      *
-     * @return list<array{name: string, role: string, received: list<array{label: string, files: int}>, missing: list<string>}>
+     * @return list<array{name: string, role: string, received: list<array{label: string, files: int}>, pending: list<string>, missing: list<string>}>
      */
     public static function persons(DocumentRequest $request): array
     {
         $uploads = self::valid($request);
+        $waiting = $request->uploads->where('status', DocumentUploadStatus::Pending);
 
-        return array_map(function (array $person, int $index) use ($uploads): array {
+        return array_map(function (array $person, int $index) use ($uploads, $waiting): array {
             $received = [];
+            $pending = [];
             $missing = [];
 
             foreach ($person['categories'] as $category) {
@@ -67,13 +70,22 @@ final readonly class RenderDossierCover
                         ->where('document_key', $document['key'])
                         ->count();
 
-                    if ($files === 0) {
-                        $missing[] = $document['label'];
+                    if ($files > 0) {
+                        $received[] = ['label' => $document['label'], 'files' => $files];
 
                         continue;
                     }
 
-                    $received[] = ['label' => $document['label'], 'files' => $files];
+                    $isWaiting = $waiting
+                        ->where('person_index', $index)
+                        ->where('document_key', $document['key'])
+                        ->isNotEmpty();
+
+                    if ($isWaiting) {
+                        $pending[] = $document['label'];
+                    } else {
+                        $missing[] = $document['label'];
+                    }
                 }
             }
 
@@ -81,27 +93,27 @@ final readonly class RenderDossierCover
                 'name' => $person['name'],
                 'role' => $person['role'],
                 'received' => $received,
+                'pending' => $pending,
                 'missing' => $missing,
             ];
         }, RenderDocumentRequestPdf::persons($request), array_keys($request->persons));
     }
 
-    /** Nombre de fichiers valides, ceux que le dossier fusionné emporte. */
+    /** Nombre de fichiers validés, les seuls que le dossier fusionné emporte. */
     public static function files(DocumentRequest $request): int
     {
         return self::valid($request)->count();
     }
 
     /**
-     * Pièces valides : tout sauf celles que l'équipe a refusées.
+     * Pièces validées par l'équipe : rien ne sort du backoffice sans qu'un
+     * membre l'ait vu. Une pièce déposée mais pas encore relue attend.
      *
      * @return Collection<int, DocumentUpload>
      */
     private static function valid(DocumentRequest $request): Collection
     {
-        return $request->uploads->reject(
-            fn (DocumentUpload $upload): bool => $upload->status === DocumentUploadStatus::Refused,
-        );
+        return $request->uploads->where('status', DocumentUploadStatus::Accepted);
     }
 
     public static function fileName(DocumentRequest $request): string
@@ -111,7 +123,7 @@ final readonly class RenderDossierCover
         return 'dossier-'.($slug !== '' ? $slug : $request->uuid).'.pdf';
     }
 
-    /** Poids total des pièces valides, pour prévenir avant une grosse fusion. */
+    /** Poids total des pièces validées, pour prévenir avant une grosse fusion. */
     public static function weight(DocumentRequest $request): int
     {
         return (int) self::valid($request)->sum(fn (DocumentUpload $upload): int => $upload->size);

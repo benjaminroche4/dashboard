@@ -7,7 +7,11 @@ const { post, toastWarning } = vi.hoisted(() => ({
     toastWarning: vi.fn(),
 }));
 
-vi.mock('@inertiajs/react', () => ({ router: { post } }));
+vi.mock('@inertiajs/react', () => ({
+    router: { post },
+    // Sans clé API, le bloc « Rédiger avec l'IA » n'apparaît pas.
+    usePage: () => ({ props: { features: { assistant: false } } }),
+}));
 vi.mock('@/lib/toast', () => ({
     notify: { error: vi.fn(), warning: toastWarning },
 }));
@@ -64,6 +68,8 @@ describe('VisitReportDialog', () => {
             screen.getByLabelText('Compte rendu'),
             'Client conquis par le séjour, réserve sur la cuisine.',
         );
+        // La prochaine étape est facultative, mais elle part quand on la choisit.
+        await user.click(screen.getByRole('radio', { name: 'Dossier déposé' }));
         await user.click(
             screen.getByRole('button', { name: 'Enregistrer le compte rendu' }),
         );
@@ -72,6 +78,7 @@ describe('VisitReportDialog', () => {
         expect(url).toBe(`/clients/visits/${visit.uuid}/report`);
         expect(payload).toMatchObject({
             report: 'Client conquis par le séjour, réserve sur la cuisine.',
+            next_status: 'applied',
         });
         expect(
             (payload as { photos: File[] }).photos.map((file) => file.name),
@@ -125,5 +132,33 @@ describe('VisitReportDialog', () => {
 
         await user.upload(dropzoneInput(), [photo('salon.jpg')]);
         expect(screen.queryByText(/salon\.jpg/)).not.toBeInTheDocument();
+    });
+});
+
+describe('VisitReportDialog, editing an existing report', () => {
+    it('starts from what was already written and from the current step', () => {
+        render(
+            <VisitReportDialog
+                visit={makeVisit({
+                    report: 'Très bonne visite.',
+                    outcome: 'applied',
+                })}
+                open
+                onOpenChange={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByLabelText('Compte rendu')).toHaveValue(
+            'Très bonne visite.',
+        );
+        // L'étape en cours est déjà choisie : on ne la resaisit pas.
+        expect(
+            screen.getByRole('radio', { name: 'Dossier déposé' }),
+        ).toHaveAttribute('data-state', 'on');
+        expect(
+            screen.getByRole('button', {
+                name: 'Mettre à jour le compte rendu',
+            }),
+        ).toBeInTheDocument();
     });
 });

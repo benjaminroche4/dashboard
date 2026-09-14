@@ -670,7 +670,7 @@ export default function DocumentsCreate({
 DocumentsCreate.layout = {
     breadcrumbs: [
         { title: 'Outils', href: toolsIndex() },
-        { title: 'Documents', href: documentsIndex() },
+        { title: 'Listes de pièces', href: documentsIndex() },
         { title: 'Nouvelle liste', href: '#' },
     ],
 };

@@ -152,6 +152,24 @@ describe('Visit detail page', () => {
         expect(screen.getByRole('dialog')).toHaveTextContent('Photo 2 sur 2');
     });
 
+    it('shows the report as written, in plain text', () => {
+        render(
+            <VisitShow
+                visit={makeVisitDetail({
+                    can_report: true,
+                    report: 'Une visite très positive.',
+                })}
+                otherVisits={[]}
+            />,
+        );
+
+        expect(
+            within(
+                screen.getByRole('region', { name: 'Compte rendu' }),
+            ).getByText('Une visite très positive.'),
+        ).toBeInTheDocument();
+    });
+
     it('shows the report photos, openable the same way', async () => {
         const user = userEvent.setup();
         render(

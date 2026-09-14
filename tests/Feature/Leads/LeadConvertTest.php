@@ -40,3 +40,30 @@ test('an already converted lead cannot be converted twice, and guests are redire
         ->assertRedirect(route('leads.show', $lead))
         ->assertSessionHasErrors('status');
 });
+
+test('a lead without an offer cannot become a client, by the button nor by the kanban', function (): void {
+    $member = User::factory()->create();
+    $lead = Lead::factory()->status(LeadStatus::InProgress)->create(['offer' => null]);
+
+    $this->actingAs($member)
+        ->from(route('leads.show', $lead))
+        ->post(route('leads.convert', $lead))
+        ->assertRedirect(route('leads.show', $lead))
+        ->assertSessionHasErrors('offer');
+
+    $this->actingAs($member)
+        ->patch(route('leads.status', $lead), ['status' => LeadStatus::Converted->value])
+        ->assertSessionHasErrors('offer');
+
+    expect($lead->fresh()->status)->toBe(LeadStatus::InProgress);
+});
+
+test('a client file without an offer sends back to the lead to choose one', function (): void {
+    $member = User::factory()->create();
+    // Un client d'avant la règle : converti, mais sans formule.
+    $lead = Lead::factory()->converted()->create(['offer' => null, 'first_name' => 'Léa', 'last_name' => 'Durand']);
+
+    $this->actingAs($member)
+        ->get(route('clients.show', $lead))
+        ->assertRedirect(route('leads.show', $lead));
+});

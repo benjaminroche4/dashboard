@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\GoogleLoginController;
+use App\Http\Controllers\Clients\ClientAgencyController;
 use App\Http\Controllers\Clients\ClientController;
 use App\Http\Controllers\Clients\ClientPropertyController;
 use App\Http\Controllers\Clients\VisitController;
@@ -93,9 +94,18 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('tools/documents/{documentRequest}/edit', [DocumentRequestController::class, 'edit'])->name('tools.documents.edit');
     Route::put('tools/documents/{documentRequest}', [DocumentRequestController::class, 'update'])->name('tools.documents.update');
     Route::delete('tools/documents/{documentRequest}', [DocumentRequestController::class, 'destroy'])->name('tools.documents.destroy');
+    // Dépôt d'une pièce par l'équipe, depuis la fiche (le client passe par `depot/{jeton}`).
+    Route::post('tools/documents/{documentRequest}/uploads', [DocumentUploadController::class, 'store'])->name('tools.documents.uploads.store');
     Route::get('tools/documents/{documentRequest}/uploads/{upload}', [DocumentUploadController::class, 'download'])->scopeBindings()->name('tools.documents.uploads.download');
     Route::get('tools/documents/{documentRequest}/uploads/{upload}/apercu', [DocumentUploadController::class, 'preview'])->scopeBindings()->name('tools.documents.uploads.preview');
     Route::patch('tools/documents/{documentRequest}/uploads/{upload}', [DocumentUploadController::class, 'review'])->scopeBindings()->name('tools.documents.uploads.review');
+    // Lecture IA : une pièce, ou toutes celles qui attendent encore une proposition.
+    Route::post('tools/documents/{documentRequest}/uploads/{upload}/analyze', [DocumentUploadController::class, 'analyze'])->scopeBindings()->middleware('throttle:30,1')->name('tools.documents.uploads.analyze');
+    Route::post('tools/documents/{documentRequest}/uploads/{upload}/profile', [DocumentUploadController::class, 'applyProfile'])->scopeBindings()->name('tools.documents.uploads.profile');
+    Route::post('tools/documents/{documentRequest}/analyze', [DocumentRequestController::class, 'analyze'])->middleware('throttle:10,1')->name('tools.documents.analyze');
+    // Lettre de présentation du dossier : proposée par l'assistant, relue et enregistrée par l'équipe.
+    Route::post('tools/documents/{documentRequest}/letter/draft', [DocumentRequestController::class, 'draftLetter'])->middleware('throttle:20,1')->name('tools.documents.letter.draft');
+    Route::patch('tools/documents/{documentRequest}/letter', [DocumentRequestController::class, 'letter'])->name('tools.documents.letter');
     Route::delete('tools/documents/{documentRequest}/uploads/{upload}', [DocumentUploadController::class, 'destroy'])->scopeBindings()->name('tools.documents.uploads.destroy');
     // Devis : même cycle que les factures, transformables en facture d'un clic.
     // Rapports : chiffres clés de l'activité sur les derniers mois.
@@ -121,6 +131,8 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('real-estate/agencies', [AgencyController::class, 'index'])->name('agencies.index');
     Route::get('real-estate/agencies/duplicates', [AgencyController::class, 'duplicates'])->middleware('throttle:60,1')->name('agencies.duplicates');
     Route::get('real-estate/agencies/search', [AgencyController::class, 'search'])->middleware('throttle:60,1')->name('agencies.search');
+    // Toutes les agences géocodées, pour la carte de l'annuaire (la liste, elle, est paginée).
+    Route::get('real-estate/agencies/map', [AgencyController::class, 'map'])->middleware('throttle:60,1')->name('agencies.map');
     Route::post('real-estate/agencies', [AgencyController::class, 'store'])->name('agencies.store');
     Route::delete('real-estate/agencies/bulk', [AgencyController::class, 'bulkDestroy'])->name('agencies.bulk-destroy');
     Route::get('real-estate/agencies/{agency}', [AgencyController::class, 'show'])->name('agencies.show');
@@ -128,6 +140,11 @@ Route::middleware(['auth'])->group(function (): void {
     Route::delete('real-estate/agencies/{agency}', [AgencyController::class, 'destroy'])->name('agencies.destroy');
     Route::post('real-estate/agencies/{agency}/favorite', [AgencyController::class, 'favorite'])->name('agencies.favorite');
     Route::post('real-estate/agencies/{agency}/touch', [AgencyController::class, 'touch'])->name('agencies.touch');
+    // Profil de matching : saisi à la main, ou proposé par l'assistant puis relu.
+    Route::patch('real-estate/agencies/{agency}/profile', [AgencyController::class, 'profile'])->name('agencies.profile');
+    Route::post('real-estate/agencies/{agency}/enrich', [AgencyController::class, 'enrich'])->middleware('throttle:10,1')->name('agencies.enrich');
+    Route::post('real-estate/agencies/{agency}/enrich/apply', [AgencyController::class, 'applyEnrichment'])->name('agencies.enrich.apply');
+    Route::delete('real-estate/agencies/{agency}/enrich', [AgencyController::class, 'dismissEnrichment'])->name('agencies.enrich.dismiss');
     Route::get('real-estate/agents', [AgentController::class, 'index'])->name('agents.index');
     Route::get('real-estate/agents/duplicates', [AgentController::class, 'duplicates'])->middleware('throttle:60,1')->name('agents.duplicates');
     Route::get('real-estate/agents/search', [AgentController::class, 'search'])->middleware('throttle:60,1')->name('agents.search');
@@ -138,6 +155,7 @@ Route::middleware(['auth'])->group(function (): void {
     Route::delete('real-estate/agents/{agent}', [AgentController::class, 'destroy'])->name('agents.destroy');
     Route::post('real-estate/agents/{agent}/favorite', [AgentController::class, 'favorite'])->name('agents.favorite');
     Route::post('real-estate/agents/{agent}/touch', [AgentController::class, 'touch'])->name('agents.touch');
+    Route::patch('real-estate/agents/{agent}/profile', [AgentController::class, 'profile'])->name('agents.profile');
     // Propriétaires : prospection pour la gestion locative, et leads propriétaires.
     Route::get('owners', [OwnerController::class, 'index'])->name('owners.index');
     Route::get('owners/leads', [OwnerController::class, 'leads'])->name('owners.leads');
@@ -203,10 +221,19 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('clients/{lead}/edit', [ClientController::class, 'edit'])->name('clients.edit');
     Route::patch('clients/{lead}', [ClientController::class, 'update'])->name('clients.update');
     Route::post('clients/{lead}/properties/explain', [ClientPropertyController::class, 'explain'])->middleware('throttle:20,1')->name('clients.properties.explain');
+    // Agences à contacter : affinage IA, mot rédigé, envoi de la recherche, découverte Google Places.
+    Route::post('clients/{lead}/agencies/explain', [ClientAgencyController::class, 'explain'])->middleware('throttle:20,1')->name('clients.agencies.explain');
+    Route::post('clients/{lead}/agencies/draft', [ClientAgencyController::class, 'draft'])->middleware('throttle:20,1')->name('clients.agencies.draft');
+    Route::post('clients/{lead}/agencies/send', [ClientAgencyController::class, 'send'])->name('clients.agencies.send');
+    Route::post('clients/{lead}/agencies/discover', [ClientAgencyController::class, 'discover'])->middleware('throttle:20,1')->name('clients.agencies.discover');
+    Route::post('clients/{lead}/agencies/from-place', [ClientAgencyController::class, 'addFromPlace'])->name('clients.agencies.from-place');
     Route::post('clients/{lead}/properties', [ClientPropertyController::class, 'store'])->name('clients.properties.store');
     Route::patch('clients/{lead}/properties/{property}/status', [ClientPropertyController::class, 'status'])->name('clients.properties.status');
     Route::delete('clients/{lead}/properties/{property}', [ClientPropertyController::class, 'destroy'])->name('clients.properties.destroy');
     Route::patch('clients/{lead}/priority', [ClientController::class, 'priority'])->name('clients.priority');
+    // Clôture d'un dossier (il passe en « Archivé ») et réouverture.
+    Route::post('clients/{lead}/close', [ClientController::class, 'close'])->name('clients.close');
+    Route::post('clients/{lead}/reopen', [ClientController::class, 'reopen'])->name('clients.reopen');
     Route::patch('clients/{lead}/people', [ClientController::class, 'people'])->name('clients.people');
     Route::post('clients/{lead}/guarantors', [ClientController::class, 'saveGuarantor'])->name('clients.guarantors.store');
     Route::patch('clients/{lead}/guarantors/{guarantor}', [ClientController::class, 'saveGuarantor'])->name('clients.guarantors.update');
@@ -232,6 +259,7 @@ Route::middleware(['auth'])->group(function (): void {
     Route::post('locataires/{lead}/partners', [LeadPartnerController::class, 'store'])->name('leads.partners.store');
     Route::delete('locataires/{lead}/partners/{partnerLink}', [LeadPartnerController::class, 'destroy'])->name('leads.partners.destroy');
     Route::post('locataires/{lead}/partners/{partnerLink}/forward', [LeadPartnerController::class, 'forward'])->name('leads.partners.forward');
+    Route::post('locataires/{lead}/partners/{partnerLink}/forward/draft', [LeadPartnerController::class, 'draftForward'])->middleware('throttle:20,1')->name('leads.partners.forward.draft');
     Route::patch('locataires/{lead}/contact', [LeadController::class, 'contact'])->name('leads.contact');
     Route::patch('locataires/{lead}/status', [LeadController::class, 'updateStatus'])->name('leads.status');
     Route::post('locataires/{lead}/notes', [LeadController::class, 'storeNote'])->name('leads.notes.store');

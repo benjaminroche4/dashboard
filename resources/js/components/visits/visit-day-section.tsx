@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table';
 import { VisitModeBadge } from '@/components/visits/visit-mode-badge';
 import { VisitReportBadge } from '@/components/visits/visit-report-badge';
-import { PropertyThumb } from '@/components/visits/property-picker';
+import { PropertyThumb } from '@/components/properties/property-thumb';
 import { VisitRowActions } from '@/components/visits/visit-row-actions';
 import { PropertyOutcomeBadge } from '@/components/clients/property-outcome';
 import { VisitStatusBadge } from '@/components/visits/visit-status-badge';
@@ -23,7 +23,17 @@ import { show as clientShow } from '@/routes/clients';
 import { show as visitShow } from '@/routes/clients/visits';
 
 /** Un jour de visites : en-tête daté et tableau des visites, par heure. */
-export function VisitDaySection({ day }: { day: VisitDay }) {
+export function VisitDaySection({
+    day,
+    writeShortcut = true,
+}: {
+    day: VisitDay;
+    /**
+     * Raccourci « Rédiger » au bout d'une ligne dont le compte rendu est dû.
+     * Sur le dossier client, l'en-tête porte déjà le bouton : pas deux fois.
+     */
+    writeShortcut?: boolean;
+}) {
     const title = day.relative ? `${day.relative} · ${day.label}` : day.label;
 
     return (
@@ -164,7 +174,11 @@ export function VisitDaySection({ day }: { day: VisitDay }) {
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex items-center justify-end gap-1">
-                                            <WriteReportButton visit={visit} />
+                                            {writeShortcut && (
+                                                <WriteReportButton
+                                                    visit={visit}
+                                                />
+                                            )}
                                             <VisitRowActions visit={visit} />
                                         </div>
                                     </TableCell>

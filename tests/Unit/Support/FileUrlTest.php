@@ -44,7 +44,11 @@ test('a bucket answers with a signed link that expires', function (): void {
 
     expect($url)->toContain('rip-bucket/properties/photo.jpg')
         ->and($url)->toContain('X-Amz-Signature')
-        ->and($url)->toContain('X-Amz-Expires='.(FileUrl::HOURS * 3600));
+        // Le délai est calculé au moment de la signature : sous charge, une
+        // seconde peut s'être écoulée depuis `now()`.
+        ->and((int) preg_replace('/.*X-Amz-Expires=(\d+).*/', '$1', $url))
+        ->toBeGreaterThanOrEqual(FileUrl::HOURS * 3600 - 1)
+        ->toBeLessThanOrEqual(FileUrl::HOURS * 3600);
 });
 
 test('a list of paths keeps its order and drops the empty ones', function (): void {

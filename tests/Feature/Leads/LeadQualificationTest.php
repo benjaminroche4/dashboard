@@ -15,6 +15,7 @@ use App\Enums\PropertyType;
 use App\Events\DashboardUpdated;
 use App\Jobs\QualifyLeadJob;
 use App\Models\Lead;
+use App\Models\LeadNote;
 use App\Models\User;
 use App\Services\Assistant;
 use Illuminate\Support\Facades\Event;
@@ -163,4 +164,22 @@ test('without an assistant nothing is proposed, and an inbound lead queues a qua
     config()->set('services.anthropic.key');
     resolve(CreateLead::class)->handle(LeadData::from(['first_name' => 'Paul', 'last_name' => 'Roux', 'email' => 'paul@example.com', 'source' => 'website']));
     Queue::assertPushed(QualifyLeadJob::class, 1);
+});
+
+it('reads the ten most recent notes of the team and of the phone, never the tracking', function (): void {
+    $lead = Lead::factory()->create();
+    $day = now()->subDays(30);
+    // Onze notes d'équipe : la plus ancienne doit sortir, la plus récente rester.
+    foreach (range(1, 11) as $i) {
+        LeadNote::factory()->for($lead)->create(['body' => "Note équipe {$i}", 'created_at' => $day->copy()->addDays($i)]);
+    }
+    LeadNote::factory()->for($lead)->tracking()->create(['body' => 'Facture RP-27001 rattachée à ce lead.', 'created_at' => now()]);
+    LeadNote::factory()->for($lead)->tracking()->create(['body' => 'Appel entrant (3 min, répondu) : cherche un T2 dans le 11e', 'created_at' => now()]);
+
+    $prompt = (string) QualifyLead::prompt($lead->refresh());
+
+    expect($prompt)->toContain("- Note équipe 11\n")->toContain("- Note équipe 3\n")
+        ->not->toContain("- Note équipe 2\n")
+        ->toContain('cherche un T2 dans le 11e')
+        ->not->toContain('Facture RP-27001');
 });

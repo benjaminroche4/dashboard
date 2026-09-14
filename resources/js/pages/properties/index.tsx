@@ -96,6 +96,7 @@ export default function PropertiesIndex({
                     </section>
                 ) : (
                     <DataTable
+                        storageKey="properties"
                         columns={columns}
                         data={properties}
                         server={server}

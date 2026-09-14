@@ -19,10 +19,12 @@ vi.mock('@inertiajs/react', () => ({
     }),
 }));
 vi.mock('@laravel/echo-react', () => ({ useEchoPresence }));
+vi.mock('@/lib/missed-events', () => ({ recordMissedEvent: vi.fn() }));
 vi.mock('@/lib/toast', () => ({
     notify: { info: toastInfo, warning: toastWarning },
 }));
 
+import { recordMissedEvent } from '@/lib/missed-events';
 import {
     describeEvent,
     mentionsMe,
@@ -78,6 +80,7 @@ describe('useStaffChannel', () => {
         reload.mockClear();
         useEchoPresence.mockClear();
         toastInfo.mockClear();
+        vi.mocked(recordMissedEvent).mockClear();
     });
 
     it('subscribes to the staff presence channel for dashboard.updated', () => {
@@ -91,15 +94,26 @@ describe('useStaffChannel', () => {
         );
     });
 
-    it('toasts and reloads the whole page for another member’s action', () => {
+    it('reloads in silence for an action that does not concern me, and counts it', () => {
         renderHook(() => useStaffChannel());
 
         lastListener()(fromOther);
 
+        // Pas de toast : la cloche compte, la page se met à jour.
+        expect(toastInfo).not.toHaveBeenCalled();
+        expect(recordMissedEvent).toHaveBeenCalledTimes(1);
+        expect(reload).toHaveBeenCalledWith({ only: undefined });
+    });
+
+    it('toasts when I follow the lead the action touched', () => {
+        renderHook(() => useStaffChannel());
+
+        lastListener()({ ...fromOther, concerns: [1, 3] });
+
         expect(toastInfo).toHaveBeenCalledWith(
             'Admin 2 a expédié la commande #1',
         );
-        expect(reload).toHaveBeenCalledWith({ only: undefined });
+        expect(recordMissedEvent).not.toHaveBeenCalled();
     });
 
     it('handles the current user’s own actions coming from another tab', () => {

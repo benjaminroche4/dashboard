@@ -1,11 +1,20 @@
 import type { Page } from '@playwright/test';
 
 /** Une étape de résolution : sur la page `list`, prendre le premier lien qui ressemble à `pattern`. */
-export type ResolveStep = {
-    /** Page à ouvrir ; absente, c'est la page résolue par l'étape précédente. */
-    list?: string;
-    pattern: RegExp;
-};
+export type ResolveStep =
+    | {
+          /** Page à ouvrir ; absente, c'est la page résolue par l'étape précédente. */
+          list?: string;
+          pattern: RegExp;
+      }
+    | {
+          /**
+           * Chemin dérivé de la page précédente sans la visiter : pour une
+           * page qu'aucun lien n'atteint (bouton `router.visit`, entrée d'un
+           * menu « ⋯ ») ou dont l'identifiant est déjà connu.
+           */
+          derive: (current: string) => string;
+      };
 
 /**
  * Une page clé à visiter (avec session ; la page de connexion est auditée à part, hors session).
@@ -36,7 +45,9 @@ export const keyPages: KeyPage[] = [
         name: 'Lead : fiche',
         steps: [
             { list: '/clients', pattern: detail('clients') },
-            { pattern: detail('locataires') },
+            // Un client est un lead converti : même UUID, la fiche lead se
+            // déduit du dossier (son bouton vit dans le menu « ⋯ »).
+            { derive: (client) => client.replace('/clients/', '/locataires/') },
         ],
     },
     { name: 'Leads propriétaires', path: '/owners/leads' },
@@ -47,10 +58,13 @@ export const keyPages: KeyPage[] = [
     { name: 'Agences', path: '/real-estate/agencies' },
     { name: 'Partenaires', path: '/partners' },
     { name: 'Partenaire : fiche', steps: firstOf('/partners', 'partners') },
-    { name: 'Agent : fiche', steps: firstOf('/real-estate/agents', 'agents') },
+    {
+        name: 'Agent : fiche',
+        steps: firstOf('/real-estate/agents', 'real-estate/agents'),
+    },
     {
         name: 'Agence : fiche',
-        steps: firstOf('/real-estate/agencies', 'agencies'),
+        steps: firstOf('/real-estate/agencies', 'real-estate/agencies'),
     },
     { name: 'Biens', path: '/properties' },
     { name: 'Bien : création', path: '/properties/create' },
@@ -59,7 +73,8 @@ export const keyPages: KeyPage[] = [
         name: 'Bien : modification',
         steps: [
             { list: '/properties', pattern: detail('properties') },
-            { pattern: new RegExp(`^/properties/${UUID}/edit$`) },
+            // « Modifier » est un bouton (`router.visit`), pas un lien.
+            { derive: (property) => `${property}/edit` },
         ],
     },
     { name: 'Visite : création', path: '/clients/visits/create' },
@@ -104,7 +119,31 @@ async function firstLink(
     list: string,
     pattern: RegExp,
 ): Promise<string | null> {
-    await page.goto(list, { waitUntil: 'networkidle' });
+    // Pas `networkidle` : la connexion Reverb reste ouverte et, en dev, Vite
+    // recharge en fond — le réseau ne s'endort jamais et le hook expire. Le
+    // DOM chargé suffit pour lire le premier lien de la liste.
+    // Pas `networkidle` : la connexion Reverb reste ouverte et, en dev, Vite
+    // recharge en fond — le réseau ne s'endort jamais et le hook expirait. On
+    // attend le premier lien qui corresponde vraiment au motif : sans cette
+    // attente la fiche n'était pas résolue et le test se marquait « skipped »,
+    // donc non vérifié.
+    await page.goto(list, { waitUntil: 'domcontentloaded' });
+    await page
+        .waitForFunction(
+            (source) =>
+                [...document.querySelectorAll('main a[href]')].some((anchor) =>
+                    new RegExp(source).test(
+                        new URL((anchor as HTMLAnchorElement).href).pathname,
+                    ),
+                ),
+            pattern.source,
+            { timeout: 10_000 },
+        )
+        .catch(() => undefined);
+    // Le chargement doit être fini avant de rendre la main : un `goto` lancé
+    // par le test suivant sur une page encore en cours de chargement se fait
+    // supplanter, et Playwright lui répond `null` au lieu d'une réponse.
+    await page.waitForLoadState('load');
     const hrefs = await page
         .locator('main a[href]')
         .evaluateAll((anchors) =>
@@ -132,6 +171,13 @@ export async function resolvePath(
     }
     let current: string | null = null;
     for (const step of keyPage.steps) {
+        if ('derive' in step) {
+            if (!current) {
+                return null;
+            }
+            current = step.derive(current);
+            continue;
+        }
         const list = step.list ?? current;
         if (!list) {
             return null;

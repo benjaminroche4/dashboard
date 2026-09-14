@@ -17,7 +17,8 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * Compte rendu de visite envoyé au client, dans sa langue : ce que l'équipe a
- * vu sur place, le bien concerné, et les premières photos en pièces jointes.
+ * vu sur place — traduit par l'assistant quand le client n'est pas
+ * francophone —, le bien concerné, et les premières photos en pièces jointes.
  */
 final class VisitReportSent extends Mailable implements ShouldQueue
 {
@@ -26,7 +27,11 @@ final class VisitReportSent extends Mailable implements ShouldQueue
     /** Au-delà, l'e-mail devient trop lourd : les autres photos restent dans le dossier. */
     public const int MAX_PHOTOS = 4;
 
-    public function __construct(public readonly Visit $visit) {}
+    /**
+     * @param  string|null  $report  Impressions traduites dans la langue du
+     *                               client ; sans elles, le texte d'origine.
+     */
+    public function __construct(public readonly Visit $visit, public readonly ?string $report = null) {}
 
     public function envelope(): Envelope
     {
@@ -50,7 +55,7 @@ final class VisitReportSent extends Mailable implements ShouldQueue
             'fr' => $fr,
             'lead' => $this->visit->lead,
             'property' => $this->visit->property,
-            'report' => $this->visit->report,
+            'report' => $this->report ?? $this->visit->report,
             'when' => $at->settings(['locale' => $fr ? 'fr' : 'en'])->translatedFormat($fr ? 'l j F Y' : 'l F j, Y'),
             'time' => $at->format($fr ? 'H\hi' : 'H:i'),
             'address' => VisitScheduled::address($this->visit),

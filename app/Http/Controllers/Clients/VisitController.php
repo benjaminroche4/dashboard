@@ -307,6 +307,7 @@ class VisitController extends Controller
             'outcome_label' => self::outcomeOf($visit)->label(),
             // Compte rendu post-visite ; `report_due` = visite passée, non annulée, sans compte rendu.
             'report' => $visit->report,
+            // Ressenti, notes par critère, points forts, réserves… libellés résolus.
             'report_photos' => $visit->reportPhotoUrls(),
             'report_submitted_at' => $visit->report_submitted_at?->toIso8601String(),
             'report_author' => $visit->reportAuthor?->name,

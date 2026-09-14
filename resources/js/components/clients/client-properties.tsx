@@ -24,18 +24,14 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { formatMoney } from '@/lib/format';
 import { destroy, explain, store } from '@/routes/clients/properties';
 import { create as visitCreate } from '@/routes/clients/visits';
 import { show as propertyShow } from '@/routes/properties';
+import { HousingEmptyState } from '@/components/clients/housing-empty-state';
+import { PropertyThumb } from '@/components/properties/property-thumb';
+import { SearchSelect } from '@/components/search-select';
 import type {
     ClientProperty,
     ClientPropertyExplanation,
@@ -199,17 +195,19 @@ export function ClientProperties({
                         {formatAddress(retained) ?? ''}
                     </span>
                 </p>
-            ) : (
+            ) : properties.length > 0 ? (
                 <p className="text-muted-foreground text-sm">
                     Aucun logement retenu pour l'instant : ceux d'en dessous lui
                     sont proposés, jusqu'à la visite validée et le bail signé.
                 </p>
-            )}
+            ) : null}
             {properties.length === 0 ? (
-                <p className="text-muted-foreground text-sm">
-                    Aucun logement proposé pour l'instant. Ajoutez-en un depuis
-                    l'annuaire pour pouvoir planifier une visite.
-                </p>
+                /* Rien de retenu, rien de proposé : l'état vide porte lui-même
+                   le bouton et dit ce qui se passera ensuite. */
+                <HousingEmptyState
+                    onPropose={() => setLinking(true)}
+                    canPropose={options.length > 0}
+                />
             ) : (
                 <ul role="list" className="grid gap-3">
                     {ordered.map((property) => (
@@ -217,76 +215,86 @@ export function ClientProperties({
                             key={property.id}
                             className="bg-sidebar flex flex-wrap items-start justify-between gap-3 rounded-lg border p-3 text-sm"
                         >
-                            <div className="grid min-w-0 gap-0.5">
-                                <span className="flex flex-wrap items-center gap-2 font-medium">
-                                    {/* Le nom mène à la fiche du bien : c'est là
+                            {/* La photo devant les informations, comme dans
+                                l'annuaire des biens et les fiches d'annuaire. */}
+                            <div className="flex min-w-0 flex-1 items-start gap-3">
+                                <PropertyThumb
+                                    photo={property.photo}
+                                    label={property.label}
+                                    className="size-10"
+                                />
+                                <div className="grid min-w-0 gap-0.5">
+                                    <span className="flex flex-wrap items-center gap-2 font-medium">
+                                        {/* Le nom mène à la fiche du bien : c'est là
                                         que se lisent photos, loyer et visites. */}
-                                    <Link
-                                        href={propertyShow({
-                                            property: property.uuid,
-                                        })}
-                                        className="underline-offset-4 hover:underline"
-                                    >
-                                        {property.label}
-                                    </Link>
-                                    {property.listing_url && (
-                                        <a
-                                            href={property.listing_url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            aria-label={`Annonce de ${property.label}`}
-                                            className="text-muted-foreground hover:text-foreground"
+                                        <Link
+                                            href={propertyShow({
+                                                property: property.uuid,
+                                            })}
+                                            className="underline-offset-4 hover:underline"
                                         >
-                                            <ExternalLink
-                                                className="size-3.5"
+                                            {property.label}
+                                        </Link>
+                                        {property.listing_url && (
+                                            <a
+                                                href={property.listing_url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                aria-label={`Annonce de ${property.label}`}
+                                                className="text-muted-foreground hover:text-foreground"
+                                            >
+                                                <ExternalLink
+                                                    className="size-3.5"
+                                                    aria-hidden
+                                                />
+                                            </a>
+                                        )}
+                                    </span>
+                                    <span className="text-muted-foreground truncate text-xs">
+                                        {[
+                                            formatAddress(property),
+                                            property.property_type_label,
+                                            property.surface_m2
+                                                ? `${property.surface_m2} m²`
+                                                : null,
+                                            property.rent_cents !== null
+                                                ? `${formatMoney(property.rent_cents, property.currency)} / mois`
+                                                : null,
+                                            property.agent
+                                                ? `Agent : ${property.agent}`
+                                                : null,
+                                        ]
+                                            .filter(Boolean)
+                                            .join(' · ')}
+                                    </span>
+                                    <span className="text-muted-foreground text-xs">
+                                        {property.visits_count === 0
+                                            ? 'Aucune visite'
+                                            : `${property.visits_count} visite(s)`}
+                                        {property.next_visit_at &&
+                                            ` · prochaine ${dateTime.format(new Date(property.next_visit_at))}`}
+                                    </span>
+                                    {/* Le logement retenu par ce client, ou pris
+                                    par un autre dossier : les deux se disent. */}
+                                    {property.assigned_lead?.uuid ===
+                                    clientUuid ? (
+                                        <Badge
+                                            className="mt-1 w-fit gap-1 border-transparent bg-green-100 font-medium text-green-900 dark:bg-green-950 dark:text-green-200"
+                                            aria-label="Logement retenu par le client"
+                                        >
+                                            <UserCheck
+                                                className="size-3"
                                                 aria-hidden
                                             />
-                                        </a>
-                                    )}
-                                </span>
-                                <span className="text-muted-foreground truncate text-xs">
-                                    {[
-                                        formatAddress(property),
-                                        property.property_type_label,
-                                        property.surface_m2
-                                            ? `${property.surface_m2} m²`
-                                            : null,
-                                        property.rent_cents !== null
-                                            ? `${formatMoney(property.rent_cents, property.currency)} / mois`
-                                            : null,
-                                        property.agent
-                                            ? `Agent : ${property.agent}`
-                                            : null,
-                                    ]
-                                        .filter(Boolean)
-                                        .join(' · ')}
-                                </span>
-                                <span className="text-muted-foreground text-xs">
-                                    {property.visits_count === 0
-                                        ? 'Aucune visite'
-                                        : `${property.visits_count} visite(s)`}
-                                    {property.next_visit_at &&
-                                        ` · prochaine ${dateTime.format(new Date(property.next_visit_at))}`}
-                                </span>
-                                {/* Le logement retenu par ce client, ou pris
-                                    par un autre dossier : les deux se disent. */}
-                                {property.assigned_lead?.uuid === clientUuid ? (
-                                    <Badge
-                                        className="mt-1 w-fit gap-1 border-transparent bg-green-100 font-medium text-green-900 dark:bg-green-950 dark:text-green-200"
-                                        aria-label="Logement retenu par le client"
-                                    >
-                                        <UserCheck
-                                            className="size-3"
-                                            aria-hidden
+                                            Retenu par le client
+                                        </Badge>
+                                    ) : (
+                                        <PropertyAssignmentBadge
+                                            property={property}
+                                            className="mt-1 w-fit"
                                         />
-                                        Retenu par le client
-                                    </Badge>
-                                ) : (
-                                    <PropertyAssignmentBadge
-                                        property={property}
-                                        className="mt-1 w-fit"
-                                    />
-                                )}
+                                    )}
+                                </div>
                             </div>
                             <div className="flex shrink-0 items-center gap-1">
                                 <Button variant="outline" size="sm" asChild>
@@ -320,23 +328,25 @@ export function ClientProperties({
                     ))}
                 </ul>
             )}
-            <div>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setLinking(true)}
-                    disabled={options.length === 0}
-                >
-                    <Link2 aria-hidden />
-                    Proposer un logement
-                </Button>
-                {options.length === 0 && (
-                    <p className="text-muted-foreground mt-2 text-xs">
-                        Tous les logements de l’annuaire sont déjà proposés à ce
-                        client, ou l’annuaire est vide.
-                    </p>
-                )}
-            </div>
+            {properties.length > 0 && (
+                <div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLinking(true)}
+                        disabled={options.length === 0}
+                    >
+                        <Link2 aria-hidden />
+                        Proposer un logement
+                    </Button>
+                    {options.length === 0 && (
+                        <p className="text-muted-foreground mt-2 text-xs">
+                            Tous les logements de l’annuaire sont déjà proposés
+                            à ce client, ou l’annuaire est vide.
+                        </p>
+                    )}
+                </div>
+            )}
 
             {suggestions.length > 0 && (
                 <section
@@ -387,7 +397,14 @@ export function ClientProperties({
                                 key={suggestion.id}
                                 className="bg-background flex flex-wrap items-start justify-between gap-3 rounded-lg border p-3 text-sm"
                             >
-                                <div className="grid min-w-0 gap-1">
+                                {/* La photo d'abord : un logement se reconnaît
+                                    à son image avant son adresse. */}
+                                <PropertyThumb
+                                    photo={suggestion.photo}
+                                    label={suggestion.label}
+                                    className="size-12"
+                                />
+                                <div className="grid min-w-0 flex-1 gap-1">
                                     <span className="flex flex-wrap items-center gap-2 font-medium">
                                         <Link
                                             href={propertyShow({
@@ -522,35 +539,39 @@ export function ClientProperties({
                     >
                         <div className="grid gap-2">
                             <Label htmlFor="client-property">Bien</Label>
-                            <Select
+                            {/* L'annuaire compte des centaines de biens : on
+                                cherche (nom, adresse, ville), et chaque ligne
+                                montre sa photo. */}
+                            <SearchSelect
+                                id="client-property"
                                 value={form.data.property_id}
-                                onValueChange={(value) =>
+                                onChange={(value) =>
                                     form.setData('property_id', value)
                                 }
-                            >
-                                <SelectTrigger
-                                    id="client-property"
-                                    className="w-full"
-                                >
-                                    <SelectValue placeholder="Choisir un bien" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {options.map((option) => (
-                                        <SelectItem
-                                            key={option.id}
-                                            value={String(option.id)}
-                                        >
-                                            {option.label}
-                                            {option.label !== option.street && (
-                                                <span className="text-muted-foreground">
-                                                    {' '}
-                                                    · {option.street}
-                                                </span>
-                                            )}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                placeholder="Choisir un bien"
+                                searchPlaceholder="Rechercher un bien (nom, adresse, ville)…"
+                                noResults="Aucun bien ne correspond."
+                                options={options.map((option) => ({
+                                    value: String(option.id),
+                                    label: option.label,
+                                    hint:
+                                        option.label === option.street
+                                            ? formatAddress(option)
+                                            : option.street,
+                                    keywords: [
+                                        option.street,
+                                        option.postal_code ?? '',
+                                        option.city ?? '',
+                                    ],
+                                    leading: (
+                                        <PropertyThumb
+                                            photo={option.photo}
+                                            label={option.label}
+                                            className="size-7"
+                                        />
+                                    ),
+                                }))}
+                            />
                             <InputError message={form.errors.property_id} />
                         </div>
                         <DialogFooter>

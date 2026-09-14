@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { AddressMapButton } from '@/components/address-map-dialog';
 import { OwnerDialog } from '@/components/owners/owner-dialog';
+import { PropertyThumb } from '@/components/properties/property-thumb';
 import { formatAddress } from '@/components/real-estate/columns';
 import {
     DetailHeader,
@@ -220,22 +221,34 @@ export default function OwnerShow({
                                             key={property.uuid}
                                             className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"
                                         >
-                                            <div className="grid min-w-0 gap-0.5">
-                                                <Link
-                                                    href={propertyShow({
-                                                        property: property.uuid,
-                                                    })}
-                                                    className="truncate font-medium underline-offset-4 hover:underline"
-                                                >
-                                                    {property.label}
-                                                </Link>
-                                                <span className="text-muted-foreground truncate text-xs">
-                                                    {formatAddress(property) ??
-                                                        '—'}
-                                                    {property.rent_cents !==
-                                                        null &&
-                                                        ` · ${formatMoney(property.rent_cents, property.currency)} / mois`}
-                                                </span>
+                                            {/* La photo principale devant les
+                                                informations : un logement se
+                                                reconnaît avant de se lire. */}
+                                            <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                <PropertyThumb
+                                                    photo={property.photos[0]}
+                                                    label={property.label}
+                                                    className="size-10"
+                                                />
+                                                <div className="grid min-w-0 gap-0.5">
+                                                    <Link
+                                                        href={propertyShow({
+                                                            property:
+                                                                property.uuid,
+                                                        })}
+                                                        className="truncate font-medium underline-offset-4 hover:underline"
+                                                    >
+                                                        {property.label}
+                                                    </Link>
+                                                    <span className="text-muted-foreground truncate text-xs">
+                                                        {formatAddress(
+                                                            property,
+                                                        ) ?? '—'}
+                                                        {property.rent_cents !==
+                                                            null &&
+                                                            ` · ${formatMoney(property.rent_cents, property.currency)} / mois`}
+                                                    </span>
+                                                </div>
                                             </div>
                                             <span className="text-muted-foreground text-xs tabular-nums">
                                                 {property.visits_count}{' '}

@@ -9,6 +9,14 @@ import {
     makeDocumentUpload,
 } from '@/test/fixtures/document-request';
 
+/** Fichier validé par l'équipe : seuls ceux-là entrent dans le dossier. */
+const accepted = (overrides: Parameters<typeof makeDocumentUpload>[0] = {}) =>
+    makeDocumentUpload({
+        status: 'accepted',
+        status_label: 'Validée',
+        ...overrides,
+    });
+
 /** Liste à deux personnes : un garant en premier dans les props, un locataire ensuite. */
 const request = makeDocumentRequestDetail({
     name: 'Léa Martin',
@@ -27,7 +35,7 @@ const request = makeDocumentRequestDetail({
                             label: "Passeport ou carte d'identité",
                             hint: null,
                             uploads: [
-                                makeDocumentUpload({
+                                accepted({
                                     id: 1,
                                     name: 'cni-paul.pdf',
                                 }),
@@ -51,11 +59,11 @@ const request = makeDocumentRequestDetail({
                             hint: null,
                             // Deux fichiers pour une pièce : l'ordre de dépôt est gardé.
                             uploads: [
-                                makeDocumentUpload({
+                                accepted({
                                     id: 2,
                                     name: 'recto.pdf',
                                 }),
-                                makeDocumentUpload({
+                                accepted({
                                     id: 3,
                                     name: 'verso.pdf',
                                 }),
@@ -79,7 +87,7 @@ const request = makeDocumentRequestDetail({
                             label: '3 derniers bulletins de salaire',
                             hint: null,
                             uploads: [
-                                makeDocumentUpload({
+                                accepted({
                                     id: 4,
                                     name: 'paie.pdf',
                                     size: 100_000,
@@ -117,13 +125,33 @@ describe('dossierPlan', () => {
         expect(dossierPlan(makeDocumentRequestDetail())).toEqual([]);
     });
 
+    it('leaves out a file still to verify: nothing leaves the backoffice unseen', () => {
+        // Copie profonde : la fixture est partagée entre les cas.
+        const waiting = structuredClone(request);
+        waiting.persons[0]!.categories[0]!.documents[0]!.uploads = [
+            accepted({
+                id: 9,
+                name: 'cni-en-attente.pdf',
+                status: 'pending',
+                status_label: 'À vérifier',
+            }),
+        ];
+
+        expect(
+            dossierPlan(waiting).map((part) => part.upload.name),
+        ).not.toContain('cni-en-attente.pdf');
+    });
+
     it('leaves out the files the team refused: they are not valid', () => {
         const refused = makeDocumentRequestDetail({
             persons: structuredClone(request.persons),
         });
         refused.persons[1]!.categories[0]!.documents[0]!.uploads = [
-            makeDocumentUpload({ id: 2, name: 'recto.pdf' }),
-            makeDocumentUpload({
+            accepted({
+                id: 2,
+                name: 'recto.pdf',
+            }),
+            accepted({
                 id: 3,
                 name: 'verso.pdf',
                 status: 'refused',

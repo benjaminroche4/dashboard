@@ -298,7 +298,7 @@ export default function VisitShow({
                             }
                         >
                             {visit.report ? (
-                                <div className="grid gap-2">
+                                <div className="grid gap-3">
                                     <p className="text-sm whitespace-pre-line">
                                         {visit.report}
                                     </p>

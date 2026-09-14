@@ -1,4 +1,6 @@
 import type {
+    ClientAgentSuggestion,
+    SuggestedAgent,
     Client,
     ClientDetail,
     ClientPriorityOption,
@@ -22,6 +24,10 @@ export function makeClient(overrides: Partial<Client> = {}): Client {
         priority_rank: 1,
         arrival_at: '2026-11-01',
         converted_at: '2026-09-01T10:00:00+02:00',
+        closed_at: null,
+        closing_reason: null,
+        closing_reason_label: null,
+        closing_note: null,
         assignee: { id: 1, name: 'Admin', avatar: null },
         agent: null,
         co_tenant: null,
@@ -75,6 +81,54 @@ export function makeDossierReadiness(
         refused: 0,
         missing: 0,
         percent: 100,
+        ...overrides,
+    };
+}
+
+/** Motifs de clôture d'un dossier, comme `ClientClosingReason::options()`. */
+export const clientClosingReasons = [
+    { value: 'installed', label: 'Client installé' },
+    { value: 'withdrawn', label: 'Client parti ou sans suite' },
+    { value: 'no_home', label: 'Aucun logement trouvé' },
+    { value: 'other', label: 'Autre' },
+] as const;
+
+/** Agence suggérée pour un dossier, avec son meilleur agent (miroir de SuggestClientAgents::summary()). */
+export function makeClientAgentSuggestion(
+    overrides: Partial<ClientAgentSuggestion> = {},
+): ClientAgentSuggestion {
+    const agent: SuggestedAgent = {
+        id: 7,
+        uuid: '0199a9a0-0000-7000-8000-0000000000b7',
+        name: 'Zoé Martin',
+        position: 'Négociatrice',
+        phone: '+33 6 12 34 56 78',
+        email: 'zoe@oberkampf.example',
+        relationship_quality: 'excellent',
+        relationship_quality_label: 'Excellente',
+        is_primary: true,
+        score: 14,
+        reasons: ['2 biens dans les quartiers visés', 'Excellente relation'],
+    };
+
+    return {
+        key: 'agency:3',
+        agency: {
+            id: 3,
+            uuid: '0199a9a0-0000-7000-8000-0000000000a3',
+            name: 'Oberkampf Immo',
+            city: 'Paris',
+            postal_code: '75011',
+            phone: '+33 1 40 00 00 00',
+            email: 'contact@oberkampf.example',
+            website: null,
+            has_profile: true,
+        },
+        agents: [agent],
+        best_agent: agent,
+        score: 14,
+        reasons: ['2 biens dans les quartiers visés', 'Excellente relation'],
+        available_properties: 2,
         ...overrides,
     };
 }

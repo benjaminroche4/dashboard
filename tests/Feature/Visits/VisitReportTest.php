@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\PropertyApplicationStatus;
 use App\Enums\VisitStatus;
 use App\Events\DashboardUpdated;
 use App\Mail\VisitReportSent;
@@ -25,7 +26,7 @@ test('a member writes the post-visit report: the visit is done, the client gets 
 
     $this->actingAs($member)
         ->from(route('clients.visits'))
-        ->post(route('clients.visits.report', $visit), ['report' => 'Très bon accueil, le client a apprécié la luminosité mais trouve la cuisine petite.'])
+        ->post(route('clients.visits.report', $visit), ['verdict' => 'consider', 'report' => 'Très bon accueil, le client a apprécié la luminosité mais trouve la cuisine petite.'])
         ->assertRedirect(route('clients.visits'))
         ->assertSessionHasNoErrors();
 
@@ -38,7 +39,7 @@ test('a member writes the post-visit report: the visit is done, the client gets 
         ->and($lead->notes()->latest('id')->first()?->body)->toContain('Compte rendu de la visite du')->toContain('T2 lumineux · 11e')->toContain('Très bon accueil');
     Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->resource === 'visits' && str_contains((string) $event->message, 'a rédigé le compte rendu'));
 
-    $this->actingAs($member)->post(route('clients.visits.report', $visit), ['report' => 'Court'])->assertSessionHasErrors('report');
+    $this->actingAs($member)->post(route('clients.visits.report', $visit), ['verdict' => 'consider', 'report' => 'Court'])->assertSessionHasErrors('report');
     $this->actingAs($member)->post("/clients/visits/{$visit->id}/report", ['report' => 'Un compte rendu assez long.'])->assertNotFound();
 });
 
@@ -67,7 +68,7 @@ test('photos taken during the visit are stored, added to the existing ones and d
 
     $this->actingAs($member)
         ->post(route('clients.visits.report', $visit), [
-            'report' => 'Le client a aimé le séjour, réserve sur la cuisine.',
+            'verdict' => 'consider', 'report' => 'Le client a aimé le séjour, réserve sur la cuisine.',
             'photos' => [UploadedFile::fake()->image('salon.jpg'), UploadedFile::fake()->image('cuisine.png')],
         ])
         ->assertSessionHasNoErrors();
@@ -82,7 +83,7 @@ test('photos taken during the visit are stored, added to the existing ones and d
     // Un second envoi complète la série au lieu de l'écraser.
     $this->actingAs($member)
         ->post(route('clients.visits.report', $visit), [
-            'report' => 'Le client a aimé le séjour, réserve sur la cuisine.',
+            'verdict' => 'consider', 'report' => 'Le client a aimé le séjour, réserve sur la cuisine.',
             'photos' => [UploadedFile::fake()->image('chambre.webp')],
         ])->assertSessionHasNoErrors();
 
@@ -104,14 +105,14 @@ test('the report refuses a file that is not an image or too big', function (): v
 
     $this->actingAs(User::factory()->create())
         ->post(route('clients.visits.report', $visit), [
-            'report' => 'Compte rendu suffisamment long pour passer la validation.',
+            'verdict' => 'consider', 'report' => 'Compte rendu suffisamment long pour passer la validation.',
             'photos' => [UploadedFile::fake()->create('plan.pdf', 100, 'application/pdf')],
         ])
         ->assertSessionHasErrors('photos.0');
 
     $this->actingAs(User::factory()->create())
         ->post(route('clients.visits.report', $visit), [
-            'report' => 'Compte rendu suffisamment long pour passer la validation.',
+            'verdict' => 'consider', 'report' => 'Compte rendu suffisamment long pour passer la validation.',
             'photos' => [UploadedFile::fake()->image('enorme.jpg')->size(6 * 1024)],
         ])
         ->assertSessionHasErrors('photos.0');
@@ -138,7 +139,7 @@ test('the report can be e-mailed to the client, to the whole household', functio
 
     $this->actingAs($member)
         ->post(route('clients.visits.report', $visit), [
-            'report' => 'Le client a beaucoup aimé la lumière, réserve sur le vis-à-vis.',
+            'verdict' => 'consider', 'report' => 'Le client a beaucoup aimé la lumière, réserve sur le vis-à-vis.',
             'photos' => [UploadedFile::fake()->image('salon.jpg')],
             'notify_client' => true,
         ])
@@ -165,14 +166,14 @@ test('nothing is sent without asking, nor without an address', function (): void
     // rendu ne se débloque pas.)
     $visit = Visit::factory()->for(Lead::factory()->converted()->create(['email' => 'lea@example.com']))->create(['scheduled_at' => now()->subHour()]);
     $this->actingAs($member)
-        ->post(route('clients.visits.report', $visit), ['report' => 'Visite correcte, sans plus.'])
+        ->post(route('clients.visits.report', $visit), ['verdict' => 'consider', 'report' => 'Visite correcte, sans plus.'])
         ->assertSessionHasNoErrors();
     Mail::assertNotQueued(VisitReportSent::class);
 
     // Case cochée mais aucun e-mail sur le dossier : rien ne part non plus.
     $mute = Visit::factory()->for(Lead::factory()->converted()->create(['email' => null, 'co_email' => null]))->create(['scheduled_at' => now()->subHour()]);
     $this->actingAs($member)
-        ->post(route('clients.visits.report', $mute), ['report' => 'Visite correcte, sans plus.', 'notify_client' => true])
+        ->post(route('clients.visits.report', $mute), ['verdict' => 'consider', 'report' => 'Visite correcte, sans plus.', 'notify_client' => true])
         ->assertSessionHasNoErrors();
     Mail::assertNotQueued(VisitReportSent::class);
 });
@@ -185,7 +186,7 @@ test('the report unlocks only after the visit: a future one is refused', functio
     expect($future->reportable())->toBeFalse();
 
     $this->actingAs($member)
-        ->post(route('clients.visits.report', $future), ['report' => 'Le client a beaucoup aimé le quartier.'])
+        ->post(route('clients.visits.report', $future), ['verdict' => 'consider', 'report' => 'Le client a beaucoup aimé le quartier.'])
         ->assertSessionHasErrors('report');
 
     expect($future->refresh()->report)->toBeNull()
@@ -195,7 +196,7 @@ test('the report unlocks only after the visit: a future one is refused', functio
     $future->forceFill(['scheduled_at' => now()->subMinute()])->save();
 
     $this->actingAs($member)
-        ->post(route('clients.visits.report', $future), ['report' => 'Le client a beaucoup aimé le quartier.'])
+        ->post(route('clients.visits.report', $future), ['verdict' => 'consider', 'report' => 'Le client a beaucoup aimé le quartier.'])
         ->assertSessionHasNoErrors();
 
     expect($future->refresh()->report)->toContain('le quartier');
@@ -214,7 +215,7 @@ test('a cancelled visit expects no report, but an existing one stays editable', 
     expect($cancelled->reportable())->toBeFalse();
 
     $this->actingAs($member)
-        ->post(route('clients.visits.report', $cancelled), ['report' => 'Rien à signaler sur cette visite.'])
+        ->post(route('clients.visits.report', $cancelled), ['verdict' => 'consider', 'report' => 'Rien à signaler sur cette visite.'])
         ->assertSessionHasErrors('report');
 
     // Un compte rendu déjà écrit reste modifiable, même après une annulation.
@@ -223,7 +224,7 @@ test('a cancelled visit expects no report, but an existing one stays editable', 
     expect($cancelled->reportable())->toBeTrue();
 
     $this->actingAs($member)
-        ->post(route('clients.visits.report', $cancelled), ['report' => 'Compte rendu corrigé après coup.'])
+        ->post(route('clients.visits.report', $cancelled), ['verdict' => 'consider', 'report' => 'Compte rendu corrigé après coup.'])
         ->assertSessionHasNoErrors();
 
     expect($cancelled->refresh()->report)->toBe('Compte rendu corrigé après coup.');
@@ -241,4 +242,46 @@ test('the summary tells the front whether the report can be written', function (
             ->component('clients/visits')
             ->where('visits', fn ($visits): bool => collect($visits)->pluck('can_report')->sort()->values()->all() === [false, true])
             ->etc());
+});
+
+test('the next step chosen on the report updates the follow-up of the property', function (): void {
+    $member = User::factory()->create();
+    $lead = Lead::factory()->converted()->create();
+    $property = Property::factory()->create(['title' => 'T2 lumineux · 11e']);
+    $visit = Visit::factory()->create([
+        'lead_id' => $lead->id,
+        'property_id' => $property->id,
+        'scheduled_at' => now()->subHours(2),
+    ]);
+
+    $this->actingAs($member)
+        ->post(route('clients.visits.report', $visit), [
+            'report' => 'Le client est emballé, on dépose le dossier.',
+            'next_status' => PropertyApplicationStatus::Applied->value,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    // Le bien est rattaché au dossier s'il ne l'était pas, avec son étape.
+    $link = $lead->refresh()->properties()->firstWhere('properties.id', $property->id);
+
+    expect($link)->not->toBeNull()
+        ->and($link?->getRelationValue('pivot')->status)->toBe(PropertyApplicationStatus::Applied);
+});
+
+test('the next step is optional: a report can be written before deciding', function (): void {
+    $member = User::factory()->create();
+    $visit = Visit::factory()->create(['scheduled_at' => now()->subHours(2)]);
+
+    $this->actingAs($member)
+        ->post(route('clients.visits.report', $visit), ['report' => 'Visite faite, le client réfléchit.'])
+        ->assertSessionHasNoErrors();
+
+    expect($visit->refresh()->report)->toContain('réfléchit')
+        ->and($visit->lead->properties()->count())->toBe(0);
+
+    // Une étape inventée, elle, est refusée.
+    $this->actingAs($member)
+        ->post(route('clients.visits.report', $visit), ['report' => 'Visite faite, le client réfléchit.', 'next_status' => 'peut-etre'])
+        ->assertSessionHasErrors('next_status');
 });

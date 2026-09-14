@@ -1,18 +1,40 @@
 @php
+    /** Facture envoyée au client, PDF en pièce jointe. Charte du site. */
     $money = fn (int $cents): string => number_format($cents / 100, 2, $invoice->currency->value === 'CHF' ? '.' : ',', ' ').' '.$invoice->currency->value;
+    $account = $invoice->bankAccount();
 @endphp
-<!DOCTYPE html>
-<html lang="fr">
-<head><meta charset="utf-8"></head>
-<body style="font-family: Helvetica, Arial, sans-serif; font-size: 15px; color: #0a0a0a; line-height: 1.5;">
-    <p>Bonjour {{ $invoice->client_name }},</p>
-    <p>Veuillez trouver ci-joint votre facture <strong>{{ $invoice->number }}</strong> d'un montant de <strong>{{ $money($invoice->amount_cents) }}</strong>@if ($invoice->deposit_cents > 0), dont {{ $money($invoice->deposit_cents) }} déjà versés (reste à payer : {{ $money($invoice->dueCents()) }})@endif.</p>
-    <p>Échéance : <strong>{{ $invoice->due_at->translatedFormat('j F Y') }}</strong>.<br>
-    @php($account = $invoice->bankAccount())
-    Paiement par virement sur {{ $account['bank'] }}, IBAN {{ $account['iban'] }}, en {{ $invoice->currency->value }}.@if ($account['reference'] !== '')<br>Référence à indiquer : <strong>{{ $account['reference'] }}</strong>.@endif</p>
+<x-mail-layout
+    :preheader="'Votre facture '.$invoice->number.' — '.$money($invoice->amount_cents)"
+    title="Votre facture"
+    :intro="'Bonjour '.$invoice->client_name.', voici votre facture '.$invoice->number.' en pièce jointe.'"
+>
+    <x-mail-card :heading="'Facture '.$invoice->number">
+        <x-mail-facts :rows="[
+            'Montant' => $money($invoice->amount_cents),
+            'Déjà versé' => $invoice->deposit_cents > 0 ? $money($invoice->deposit_cents) : null,
+            'Reste à payer' => $invoice->deposit_cents > 0 ? $money($invoice->dueCents()) : null,
+            'Échéance' => $invoice->due_at->translatedFormat('j F Y'),
+        ]" />
+    </x-mail-card>
+
+    <x-mail-card heading="Régler par virement">
+        <x-mail-facts :rows="[
+            'Banque' => $account['bank'],
+            'IBAN' => $account['iban'],
+            'Devise' => $invoice->currency->value,
+            'Référence à indiquer' => $account['reference'] !== '' ? $account['reference'] : null,
+        ]" />
+    </x-mail-card>
+
     @if ($invoice->notes)
-        <p style="white-space: pre-line">{{ $invoice->notes }}</p>
+        <x-mail-card heading="Le mot de votre conseiller">
+            <p style="margin:0;padding:0.25em 0;font-size:1em;white-space:pre-line">{{ $invoice->notes }}</p>
+        </x-mail-card>
     @endif
-    <p>Merci de votre confiance,<br>{{ $company['name'] }}<br><span style="color:#6b7280">{{ $company['email'] }} · {{ $company['phone'] }}</span></p>
-</body>
-</html>
+
+    <p style="margin:0;padding:1.6em 0 0;font-size:1em;color:#525252;text-align:center">
+        Merci de votre confiance,<br />
+        <strong>{{ $company['name'] }}</strong><br />
+        <span style="color:#9ca3af">{{ $company['email'] }} · {{ $company['phone'] }}</span>
+    </p>
+</x-mail-layout>

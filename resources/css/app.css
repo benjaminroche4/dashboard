@@ -52,6 +52,73 @@
         }
     }
 
+    /* Un élément dont la valeur vient de changer « se pose » : lueur brève de
+       la couleur primaire, sans rebond. Une seule animation pour l'action
+       principale d'un dossier, les compteurs d'onglets, les badges de statut,
+       la cloche… — partout où un changement passait inaperçu. */
+    --animate-settle: settle 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+    @keyframes settle {
+        0% {
+            box-shadow: 0 0 0 0
+                color-mix(in oklch, var(--primary) 55%, transparent);
+        }
+        100% {
+            box-shadow: 0 0 0 8px transparent;
+        }
+    }
+
+    /* Un seuil vient d'être franchi (30 minutes sans contact, décision qui
+       traîne) : une seule pulsation, pas un clignotement continu. */
+    --animate-pulse-once: pulse-once 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+    @keyframes pulse-once {
+        0% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0
+                color-mix(in oklch, currentColor 45%, transparent);
+        }
+        35% {
+            transform: scale(1.06);
+        }
+        100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 10px transparent;
+        }
+    }
+
+    /* Ligne qui arrive dans une liste (temps réel, enregistrement) : le même
+       fondu que la carte du kanban. */
+    --animate-row-enter: lead-enter 350ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+    /* Converting Machine : le panneau suivant glisse depuis la droite, le
+       précédent depuis la gauche — on sait où l'on va. */
+    --animate-step-forward: step-forward 180ms cubic-bezier(0.22, 1, 0.36, 1)
+        both;
+    --animate-step-back: step-back 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+    @keyframes step-forward {
+        0% {
+            opacity: 0;
+            transform: translateX(12px);
+        }
+        100% {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes step-back {
+        0% {
+            opacity: 0;
+            transform: translateX(-12px);
+        }
+        100% {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
     --font-sans:
         'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
@@ -280,14 +347,26 @@
    contenu (voir components/properties/properties-map-dialog.tsx, qui
    désactive l'en-tête et referme l'infobulle au clic sur la carte). */
 .gm-style .gm-style-iw-c {
-    padding: 0;
+    /* `!important` : Google pose son padding en ligne, plus fort que la feuille. */
+    padding: 0 !important;
     border-radius: 0.75rem;
     box-shadow:
         0 10px 30px -12px rgb(15 23 42 / 0.35),
         0 0 0 1px rgb(15 23 42 / 0.08);
 }
 
+/* Le contenu se dimensionne sur notre carte : pas de rognage (le texte
+   serait coupé), pas de barre de défilement parasite. */
 .gm-style .gm-style-iw-d {
-    padding: 0;
-    overflow: hidden !important;
+    padding: 0 !important;
+    overflow: auto !important;
+    max-width: none !important;
+}
+
+/* Contenu en cours de rechargement (props Inertia) : un voile, pas un
+   squelette — rien ne saute, et l'on sait que ce qu'on lit va se mettre à jour. */
+[data-reloading] {
+    opacity: 0.7;
+    cursor: progress;
+    transition: opacity 150ms ease-out;
 }

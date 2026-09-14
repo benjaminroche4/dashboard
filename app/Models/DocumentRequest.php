@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property LeadLanguage $language
  * @property string|null $message
  * @property string|null $upload_url
+ * @property string|null $presentation_letter
  * @property string $public_token
  * @property string $access_code
  * @property string|null $link_sent_to
@@ -35,7 +36,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  */
-#[Fillable(['first_name', 'last_name', 'language', 'message', 'upload_url', 'public_token', 'access_code', 'link_sent_to', 'link_sent_at', 'persons', 'created_by', 'lead_id'])]
+#[Fillable(['first_name', 'last_name', 'language', 'message', 'upload_url', 'public_token', 'access_code', 'link_sent_to', 'link_sent_at', 'persons', 'presentation_letter', 'created_by', 'lead_id'])]
 class DocumentRequest extends Model
 {
     /** @use HasFactory<DocumentRequestFactory> */

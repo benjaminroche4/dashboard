@@ -104,8 +104,12 @@ export function DossierReadinessStat({
                     aria-valuemax={100}
                     className="bg-muted h-1.5 overflow-hidden rounded-full"
                 >
+                    {/* La barre glisse vers sa nouvelle valeur au lieu de sauter. */}
                     <div
-                        className={cn('h-full rounded-full', tone.bar)}
+                        className={cn(
+                            'h-full rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none',
+                            tone.bar,
+                        )}
                         style={{ width: `${readiness.percent}%` }}
                     />
                 </div>

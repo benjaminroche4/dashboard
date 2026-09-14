@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Clients;
 
+use App\Actions\Clients\CloseClientDossier;
 use App\Actions\Clients\CreateClientDossier;
 use App\Actions\Clients\DeleteClientGuarantor;
 use App\Actions\Clients\DeleteClientWatcher;
+use App\Actions\Clients\ReopenClientDossier;
 use App\Actions\Clients\SaveClientGuarantor;
 use App\Actions\Clients\SaveClientWatcher;
 use App\Actions\Clients\SendPropertyDecisionReminders;
 use App\Actions\Clients\SetClientPriority;
+use App\Actions\Clients\SuggestClientAgents;
 use App\Actions\Clients\SuggestClientProperties;
 use App\Actions\Clients\SummarizeDossierReadiness;
 use App\Actions\Clients\UpdateClientDossier;
@@ -22,6 +25,7 @@ use App\Data\LeadData;
 use App\Data\LeadGuarantorData;
 use App\Data\LeadWatcherData;
 use App\Data\TenantProfileData;
+use App\Enums\ClientClosingReason;
 use App\Enums\ClientPriority;
 use App\Enums\Currency;
 use App\Enums\EmploymentStatus;
@@ -39,7 +43,8 @@ use App\Enums\TenantSlot;
 use App\Enums\VisitStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Leads\LeadController;
-use App\Http\Controllers\Tools\ActivityController;
+use App\Http\Controllers\RealEstate\AgentController;
+use App\Http\Requests\Clients\CloseClientRequest;
 use App\Http\Requests\Clients\SaveClientGuarantorRequest;
 use App\Http\Requests\Clients\SaveClientWatcherRequest;
 use App\Http\Requests\Clients\SetClientPriorityRequest;
@@ -47,7 +52,6 @@ use App\Http\Requests\Clients\StoreClientRequest;
 use App\Http\Requests\Clients\UpdateClientPeopleRequest;
 use App\Http\Requests\Clients\UpdateClientRequest;
 use App\Http\Requests\Clients\UpdateTenantProfileRequest;
-use App\Models\Activity;
 use App\Models\Agent;
 use App\Models\DocumentRequest;
 use App\Models\Invoice;
@@ -63,6 +67,7 @@ use App\Models\Property;
 use App\Models\Quote;
 use App\Models\User;
 use App\Models\Visit;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -77,15 +82,22 @@ class ClientController extends Controller
     use AuthorizesRequests;
 
     /** Dossiers : un client par lead converti, les plus prioritaires puis les plus récents. */
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $this->authorize('viewAny', Lead::class);
 
+        // Les dossiers clôturés ne se chargent qu'à la demande (`?archived=1`).
+        $withArchived = $request->boolean('archived');
+
         $clients = Lead::query()
-            ->where('status', LeadStatus::Converted)
+            ->where(fn (Builder $query): Builder => $withArchived
+                ? $query->where('status', LeadStatus::Converted)->orWhereNotNull('closed_at')
+                : $query->where('status', LeadStatus::Converted))
             ->with([
                 'assignee',
                 'coAssignee',
+                // Le résumé porte l'agent du dossier : chargé ici, pas ligne par ligne.
+                'agent.agency',
                 'statusChanges' => fn ($query) => $query->where('to_status', LeadStatus::Converted)->latest(),
             ])
             ->withCount(['invoices', 'documentRequests'])
@@ -97,6 +109,11 @@ class ClientController extends Controller
 
         return Inertia::render('clients/index', [
             'clients' => $clients,
+            'archived' => [
+                'loaded' => $withArchived,
+                'count' => Lead::query()->whereNotNull('closed_at')->count(),
+            ],
+            'closingReasons' => ClientClosingReason::options(),
             'priorities' => ClientPriority::options(),
             // Listes du dialogue « Nouveau dossier », créé sans passer par un lead.
             'languages' => LeadLanguage::options(),
@@ -177,6 +194,32 @@ class ClientController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Dossier client mis à jour.')]);
 
         return to_route('clients.show', $lead);
+    }
+
+    /** Clôture d'un dossier : il passe en « Archivé » avec son motif. */
+    public function close(CloseClientRequest $request, Lead $lead, CloseClientDossier $close): RedirectResponse
+    {
+        $this->authorize('update', $lead);
+        abort_unless($lead->status === LeadStatus::Converted, 404);
+
+        $lead = $close->handle($lead, ClientClosingReason::from((string) $request->validated('reason')), $request->validated('note'), $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Dossier :name clôturé.', ['name' => $lead->householdName()])]);
+
+        return back();
+    }
+
+    /** Réouverture d'un dossier clôturé : il redevient un client suivi. */
+    public function reopen(Request $request, Lead $lead, ReopenClientDossier $reopen): RedirectResponse
+    {
+        $this->authorize('update', $lead);
+        abort_unless($lead->isClosed(), 404);
+
+        $lead = $reopen->handle($lead, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Dossier :name rouvert.', ['name' => $lead->householdName()])]);
+
+        return back();
     }
 
     /** Priorité d'un dossier (menu de la fiche). */
@@ -313,12 +356,20 @@ class ClientController extends Controller
     }
 
     /** Dossier d'un client : coordonnées, projet, devis, factures, documents, partenaires et notes. */
-    public function show(Request $request, Lead $lead, SuggestClientProperties $suggest, SummarizeDossierReadiness $readiness): Response
+    public function show(Request $request, Lead $lead, SuggestClientProperties $suggest, SuggestClientAgents $suggestAgents, SummarizeDossierReadiness $readiness): Response|RedirectResponse
     {
         $this->authorize('view', $lead);
 
-        // Seul un lead converti est un client : les autres n'ont pas de dossier.
-        abort_unless($lead->status === LeadStatus::Converted, 404);
+        // Seul un client — suivi ou clôturé — a un dossier : les autres leads, non.
+        abort_unless($lead->isClient(), 404);
+
+        // Un dossier se lit à travers sa formule (visites, facture, e-mails) :
+        // sans elle, on renvoie à la fiche lead pour la choisir d'abord.
+        if ($lead->offer === null) {
+            Inertia::flash('toast', ['type' => 'warning', 'message' => __('Choisissez la formule de :name (Accompagné ou Confié) pour ouvrir son dossier.', ['name' => $lead->fullName()])]);
+
+            return to_route('leads.show', $lead);
+        }
 
         $lead->load([
             'assignee',
@@ -376,6 +427,7 @@ class ClientController extends Controller
                 'score' => $lead->score,
             ],
             'priorities' => ClientPriority::options(),
+            'closingReasons' => ClientClosingReason::options(),
             // Détails des locataires : les garants et le suivi n'en ont pas.
             'tenantProfiles' => $this->tenantProfiles($lead),
             'residencyStatuses' => ResidencyStatus::options(),
@@ -480,6 +532,7 @@ class ClientController extends Controller
                     'id' => $property->id,
                     'uuid' => $property->uuid,
                     'label' => $property->label(),
+                    'photo' => $property->coverUrl(),
                     'street' => $property->street,
                     'postal_code' => $property->postal_code,
                     'city' => $property->city,
@@ -517,6 +570,8 @@ class ClientController extends Controller
             })->all(),
             // Biens de l'annuaire qui correspondent au projet (budget, quartiers, type, meublé), hors rattachés et visités.
             'suggestedProperties' => array_map(SuggestClientProperties::summary(...), $suggest->handle($lead)),
+            // Agences (et agents) à contacter pour ce dossier : score à points, raisons en clair, meilleur agent.
+            'suggestedAgents' => array_map(SuggestClientAgents::summary(...), $suggestAgents->handle($lead)),
             // Biens de l'annuaire non encore rattachés, pour « Lier un bien ».
             // Un bien attribué (à ce dossier ou à un autre) n'est plus à lier.
             'propertyOptions' => Property::query()->unassigned()->whereDoesntHave('leads', fn ($query) => $query->whereKey($lead->id))->latest()->get()
@@ -529,21 +584,10 @@ class ClientController extends Controller
             // immobilier et les partenaires s'y ajoutent, avec les mêmes
             // cartes et les mêmes routes que la fiche lead.
             'agents' => Agent::query()->with('agency')->withFavoriteOf($request->user())->orderBy('last_name')->orderBy('first_name')->get()
-                ->map(fn (Agent $agent): array => [
-                    'id' => $agent->id,
-                    'uuid' => $agent->uuid,
-                    'name' => $agent->fullName(),
-                    'agency' => $agent->agency?->name,
-                    'phone' => $agent->phone,
-                    'is_favorite' => (bool) $agent->is_favorite,
-                ])->all(),
+                ->map(fn (Agent $agent): array => AgentController::option($agent))->all(),
             'partnerOptions' => Partner::query()->orderBy('name')->get()
                 ->map(fn (Partner $partner): array => ['id' => $partner->id, 'name' => $partner->name, 'type' => $partner->type->value, 'type_label' => $partner->type->label()])->all(),
             'partnerRoles' => PartnerRole::options(),
-            // Journal : les 10 dernières actions du backoffice sur ce dossier.
-            'activities' => Activity::query()->with(['actor', 'lead'])->where('lead_id', $lead->id)->latest('created_at')->latest('id')->limit(10)->get()
-                ->map(fn (Activity $activity): array => ActivityController::summary($activity))
-                ->all(),
         ]);
     }
 
@@ -572,6 +616,11 @@ class ClientController extends Controller
             'priority_rank' => $lead->priority->rank(),
             'arrival_at' => $lead->arrival_at?->toDateString(),
             'converted_at' => ($conversion instanceof LeadStatusChange ? $conversion->created_at : $lead->updated_at)?->toIso8601String(),
+            // Dossier clôturé : il se lit, ne se modifie plus, et peut être rouvert.
+            'closed_at' => $lead->closed_at?->toIso8601String(),
+            'closing_reason' => $lead->closing_reason?->value,
+            'closing_reason_label' => $lead->closing_reason?->label(),
+            'closing_note' => $lead->closing_note,
             'assignee' => $this->follower($lead->assignee),
             // Second locataire du foyer et second membre du suivi (facultatifs).
             'co_tenant' => $lead->coFullName() === null && $lead->co_email === null && $lead->co_phone === null ? null : [

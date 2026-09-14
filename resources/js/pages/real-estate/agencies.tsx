@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { DataTable } from '@/components/data-table';
 import { DirectoryBulkActions } from '@/components/real-estate/directory-bulk-actions';
 import { FavoritesFilter } from '@/components/favorites-filter';
+import { AgenciesMapButton } from '@/components/real-estate/agencies-map-dialog';
 import { AgencyDialog } from '@/components/real-estate/agency-dialog';
 import { AgentDialog } from '@/components/real-estate/agent-dialog';
 import {
@@ -87,12 +88,16 @@ export default function Agencies({
                             {pagination.total} agence(s) partenaire(s)
                         </p>
                     </div>
-                    <Button onClick={add}>
-                        <Plus />
-                        Nouvelle agence
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <AgenciesMapButton />
+                        <Button onClick={add}>
+                            <Plus />
+                            Nouvelle agence
+                        </Button>
+                    </div>
                 </div>
                 <DataTable
+                    storageKey="agencies"
                     columns={columns}
                     data={agencies}
                     filters={

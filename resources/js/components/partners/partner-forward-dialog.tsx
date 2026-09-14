@@ -20,6 +20,8 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { forward as forwardDossier } from '@/routes/leads/partners';
 import type { PartnerDetail, PartnerLead } from '@/types';
+import { AssistantDraftButton } from '@/components/assistant-draft-button';
+import { draft as draftForward } from '@/routes/leads/partners/forward';
 
 /**
  * Transmet le dossier d'un client au partenaire, depuis sa fiche : même route
@@ -132,6 +134,20 @@ export function PartnerForwardDialog({
                             }
                             placeholder="Bonjour, je vous transmets le dossier de…"
                         />
+                        <div className="flex justify-end">
+                            <AssistantDraftButton<{ message: string }>
+                                url={
+                                    draftForward({
+                                        lead: lead?.uuid ?? '',
+                                        partnerLink: lead?.id ?? 0,
+                                    }).url
+                                }
+                                disabled={!lead}
+                                onDraft={(draft) =>
+                                    form.setData('message', draft.message)
+                                }
+                            />
+                        </div>
                         <InputError message={form.errors.message} />
                     </div>
                 </div>

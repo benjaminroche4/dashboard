@@ -33,6 +33,8 @@ import {
     store as attachPartner,
 } from '@/routes/leads/partners';
 import { show as partnerShow } from '@/routes/partners';
+import { AssistantDraftButton } from '@/components/assistant-draft-button';
+import { draft as draftForward } from '@/routes/leads/partners/forward';
 import type {
     LeadDetail,
     LeadPartnerLink,
@@ -324,6 +326,19 @@ function ForwardDialog({
                                 }
                                 placeholder="Bonjour, merci de traiter ce dossier en priorité…"
                             />
+                            <div className="flex justify-end">
+                                <AssistantDraftButton<{ message: string }>
+                                    url={
+                                        draftForward({
+                                            lead: lead.uuid,
+                                            partnerLink: link.id,
+                                        }).url
+                                    }
+                                    onDraft={(draft) =>
+                                        form.setData('message', draft.message)
+                                    }
+                                />
+                            </div>
                             <InputError message={form.errors.message} />
                         </div>
                         <DialogFooter>

@@ -55,6 +55,7 @@ test('the dossier appears in the list of dossiers, in the converted column of th
         'first_name' => 'Léa',
         'last_name' => 'Durand',
         'phone' => '+33 6 12 34 56 78',
+        'offer' => 'confie',
     ])->assertSessionHasNoErrors();
 
     $this->actingAs($member)->get(route('clients.index'))
@@ -104,4 +105,10 @@ test('only a member allowed to create leads opens a dossier', function (): void 
         ->assertForbidden();
 
     expect(Lead::query()->count())->toBe(0);
+});
+
+test('a client file created by hand needs an offer', function (): void {
+    $this->actingAs(User::factory()->create())
+        ->post(route('clients.store'), ['first_name' => 'Léa', 'last_name' => 'Durand', 'email' => 'lea@example.com'])
+        ->assertSessionHasErrors('offer');
 });

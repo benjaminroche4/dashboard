@@ -8,6 +8,8 @@ const { post, del } = vi.hoisted(() => ({ post: vi.fn(), del: vi.fn() }));
 vi.mock('@inertiajs/react', () => ({
     router: { delete: del },
     useForm: (initial: Record<string, string>) => useFormStub(initial),
+    // Sans clé API, le bouton « Rédiger avec l'IA » n'apparaît pas.
+    usePage: () => ({ props: { features: { assistant: false } } }),
     Link: ({
         href,
         children,

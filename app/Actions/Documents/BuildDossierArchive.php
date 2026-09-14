@@ -36,7 +36,7 @@ final readonly class BuildDossierArchive
     {
         $plan = self::plan($request);
 
-        throw_if($plan === [], RuntimeException::class, 'Aucune pièce valide : il n’y a rien à archiver.');
+        throw_if($plan === [], RuntimeException::class, 'Aucune pièce validée : il n’y a rien à archiver.');
 
         // Nom imprévisible dans un dossier à nous : pas de `tempnam`, dont la
         // fenêtre entre la création et l'ouverture est une course.
@@ -105,7 +105,7 @@ final readonly class BuildDossierArchive
                     $uploads = $request->uploads
                         ->where('person_index', $index)
                         ->where('document_key', $document['key'])
-                        ->reject(fn (DocumentUpload $upload): bool => $upload->status === DocumentUploadStatus::Refused)
+                        ->where('status', DocumentUploadStatus::Accepted)
                         ->sortBy('created_at')
                         ->values();
 

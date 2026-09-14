@@ -53,6 +53,7 @@ export default function QuotesIndex({ quotes }: Props) {
                     )}
                 </div>
                 <DataTable
+                    storageKey="quotes"
                     columns={quoteColumns(canManage)}
                     data={quotes}
                     filterColumn="client_name"

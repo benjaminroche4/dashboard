@@ -3,16 +3,18 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 
-const { post } = vi.hoisted(() => ({ post: vi.fn() }));
+const { post, reload } = vi.hoisted(() => ({ post: vi.fn(), reload: vi.fn() }));
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
+    router: { post, reload },
     // La page lit le membre connecté pour le filtre « Mes dossiers », et
     // l'annuaire de l'équipe pour le dialogue « Nouveau dossier ».
     usePage: () => ({
         props: {
             auth: { user: { id: 1, role: 'admin' } },
             staff: [{ id: 1, name: 'Admin', avatar: null, functions: [] }],
+            closingReasons: clientClosingReasons,
         },
     }),
     useForm: (initial: Record<string, unknown>) => ({
@@ -41,7 +43,11 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 import ClientsIndex from '@/pages/clients/index';
-import { makeClient, clientPriorities } from '@/test/fixtures/client';
+import {
+    clientClosingReasons,
+    clientPriorities,
+    makeClient,
+} from '@/test/fixtures/client';
 
 describe('Clients index page', () => {
     it('lists the converted leads with contact, offer, dates, assignee and dossier counts', () => {
@@ -238,6 +244,62 @@ describe('Clients index page', () => {
         ).toHaveTextContent('1');
     });
 
+    it('remembers the filters and the hidden columns after a reload', async () => {
+        const user = userEvent.setup();
+        const page = () => (
+            <ClientsIndex
+                priorities={clientPriorities}
+                offers={[
+                    { value: 'accompagne', label: 'Accompagné' },
+                    { value: 'confie', label: 'Confié' },
+                ]}
+                clients={[
+                    makeClient({
+                        id: 1,
+                        name: 'Léa Durand',
+                        offer: 'accompagne',
+                        offer_label: 'Accompagné',
+                    }),
+                    makeClient({
+                        id: 2,
+                        uuid: 'lead-2',
+                        name: 'Paul Levy',
+                        offer: 'confie',
+                        offer_label: 'Confié',
+                    }),
+                ]}
+            />
+        );
+        const { unmount } = render(page());
+
+        await user.click(screen.getByRole('button', { name: /Filtres/ }));
+        await user.click(
+            await screen.findByRole('menuitemcheckbox', { name: /Confié/ }),
+        );
+        await user.keyboard('{Escape}');
+        await user.click(screen.getByRole('button', { name: /Colonnes/ }));
+        await user.click(
+            await screen.findByRole('menuitemcheckbox', { name: 'Priorité' }),
+        );
+        await user.keyboard('{Escape}');
+
+        // Page rechargée : le filtre et la colonne masquée sont toujours là.
+        unmount();
+        render(page());
+        expect(
+            screen.queryByRole('link', { name: 'Léa Durand' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'Paul Levy' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: /Filtres/ }),
+        ).toHaveTextContent('1');
+        expect(
+            screen.queryByRole('columnheader', { name: /Priorité/ }),
+        ).not.toBeInTheDocument();
+    });
+
     it('filters the dossiers by priority', async () => {
         const user = userEvent.setup();
         render(
@@ -309,5 +371,55 @@ describe('Clients index page', () => {
 
         await user.click(toggle);
         expect(screen.getByText('Paul Levy')).toBeInTheDocument();
+    });
+
+    it('closes a dossier from its row menu, and loads the archived ones on demand', async () => {
+        const user = userEvent.setup();
+        const { unmount } = render(
+            <ClientsIndex
+                clients={[makeClient({ uuid: 'c-1', name: 'Léa Durand' })]}
+                archived={{ loaded: false, count: 2 }}
+                priorities={clientPriorities}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Actions pour Léa Durand' }),
+        );
+        await user.click(
+            await screen.findByRole('menuitem', {
+                name: 'Clôturer le dossier',
+            }),
+        );
+        await user.click(
+            await screen.findByRole('radio', { name: 'Client installé' }),
+        );
+        await user.click(
+            screen.getByRole('button', { name: 'Clôturer le dossier' }),
+        );
+
+        expect(post).toHaveBeenCalledWith(
+            '/clients/c-1/close',
+            { reason: 'installed', note: null },
+            expect.anything(),
+        );
+
+        // La modale reste ouverte tant que la réponse n'arrive pas : on
+        // repart d'un rendu neuf pour le bouton des archivés.
+        unmount();
+        render(
+            <ClientsIndex
+                clients={[makeClient({ uuid: 'c-1', name: 'Léa Durand' })]}
+                archived={{ loaded: false, count: 2 }}
+                priorities={clientPriorities}
+            />,
+        );
+
+        // Les dossiers clôturés ne sont chargés qu'à la demande.
+        await user.click(screen.getByRole('button', { name: 'Archivés (2)' }));
+        expect(reload).toHaveBeenCalledWith({
+            data: { archived: 1 },
+            only: ['clients', 'archived'],
+        });
     });
 });

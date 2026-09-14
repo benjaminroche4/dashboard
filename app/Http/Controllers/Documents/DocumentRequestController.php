@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Documents;
 
+use App\Actions\Documents\ApplyDocumentAnalysis;
 use App\Actions\Documents\BuildDossierArchive;
 use App\Actions\Documents\CreateDocumentRequest;
 use App\Actions\Documents\DeleteDocumentRequest;
 use App\Actions\Documents\DeleteDocumentRequests;
+use App\Actions\Documents\DraftPresentationLetter;
 use App\Actions\Documents\LinkDocumentRequestToLead;
 use App\Actions\Documents\RenderDocumentRequestPdf;
 use App\Actions\Documents\RenderDossierCover;
+use App\Actions\Documents\SavePresentationLetter;
 use App\Actions\Documents\SendDocumentUploadLink;
 use App\Actions\Documents\UpdateDocumentRequest;
 use App\Data\DocumentRequestData;
@@ -20,22 +23,29 @@ use App\Enums\GuarantorType;
 use App\Enums\HouseholdRole;
 use App\Enums\LeadLanguage;
 use App\Enums\LeadStatus;
+use App\Enums\TenantSlot;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Documents\BulkDocumentRequestsRequest;
 use App\Http\Requests\Documents\LinkDocumentRequestLeadRequest;
+use App\Http\Requests\Documents\SavePresentationLetterRequest;
 use App\Http\Requests\Documents\SendDocumentUploadLinkRequest;
 use App\Http\Requests\Documents\StoreDocumentRequestRequest;
 use App\Http\Requests\Documents\UpdateDocumentRequestRequest;
+use App\Jobs\AnalyzeDocumentUploadJob;
 use App\Models\DocumentRequest;
 use App\Models\DocumentUpload;
 use App\Models\Lead;
+use App\Services\Assistant;
 use App\Support\DocumentCatalog;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Foundation\Bus\PendingDispatch;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class DocumentRequestController extends Controller
@@ -146,6 +156,7 @@ class DocumentRequestController extends Controller
                 'upload_url' => $documentRequest->upload_url,
                 'public_url' => $documentRequest->publicUrl(),
                 'access_code' => $documentRequest->access_code,
+                'presentation_letter' => $documentRequest->presentation_letter,
                 'link_sent_to' => $documentRequest->link_sent_to,
                 'link_sent_at' => $documentRequest->link_sent_at?->toIso8601String(),
                 // Adresses connues du dossier : le client et, s'il existe, le second locataire.
@@ -156,9 +167,11 @@ class DocumentRequestController extends Controller
                 'uploads_count' => $documentRequest->uploads->count(),
                 // Ce qui part dans le dossier fusionné et dans l'archive : une
                 // pièce refusée n'est pas valide, elle en est écartée.
-                'valid_uploads_count' => $documentRequest->uploads->reject(fn (DocumentUpload $upload): bool => $upload->status === DocumentUploadStatus::Refused)->count(),
+                'valid_uploads_count' => $documentRequest->uploads->where('status', DocumentUploadStatus::Accepted)->count(),
                 // Rattacher la liste à un lead depuis sa fiche demande le droit de la modifier.
                 'can_update' => $request->user()?->can('update', $documentRequest) ?? false,
+                // Pièces que « Relire les pièces avec l'IA » relira : à vérifier, jamais lues, en PDF.
+                'pending_ai_count' => $documentRequest->uploads->filter(fn (DocumentUpload $upload): bool => $upload->status === DocumentUploadStatus::Pending && $upload->ai_review === null && $upload->mime_type === 'application/pdf')->count(),
                 'persons' => $this->personsWithUploads($documentRequest),
             ],
             'pdfAvailable' => $pdf->isConfigured(),
@@ -231,7 +244,7 @@ class DocumentRequestController extends Controller
                 'type' => 'warning',
                 'message' => $documentRequest->uploads->isEmpty()
                     ? __('Aucune pièce déposée pour le moment.')
-                    : __('Toutes les pièces déposées ont été refusées.'),
+                    : __('Aucune pièce validée : le dossier ne part qu’avec des pièces vérifiées par l’équipe.'),
             ]);
 
             return back();
@@ -304,6 +317,55 @@ class DocumentRequestController extends Controller
         return array_values($leads);
     }
 
+    /** Lance la lecture IA de toutes les pièces encore sans proposition ni décision. */
+    public function analyze(DocumentRequest $documentRequest, Assistant $assistant): RedirectResponse
+    {
+        $this->authorize('update', $documentRequest);
+
+        if (! $assistant->isConfigured()) {
+            Inertia::flash('toast', ['type' => 'warning', 'message' => __('Assistant IA non configuré (ANTHROPIC_API_KEY).')]);
+
+            return back();
+        }
+
+        $pending = $documentRequest->uploads
+            ->filter(fn (DocumentUpload $upload): bool => $upload->status === DocumentUploadStatus::Pending && $upload->ai_review === null && $upload->mime_type === 'application/pdf');
+
+        $pending->each(fn (DocumentUpload $upload): PendingDispatch => dispatch(new AnalyzeDocumentUploadJob($upload)));
+
+        Inertia::flash('toast', $pending->isEmpty()
+            ? ['type' => 'info', 'message' => __('Toutes les pièces reçues ont déjà une proposition ou une décision.')]
+            : ['type' => 'info', 'message' => __('L’assistant relit :count pièce(s) : les propositions s’afficheront au fil de l’eau.', ['count' => $pending->count()])]);
+
+        return back();
+    }
+
+    /** Lettre de présentation proposée par l'assistant ; rien n'est enregistré avant relecture. */
+    public function draftLetter(DocumentRequest $documentRequest, DraftPresentationLetter $draft): JsonResponse
+    {
+        $this->authorize('update', $documentRequest);
+
+        try {
+            $letter = $draft->handle($documentRequest);
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+
+        return response()->json(['letter' => $letter]);
+    }
+
+    /** Lettre relue par l'équipe : c'est elle qui s'imprime en tête du dossier fusionné. */
+    public function letter(SavePresentationLetterRequest $request, DocumentRequest $documentRequest, SavePresentationLetter $save): RedirectResponse
+    {
+        $this->authorize('update', $documentRequest);
+
+        $save->handle($documentRequest, $request->validated('letter'), $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Lettre de présentation enregistrée.')]);
+
+        return back();
+    }
+
     public function bulkDestroy(BulkDocumentRequestsRequest $request, DeleteDocumentRequests $delete): RedirectResponse
     {
         $this->authorize('delete', DocumentRequest::class);
@@ -342,6 +404,14 @@ class DocumentRequestController extends Controller
                             'review_note' => $upload->review_note,
                             'reviewed_at' => $upload->reviewed_at?->toIso8601String(),
                             'reviewer' => $upload->reviewer?->name,
+                            // Proposition de l'assistant, à relire ; report sur la fiche
+                            // possible seulement pour un locataire d'un dossier client.
+                            'ai_review' => $upload->ai_review,
+                            'ai_reviewed_at' => $upload->ai_reviewed_at?->toIso8601String(),
+                            'can_apply_profile' => $upload->ai_review !== null
+                                && $documentRequest->lead?->status === LeadStatus::Converted
+                                && ApplyDocumentAnalysis::tenantSlot($documentRequest, $index) instanceof TenantSlot
+                                && ApplyDocumentAnalysis::analysis($upload)?->hasProfile() === true,
                         ])
                         ->all();
 

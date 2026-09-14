@@ -13,6 +13,9 @@ Schedule::command('leads:alert-first-contact')->everyMinute()->withoutOverlappin
 // Chaque matin : rappel des recontacts du jour et en retard à chaque responsable.
 Schedule::command('leads:remind-recontacts')->dailyAt('08:00')->withoutOverlapping()->onOneServer();
 
+// Chaque matin : alerte aux personnes de suivi quand une installation approche (J-15, J-7, J-3).
+Schedule::command('clients:alert-arrivals')->dailyAt('08:10')->withoutOverlapping()->onOneServer();
+
 // Chaque nuit : les devis envoyés dont la validité est passée deviennent « expirés ».
 Schedule::command('quotes:mark-expired')->dailyAt('02:10')->withoutOverlapping()->onOneServer();
 

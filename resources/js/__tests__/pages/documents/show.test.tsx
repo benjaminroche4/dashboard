@@ -97,7 +97,7 @@ describe('Documents show page', () => {
             screen.getByText('Avis d’imposition').closest('tr'),
         ).toHaveTextContent('Finance');
         expect(
-            screen.getByRole('link', { name: /drive.google.com/ }),
+            screen.getByRole('link', { name: 'Dossier Google Drive' }),
         ).toHaveAttribute('href', 'https://drive.google.com/drive/folders/abc');
         expect(
             screen.getByRole('link', { name: /depot\/tok-abc/ }),
@@ -114,14 +114,53 @@ describe('Documents show page', () => {
         expect(
             screen.queryByRole('button', { name: /Envoyer au client/ }),
         ).not.toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /Modifier/ })).toHaveAttribute(
+        // « Modifier » vit dans le menu « ⋯ », pas en bouton d'en-tête.
+        expect(
+            screen.queryByRole('link', { name: /Modifier/ }),
+        ).not.toBeInTheDocument();
+        await userEvent
+            .setup()
+            .click(
+                screen.getByRole('button', { name: 'Actions pour Léa Martin' }),
+            );
+        // Le lien du menu : le faux `Link` du test ne relaie pas le rôle Radix.
+        expect(
+            (await screen.findByText('Modifier')).closest('a'),
+        ).toHaveAttribute(
             'href',
             '/tools/documents/0199b0c0-0000-7000-8000-000000000001/edit',
         );
-        expect(
-            screen.getByRole('button', { name: 'Actions pour Léa Martin' }),
-        ).toBeInTheDocument();
         expect(screen.queryByText('À envoyer')).not.toBeInTheDocument();
+    });
+
+    it('offers the merged dossier and the archive only when pieces are validated', () => {
+        const { unmount } = render(
+            <DocumentsShow
+                request={makeDocumentRequestDetail({ valid_uploads_count: 0 })}
+                pdfAvailable
+            />,
+        );
+        // Rien de validé : le menu se grise et dit pourquoi.
+        const closed = screen.getByRole('button', { name: /Pièces validées/ });
+        expect(closed).toBeDisabled();
+        expect(closed).toHaveAttribute(
+            'title',
+            expect.stringContaining('Aucune pièce validée'),
+        );
+        unmount();
+
+        render(
+            <DocumentsShow
+                request={makeDocumentRequestDetail({ valid_uploads_count: 2 })}
+                pdfAvailable
+            />,
+        );
+        expect(
+            screen.getByRole('button', { name: /Pièces validées/ }),
+        ).toBeEnabled();
+        expect(
+            screen.getByRole('button', { name: /Pièces validées/ }),
+        ).toHaveTextContent('2');
     });
 
     it('downloads the PDF', async () => {

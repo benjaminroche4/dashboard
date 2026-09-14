@@ -9,7 +9,22 @@ vi.mock('@/components/realtime-staff', () => ({ RealtimeStaff: () => null }));
 vi.mock('@/components/ui/sidebar', () => ({
     SidebarTrigger: () => <button type="button">toggle</button>,
 }));
-vi.mock('@inertiajs/react', () => ({ router: { visit: vi.fn() } }));
+vi.mock('@inertiajs/react', () => ({
+    router: { visit: vi.fn() },
+    // La cloche d'activité est un lien vers le journal.
+    Link: ({
+        href,
+        children,
+        ...props
+    }: {
+        href: { url: string };
+        children: React.ReactNode;
+    }) => (
+        <a href={href.url} {...props}>
+            {children}
+        </a>
+    ),
+}));
 
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
 

@@ -37,7 +37,9 @@ export function dossierPlan(request: DocumentRequestDetail): DossierPart[] {
             for (const document of category.documents) {
                 // `uploads` n'est servi que par la fiche d'une liste.
                 for (const upload of document.uploads ?? []) {
-                    if (upload.status === 'refused') {
+                    // Rien ne sort du backoffice sans qu'un membre l'ait vu :
+                    // une pièce à vérifier attend, une pièce refusée reste dehors.
+                    if (upload.status !== 'accepted') {
                         continue;
                     }
 

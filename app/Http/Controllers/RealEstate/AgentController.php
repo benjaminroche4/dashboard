@@ -4,16 +4,21 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\RealEstate;
 
+use App\Actions\Agencies\UpdateAgentProfile;
 use App\Actions\Directory\ToggleFavorite;
 use App\Actions\Directory\TouchDirectoryContact;
 use App\Actions\RealEstate\CreateAgent;
 use App\Actions\RealEstate\DeleteAgent;
 use App\Actions\RealEstate\DeleteAgents;
 use App\Actions\RealEstate\UpdateAgent;
+use App\Data\AgencyProfileData;
 use App\Data\AgentData;
+use App\Enums\AgencySpecialty;
 use App\Enums\LeadStatus;
+use App\Enums\SpokenLanguage;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Tools\ActivityController;
+use App\Http\Requests\Agencies\UpdateAgentProfileRequest;
 use App\Http\Requests\RealEstate\BulkAgentsRequest;
 use App\Http\Requests\RealEstate\IndexAgentsRequest;
 use App\Http\Requests\RealEstate\StoreAgentRequest;
@@ -132,7 +137,16 @@ class AgentController extends Controller
                 $place->longitude,
                 $this->addressLine($agent),
             ),
-            'agent' => self::summary($agent),
+            'agent' => [
+                ...self::summary($agent),
+                // Profil de matching propre à l'agent ; à défaut, celui de son agence sert.
+                'districts' => array_map(intval(...), $agent->districts ?? []),
+                'specialties' => $agent->specialties?->map(fn (AgencySpecialty $s): string => $s->value)->values()->all() ?? [],
+                'specialty_labels' => $agent->specialties?->map(fn (AgencySpecialty $s): string => $s->label())->values()->all() ?? [],
+                'languages' => $agent->languages?->map(fn (SpokenLanguage $l): string => $l->value)->values()->all() ?? [],
+                'language_labels' => $agent->languages?->map(fn (SpokenLanguage $l): string => $l->label())->values()->all() ?? [],
+            ],
+            'profileOptions' => AgencyController::profileOptions(),
             // Fiche de son agence, pour la carte « Agence » de la page.
             'agency' => $agent->agency === null ? null : [
                 'id' => $agent->agency->id,
@@ -164,6 +178,18 @@ class AgentController extends Controller
         ]);
     }
 
+    /** Profil de matching propre à l'agent (quartiers, spécialités, langues). */
+    public function profile(UpdateAgentProfileRequest $request, Agent $agent, UpdateAgentProfile $update): RedirectResponse
+    {
+        $this->authorize('update', $agent);
+
+        $update->handle($agent, AgencyProfileData::from($request->validated()), $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Profil de :name enregistré.', ['name' => $agent->fullName()])]);
+
+        return back();
+    }
+
     /**
      * @return array<int, array{id: int, uuid: string, name: string, address: string|null}>
      */
@@ -174,6 +200,24 @@ class AgentController extends Controller
             ->get()
             ->map(fn (Agency $agency): array => AgencyController::option($agency))
             ->all();
+    }
+
+    /**
+     * Agent dans un sélecteur (carte « Agent en contact » d'un lead ou d'un
+     * dossier) : nom, agence, téléphone et l'étoile du membre connecté.
+     *
+     * @return array{id: int, uuid: string, name: string, agency: string|null, phone: string|null, is_favorite: bool}
+     */
+    public static function option(Agent $agent): array
+    {
+        return [
+            'id' => $agent->id,
+            'uuid' => $agent->uuid,
+            'name' => $agent->fullName(),
+            'agency' => $agent->agency?->name,
+            'phone' => $agent->phone,
+            'is_favorite' => (bool) $agent->is_favorite,
+        ];
     }
 
     /**

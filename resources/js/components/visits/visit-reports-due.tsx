@@ -10,7 +10,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { VisitReportBadge } from '@/components/visits/visit-report-badge';
-import { PropertyThumb } from '@/components/visits/property-picker';
+import { PropertyThumb } from '@/components/properties/property-thumb';
 import { VisitRowActions } from '@/components/visits/visit-row-actions';
 import { VisitStatusBadge } from '@/components/visits/visit-status-badge';
 import { WriteReportButton } from '@/components/visits/write-report-button';

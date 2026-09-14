@@ -98,6 +98,7 @@ export default function OwnersIndex({
                     </div>
                 </div>
                 <DataTable
+                    storageKey="owners"
                     columns={columns}
                     data={owners}
                     server={server}

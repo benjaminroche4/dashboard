@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Spinner } from '@/components/ui/spinner';
 import { parisFormat } from '@/lib/datetime';
+import { useSettle } from '@/hooks/use-settle';
 import { cn } from '@/lib/utils';
 import { status as propertyStatus } from '@/routes/clients/properties';
 import type { PropertyApplicationStatus, PropertyStatusOption } from '@/types';
@@ -53,13 +54,20 @@ export function PropertyOutcomeBadge({
     const waiting = status === 'pending' ? waitingDays(visitedAt) : null;
     const tone =
         status === 'pending' && due ? pendingDueTone : outcomeTones[status];
+    // La décision vient de dépasser son délai : une pulsation, une seule.
+    const overdue = useSettle(due, 700) && due;
 
     return (
         <Badge
             variant="secondary"
             data-status={status}
             data-due={status === 'pending' && due ? '' : undefined}
-            className={cn('font-medium', tone, className)}
+            className={cn(
+                'font-medium',
+                tone,
+                overdue && 'animate-pulse-once motion-reduce:animate-none',
+                className,
+            )}
         >
             {status === 'pending' && (
                 <Clock className="size-3.5 shrink-0" aria-hidden />

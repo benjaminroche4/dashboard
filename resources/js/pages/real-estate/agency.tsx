@@ -9,6 +9,7 @@ import { FavoriteMenu } from '@/components/favorite-menu';
 import { FavoriteStar } from '@/components/favorite-star';
 import { AgencyDialog } from '@/components/real-estate/agency-dialog';
 import { AgentDialog } from '@/components/real-estate/agent-dialog';
+import { AgencyProfileCard } from '@/components/real-estate/agency-profile-card';
 import { ActivityFeed } from '@/components/activity/activity-feed';
 import { formatAddress } from '@/components/real-estate/columns';
 import { DirectoryRelationCard } from '@/components/real-estate/directory-relation-card';
@@ -24,18 +25,25 @@ import { Button } from '@/components/ui/button';
 import { useInitials } from '@/hooks/use-initials';
 import {
     destroy as agencyDestroy,
+    enrich as agencyEnrich,
     favorite as agencyFavorite,
     index as agenciesIndex,
+    profile as agencyProfile,
     touch as agencyTouch,
 } from '@/routes/agencies';
+import {
+    apply as enrichApply,
+    dismiss as enrichDismiss,
+} from '@/routes/agencies/enrich';
 import {
     favorite as agentFavorite,
     index as agentsIndex,
     show as agentShow,
 } from '@/routes/agents';
 import { show as propertyShow } from '@/routes/properties';
-import type { Activity, AgencyDetail } from '@/types';
+import type { Activity, AgencyDetail, ProfileOptions } from '@/types';
 import { parisFormat } from '@/lib/datetime';
+import { PropertyThumb } from '@/components/properties/property-thumb';
 
 type Props = {
     agency: AgencyDetail;
@@ -43,6 +51,14 @@ type Props = {
     mapUrl?: string | null;
     /** Dix dernières actions du backoffice sur cette fiche. */
     activities?: Activity[];
+    /** Listes du dialogue de profil (spécialités, langues, mandats). */
+    profileOptions?: ProfileOptions;
+};
+
+const emptyOptions: ProfileOptions = {
+    specialties: [],
+    languages: [],
+    mandateTypes: [],
 };
 
 const visitDate = parisFormat({
@@ -55,6 +71,7 @@ export default function AgencyShow({
     agency,
     mapUrl = null,
     activities = [],
+    profileOptions = emptyOptions,
 }: Props) {
     const [editing, setEditing] = useState(false);
     const [addingAgent, setAddingAgent] = useState(false);
@@ -341,6 +358,22 @@ export default function AgencyShow({
                         />
                     </div>
                     <aside className="grid h-fit content-start gap-6 lg:sticky lg:top-6">
+                        {/* Ce que le matching sait de l'agence : à compléter
+                            après coup, jamais demandé à la création. */}
+                        <AgencyProfileCard
+                            scope="agency"
+                            agency={agency}
+                            options={profileOptions}
+                            urls={{
+                                profile: agencyProfile({ agency: agency.uuid })
+                                    .url,
+                                enrich: agencyEnrich({ agency: agency.uuid })
+                                    .url,
+                                apply: enrichApply({ agency: agency.uuid }).url,
+                                dismiss: enrichDismiss({ agency: agency.uuid })
+                                    .url,
+                            }}
+                        />
                         <DetailSection
                             title="Biens visités"
                             count={agency.properties.length}
@@ -358,35 +391,47 @@ export default function AgencyShow({
                                     {agency.properties.map((property) => (
                                         <li
                                             key={property.uuid}
-                                            className="grid gap-1 py-3 text-sm first:pt-0 last:pb-0"
+                                            className="flex items-start gap-3 py-3 text-sm first:pt-0 last:pb-0"
                                         >
-                                            <span className="flex items-baseline justify-between gap-2">
-                                                <Link
-                                                    href={propertyShow({
-                                                        property: property.uuid,
-                                                    })}
-                                                    className="truncate font-medium underline-offset-4 hover:underline"
-                                                >
-                                                    {property.label}
-                                                </Link>
-                                                <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                                                    {property.visits_count}{' '}
-                                                    visite
-                                                    {property.visits_count > 1
-                                                        ? 's'
-                                                        : ''}
+                                            {/* La photo devant les informations, comme
+                                                dans l'annuaire des biens. */}
+                                            <PropertyThumb
+                                                photo={property.photo}
+                                                label={property.label}
+                                                className="mt-0.5 size-10"
+                                            />
+                                            <span className="grid min-w-0 flex-1 gap-1">
+                                                <span className="flex items-baseline justify-between gap-2">
+                                                    <Link
+                                                        href={propertyShow({
+                                                            property:
+                                                                property.uuid,
+                                                        })}
+                                                        className="truncate font-medium underline-offset-4 hover:underline"
+                                                    >
+                                                        {property.label}
+                                                    </Link>
+                                                    <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                                                        {property.visits_count}{' '}
+                                                        visite
+                                                        {property.visits_count >
+                                                        1
+                                                            ? 's'
+                                                            : ''}
+                                                    </span>
                                                 </span>
-                                            </span>
-                                            <span className="text-muted-foreground truncate text-xs">
-                                                Dernière :{' '}
-                                                {visitDate.format(
-                                                    new Date(
-                                                        property.last_visit_at,
-                                                    ),
-                                                )}{' '}
-                                                · {property.last_visit_status}
-                                                {property.agent &&
-                                                    ` · ${property.agent}`}
+                                                <span className="text-muted-foreground truncate text-xs">
+                                                    Dernière :{' '}
+                                                    {visitDate.format(
+                                                        new Date(
+                                                            property.last_visit_at,
+                                                        ),
+                                                    )}{' '}
+                                                    ·{' '}
+                                                    {property.last_visit_status}
+                                                    {property.agent &&
+                                                        ` · ${property.agent}`}
+                                                </span>
                                             </span>
                                         </li>
                                     ))}

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\ClientClosingReason;
 use App\Enums\ClientPriority;
 use App\Enums\Currency;
 use App\Enums\Furnished;
@@ -38,6 +39,9 @@ use Illuminate\Support\Collection;
  * @property string|null $reference
  * @property string|null $external_reference
  * @property LeadLossReason|null $loss_reason
+ * @property CarbonInterface|null $closed_at
+ * @property ClientClosingReason|null $closing_reason
+ * @property string|null $closing_note
  * @property string|null $loss_note
  * @property string $first_name
  * @property string $last_name
@@ -78,6 +82,7 @@ use Illuminate\Support\Collection;
  * @property CarbonInterface|null $last_contacted_at
  * @property CarbonInterface|null $first_contacted_at
  * @property CarbonInterface|null $first_contact_alerted_at
+ * @property list<int>|null $arrival_alerted_days
  * @property int|null $created_by
  * @property array<string, array<string, mixed>>|null $tenant_profiles
  * @property string|null $co_first_name
@@ -99,7 +104,7 @@ use Illuminate\Support\Collection;
     'reference', 'external_reference',
     'first_name', 'last_name', 'email', 'phone', 'co_first_name', 'co_last_name', 'co_email', 'co_phone', 'tenant_profiles', 'company', 'language', 'offer', 'arrival_at', 'budget_cents', 'currency',
     'origin_city', 'districts', 'property_types', 'duration', 'guarantors', 'furnished', 'source', 'source_note', 'help_type', 'message', 'ai_qualification', 'ai_qualified_at',
-    'score', 'priority', 'recontact_channel', 'recontact_at', 'visio_at', 'visio_event_id', 'visio_meet_link', 'visio_report', 'visio_report_submitted_at', 'visio_report_submitted_by', 'visio_report_reminded_at', 'qualification_note', 'status', 'loss_reason', 'loss_note', 'position', 'last_contacted_at', 'first_contact_alerted_at', 'created_by', 'assigned_to', 'co_assigned_to',
+    'score', 'priority', 'recontact_channel', 'recontact_at', 'visio_at', 'visio_event_id', 'visio_meet_link', 'visio_report', 'visio_report_submitted_at', 'visio_report_submitted_by', 'visio_report_reminded_at', 'qualification_note', 'status', 'loss_reason', 'loss_note', 'position', 'last_contacted_at', 'first_contact_alerted_at', 'arrival_alerted_days', 'created_by', 'assigned_to', 'co_assigned_to',
     'agent_id',
 ])]
 class Lead extends Model
@@ -169,9 +174,12 @@ class Lead extends Model
             'help_type' => WebsiteHelpType::class,
             'status' => LeadStatus::class,
             'loss_reason' => LeadLossReason::class,
+            'closed_at' => 'datetime',
+            'closing_reason' => ClientClosingReason::class,
             'last_contacted_at' => 'datetime',
             'first_contacted_at' => 'datetime',
             'first_contact_alerted_at' => 'datetime',
+            'arrival_alerted_days' => 'array',
         ];
     }
 
@@ -242,8 +250,20 @@ class Lead extends Model
     }
 
     /**
-     * Second membre qui suit le dossier, à côté du responsable principal.
-     *
+     * Un dossier client : converti et suivi, ou clôturé (archivé en gardant la
+     * trace qu'il fut un client). Un lead archivé sans suite n'en est pas un.
+     */
+    public function isClient(): bool
+    {
+        return $this->status === LeadStatus::Converted || $this->closed_at !== null;
+    }
+
+    public function isClosed(): bool
+    {
+        return $this->closed_at !== null;
+    }
+
+    /**
      * @return BelongsTo<User, $this>
      */
     public function coAssignee(): BelongsTo

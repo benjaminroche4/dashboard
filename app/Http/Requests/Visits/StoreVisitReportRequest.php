@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Visits;
 
+use App\Enums\PropertyApplicationStatus;
 use App\Models\Visit;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\File;
 use Illuminate\Validation\Validator;
 
@@ -19,6 +21,9 @@ class StoreVisitReportRequest extends FormRequest
     {
         return [
             'report' => ['required', 'string', 'min:10', 'max:5000'],
+            // Ce que devient le bien pour ce client : la prochaine étape du
+            // suivi, facultative — on peut écrire sans encore trancher.
+            'next_status' => ['nullable', Rule::enum(PropertyApplicationStatus::class)],
             // Photos prises pendant la visite, ajoutées à celles déjà déposées.
             'photos' => ['nullable', 'array', 'max:10'],
             'photos.*' => [File::image()->types(['jpg', 'jpeg', 'png', 'webp'])->max(5 * 1024)],
@@ -49,6 +54,12 @@ class StoreVisitReportRequest extends FormRequest
      */
     public function attributes(): array
     {
-        return ['report' => 'compte rendu', 'photos' => 'photos', 'photos.*' => 'photo', 'notify_client' => 'envoi au client'];
+        return [
+            'report' => 'impressions générales',
+            'next_status' => 'prochaine étape',
+            'photos' => 'photos',
+            'photos.*' => 'photo',
+            'notify_client' => 'envoi au client',
+        ];
     }
 }

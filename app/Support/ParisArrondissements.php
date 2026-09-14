@@ -35,6 +35,68 @@ final class ParisArrondissements
     ];
 
     /**
+     * Arrondissements limitrophes (la Seine ne sépare pas : le 7e touche le 16e).
+     * Un agent qui travaille « à côté » des quartiers visés compte un peu.
+     *
+     * @var array<int, list<int>>
+     */
+    public const array ADJACENT = [
+        1 => [2, 4, 6, 7, 8],
+        2 => [1, 3, 9, 10],
+        3 => [2, 4, 10, 11],
+        4 => [1, 3, 5, 11, 12],
+        5 => [4, 6, 13, 14],
+        6 => [1, 5, 7, 14, 15],
+        7 => [1, 6, 8, 15, 16],
+        8 => [1, 7, 9, 16, 17],
+        9 => [2, 8, 10, 17, 18],
+        10 => [2, 3, 9, 11, 18, 19],
+        11 => [3, 4, 10, 12, 20],
+        12 => [4, 5, 11, 13, 20],
+        13 => [5, 12, 14],
+        14 => [5, 6, 13, 15],
+        15 => [6, 7, 14, 16],
+        16 => [7, 8, 15, 17],
+        17 => [8, 9, 16, 18],
+        18 => [9, 10, 17, 19],
+        19 => [10, 18, 20],
+        20 => [11, 12, 19],
+    ];
+
+    /**
+     * Arrondissements voisins d'un ensemble, sans ceux de l'ensemble lui-même.
+     *
+     * @param  list<int>  $districts
+     * @return list<int>
+     */
+    public static function neighbours(array $districts): array
+    {
+        $around = [];
+        foreach ($districts as $district) {
+            foreach (self::ADJACENT[$district] ?? [] as $next) {
+                if (! in_array($next, $districts, true)) {
+                    $around[$next] = true;
+                }
+            }
+        }
+        $keys = array_keys($around);
+        sort($keys);
+
+        return $keys;
+    }
+
+    /** Arrondissement d'un code postal parisien (750XX), sinon null. */
+    public static function fromPostalCode(?string $postalCode): ?int
+    {
+        if ($postalCode === null || preg_match('/^750(\d{2})$/', trim($postalCode), $m) !== 1) {
+            return null;
+        }
+        $district = (int) $m[1];
+
+        return $district >= 1 && $district <= 20 ? $district : null;
+    }
+
+    /**
      * Centre approximatif d'un arrondissement (moyenne des sommets du contour), en latitude / longitude.
      *
      * @return array{lat: float, lng: float}|null

@@ -79,12 +79,14 @@ export default function Team({ members, roles }: Props) {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Membre</TableHead>
-                            <TableHead>Rôle</TableHead>
-                            <TableHead>Fonctions</TableHead>
-                            <TableHead>Droits</TableHead>
-                            <TableHead>Sécurité</TableHead>
-                            <TableHead>Depuis</TableHead>
+                            {/* Largeurs posées sur les en-têtes : la colonne
+                                des fonctions ne pousse plus les autres. */}
+                            <TableHead className="w-[26%]">Membre</TableHead>
+                            <TableHead className="w-28">Rôle</TableHead>
+                            <TableHead className="w-[22%]">Fonctions</TableHead>
+                            <TableHead className="w-[18%]">Droits</TableHead>
+                            <TableHead className="w-32">Sécurité</TableHead>
+                            <TableHead className="w-28">Depuis</TableHead>
                             <TableHead className="w-12" />
                         </TableRow>
                     </TableHeader>
@@ -187,7 +189,7 @@ export default function Team({ members, roles }: Props) {
                                         </span>
                                     )}
                                 </TableCell>
-                                <TableCell className="text-muted-foreground text-sm">
+                                <TableCell className="text-muted-foreground text-sm tabular-nums">
                                     {member.created_at
                                         ? dateFormat.format(
                                               new Date(member.created_at),

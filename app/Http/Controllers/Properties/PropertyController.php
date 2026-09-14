@@ -83,6 +83,8 @@ class PropertyController extends Controller
                 ->orderByRaw('coalesce(nullif(title, ?), street) '.$request->direction(), ['']))
             ->when($sort !== 'label', fn (Builder $query): Builder => $query->orderBy($sort, $request->direction()))
             ->orderByDesc('id')
+            // Le résumé lit l'agent, le partenaire et l'attribution de chaque bien.
+            ->with(['agent', 'partner', 'assignedLead'])
             ->paginate(self::PER_PAGE)
             ->withQueryString();
 

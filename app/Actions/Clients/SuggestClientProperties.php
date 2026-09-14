@@ -112,6 +112,8 @@ final class SuggestClientProperties
             'currency' => $property->currency->value,
             'listing_url' => $property->listing_url,
             'agent' => $property->agent?->fullName(),
+            // Un logement se reconnaît à son image avant son adresse.
+            'photo' => $property->photoUrls()[0] ?? null,
             'score' => $match['score'],
             'reasons' => $match['reasons'],
         ];

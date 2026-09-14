@@ -26,6 +26,20 @@ describe('HouseholdPersonTabs', () => {
             within(row('3 derniers bulletins de salaire')).getByText('Travail'),
         ).toBeInTheDocument();
         expect(screen.getByText('Locataire')).toBeInTheDocument();
+
+        // Chaque pièce dit où elle en est, et la personne résume le tout.
+        expect(
+            within(row("Passeport ou carte d'identité")).getByText('À déposer'),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('progressbar')).toHaveAttribute(
+            'aria-valuenow',
+            '0',
+        );
+        // Plus de Data Table : ni filtre, ni menu des colonnes, ni sélection.
+        expect(
+            screen.queryByPlaceholderText('Filtrer par pièce…'),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText(/sélectionnée/)).not.toBeInTheDocument();
     });
 
     it('shows another person without leaving the page', async () => {
@@ -50,6 +64,28 @@ describe('HouseholdPersonTabs', () => {
             screen.getByRole('tab', { name: /Marc Durand/ }),
         ).toHaveAttribute('data-state', 'active');
         expect(screen.getByText('Garant')).toBeInTheDocument();
+    });
+
+    it('lets a member who may edit the list add a file under a piece', () => {
+        const { unmount } = render(
+            <HouseholdPersonTabs
+                persons={persons}
+                requestUuid="req-1"
+                canReview
+            />,
+        );
+        expect(
+            screen.getByRole('button', {
+                name: "Ajouter un fichier pour Passeport ou carte d'identité",
+            }),
+        ).toBeInTheDocument();
+        unmount();
+
+        // En lecture seule, rien à verser.
+        render(<HouseholdPersonTabs persons={persons} requestUuid="req-1" />);
+        expect(
+            screen.queryByRole('button', { name: /Ajouter un fichier/ }),
+        ).not.toBeInTheDocument();
     });
 
     it('falls back to the person number without a name', () => {

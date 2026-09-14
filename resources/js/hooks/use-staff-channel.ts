@@ -2,12 +2,15 @@ import { router, usePage } from '@inertiajs/react';
 import { useEchoPresence } from '@laravel/echo-react';
 import { notify as toaster } from '@/lib/toast';
 import { flushPrefetchCache } from '@/lib/prefetch-cache';
+import { recordMissedEvent } from '@/lib/missed-events';
 
 export type DashboardUpdatedEvent = {
     resource: string;
     payload: Record<string, unknown>;
     message: string;
     actor: { id: number; name: string } | null;
+    /** Membres qui suivent le lead touché : ceux à qui l'événement parle. */
+    concerns?: number[];
     at: string;
 };
 
@@ -67,6 +70,24 @@ export function mentionsMe(
 }
 
 /**
+ * Vrai si l'événement parle à l'utilisateur courant : il y est cité, il suit
+ * le lead touché, ou c'est sa propre action depuis un autre onglet. Tout le
+ * reste recharge en silence — un toast par action de chaque collègue finissait
+ * ignoré, y compris celui qui comptait.
+ */
+export function concernsMe(
+    event: DashboardUpdatedEvent,
+    currentUserId: number,
+): boolean {
+    return (
+        mentionsMe(event, currentUserId) ||
+        event.actor?.id === currentUserId ||
+        (Array.isArray(event.concerns) &&
+            event.concerns.includes(currentUserId))
+    );
+}
+
+/**
  * Abonne le composant au canal de présence "staff".
  * À chaque `dashboard.updated` reçu : toast, callback, puis rechargement des
  * props Inertia, sans refresh navigateur. L'onglet qui a fait l'action ne
@@ -104,8 +125,11 @@ export function useStaffChannel({
                         `${event.actor?.name ?? 'Un membre'} vous a mentionné`,
                         event.message,
                     );
-                } else {
+                } else if (concernsMe(event, currentUserId)) {
                     toaster.info(describeEvent(event, currentUserId));
+                } else {
+                    // Pas pour moi : la page se met à jour, la cloche compte.
+                    recordMissedEvent();
                 }
             }
 

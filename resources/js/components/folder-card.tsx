@@ -1,12 +1,11 @@
-import { Link } from '@inertiajs/react';
-import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
-import type { RouteDefinition } from '@/wayfinder';
 
 /**
  * Chemise à documents : fermée au repos, des pages en dépassent au survol
  * (maquette Figma « Folder Card », états Default et Hover). Les dessins de
- * la chemise sont les exports Figma dans `public/images/folder`.
+ * la chemise sont les exports Figma dans `public/images/folder`. Seule
+ * l'illustration sert : la liste des dossiers et l'en-tête d'un dossier la
+ * posent à côté du nom.
  */
 function Sheet({
     className,
@@ -77,76 +76,5 @@ export function FolderIllustration({
                 className="absolute top-[23px] left-[-7px] block h-[121px] w-[194px] max-w-none"
             />
         </div>
-    );
-}
-
-type Props = {
-    title: string;
-    /** Ligne grise sous le titre (« 10 fichiers », société, référence). */
-    subtitle?: string | null;
-    /**
-     * Destination : un objet de route Wayfinder (visite Inertia) ou une
-     * ancre `#section` de la page. La carte entière est cliquable ; les
-     * liens placés dans `children` restent utilisables.
-     */
-    href?: RouteDefinition<'get'> | string;
-    /** Informations complémentaires, sous le titre. */
-    children?: ReactNode;
-    /** Chemise ouverte même sans survol (ex. ligne survolée dans un tableau). */
-    open?: boolean;
-    className?: string;
-};
-
-export function FolderCard({
-    title,
-    subtitle,
-    href,
-    children,
-    open = false,
-    className,
-}: Props) {
-    const heading =
-        href === undefined ? (
-            <span className="text-base font-medium">{title}</span>
-        ) : typeof href === 'string' ? (
-            <a
-                href={href}
-                className="text-base font-medium after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none"
-            >
-                {title}
-            </a>
-        ) : (
-            <Link
-                href={href}
-                prefetch
-                className="text-base font-medium after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none"
-            >
-                {title}
-            </Link>
-        );
-
-    return (
-        <article
-            data-open={open ? '' : undefined}
-            className={cn(
-                'group bg-sidebar hover:bg-muted focus-within:bg-muted data-open:bg-muted has-[a:focus-visible]:ring-ring/50 relative flex flex-col items-center gap-3 rounded-2xl border px-6 pt-6 pb-4 transition-colors has-[a:focus-visible]:ring-[3px]',
-                className,
-            )}
-        >
-            <FolderIllustration open={open} />
-            <div className="grid w-full justify-items-center gap-0.5 text-center">
-                {heading}
-                {subtitle && (
-                    <span className="text-muted-foreground truncate text-xs">
-                        {subtitle}
-                    </span>
-                )}
-            </div>
-            {children && (
-                <div className="relative z-10 grid w-full gap-1.5 text-sm">
-                    {children}
-                </div>
-            )}
-        </article>
     );
 }

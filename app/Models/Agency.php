@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Concerns\Favoritable;
+use App\Enums\AgencySpecialty;
+use App\Enums\MandateType;
+use App\Enums\SpokenLanguage;
 use App\Support\ContactMatch;
 use Carbon\CarbonInterface;
 use Database\Factories\AgencyFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\AsEnumCollection;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,6 +21,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Support\Collection as SupportCollection;
 
 /**
  * Agence immobilière partenaire : coordonnées et agents rattachés.
@@ -37,11 +42,23 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
  * @property CarbonInterface|null $last_contacted_at
  * @property float|null $latitude
  * @property float|null $longitude
+ * @property list<int>|null $districts
+ * @property SupportCollection<int, AgencySpecialty>|null $specialties
+ * @property SupportCollection<int, SpokenLanguage>|null $languages
+ * @property SupportCollection<int, MandateType>|null $mandate_types
+ * @property string|null $fee_note
+ * @property int|null $rent_min_cents
+ * @property int|null $rent_max_cents
+ * @property bool|null $accepts_garantme
+ * @property bool|null $accepts_foreign_files
+ * @property array<string, mixed>|null $ai_profile
+ * @property CarbonInterface|null $ai_profile_at
+ * @property string|null $google_place_id
  * @property-read User|null $creator
  * @property-read Collection<int, Agent> $agents
  * @property-read Collection<int, Lead> $leads
  */
-#[Fillable(['name', 'street', 'postal_code', 'city', 'phone', 'email', 'website', 'notes', 'latitude', 'longitude', 'last_contacted_at', 'created_by'])]
+#[Fillable(['name', 'street', 'postal_code', 'city', 'phone', 'email', 'website', 'notes', 'latitude', 'longitude', 'last_contacted_at', 'created_by', 'districts', 'specialties', 'languages', 'mandate_types', 'fee_note', 'rent_min_cents', 'rent_max_cents', 'accepts_garantme', 'accepts_foreign_files', 'ai_profile', 'ai_profile_at', 'google_place_id'])]
 class Agency extends Model
 {
     use Favoritable;
@@ -62,11 +79,23 @@ class Agency extends Model
     }
 
     /**
-     * @return array<string, string>
+     * @return array<string, mixed>
      */
     protected function casts(): array
     {
-        return ['latitude' => 'float', 'longitude' => 'float', 'last_contacted_at' => 'datetime'];
+        return [
+            'latitude' => 'float',
+            'longitude' => 'float',
+            'last_contacted_at' => 'datetime',
+            'districts' => 'array',
+            'specialties' => AsEnumCollection::of(AgencySpecialty::class),
+            'languages' => AsEnumCollection::of(SpokenLanguage::class),
+            'mandate_types' => AsEnumCollection::of(MandateType::class),
+            'accepts_garantme' => 'boolean',
+            'accepts_foreign_files' => 'boolean',
+            'ai_profile' => 'array',
+            'ai_profile_at' => 'datetime',
+        ];
     }
 
     public function getRouteKeyName(): string
@@ -110,6 +139,20 @@ class Agency extends Model
     public function visits(): HasManyThrough
     {
         return $this->hasManyThrough(Visit::class, Agent::class)->latest('visits.scheduled_at');
+    }
+
+    /** Vrai dès qu'un champ du profil de matching est renseigné. */
+    public function hasProfile(): bool
+    {
+        return ($this->districts ?? []) !== []
+            || ($this->specialties?->isNotEmpty() ?? false)
+            || ($this->languages?->isNotEmpty() ?? false)
+            || ($this->mandate_types?->isNotEmpty() ?? false)
+            || $this->fee_note !== null
+            || $this->rent_min_cents !== null
+            || $this->rent_max_cents !== null
+            || $this->accepts_garantme !== null
+            || $this->accepts_foreign_files !== null;
     }
 
     /**

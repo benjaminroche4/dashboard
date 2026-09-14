@@ -10,6 +10,7 @@ use App\Events\DashboardUpdated;
 use App\Models\Lead;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Déplace un lead dans le kanban : autre colonne et/ou autre position,
@@ -19,6 +20,13 @@ final class UpdateLeadStatus
 {
     public function handle(Lead $lead, LeadStatus $status, ?int $position = null, ?User $by = null, ?LeadLossReason $lossReason = null, ?string $lossNote = null): Lead
     {
+        // Un dossier client se construit sur une formule : sans elle, ni le
+        // bouton « Convertir », ni le kanban, ni un dossier créé à la main ne
+        // font passer un lead en « Converti ».
+        if ($status === LeadStatus::Converted && $lead->offer === null) {
+            throw ValidationException::withMessages(['offer' => __('Choisissez une formule (Accompagné ou Confié) avant d’ouvrir le dossier client.')]);
+        }
+
         return DB::transaction(function () use ($lead, $status, $position, $by, $lossReason, $lossNote): Lead {
             $previous = $lead->status;
             $changed = $previous !== $status;

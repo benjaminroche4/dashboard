@@ -52,6 +52,14 @@ import {
     makeDocumentUpload,
 } from '@/test/fixtures/document-request';
 
+/** Fichier validé par l'équipe : seuls ceux-là entrent dans le dossier. */
+const accepted = (overrides: Parameters<typeof makeDocumentUpload>[0] = {}) =>
+    makeDocumentUpload({
+        status: 'accepted',
+        status_label: 'Validée',
+        ...overrides,
+    });
+
 /** Liste d'un locataire avec deux pièces déposées. */
 const request = (files: { name: string; url: string }[]) =>
     makeDocumentRequestDetail({
@@ -70,7 +78,7 @@ const request = (files: { name: string; url: string }[]) =>
                             label: `Pièce ${index}`,
                             hint: null,
                             uploads: [
-                                makeDocumentUpload({
+                                accepted({
                                     id: index + 1,
                                     name: file.name,
                                     download_url: file.url,
@@ -164,7 +172,7 @@ describe('mergeDossierPdf', () => {
         vi.stubGlobal('fetch', fetchMock);
         const detail = request([{ name: 'cni.pdf', url: '/uploads/1' }]);
         detail.persons[0]!.categories[0]!.documents[0]!.uploads = [
-            makeDocumentUpload({
+            accepted({
                 id: 1,
                 name: 'cni.pdf',
                 status: 'refused',
@@ -176,7 +184,7 @@ describe('mergeDossierPdf', () => {
         expect(fetchMock).not.toHaveBeenCalled();
         expect(notify.warning).toHaveBeenCalledWith(
             'Aucune pièce à fusionner',
-            'Toutes les pièces déposées ont été refusées.',
+            'Aucune pièce validée : le dossier ne part qu’avec des pièces vérifiées par l’équipe.',
         );
     });
 

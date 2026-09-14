@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Policies;
 
 use App\Enums\LeadSegment;
-use App\Enums\LeadStatus;
 use App\Enums\SiteSection;
 use App\Models\Lead;
 use App\Models\User;
@@ -21,7 +20,7 @@ final class LeadPolicy
     /** Section dont relève un lead. */
     public static function section(Lead $lead): SiteSection
     {
-        if ($lead->status === LeadStatus::Converted) {
+        if ($lead->isClient()) {
             return SiteSection::Clients;
         }
 

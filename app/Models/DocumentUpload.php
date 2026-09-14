@@ -30,6 +30,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $review_note
  * @property CarbonInterface|null $reviewed_at
  * @property int|null $reviewed_by
+ * @property array<string, mixed>|null $ai_review
+ * @property CarbonInterface|null $ai_reviewed_at
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  */
@@ -83,6 +85,9 @@ class DocumentUpload extends Model
         return [
             'status' => DocumentUploadStatus::class,
             'reviewed_at' => 'datetime',
+            // Proposition de l'assistant, en attente de relecture.
+            'ai_review' => 'array',
+            'ai_reviewed_at' => 'datetime',
         ];
     }
 }

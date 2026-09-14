@@ -18,7 +18,7 @@ export type Visit = {
     mode: VisitModeValue;
     mode_label: string;
     notes: string | null;
-    /** Compte rendu rédigé après la visite. */
+    /** Impressions générales, en texte libre, rédigées après la visite. */
     report: string | null;
     /** URL publiques des photos prises pendant la visite. */
     report_photos: string[];
@@ -28,6 +28,8 @@ export type Visit = {
     report_due: boolean;
     /** Le compte rendu peut s'écrire : visite passée et non annulée. */
     can_report: boolean;
+    /** Le foyer a une adresse : le compte rendu peut lui être envoyé. */
+    can_notify_client: boolean;
     /** Ce que le client a décidé du bien visité, une fois le compte rendu écrit. */
     outcome: PropertyApplicationStatus;
     outcome_label: string;
@@ -105,4 +107,17 @@ export type VisitPropertyOption = {
     city: string | null;
     /** Photo principale (première photo), pour la vignette de la liste. */
     photo?: string | null;
+};
+
+/** Ce que le dialogue du compte rendu édite. */
+export type VisitReportForm = {
+    report: string;
+    /** Prochaine étape pour ce bien, vide tant qu'on ne tranche pas. */
+    next_status: PropertyApplicationStatus | '';
+};
+
+/** Ce qui part à `clients.visits.report`, photos et envoi au client mis à part. */
+export type VisitReportPayload = {
+    report: string;
+    next_status: PropertyApplicationStatus | '';
 };

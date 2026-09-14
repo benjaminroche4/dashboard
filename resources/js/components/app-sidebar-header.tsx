@@ -1,3 +1,4 @@
+import { ActivityBell } from '@/components/activity-bell';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { OnlineStaff } from '@/components/online-staff';
 import { RealtimeStaff } from '@/components/realtime-staff';
@@ -27,6 +28,7 @@ export function AppSidebarHeader({
 
             <div className="flex items-center justify-end gap-2">
                 <RealtimeStaff />
+                <ActivityBell />
                 <OnlineStaff />
             </div>
         </header>

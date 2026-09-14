@@ -2,10 +2,15 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-const { patch, del } = vi.hoisted(() => ({ patch: vi.fn(), del: vi.fn() }));
+const { patch, del, post } = vi.hoisted(() => ({
+    patch: vi.fn(),
+    del: vi.fn(),
+    post: vi.fn(),
+}));
 
 vi.mock('@inertiajs/react', () => ({
-    router: { patch, delete: del },
+    router: { patch, delete: del, post },
+    usePage: () => ({ props: { features: { assistant: true } } }),
 }));
 
 import { DocumentUploadList } from '@/components/documents/document-upload-list';
@@ -49,7 +54,8 @@ describe('DocumentUploadList', () => {
             />,
         );
         const item = screen.getByRole('listitem');
-        expect(item.querySelector('.bg-green-50')).not.toBeNull();
+        // La carte du fichier, c'est la ligne elle-même : elle porte la teinte.
+        expect(item).toHaveClass('bg-green-50');
         expect(within(item).getByText(/Validée · Admin/)).toBeInTheDocument();
         // Une pièce validée se remet en vérification, elle ne se revalide pas.
         expect(
@@ -106,7 +112,7 @@ describe('DocumentUploadList', () => {
         );
 
         const item = screen.getByRole('listitem');
-        expect(item.querySelector('.bg-red-50')).not.toBeNull();
+        expect(item).toHaveClass('bg-red-50');
         expect(
             within(item).getByText(/Refusée · Admin — Page manquante\./),
         ).toBeInTheDocument();
@@ -169,5 +175,90 @@ describe('DocumentUploadList', () => {
         expect(
             viewer.getByRole('link', { name: 'Télécharger' }),
         ).toHaveAttribute('href', expect.stringContaining(reviewUrl));
+    });
+
+    it('shows the assistant proposal and applies it in one click', async () => {
+        const user = userEvent.setup();
+        const proposal = makeDocumentUpload({
+            ai_review: {
+                document_type: 'Passeport italien',
+                matches_request: true,
+                verdict: 'refused',
+                reason: 'Le passeport a expiré le 12/03/2026 : déposez un titre en cours de validité.',
+                holder_name: 'Léa Durand',
+                document_date: null,
+                expires_at: '2026-03-12',
+                profile: { nationality: 'Italienne' },
+            },
+            can_apply_profile: true,
+        });
+        const { unmount } = render(
+            <DocumentUploadList
+                requestUuid={requestUuid}
+                uploads={[proposal]}
+                canReview
+            />,
+        );
+
+        const note = screen.getByRole('note', {
+            name: 'Proposition de l’assistant pour passeport.pdf',
+        });
+        expect(note).toHaveTextContent('À redéposer');
+        expect(note).toHaveTextContent('Passeport italien');
+        expect(note).toHaveTextContent('expire le 2026-03-12');
+
+        // Le motif proposé devient celui du refus, lu par le client.
+        await user.click(
+            within(note).getByRole('button', { name: 'Refuser avec ce motif' }),
+        );
+        expect(patch).toHaveBeenCalledWith(
+            reviewUrl,
+            {
+                status: 'refused',
+                note: 'Le passeport a expiré le 12/03/2026 : déposez un titre en cours de validité.',
+            },
+            expect.objectContaining({ preserveScroll: true }),
+        );
+
+        // Le premier envoi laisse le composant occupé jusqu'à la réponse :
+        // on repart d'un rendu neuf pour le second bouton.
+        unmount();
+        render(
+            <DocumentUploadList
+                requestUuid={requestUuid}
+                uploads={[proposal]}
+                canReview
+            />,
+        );
+        await user.click(
+            screen.getByRole('button', { name: 'Reporter sur la fiche' }),
+        );
+        expect(post).toHaveBeenCalledWith(
+            `${reviewUrl}/profile`,
+            {},
+            expect.objectContaining({ preserveScroll: true }),
+        );
+    });
+
+    it('lets a member ask the assistant to read a document', async () => {
+        const user = userEvent.setup();
+        render(
+            <DocumentUploadList
+                requestUuid={requestUuid}
+                uploads={[makeDocumentUpload()]}
+                canReview
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', {
+                name: 'Relire passeport.pdf avec l’assistant',
+            }),
+        );
+        expect(post).toHaveBeenCalledWith(
+            `${reviewUrl}/analyze`,
+            {},
+            expect.objectContaining({ preserveScroll: true }),
+        );
     });
 });

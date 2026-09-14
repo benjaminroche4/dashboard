@@ -14,8 +14,10 @@ use Carbon\CarbonImmutable;
  * Change l'avancement d'une visite, son créneau, le bien visité, l'agent, le
  * membre qui la réalise ou ses notes.
  */
-final class UpdateVisit
+final readonly class UpdateVisit
 {
+    public function __construct(private SyncVisitCalendarEvent $calendar) {}
+
     public function handle(Visit $visit, VisitUpdateData $data): Visit
     {
         if ($data->status instanceof VisitStatus) {
@@ -44,6 +46,8 @@ final class UpdateVisit
 
         $visit->save();
         $visit->load(['lead', 'property']);
+        // Déplacée, annulée ou confiée à un autre membre : l'agenda suit.
+        $this->calendar->handle($visit);
 
         event(new DashboardUpdated('visits', ['id' => $visit->id], "a mis à jour la visite de {$visit->lead->fullName()} ({$visit->status->label()})"));
 

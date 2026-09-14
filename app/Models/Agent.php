@@ -5,19 +5,23 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Concerns\Favoritable;
+use App\Enums\AgencySpecialty;
 use App\Enums\AgentPosition;
 use App\Enums\RelationshipQuality;
+use App\Enums\SpokenLanguage;
 use App\Support\ContactMatch;
 use Carbon\CarbonInterface;
 use Database\Factories\AgentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\AsEnumCollection;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection as SupportCollection;
 
 /**
  * Agent immobilier avec qui l'équipe travaille, rattaché ou non à une agence.
@@ -42,6 +46,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property CarbonInterface|null $last_contacted_at
  * @property float|null $latitude
  * @property float|null $longitude
+ * @property list<int>|null $districts
+ * @property SupportCollection<int, AgencySpecialty>|null $specialties
+ * @property SupportCollection<int, SpokenLanguage>|null $languages
  * @property-read Agency|null $agency
  * @property-read User|null $creator
  * @property-read Collection<int, Lead> $leads
@@ -49,7 +56,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int|null $visits_count
  * @property string|null $visits_max_scheduled_at
  */
-#[Fillable(['agency_id', 'first_name', 'last_name', 'position', 'relationship_quality', 'is_primary', 'street', 'postal_code', 'city', 'email', 'phone', 'notes', 'latitude', 'longitude', 'last_contacted_at', 'created_by'])]
+#[Fillable(['agency_id', 'first_name', 'last_name', 'position', 'relationship_quality', 'is_primary', 'street', 'postal_code', 'city', 'email', 'phone', 'notes', 'latitude', 'longitude', 'last_contacted_at', 'created_by', 'districts', 'specialties', 'languages'])]
 class Agent extends Model
 {
     use Favoritable;
@@ -70,11 +77,21 @@ class Agent extends Model
     }
 
     /**
-     * @return array<string, string>
+     * @return array<string, mixed>
      */
     protected function casts(): array
     {
-        return ['position' => AgentPosition::class, 'relationship_quality' => RelationshipQuality::class, 'latitude' => 'float', 'longitude' => 'float', 'last_contacted_at' => 'datetime', 'is_primary' => 'boolean'];
+        return [
+            'position' => AgentPosition::class,
+            'relationship_quality' => RelationshipQuality::class,
+            'latitude' => 'float',
+            'longitude' => 'float',
+            'last_contacted_at' => 'datetime',
+            'is_primary' => 'boolean',
+            'districts' => 'array',
+            'specialties' => AsEnumCollection::of(AgencySpecialty::class),
+            'languages' => AsEnumCollection::of(SpokenLanguage::class),
+        ];
     }
 
     public function getRouteKeyName(): string

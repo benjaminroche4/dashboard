@@ -18,6 +18,19 @@ final class ListingFetcher
     /** Texte de la page, ou null si elle est injoignable ou vide (site qui bloque les robots, etc.). */
     public function fetch(string $url): ?string
     {
+        $html = $this->fetchHtml($url);
+        if ($html === null) {
+            return null;
+        }
+
+        $text = self::toText($html);
+
+        return $text === '' ? null : $text;
+    }
+
+    /** HTML brut de la page, ou null si elle est injoignable ou en erreur. */
+    public function fetchHtml(string $url): ?string
+    {
         try {
             $response = Http::timeout(12)
                 ->withHeaders([
@@ -33,9 +46,9 @@ final class ListingFetcher
             return null;
         }
 
-        $text = self::toText($response->body());
+        $body = $response->body();
 
-        return $text === '' ? null : $text;
+        return trim($body) === '' ? null : $body;
     }
 
     /** HTML → texte : scripts et styles retirés, balises supprimées, blancs réduits. */

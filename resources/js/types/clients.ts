@@ -4,6 +4,13 @@ export type ClientPriority = 'low' | 'normal' | 'high' | 'urgent';
 export type ClientPriorityOption = { value: ClientPriority; label: string };
 
 /** Un client : lead converti, vu comme un dossier en cours. */
+/** Miroir de `App\Enums\ClientClosingReason` : comment un dossier s'est terminé. */
+export type ClientClosingReason =
+    | 'installed'
+    | 'withdrawn'
+    | 'no_home'
+    | 'other';
+
 export type Client = {
     id: number;
     uuid: string;
@@ -21,6 +28,11 @@ export type Client = {
     arrival_at: string | null;
     /** Date de passage en « Converti » (ISO 8601). */
     converted_at: string | null;
+    /** Dossier clôturé : date, motif et précision ; null tant qu'il est suivi. */
+    closed_at: string | null;
+    closing_reason: ClientClosingReason | null;
+    closing_reason_label: string | null;
+    closing_note: string | null;
     assignee: { id: number; name: string; avatar: string | null } | null;
     /** Second locataire du foyer, quand le dossier en compte deux. */
     co_tenant: {
@@ -174,6 +186,8 @@ export type ClientProperty = {
     id: number;
     uuid: string;
     label: string;
+    /** Photo principale, affichée en vignette devant les informations. */
+    photo: string | null;
     street: string;
     postal_code: string | null;
     city: string | null;
@@ -219,6 +233,8 @@ export type ClientPropertySuggestion = {
     currency: string;
     listing_url: string | null;
     agent: string | null;
+    /** Photo principale (première photo), pour la vignette de la liste. */
+    photo: string | null;
     score: number;
     /** Critères remplis, en clair (« Dans le budget », « Arrondissement recherché (11e) »…). */
     reasons: string[];
@@ -245,4 +261,65 @@ export type DossierReadiness = {
     missing: number;
     /** Part des pièces validées, de 0 à 100. */
     percent: number;
+};
+
+/** Agent d'une agence suggérée, avec sa note et ses raisons. */
+export type SuggestedAgent = {
+    id: number;
+    uuid: string;
+    name: string;
+    position: string | null;
+    phone: string | null;
+    email: string | null;
+    relationship_quality: string | null;
+    relationship_quality_label: string | null;
+    is_primary: boolean;
+    score: number;
+    reasons: string[];
+};
+
+/**
+ * Agence (ou agent indépendant) à contacter pour un dossier : la note du
+ * meilleur agent, les raisons en clair, et les agents notés.
+ */
+export type ClientAgentSuggestion = {
+    /** `agency:12` ou `agent:34` : la clé que l'assistant renvoie dans son classement. */
+    key: string;
+    agency: {
+        id: number;
+        uuid: string;
+        name: string;
+        city: string | null;
+        postal_code: string | null;
+        phone: string | null;
+        email: string | null;
+        website: string | null;
+        has_profile: boolean;
+    } | null;
+    agents: SuggestedAgent[];
+    best_agent: SuggestedAgent | null;
+    score: number;
+    reasons: string[];
+    available_properties: number;
+};
+
+/** Adéquation et phrase de l'assistant pour une agence suggérée. */
+export type ClientAgentExplanation = {
+    key: string;
+    fit: 'strong' | 'good' | 'weak';
+    reason: string;
+};
+
+/** Agence trouvée via Google Places dans les quartiers visés. */
+export type DiscoveredAgency = {
+    id: string;
+    name: string;
+    address: string;
+    rating: number | null;
+    ratings: number;
+    latitude: number | null;
+    longitude: number | null;
+    district: number;
+    /** Déjà dans l'annuaire : l'UUID de sa fiche. */
+    known_uuid: string | null;
 };

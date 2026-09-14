@@ -155,8 +155,9 @@ function buildNavGroups(
                     items: [
                         {
                             // L'annuaire des propriétaires : qui possède quoi.
-                            // La prospection vit dans « Leads › Propriétaires ».
-                            title: 'Propriétaires',
+                            // La prospection vit dans « Leads › Propriétaires » :
+                            // un mot différent pour chaque sens.
+                            title: 'Annuaire des propriétaires',
                             href: ownersIndex(),
                             section: 'owners',
                         },
@@ -190,7 +191,8 @@ function buildNavGroups(
                             section: 'invoices',
                         },
                         {
-                            title: 'Listes de documents',
+                            // Le même nom que l'objet, partout : une liste de pièces.
+                            title: 'Listes de pièces',
                             href: documentsIndex(),
                             section: 'documents',
                         },

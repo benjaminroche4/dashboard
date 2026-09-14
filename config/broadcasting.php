@@ -52,6 +52,11 @@ return [
             ],
             'client_options' => [
                 // Guzzle client options: https://docs.guzzlephp.org/en/stable/request-options.html
+                // Diffusion synchrone (`ShouldBroadcastNow`) : sans borne, un Reverb
+                // qui ne répond plus ferait attendre chaque requête du backoffice.
+                // `ResilientBroadcaster` rattrape l'erreur, il ne rattrape pas l'attente.
+                'connect_timeout' => (float) env('REVERB_CONNECT_TIMEOUT', 1),
+                'timeout' => (float) env('REVERB_TIMEOUT', 2),
             ],
         ],
 

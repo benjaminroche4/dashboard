@@ -83,7 +83,7 @@ export async function mergeDossierPdf(
         notify.warning(
             'Aucune pièce à fusionner',
             received
-                ? 'Toutes les pièces déposées ont été refusées.'
+                ? 'Aucune pièce validée : le dossier ne part qu’avec des pièces vérifiées par l’équipe.'
                 : 'Le client n’a encore rien déposé.',
         );
 

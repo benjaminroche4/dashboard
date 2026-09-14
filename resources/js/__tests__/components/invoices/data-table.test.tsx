@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { DataTable } from '@/components/data-table';
@@ -158,6 +158,53 @@ describe('Invoices DataTable', () => {
 
         expect(
             await screen.findByRole('menuitem', { name: 'Télécharger le PDF' }),
+        ).toBeInTheDocument();
+    });
+
+    it('remembers the hidden columns under its storage key, across a reload', async () => {
+        const user = userEvent.setup();
+        const table = () => (
+            <DataTable
+                storageKey="invoices"
+                columns={invoiceColumns()}
+                data={invoices}
+                columnLabels={invoiceColumnLabels}
+            />
+        );
+        const { unmount } = render(table());
+
+        expect(
+            screen.getByRole('columnheader', { name: /Client/ }),
+        ).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: /Colonnes/ }));
+        await user.click(
+            await screen.findByRole('menuitemcheckbox', { name: 'Client' }),
+        );
+        expect(
+            screen.queryByRole('columnheader', { name: /Client/ }),
+        ).not.toBeInTheDocument();
+        expect(localStorage.getItem('dashboard.invoices.columns')).toBe(
+            JSON.stringify({ client_name: false }),
+        );
+
+        // Un rechargement de la page retrouve le même tableau.
+        unmount();
+        render(table());
+        expect(
+            screen.queryByRole('columnheader', { name: /Client/ }),
+        ).not.toBeInTheDocument();
+
+        // Sans clé, rien n'est retenu : le tableau part de ses colonnes.
+        cleanup();
+        render(
+            <DataTable
+                columns={invoiceColumns()}
+                data={invoices}
+                columnLabels={invoiceColumnLabels}
+            />,
+        );
+        expect(
+            screen.getByRole('columnheader', { name: /Client/ }),
         ).toBeInTheDocument();
     });
 

@@ -228,7 +228,7 @@ export default function DocumentsCatalog({ groups, categories }: Props) {
 DocumentsCatalog.layout = {
     breadcrumbs: [
         { title: 'Outils', href: toolsIndex() },
-        { title: 'Documents', href: documentsIndex() },
+        { title: 'Listes de pièces', href: documentsIndex() },
         { title: 'Catalogue des pièces', href: catalogIndex() },
     ],
 };

@@ -88,13 +88,14 @@ describe('AppSidebar', () => {
             .map((link) => link.getAttribute('href'));
         expect(hrefs).toContain('/owners/leads/create');
         expect(hrefs).toContain('/owners');
-        // Deux entrées « Propriétaires » : les leads en gestion locative dans
-        // le groupe Leads, et l'annuaire (notre base) dans le groupe Réseau.
-        const owners = screen
-            .getAllByRole('link', { name: 'Propriétaires' })
-            .map((link) => link.getAttribute('href'));
-        expect(owners).toContain('/owners/leads');
-        expect(owners).toContain('/owners');
+        // Deux sens, deux mots : « Propriétaires » sous Leads, c'est la
+        // prospection ; l'annuaire (notre base) porte son propre nom.
+        expect(
+            screen.getByRole('link', { name: 'Propriétaires' }),
+        ).toHaveAttribute('href', '/owners/leads');
+        expect(
+            screen.getByRole('link', { name: 'Annuaire des propriétaires' }),
+        ).toHaveAttribute('href', '/owners');
         // Réseau : un seul menu « Propriétaires et biens » avec les deux pages.
         expect(
             screen.getByRole('link', { name: 'Propriétaires et biens' }),

@@ -73,6 +73,7 @@ export default function Agents({
                     </Button>
                 </div>
                 <DataTable
+                    storageKey="agents"
                     columns={columns}
                     data={agents}
                     filters={

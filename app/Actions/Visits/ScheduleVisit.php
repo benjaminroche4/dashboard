@@ -9,6 +9,7 @@ use App\Data\PropertyData;
 use App\Data\VisitData;
 use App\Enums\Offer;
 use App\Enums\VisitMode;
+use App\Enums\VisitStatus;
 use App\Events\DashboardUpdated;
 use App\Mail\VisitScheduled;
 use App\Models\Lead;
@@ -29,7 +30,7 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class ScheduleVisit
 {
-    public function __construct(private CreateProperty $createProperty) {}
+    public function __construct(private CreateProperty $createProperty, private SyncVisitCalendarEvent $calendar) {}
 
     public function handle(VisitData $data, ?User $by = null): Visit
     {
@@ -45,6 +46,9 @@ final readonly class ScheduleVisit
                 'agent_id' => $data->agentId ?? $property->agent_id,
                 'assigned_to' => $data->assignedTo,
                 'scheduled_at' => $data->scheduledAt,
+                // Posé explicitement : le modèle rendu par `create()` doit porter
+                // son état, le défaut de la colonne n'est pas hydraté.
+                'status' => VisitStatus::Planned,
                 'mode' => $data->mode,
                 'notes' => $data->notes,
                 'created_by' => $by?->id,
@@ -58,6 +62,9 @@ final readonly class ScheduleVisit
 
             return $visit;
         });
+
+        // Hors transaction : l'agenda du membre suit la visite, sans jamais la bloquer.
+        $this->calendar->handle($visit);
 
         if ($data->notifyClient) {
             $this->notifyClient($visit, $by);

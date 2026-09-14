@@ -11,6 +11,7 @@ import {
 import { PartnerDialog } from '@/components/partners/partner-dialog';
 import { PartnerTypeFilter } from '@/components/partners/partner-type-filter';
 import { Button } from '@/components/ui/button';
+import { useStoredState } from '@/hooks/use-stored-state';
 import { bulkDestroy, index as partnersIndex } from '@/routes/partners';
 import type { Partner, PartnerType, PartnerTypeOption } from '@/types';
 
@@ -29,8 +30,15 @@ export default function PartnersIndex({
     const { auth } = usePage().props;
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editing, setEditing] = useState<Partner | null>(null);
-    const [typeFilter, setTypeFilter] = useState<PartnerType[]>([]);
-    const [favoritesOnly, setFavoritesOnly] = useState(false);
+    // Mémorisés : on retrouve ses filtres après un rechargement.
+    const [typeFilter, setTypeFilter] = useStoredState<PartnerType[]>(
+        'partners.filters.type',
+        [],
+    );
+    const [favoritesOnly, setFavoritesOnly] = useStoredState(
+        'partners.filters.favorites',
+        false,
+    );
 
     const add = () => {
         setEditing(null);
@@ -76,6 +84,7 @@ export default function PartnersIndex({
                     </Button>
                 </div>
                 <DataTable
+                    storageKey="partners"
                     columns={columns}
                     data={visible}
                     filterColumn="name"

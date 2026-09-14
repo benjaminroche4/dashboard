@@ -108,6 +108,24 @@ export type DocumentUpload = {
     review_note: string | null;
     reviewed_at: string | null;
     reviewer: string | null;
+    /** Proposition de l'assistant IA, à relire ; null tant qu'il n'a pas lu la pièce. */
+    ai_review?: DocumentAnalysis | null;
+    ai_reviewed_at?: string | null;
+    /** L'assistant a lu des informations reportables sur la fiche d'un locataire. */
+    can_apply_profile?: boolean;
+};
+
+/** Ce que l'assistant a lu sur une pièce (miroir de `DocumentAnalysisData`). */
+export type DocumentAnalysis = {
+    document_type: string;
+    matches_request: boolean;
+    verdict: 'accepted' | 'refused';
+    reason: string;
+    holder_name: string | null;
+    document_date: string | null;
+    expires_at: string | null;
+    /** Champs de la fiche du locataire, en euros pour `income`. */
+    profile: Record<string, string | number>;
 };
 
 export type DocumentRequestDetail = DocumentRequestSummary & {
@@ -118,13 +136,19 @@ export type DocumentRequestDetail = DocumentRequestSummary & {
     public_url: string;
     /** Code d'appairage à 6 chiffres demandé sur la page publique. */
     access_code: string;
+    /** Lettre de présentation du foyer, imprimée en tête du dossier fusionné. */
+    presentation_letter: string | null;
     link_sent_to: string | null;
     link_sent_at: string | null;
     /** Adresses du lead rattaché (client puis second locataire), pour préremplir l'envoi. */
     lead_emails: string[];
     uploads_count: number;
+    /** Pièces validées par l'équipe : les seules que le dossier fusionné et l'archive emportent. */
+    valid_uploads_count?: number;
     /** Le membre peut modifier la liste (et donc la rattacher à un lead). */
     can_update: boolean;
+    /** Pièces que « Relire les pièces avec l'IA » relira (à vérifier, jamais lues). */
+    pending_ai_count?: number;
     persons: HouseholdPersonDetail[];
 };
 

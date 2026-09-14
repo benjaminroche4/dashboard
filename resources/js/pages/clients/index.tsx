@@ -1,5 +1,5 @@
-import { Head, usePage } from '@inertiajs/react';
-import { FolderPlus } from 'lucide-react';
+import { Head, router, usePage } from '@inertiajs/react';
+import { Archive, FolderPlus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ClientDialog } from '@/components/clients/client-dialog';
 import {
@@ -14,6 +14,7 @@ import { priorityTones } from '@/components/clients/client-priority';
 import { DataTable } from '@/components/data-table';
 import { Button } from '@/components/ui/button';
 import { FilterMenu } from '@/components/filter-menu';
+import { useStoredState } from '@/hooks/use-stored-state';
 import { cn } from '@/lib/utils';
 import { index as clientsIndex } from '@/routes/clients';
 import type {
@@ -26,6 +27,8 @@ import type {
 
 type Props = {
     clients: Client[];
+    /** Dossiers clôturés : chargés à la demande, comptés toujours. */
+    archived?: { loaded: boolean; count: number };
     priorities: ClientPriorityOption[];
     /** Formules proposées (`Offer::options()`). */
     offers?: { value: string; label: string }[];
@@ -68,6 +71,7 @@ function arrivalKey(client: Client): string {
 
 export default function ClientsIndex({
     clients,
+    archived = { loaded: false, count: 0 },
     priorities,
     offers = [],
     languages = [],
@@ -75,11 +79,27 @@ export default function ClientsIndex({
 }: Props) {
     const { auth } = usePage().props;
     const [creating, setCreating] = useState(false);
-    const [mineOnly, setMineOnly] = useState(false);
-    const [priorityFilter, setPriorityFilter] = useState<ClientPriority[]>([]);
-    const [offerFilter, setOfferFilter] = useState<string[]>([]);
-    const [assigneeFilter, setAssigneeFilter] = useState<string[]>([]);
-    const [arrivalFilter, setArrivalFilter] = useState<string[]>([]);
+    // Les filtres sont une façon de travailler, pas une recherche du moment :
+    // ils sont mémorisés et retrouvés tels quels après un rechargement.
+    const [mineOnly, setMineOnly] = useStoredState(
+        'clients.filters.mine',
+        false,
+    );
+    const [priorityFilter, setPriorityFilter] = useStoredState<
+        ClientPriority[]
+    >('clients.filters.priority', []);
+    const [offerFilter, setOfferFilter] = useStoredState<string[]>(
+        'clients.filters.offer',
+        [],
+    );
+    const [assigneeFilter, setAssigneeFilter] = useStoredState<string[]>(
+        'clients.filters.assignee',
+        [],
+    );
+    const [arrivalFilter, setArrivalFilter] = useStoredState<string[]>(
+        'clients.filters.arrival',
+        [],
+    );
     const mine = useMemo(
         () => clients.filter((client) => isFollowedBy(client, auth.user.id)),
         [clients, auth.user.id],
@@ -167,6 +187,7 @@ export default function ClientsIndex({
                     filterPlaceholder="Filtrer par client…"
                     columnLabels={clientColumnLabels}
                     frame="panel"
+                    storageKey="clients"
                     filters={
                         <>
                             <FilterMenu
@@ -229,10 +250,43 @@ export default function ClientsIndex({
                                 onChange={setMineOnly}
                                 count={mine.length}
                             />
+                            {/* Les dossiers clôturés ne se chargent qu'à la
+                                demande : la liste reste celle du travail en cours. */}
+                            {archived.count > 0 && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    aria-pressed={archived.loaded}
+                                    className={cn(
+                                        archived.loaded &&
+                                            'border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary',
+                                    )}
+                                    onClick={() =>
+                                        router.reload({
+                                            data: {
+                                                archived: archived.loaded
+                                                    ? undefined
+                                                    : 1,
+                                            },
+                                            only: ['clients', 'archived'],
+                                        })
+                                    }
+                                >
+                                    <Archive aria-hidden />
+                                    Archivés ({archived.count})
+                                </Button>
+                            )}
                         </>
                     }
-                    // La chemise de la colonne Client s'ouvre au survol de toute la ligne.
-                    rowProps={() => ({ className: 'group' })}
+                    // La chemise de la colonne Client s'ouvre au survol de toute
+                    // la ligne ; un dossier clôturé se lit en retrait.
+                    rowProps={(client) => ({
+                        className: cn(
+                            'group',
+                            client.closed_at !== null && 'opacity-60',
+                        ),
+                    })}
                 />
             </div>
 

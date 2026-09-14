@@ -94,6 +94,47 @@ final class GoogleCalendar
         }
     }
 
+    /**
+     * Crée ou déplace un événement ordinaire — une visite sur place : un lieu,
+     * pas de Meet. Retourne son identifiant, null si l'agenda n'est pas
+     * configuré ou si Google refuse (journalisé, jamais bloquant).
+     *
+     * @param  list<string>  $attendees
+     */
+    public function upsertEvent(?string $eventId, string $summary, string $description, CarbonInterface $start, CarbonInterface $end, ?string $location, array $attendees, ?string $impersonate = null): ?string
+    {
+        if (! $this->isConfigured()) {
+            return null;
+        }
+
+        $payload = [
+            'summary' => $summary,
+            'description' => $description,
+            'location' => $location,
+            'start' => ['dateTime' => $start->copy()->setTimezone('Europe/Paris')->format('Y-m-d\TH:i:s'), 'timeZone' => 'Europe/Paris'],
+            'end' => ['dateTime' => $end->copy()->setTimezone('Europe/Paris')->format('Y-m-d\TH:i:s'), 'timeZone' => 'Europe/Paris'],
+            'attendees' => array_map(fn (string $email): array => ['email' => $email], $attendees),
+        ];
+
+        try {
+            if ($eventId !== null) {
+                $event = $this->request('PATCH', self::EVENTS_URL.'/'.rawurlencode($eventId), $payload, $impersonate);
+
+                if ($event !== null) {
+                    return (string) $event['id'];
+                }
+            }
+
+            $event = $this->request('POST', self::EVENTS_URL, $payload, $impersonate);
+
+            return $event === null ? null : (string) $event['id'];
+        } catch (\Throwable $e) {
+            Log::error('Google Calendar : échec de l’événement', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
     /** Supprime l'événement ; vrai s'il n'existe plus (supprimé ou déjà absent). */
     public function delete(string $eventId, ?string $impersonate = null): bool
     {
