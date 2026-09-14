@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import { notify } from '@/lib/toast';
 import { store as uploadStore } from '@/routes/tools/documents/uploads';
 
 /**
@@ -42,6 +43,15 @@ export function DocumentUploadField({
             {
                 forceFormData: true,
                 preserveScroll: true,
+                // Fichier refusé (pas un PDF, trop lourd, stockage en panne) :
+                // le motif s'affiche, l'envoi n'échoue jamais en silence.
+                onError: (errors) => {
+                    const first = Object.values(errors)[0];
+                    notify.error(
+                        'Fichier non enregistré',
+                        first ?? 'Le serveur a refusé le fichier.',
+                    );
+                },
                 onFinish: () => {
                     setBusy(false);
                     if (input.current) {

@@ -74,7 +74,18 @@ return Application::configure(basePath: dirname(__DIR__))
         // interlocuteur sur cette page, il doit lire ce qui s'est passé et
         // quoi faire, pas une page d'erreur.
         $exceptions->render(function (HttpException $e, Request $request) {
-            if ($e->getStatusCode() !== 413 || $request->expectsJson() || ! $request->is('depot/*')) {
+            if ($e->getStatusCode() !== 413 || $request->expectsJson()) {
+                return null;
+            }
+
+            // Dépôt d'une pièce par l'équipe : même message, en français.
+            if ($request->is('tools/documents/*/uploads')) {
+                return back()->withErrors([
+                    'files' => __('Ce dépôt est trop lourd pour le serveur : envoyez les fichiers un par un, ou allégez-les.'),
+                ]);
+            }
+
+            if (! $request->is('depot/*')) {
                 return null;
             }
 

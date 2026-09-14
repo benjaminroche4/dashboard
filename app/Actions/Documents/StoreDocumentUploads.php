@@ -14,6 +14,9 @@ use App\Support\DocumentCatalog;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use RuntimeException;
+use Throwable;
 
 /**
  * Enregistre les fichiers déposés pour une pièce d'une personne du foyer,
@@ -31,18 +34,39 @@ final readonly class StoreDocumentUploads
      */
     public function handle(DocumentRequest $request, int $personIndex, string $documentKey, array $files, ?User $by = null): Collection
     {
-        $uploads = DB::transaction(fn (): Collection => collect($files)->map(function (UploadedFile $file) use ($request, $personIndex, $documentKey): DocumentUpload {
-            $path = $file->store("document-uploads/{$request->uuid}/{$personIndex}/{$documentKey}", DocumentUpload::DISK);
+        try {
+            $uploads = DB::transaction(fn (): Collection => collect($files)->map(function (UploadedFile $file) use ($request, $personIndex, $documentKey): DocumentUpload {
+                $path = $file->store("document-uploads/{$request->uuid}/{$personIndex}/{$documentKey}", DocumentUpload::DISK);
 
-            return $request->uploads()->create([
-                'person_index' => $personIndex,
-                'document_key' => $documentKey,
-                'original_name' => $file->getClientOriginalName(),
-                'path' => (string) $path,
-                'mime_type' => $file->getClientMimeType(),
-                'size' => (int) $file->getSize(),
+                // `store()` répond `false` sans lever quand le disque refuse d'écrire.
+                throw_if($path === false, RuntimeException::class, 'Le disque « '.DocumentUpload::DISK." » a refusé le fichier {$file->getClientOriginalName()}.");
+
+                return $request->uploads()->create([
+                    'person_index' => $personIndex,
+                    'document_key' => $documentKey,
+                    'original_name' => $file->getClientOriginalName(),
+                    'path' => (string) $path,
+                    'mime_type' => $file->getClientMimeType(),
+                    'size' => (int) $file->getSize(),
+                ]);
+            }));
+        } catch (Throwable $exception) {
+            // Journalisé avec de quoi comprendre depuis Cloud (disque, bucket,
+            // fichier), puis remonté en message lisible : le client comme
+            // l'équipe voient « pas enregistré », jamais une page d'erreur.
+            Log::error('Dépôt de pièce impossible : le stockage a refusé le fichier.', [
+                'request' => $request->uuid,
+                'person' => $personIndex,
+                'document' => $documentKey,
+                'disk' => DocumentUpload::DISK,
+                'driver' => config('filesystems.disks.'.DocumentUpload::DISK.'.driver'),
+                'bucket' => config('filesystems.disks.'.DocumentUpload::DISK.'.bucket'),
+                'files' => array_map(fn (UploadedFile $file): string => $file->getClientOriginalName().' ('.$file->getSize().' o)', $files),
+                'error' => $exception->getMessage(),
             ]);
-        }));
+
+            throw new RuntimeException(__('Le fichier n’a pas pu être enregistré. Réessayez dans un instant ; si cela persiste, l’équipe en est informée.'), 0, $exception);
+        }
 
         $person = $request->persons[$personIndex] ?? [];
         $name = trim(($person['first_name'] ?? '').' '.($person['last_name'] ?? '')) ?: $request->fullName();

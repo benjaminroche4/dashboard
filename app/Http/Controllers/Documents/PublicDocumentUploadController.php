@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -84,7 +85,14 @@ class PublicDocumentUploadController extends Controller
         /** @var list<UploadedFile> $files */
         $files = array_values($request->file('files', []));
 
-        $uploads = $store->handle($documentRequest, (int) $request->validated('person'), (string) $request->validated('document'), $files);
+        try {
+            $uploads = $store->handle($documentRequest, (int) $request->validated('person'), (string) $request->validated('document'), $files);
+        } catch (RuntimeException) {
+            // Dans la langue du client : il lit pourquoi, et quoi faire.
+            return $this->inLocale($documentRequest, fn (): RedirectResponse => back()->withErrors([
+                'files' => __('Le fichier n’a pas pu être enregistré. Réessayez dans un instant ; si cela persiste, l’équipe en est informée.'),
+            ]));
+        }
 
         return $this->inLocale($documentRequest, function () use ($uploads): RedirectResponse {
             $count = $uploads->count();

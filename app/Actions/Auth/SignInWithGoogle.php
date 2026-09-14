@@ -52,8 +52,9 @@ final class SignInWithGoogle
     /** Domaines autorisés, s'il y en a de configurés. */
     private function domainAllowed(string $email): bool
     {
+        // « relocation-in-paris.fr » ou « @relocation-in-paris.fr » : les deux écritures passent.
         $domains = array_filter(array_map(
-            fn (string $domain): string => mb_strtolower(trim($domain)),
+            fn (string $domain): string => ltrim(mb_strtolower(trim($domain)), '@'),
             explode(',', (string) config('services.google.allowed_domains')),
         ));
 
@@ -61,6 +62,11 @@ final class SignInWithGoogle
             return true;
         }
 
-        return in_array(mb_strtolower((string) mb_strrchr($email, '@', false)), $domains, true);
+        // Le domaine de l'adresse, sans l'arobase : `mb_strrchr` la garde, et
+        // comparée telle quelle elle ne valait jamais un domaine configuré —
+        // tout le monde était refusé dès qu'une liste existait.
+        $domain = mb_strtolower(ltrim((string) mb_strrchr($email, '@', false), '@'));
+
+        return in_array($domain, $domains, true);
     }
 }

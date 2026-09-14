@@ -63,7 +63,12 @@ class DocumentUploadController extends Controller
         /** @var list<UploadedFile> $files */
         $files = array_values($request->file('files', []));
 
-        $uploads = $store->handle($documentRequest, (int) $request->validated('person'), (string) $request->validated('document'), $files, $request->user());
+        try {
+            $uploads = $store->handle($documentRequest, (int) $request->validated('person'), (string) $request->validated('document'), $files, $request->user());
+        } catch (RuntimeException $exception) {
+            return back()->withErrors(['files' => $exception->getMessage()]);
+        }
+
         $count = $uploads->count();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => trans_choice('{1} :count fichier ajouté à la pièce.|[2,*] :count fichiers ajoutés à la pièce.', $count, ['count' => $count])]);

@@ -135,6 +135,21 @@ describe('Login page', () => {
         ).toHaveAttribute('href', '/auth/google/redirect');
         expect(page.getByText('Ou')).toBeInTheDocument();
     });
+
+    it('puts the Google button before the password form', () => {
+        pageProps.features = { googleLogin: true };
+        const page = renderVisible();
+        const google = page.getByRole('link', {
+            name: 'Se connecter avec Google',
+        });
+        const email = page.getByLabelText('Adresse e-mail');
+
+        expect(
+            google.compareDocumentPosition(email) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        expect(email).not.toHaveFocus();
+    });
 });
 
 describe('Login page layout', () => {

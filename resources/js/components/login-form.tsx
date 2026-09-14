@@ -25,8 +25,8 @@ export type LoginFormProps = {
  * Formulaire de connexion. Toute la logique (routes, erreurs, état) vit ici,
  * les pages ne font que l'habiller.
  *
- * Ordre de tabulation : e-mail, mot de passe, se souvenir, connexion
- * (ordre du DOM, aucun tabIndex positif). Les clés d'accès restent
+ * Ordre de tabulation : bouton Google (s'il est configuré), e-mail, mot de
+ * passe, se souvenir, connexion (ordre du DOM, aucun tabIndex positif). Les clés d'accès restent
  * disponibles dans les paramètres de sécurité, mais pas sur cet écran.
  */
 export default function LoginForm({
@@ -50,6 +50,21 @@ export default function LoginForm({
                     <InfoIcon />
                     <AlertDescription>{status}</AlertDescription>
                 </Alert>
+            )}
+
+            {/* Connexion Google en premier : c'est le geste attendu de l'équipe,
+                le mot de passe reste en dessous pour qui n'a pas de compte Google. */}
+            {googleLogin && (
+                <>
+                    <GoogleLoginButton className={buttonClassName} />
+                    <div className="flex items-center gap-3">
+                        <span className="bg-border h-px flex-1" />
+                        <span className="text-muted-foreground text-xs">
+                            Ou
+                        </span>
+                        <span className="bg-border h-px flex-1" />
+                    </div>
+                </>
             )}
 
             <Form
@@ -83,7 +98,7 @@ export default function LoginForm({
                                     type="email"
                                     name="email"
                                     required
-                                    autoFocus
+                                    autoFocus={!googleLogin}
                                     autoComplete="email"
                                     placeholder="email@exemple.fr"
                                     aria-invalid={Boolean(errors.email)}
@@ -132,20 +147,6 @@ export default function LoginForm({
                     );
                 }}
             </Form>
-
-            {/* Connexion Google : présente seulement si elle est configurée. */}
-            {googleLogin && (
-                <>
-                    <div className="flex items-center gap-3">
-                        <span className="bg-border h-px flex-1" />
-                        <span className="text-muted-foreground text-xs">
-                            Ou
-                        </span>
-                        <span className="bg-border h-px flex-1" />
-                    </div>
-                    <GoogleLoginButton className={buttonClassName} />
-                </>
-            )}
         </div>
     );
 }

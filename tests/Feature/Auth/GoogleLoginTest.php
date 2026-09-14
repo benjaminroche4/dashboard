@@ -45,6 +45,22 @@ test('an unknown Google account is refused: the backoffice has no sign-up', func
     expect(User::query()->where('email', 'inconnu@example.com')->exists())->toBeFalse();
 });
 
+test('a member on an allowed domain signs in, whichever way the domain is written', function (): void {
+    configureGoogle();
+    $member = User::factory()->staff()->create(['email' => 'charles@relocation-in-paris.fr']);
+    fakeGoogleAccount('Charles@Relocation-in-Paris.fr');
+
+    foreach (['relocation-in-paris.fr', '@relocation-in-paris.fr', ' example.com , relocation-in-paris.fr '] as $domains) {
+        auth()->logout();
+        config(['services.google.allowed_domains' => $domains]);
+
+        // Avant : le domaine lu sur l'adresse gardait son arobase et ne valait
+        // jamais un domaine configuré — tout le monde était refusé.
+        $this->get(route('auth.google.callback'))->assertRedirect(route('dashboard'));
+        $this->assertAuthenticatedAs($member);
+    }
+});
+
 test('a Google account outside the allowed domains is refused', function (): void {
     configureGoogle();
     config(['services.google.allowed_domains' => 'relocation-in-paris.fr']);
