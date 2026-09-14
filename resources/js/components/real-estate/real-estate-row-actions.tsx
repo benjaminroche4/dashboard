@@ -1,6 +1,6 @@
 import { router, usePage } from '@inertiajs/react';
 import { Check, MoreHorizontal } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -32,6 +32,7 @@ export function RealEstateRowActions({
     favorite,
     canDelete: canDeleteOverride,
     deleteLabel = 'Supprimer',
+    extra,
 }: {
     name: string;
     deleteUrl: string;
@@ -44,6 +45,8 @@ export function RealEstateRowActions({
      *  interlocuteur, par exemple) peut être retiré par toute l'équipe. */
     canDelete?: boolean;
     deleteLabel?: string;
+    /** Entrées propres à la fiche (Fiche PDF…), posées après « Modifier ». */
+    extra?: ReactNode;
 }) {
     const { auth } = usePage().props;
     const canDelete = canDeleteOverride ?? auth.user.role === 'admin';
@@ -99,6 +102,7 @@ export function RealEstateRowActions({
                     <DropdownMenuItem onSelect={onEdit}>
                         Modifier
                     </DropdownMenuItem>
+                    {extra}
                     {canDelete && (
                         <>
                             <DropdownMenuSeparator />

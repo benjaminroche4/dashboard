@@ -164,13 +164,30 @@ describe('DocumentUploadList', () => {
             />,
         );
 
+        // La visionneuse lit le fichier elle-même et l'encadre depuis un blob.
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockResolvedValue({
+                ok: true,
+                blob: () => Promise.resolve(new Blob(['%PDF-1.7'])),
+            }),
+        );
+        vi.stubGlobal('URL', {
+            ...URL,
+            createObjectURL: () => 'blob:mock-passeport',
+            revokeObjectURL: () => undefined,
+        });
+
         await user.click(screen.getByRole('button', { name: 'passeport.pdf' }));
 
         const viewer = within(await screen.findByRole('dialog'));
-        expect(viewer.getByTitle('Aperçu de passeport.pdf')).toHaveAttribute(
-            'src',
-            `${reviewUrl}/apercu`,
-        );
+        expect(
+            await viewer.findByTitle('Aperçu de passeport.pdf'),
+        ).toHaveAttribute('src', 'blob:mock-passeport');
+        expect(
+            viewer.getByRole('link', { name: 'Ouvrir dans un onglet' }),
+        ).toHaveAttribute('href', `${reviewUrl}/apercu`);
+        vi.unstubAllGlobals();
         // Le téléchargement reste à portée, il n'est plus le seul chemin.
         expect(
             viewer.getByRole('link', { name: 'Télécharger' }),

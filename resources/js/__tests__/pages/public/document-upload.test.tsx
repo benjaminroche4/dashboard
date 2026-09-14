@@ -262,13 +262,32 @@ describe('Public document upload page', () => {
         const user = userEvent.setup();
         renderPage();
 
+        // La visionneuse lit le fichier elle-même (même porte : jeton + code
+        // en session) et l'encadre depuis un blob — jamais l'adresse de la
+        // page, que la plateforme interdit d'encadrer en production.
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            blob: () => Promise.resolve(new Blob(['%PDF-1.7'])),
+        });
+        vi.stubGlobal('fetch', fetchMock);
+        vi.stubGlobal('URL', {
+            ...URL,
+            createObjectURL: () => 'blob:mock-bulletin',
+            revokeObjectURL: () => undefined,
+        });
+
         // La pièce s'ouvre dans la page, comme sur un espace de fichiers.
         await user.click(screen.getByTitle('Ouvrir · bulletin-juin.pdf'));
 
         const viewer = await screen.findByRole('dialog');
         expect(
-            within(viewer).getByTitle('Aperçu de bulletin-juin.pdf'),
-        ).toHaveAttribute('src', '/depot/jeton/fichiers/up-1');
+            await within(viewer).findByTitle('Aperçu de bulletin-juin.pdf'),
+        ).toHaveAttribute('src', 'blob:mock-bulletin');
+        expect(fetchMock).toHaveBeenCalledWith(
+            '/depot/jeton/fichiers/up-1',
+            expect.objectContaining({ credentials: 'same-origin' }),
+        );
+        vi.unstubAllGlobals();
         // Rien n'est téléchargé : le client relit, il ne collectionne pas.
         expect(
             within(viewer).queryByRole('link', { name: /Télécharger/ }),

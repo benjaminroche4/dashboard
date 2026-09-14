@@ -34,6 +34,8 @@ export function DetailHeader({
     tone = 'bg-primary/10 text-primary',
     favorite,
     actions,
+    editInMenu = false,
+    menu,
     children,
 }: {
     name: string;
@@ -50,6 +52,10 @@ export function DetailHeader({
     tone?: string;
     /** Boutons propres à la fiche, posés avant « Modifier ». */
     actions?: ReactNode;
+    /** « Modifier » vit dans le menu « ⋯ » plutôt qu'en bouton : l'en-tête reste léger. */
+    editInMenu?: boolean;
+    /** Entrées supplémentaires du menu « ⋯ », après « Modifier ». */
+    menu?: ReactNode;
     /** Bloc posé sous le titre, dans le même panneau (coordonnées, chiffres clés…). */
     children?: ReactNode;
 }) {
@@ -93,10 +99,12 @@ export function DetailHeader({
                     </div>
                     <div className="flex items-center gap-2">
                         {actions}
-                        <Button variant="outline" onClick={onEdit}>
-                            <Pencil />
-                            Modifier
-                        </Button>
+                        {!editInMenu && (
+                            <Button variant="outline" onClick={onEdit}>
+                                <Pencil />
+                                Modifier
+                            </Button>
+                        )}
                         <RealEstateRowActions
                             favorite={favorite}
                             name={name}
@@ -104,6 +112,7 @@ export function DetailHeader({
                             deleteTitle={deleteTitle}
                             deleteDescription={deleteDescription}
                             onEdit={onEdit}
+                            extra={menu}
                         />
                     </div>
                 </div>

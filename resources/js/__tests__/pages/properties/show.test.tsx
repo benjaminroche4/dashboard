@@ -211,7 +211,19 @@ describe('Property detail page', () => {
         ).toHaveAttribute('href', '/clients/lead-1');
         expect(tenant.getByText('LD-0042')).toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: 'Modifier' }));
+        // « Modifier » et « Fiche PDF » vivent dans le menu « ⋯ » : l'en-tête
+        // ne garde que « Voir sur la carte ».
+        expect(
+            screen.queryByRole('button', { name: 'Modifier' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Fiche PDF' }),
+        ).not.toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: /Actions pour/ }));
+        expect(
+            await screen.findByRole('menuitem', { name: 'Fiche PDF' }),
+        ).toBeInTheDocument();
+        await user.click(screen.getByRole('menuitem', { name: 'Modifier' }));
         expect(visit).toHaveBeenCalledWith(
             '/properties/0199a9a0-0000-7000-8000-0000000000f1/edit',
         );

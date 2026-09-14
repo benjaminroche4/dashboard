@@ -1,7 +1,7 @@
 import { parisFormat } from '@/lib/datetime';
 import { TransitStopItem } from '@/components/properties/transit-stop-item';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowRight, ExternalLink, FileDown, Mail, Phone } from 'lucide-react';
+import { ArrowRight, ExternalLink, Mail, Phone } from 'lucide-react';
 import { AddressMapButton } from '@/components/address-map-dialog';
 import { PhotoGallery } from '@/components/photo-gallery';
 import { PropertyStatusMenu } from '@/components/properties/property-status-menu';
@@ -15,6 +15,7 @@ import {
 } from '@/components/real-estate/detail-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { VisitStatusBadge } from '@/components/visits/visit-status-badge';
 import { formatMoney } from '@/lib/format';
 import { show as agentShow } from '@/routes/agents';
@@ -117,19 +118,22 @@ export default function PropertyShow({
                                     longitude: property.longitude,
                                 }}
                             />
-                            <Button
-                                variant="outline"
-                                onClick={() =>
-                                    downloadPropertyPdf(
-                                        property.uuid,
-                                        property.label,
-                                    )
-                                }
-                            >
-                                <FileDown />
-                                Fiche PDF
-                            </Button>
                         </>
+                    }
+                    // Modifier et la fiche PDF vivent dans le menu « ⋯ » :
+                    // l'en-tête ne garde que « Voir sur la carte ».
+                    editInMenu
+                    menu={
+                        <DropdownMenuItem
+                            onSelect={() =>
+                                downloadPropertyPdf(
+                                    property.uuid,
+                                    property.label,
+                                )
+                            }
+                        >
+                            Fiche PDF
+                        </DropdownMenuItem>
                     }
                     onEdit={() =>
                         router.visit(
