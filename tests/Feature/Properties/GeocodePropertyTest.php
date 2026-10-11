@@ -14,7 +14,12 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Inertia\Testing\AssertableInertia;
 
-beforeEach(fn () => Event::fake([DashboardUpdated::class]));
+// Les créneaux de ces tests sont écrits en dur : l'horloge est figée avant eux,
+// sinon « une visite ne se planifie pas dans le passé » dès que la date passe.
+beforeEach(function (): void {
+    $this->travelTo('2026-09-01 09:00:00');
+    Event::fake([DashboardUpdated::class]);
+});
 
 function fakeGeocoding(float $lat = 48.8656, float $lng = 2.3705): void
 {

@@ -22,7 +22,12 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
 
-beforeEach(fn () => Event::fake([DashboardUpdated::class]));
+// Les créneaux de ces tests sont écrits en dur : l'horloge est figée avant eux,
+// sinon « une visite ne se planifie pas dans le passé » dès que la date passe.
+beforeEach(function (): void {
+    $this->travelTo('2026-09-01 09:00:00');
+    Event::fake([DashboardUpdated::class]);
+});
 
 test('the visits page lists the visits with client and property, and ships no directory it does not use', function (): void {
     $this->get(route('clients.visits'))->assertRedirect(route('login'));
@@ -31,7 +36,8 @@ test('the visits page lists the visits with client and property, and ships no di
     Lead::factory()->create();
     $property = Property::factory()->create(['title' => 'T2 lumineux · 11e']);
     Visit::factory()->create(['lead_id' => $client->id, 'property_id' => $property->id, 'scheduled_at' => now()->addDay()]);
-    Visit::factory()->status(VisitStatus::Done)->create(['lead_id' => $client->id, 'property_id' => $property->id]);
+    // Faker lit l'horloge réelle, pas celle figée : la date passée est posée explicitement.
+    Visit::factory()->status(VisitStatus::Done)->create(['lead_id' => $client->id, 'property_id' => $property->id, 'scheduled_at' => now()->subWeek()]);
 
     $this->actingAs(User::factory()->create())
         ->get(route('clients.visits'))

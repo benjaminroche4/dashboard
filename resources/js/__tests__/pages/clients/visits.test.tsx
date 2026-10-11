@@ -108,6 +108,9 @@ describe('Clients visits page', () => {
         patch.mockReset();
         del.mockReset();
         vi.useFakeTimers({ shouldAdvanceTime: true });
+        // Les créneaux des fixtures sont en septembre 2026 : sans horloge figée,
+        // ils finissent tous « passés » et la liste ne les affiche plus.
+        vi.setSystemTime(new Date('2026-09-12T08:00:00+02:00'));
     });
 
     afterEach(() => {

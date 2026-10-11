@@ -21,6 +21,8 @@ use Tests\TestCase;
 uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function (): void {
+    // L'emménagement « early November 2026 » n'est flou qu'à plus d'un mois : horloge figée.
+    $this->travelTo('2026-09-01 09:00:00');
     Event::fake([DashboardUpdated::class]);
     Mail::fake();
 });

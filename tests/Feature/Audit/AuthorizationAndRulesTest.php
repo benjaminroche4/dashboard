@@ -14,7 +14,12 @@ use App\Models\User;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Validation\ValidationException;
 
-beforeEach(fn () => Event::fake([DashboardUpdated::class]));
+// Les créneaux de ces tests sont écrits en dur : l'horloge est figée avant eux,
+// sinon « une visite ne se planifie pas dans le passé » dès que la date passe.
+beforeEach(function (): void {
+    $this->travelTo('2026-09-01 09:00:00');
+    Event::fake([DashboardUpdated::class]);
+});
 
 test('only an administrator changes an e-mail address on a profile', function (): void {
     $member = User::factory()->create(['email' => 'chloe@relocation-in-paris.fr', 'name' => 'Chloé']);

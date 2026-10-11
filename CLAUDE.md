@@ -411,7 +411,9 @@ ALLO_SMS_SENDER_ID=
 ALLO_API_URL=https://api.withallo.com
 ```
 
-Les variables `VITE_*` sont lues **au build** : toute modification exige un redéploiement. 6. Créer le premier compte staff depuis la console Cloud : `php artisan staff:create --name=... --email=... --password=...` 7. Pulse : `PULSE_ENABLED=true` (défaut), et une entrée scheduler ou un process `php artisan pulse:check` pour les collecteurs serveur. Le dashboard `/pulse` est réservé aux admins (gate `viewPulse`). 8. Vérifier après déploiement : `/` redirige vers `/login`, l'en-tête `X-Robots-Tag: noindex` est présent, la connexion websocket (onglet Réseau, `wss://`) est établie une fois connecté.
+Les variables `VITE_*` sont lues **au build** : toute modification exige un redéploiement.
+
+**Toute nouvelle variable d'environnement s'ajoute aussi dans `.env.prod`** (à la racine, ignoré par git, jamais commité) : c'est la copie de référence des variables de production à poser dans la console Laravel Cloud — Cloud ne lit pas ce fichier, mais c'est là qu'on retrouve ce qu'il faut y coller, avec un commentaire qui dit à quoi sert la variable et sa valeur de production (ou un blanc si elle reste à obtenir). Une variable ajoutée à `.env` et `.env.example` sans passer par `.env.prod` finit oubliée au déploiement (la connexion Google est restée en 404 sur la prod le 14 septembre 2026 pour cette raison). 6. Créer le premier compte staff depuis la console Cloud : `php artisan staff:create --name=... --email=... --password=...` 7. Pulse : `PULSE_ENABLED=true` (défaut), et une entrée scheduler ou un process `php artisan pulse:check` pour les collecteurs serveur. Le dashboard `/pulse` est réservé aux admins (gate `viewPulse`). 8. Vérifier après déploiement : `/` redirige vers `/login`, l'en-tête `X-Robots-Tag: noindex` est présent, la connexion websocket (onglet Réseau, `wss://`) est établie une fois connecté.
 
 ## Ce qu'il ne faut pas faire
 
