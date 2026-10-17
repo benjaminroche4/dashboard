@@ -26,14 +26,14 @@ final class GenerateDossierBriefJob implements ShouldQueue
     /** Une dizaine de parties, chacune un appel de quelques dizaines de secondes. */
     public int $timeout = 900;
 
-    public function __construct(public readonly DocumentRequest $request) {}
+    public function __construct(public readonly DocumentRequest $request, public readonly bool $force = false) {}
 
     public function handle(GenerateDossierBrief $generate): void
     {
         $request = $this->request->fresh() ?? $this->request;
 
         try {
-            $generate->handle($request);
+            $generate->handle($request, $this->force);
         } catch (RuntimeException $exception) {
             Log::warning('Synthèse du dossier impossible.', ['request' => $request->id, 'error' => $exception->getMessage()]);
 

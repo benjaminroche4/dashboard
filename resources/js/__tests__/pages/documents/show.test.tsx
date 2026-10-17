@@ -19,13 +19,43 @@ vi.mock('@inertiajs/react', () => ({
         children: ReactNode;
     }) => <a href={href.url}>{children}</a>,
     router: { delete: vi.fn(), post, patch },
-    usePage: () => ({
-        props: { auth: { user: { id: 1, name: 'Admin', role: 'admin' } } },
-    }),
+    usePage: () => ({ props: usePageProps }),
 }));
+
+/** Props partagées du mock `usePage` : `features` se pose par cas. */
+const usePageProps: {
+    auth: { user: { id: number; name: string; role: string } };
+    features?: { assistant?: boolean };
+} = {
+    auth: { user: { id: 1, name: 'Admin', role: 'admin' } },
+};
 
 vi.mock('@/lib/download-document-request-pdf', () => ({
     downloadDocumentRequestPdf: download,
+}));
+
+const { merge, staffChannel, action } = vi.hoisted(() => ({
+    merge: vi.fn(() => Promise.resolve()),
+    staffChannel: vi.fn(),
+    action: vi.fn(),
+}));
+
+vi.mock('@/lib/merge-dossier-pdf', () => ({ mergeDossierPdf: merge }));
+vi.mock('@/hooks/use-staff-channel', () => ({
+    useStaffChannel: staffChannel,
+}));
+vi.mock('@/lib/toast', () => ({
+    notify: {
+        action,
+        success: vi.fn(),
+        info: vi.fn(),
+        warning: vi.fn(),
+        error: vi.fn(),
+        loading: vi.fn(() => 'toast'),
+        resolve: vi.fn(),
+        reject: vi.fn(),
+        close: vi.fn(),
+    },
 }));
 
 import DocumentsShow from '@/pages/documents/show';
@@ -38,6 +68,9 @@ import {
 describe('Documents show page', () => {
     beforeEach(() => {
         download.mockClear();
+        merge.mockClear();
+        post.mockClear();
+        action.mockClear();
     });
 
     it('shows each person by name with their documents, the client and the upload link, without sending', async () => {
@@ -164,49 +197,130 @@ describe('Documents show page', () => {
         ).toHaveTextContent('2');
     });
 
-    it('tells where the AI-prepared dossier stands and announces the sheets in the merge entry', async () => {
+    it('merges at once when a fresh AI synthesis exists, and says so in the menu', async () => {
         const user = userEvent.setup();
-        const { unmount } = render(
-            <DocumentsShow
-                request={makeDocumentRequestDetail({
-                    valid_uploads_count: 1,
-                    is_complete: false,
-                    missing_count: 2,
-                })}
-                pdfAvailable
-            />,
-        );
-        // Pas complet : la carte dit ce qui manque, pas de bouton.
-        expect(
-            screen.getByText(/2 pièce\(s\) encore sans fichier validé/),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: /Préparer le dossier/ }),
-        ).not.toBeInTheDocument();
-        unmount();
-
+        usePageProps.features = { assistant: true };
         render(
             <DocumentsShow
                 request={makeDocumentRequestDetail({
                     valid_uploads_count: 2,
-                    is_complete: true,
-                    missing_count: 0,
                     brief: makeDossierBrief(),
                 })}
                 pdfAvailable
             />,
         );
-        expect(screen.getByText('Dossier préparé')).toBeInTheDocument();
+
+        // La synthèse vit dans le dossier, pas dans une carte de la page.
         expect(
-            screen.getByText('Revenus : 4 150 € nets par mois en moyenne'),
+            screen.queryByText('Dossier préparé par l’IA'),
+        ).not.toBeInTheDocument();
+        await user.click(
+            screen.getByRole('button', { name: /Pièces validées/ }),
+        );
+        expect(
+            screen.getByText('Avec profil IA et fiches récapitulatives'),
         ).toBeInTheDocument();
+        await user.click(screen.getByText('Dossier fusionné (PDF)'));
+        // La modale confirme : la synthèse est à jour, rien à relire.
+        const dialog = await screen.findByRole('dialog', {
+            name: 'Dossier fusionné',
+        });
+        expect(dialog).toHaveTextContent('Inclure la page de garde IA');
+        expect(dialog).toHaveTextContent('sans nouvelle lecture');
+        await user.click(screen.getByRole('button', { name: 'Télécharger' }));
+        expect(merge).toHaveBeenCalledTimes(1);
+        expect(merge).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ withBrief: true }),
+        );
+        expect(post).not.toHaveBeenCalled();
+        usePageProps.features = undefined;
+    });
+
+    it('asks about the AI synthesis before merging when none is fresh, and merges at once when declined', async () => {
+        const user = userEvent.setup();
+        usePageProps.features = { assistant: true };
+        render(
+            <DocumentsShow
+                request={makeDocumentRequestDetail({
+                    valid_uploads_count: 2,
+                    can_update: true,
+                })}
+                pdfAvailable
+            />,
+        );
 
         await user.click(
             screen.getByRole('button', { name: /Pièces validées/ }),
         );
         expect(
-            screen.getByText('Avec page de garde et fiches récapitulatives'),
+            screen.getByText('Sans synthèse IA : elle se propose au clic'),
         ).toBeInTheDocument();
+        await user.click(screen.getByText('Dossier fusionné (PDF)'));
+
+        // La modale, case cochée par défaut. Décochée : fusion immédiate.
+        const dialog = await screen.findByRole('dialog', {
+            name: 'Dossier fusionné',
+        });
+        expect(dialog).toHaveTextContent('Générer une synthèse IA');
+        expect(merge).not.toHaveBeenCalled();
+        await user.click(
+            screen.getByRole('checkbox', { name: /Générer une synthèse IA/ }),
+        );
+        await user.click(
+            screen.getByRole('button', { name: 'Télécharger sans synthèse' }),
+        );
+        expect(merge).toHaveBeenCalledTimes(1);
+        expect(post).not.toHaveBeenCalled();
+
+        // Rouverte, la case est de nouveau cochée : on génère d'abord.
+        await user.click(
+            screen.getByRole('button', { name: /Pièces validées/ }),
+        );
+        await user.click(screen.getByText('Dossier fusionné (PDF)'));
+        await user.click(
+            await screen.findByRole('button', {
+                name: 'Générer puis télécharger',
+            }),
+        );
+        expect(post).toHaveBeenCalledWith(
+            expect.stringContaining('/brief'),
+            {},
+            expect.objectContaining({ preserveScroll: true }),
+        );
+        expect(merge).toHaveBeenCalledTimes(1);
+        usePageProps.features = undefined;
+    });
+
+    it('offers to download the merged dossier from the toast once the synthesis is ready', () => {
+        render(
+            <DocumentsShow
+                request={makeDocumentRequestDetail({ valid_uploads_count: 2 })}
+                pdfAvailable
+            />,
+        );
+
+        const options = staffChannel.mock.calls.at(-1)?.[0] as {
+            onEvent: (event: { payload: Record<string, unknown> }) => void;
+        };
+        options.onEvent({
+            payload: { brief_ready: true, uuid: 'autre' },
+        });
+        expect(action).not.toHaveBeenCalled();
+
+        options.onEvent({
+            payload: {
+                brief_ready: true,
+                uuid: '0199b0c0-0000-7000-8000-000000000001',
+            },
+        });
+        expect(action).toHaveBeenCalledWith(
+            'Synthèse IA prête',
+            expect.stringContaining('Léa Martin'),
+            expect.objectContaining({
+                label: 'Télécharger le dossier fusionné',
+            }),
+        );
     });
 
     it('downloads the PDF', async () => {

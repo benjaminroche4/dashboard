@@ -39,8 +39,6 @@
         .figure .amount { text-align: right; font-weight: 600; }
         .highlights li { border-bottom: 0; padding: 2px 0; font-weight: 600; }
         .highlights .mark { color: #7a1f2b; font-size: 7pt; }
-        .caveats li { border-bottom: 0; padding: 2px 0; color: #7a1f2b; }
-        .caveats .mark { color: #7a1f2b; font-size: 7pt; }
         .summary { background: #f5f5f5; border-radius: 8px; padding: 12px 14px; margin: 16px 0; }
         .footer { margin-top: 28px; border-top: 1px solid #e5e5e5; padding-top: 10px; font-size: 9pt; color: #737373; }
     </style>
@@ -69,15 +67,17 @@
         {{-- Profil rédigé par l'assistant sur les pièces validées : il prime sur la lettre, qui reste sans lui. --}}
         <h2>Profil des locataires</h2>
 
-        {{-- Trois cartes : salaires, imposition, épargne. `gap` n'étant pas supporté, le `border-spacing` fait l'espace. --}}
+        {{-- Les cartes salaires, imposition, épargne : seulement celles que les pièces renseignent. `gap` n'étant pas supporté, le `border-spacing` fait l'espace. --}}
+        @if (array_filter(array_column($brief['figures'], 'value')) !== [])
         <table class="figures">
             <tr>
                 @foreach (['salary' => 'Salaires', 'taxes' => 'Imposition', 'savings' => 'Épargne'] as $key => $title)
+                    @continue($brief['figures'][$key]['value'] === null)
                     @php $figure = $brief['figures'][$key]; @endphp
                     <td>
                         <div class="figure">
                             <div class="label">{{ $title }}</div>
-                            <div class="value{{ $figure['value'] === null ? ' empty' : '' }}">{{ $figure['value'] ?? 'Non renseigné' }}</div>
+                            <div class="value">{{ $figure['value'] }}</div>
                             @if ($figure['detail'] !== null)
                                 <div class="detail">{{ $figure['detail'] }}</div>
                             @endif
@@ -89,6 +89,7 @@
                 @endforeach
             </tr>
         </table>
+        @endif
 
         <div class="letter">{!! nl2br(e($brief['summary'])) !!}</div>
 
@@ -100,28 +101,10 @@
                 @endforeach
             </ul>
         @endif
-
-        @if ($brief['caveats'] !== [])
-            <h3>Points d’attention</h3>
-            <ul class="caveats">
-                @foreach ($brief['caveats'] as $caveat)
-                    <li><span class="mark">&#9650;</span><span>{{ $caveat }}</span></li>
-                @endforeach
-            </ul>
-        @endif
     @elseif (! empty($request->presentation_letter))
         <h2>Présentation du dossier</h2>
         <div class="letter">{!! nl2br(e($request->presentation_letter)) !!}</div>
     @endif
-
-    <div class="summary">
-        Ce document réunit les pièces justificatives du dossier, dans l’ordre du
-        sommaire ci-dessous : les locataires d’abord, puis les garants, et pour
-        chaque personne ses pièces par partie : identité, situation
-        professionnelle, revenus, impôts, épargne, garanties, logement. Chaque
-        partie s’ouvre sur une fiche récapitulative. Seules les pièces vérifiées
-        et validées par notre équipe y figurent.
-    </div>
 
     @foreach ($persons as $person)
         <h2>{{ $person['name'] }}<span class="role">{{ $person['role'] }}</span></h2>

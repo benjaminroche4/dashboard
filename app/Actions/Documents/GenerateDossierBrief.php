@@ -35,47 +35,73 @@ final readonly class GenerateDossierBrief
     /** Au-delà, la partie n'est pas envoyée à l'assistant : l'API refuse les requêtes trop lourdes. */
     public const int MAX_SECTION_BYTES = 28_000_000;
 
+    /**
+     * Forme des valeurs, commune aux fiches et à la page de garde : le même
+     * chiffre doit s'écrire pareil sur la carte, dans le profil et dans la fiche.
+     */
+    private const string FORMAT_RULES = <<<'TXT'
+Forme des valeurs, à respecter partout :
+- Montants en euros, arrondis à l'euro supérieur (2 499,20 € devient 2 500 €), jamais de centimes, espace comme séparateur de milliers et espace avant le symbole : « 4 150 € », « 30 000 € ». Un salaire se précise « nets par mois » (« 2 500 € nets par mois ») ; une épargne, un revenu fiscal ou un solde s'écrivent sans unité de temps.
+- Un total ou une moyenne se calcule sur les valeurs exactes des pièces, puis s'arrondit à l'euro supérieur une seule fois.
+- Dates en toutes lettres, sans zéro initial : « 3 mars 2026 » ; un mois seul « juin 2026 » ; une période « de juin à août 2026 » ; une ancienneté « depuis mars 2021 ». Jamais de format numérique (03/03/2026).
+- Pourcentages en nombre entier (« 28 % »), rapports au loyer avec une décimale (« 3,2 fois le loyer »), nombre de parts tel qu'il est écrit sur l'avis (« 2,5 parts »).
+- Un revenu fiscal de référence s'écrit « RFR 2025 : 29 400 € », avec l'année de l'avis.
+- Un même chiffre garde la même écriture d'un texte à l'autre : ne reformule jamais une valeur déjà donnée dans une fiche, recopie-la telle quelle.
+TXT;
+
     private const string SECTION_SYSTEM = <<<'TXT'
 Tu es l'assistant d'une agence de relocation à Paris qui monte des dossiers de location pour ses clients, souvent étrangers ou en mutation.
-On te donne les pièces justificatives d'une partie du dossier d'une personne (par exemple ses bulletins de salaire, ou ses avis d'imposition). Rédige la fiche récapitulative qui ouvrira cette partie dans le dossier remis à une agence immobilière ou à un propriétaire.
+On te donne les pièces justificatives d'une partie du dossier d'une personne (par exemple ses bulletins de salaire, ou ses avis d'imposition). Rédige la fiche récapitulative qui ouvrira cette partie dans le dossier remis à une agence immobilière ou à un propriétaire, qui doit la lire en quelques secondes.
 Règles :
-- N'écris que ce que tu lis sur les pièces. Aucun chiffre, aucune date, aucun nom qui n'y figure pas. Un montant est écrit en euros avec son espace de milliers (« 4 150 € »).
+- N'écris que ce que tu lis sur les pièces. Aucun chiffre, aucune date, aucun nom qui n'y figure pas.
 - Calcule les moyennes et totaux utiles (revenu net mensuel moyen, épargne totale) à partir des pièces, en disant sur quelle période.
-- Signale dans les réserves toute incohérence entre les pièces, période non couverte, ou document proche de l'expiration, sans juger la personne.
+- Très condensé : un résumé d'une phrase, deux à quatre faits, une ligne par fichier. Droit aux chiffres, sans phrase d'accompagnement.
+- La fiche met le dossier en valeur : elle ne retient que ce qui joue en sa faveur, sans réserve, sans point d'attention, sans jugement. Une information neutre ou défavorable, ou qui ne se lit pas sur les pièces, n'est simplement pas écrite.
 - Ton neutre et factuel, à la troisième personne, en français. Pas de formule d'introduction ni de conclusion. Aucun tiret long (—) dans les textes.
 TXT;
 
     private const string COVER_SYSTEM = <<<'TXT'
-Tu es l'assistant d'une agence de relocation à Paris. Elle remet le dossier de location complet d'un de ses clients à une agence immobilière ou à un propriétaire, qui reçoit beaucoup de dossiers et tranche en quelques secondes.
-Rédige le profil qui ouvre ce dossier : un résumé court et droit au but de qui sont les locataires, d'après le projet du client et les fiches récapitulatives de chaque partie (établies sur des pièces vérifiées par l'agence). Le lecteur doit savoir en une lecture ce que le foyer gagne, ce qu'il possède et ce qui le sécurise.
-Forme du résumé :
-- Un paragraphe par locataire, qui commence par son prénom et son nom et enchaîne les faits lus sur ses pièces : âge ou date de naissance, nationalité et titre de séjour si c'est utile, situation professionnelle (contrat, employeur, ancienneté, période d'essai), revenu net mensuel, revenu fiscal de référence du dernier avis, épargne disponible, logement actuel si les pièces le disent. Exemple de ton : « Bernard Gange, 34 ans, est en CDI chez Axa depuis 2019 et gagne 2 500 € nets par mois. Il dispose de 30 000 € d'épargne (livret A et assurance-vie). Revenu fiscal de référence 2025 : 29 400 €. »
-- Puis un paragraphe pour le foyer : revenus cumulés, taux d'effort ou « au moins trois fois le loyer » si le loyer visé est connu, garants avec leur situation et leur revenu, date d'emménagement et durée souhaitée.
-- Enfin une phrase : dossier complet, chaque pièce vérifiée par notre équipe, foyer prêt à visiter et à signer, l'agence à disposition pour toute pièce complémentaire.
+Tu es l'assistant d'une agence de relocation à Paris. Elle remet le dossier de location d'un de ses clients à une agence immobilière ou à un propriétaire, qui reçoit beaucoup de dossiers et tranche en quelques secondes.
+Rédige le profil qui ouvre ce dossier : les informations clés sur les locataires, droit au but, d'après les fiches récapitulatives de chaque partie (établies sur des pièces vérifiées par l'agence) et le projet du client.
+Forme du résumé (300 à 600 caractères en tout) :
+- Une ou deux phrases par locataire, qui enchaînent les faits sans détour : prénom et nom, situation (contrat, employeur, ancienneté), revenu net mensuel, épargne, revenu fiscal de référence. Exemple : « Bernard Gange est en CDI chez Axa depuis 2019 et gagne 2 500 € nets par mois. Il dispose de 30 000 € d'épargne et son revenu fiscal de référence 2025 est de 29 400 €. »
+- Une phrase pour le foyer, seulement si elle apporte un chiffre : revenus cumulés, « plus de trois fois le loyer » si c'est vrai, garant et son revenu, emménagement souhaité.
 Règles :
-- Chaque affirmation vient d'un fait ou d'un chiffre des fiches ou du projet. Aucune invention, aucun adjectif de flatterie, aucun superlatif : des faits chiffrés, bien ordonnés, qui mettent le dossier en valeur par eux-mêmes. Ce qui n'est pas dans les pièces n'est pas dit.
-- Un point faible réel (revenus justes, contrat court, période d'essai, dossier étranger) se dit en une proposition, avec ce qui le compense s'il existe. Les réserves destinées au lecteur restent dans la liste prévue, brèves et factuelles.
-- Les points forts sont trois à six lignes très courtes, chacune avec son chiffre ou son fait, lisibles en balayant la page.
-- Les trois cartes (salaires, imposition, épargne) reprennent les chiffres des fiches : le total du foyer en valeur, et une ligne par locataire dans la répartition quand le foyer compte deux locataires (les garants n'y entrent pas : ils sont cités dans le résumé). Une carte sans pièce correspondante garde une valeur null.
-- Phrases courtes, à la troisième personne pour les locataires, « nous » pour l'agence. Entre 500 et 1 000 caractères au total, paragraphes séparés par une ligne vide. Pas de formule d'appel ni de signature : l'en-tête et le pied du document les portent. En français. Aucun tiret long (—).
+- Uniquement des faits lus sur les fiches ou le projet : aucune invention, aucune estimation, aucun adjectif, aucun superlatif, aucune phrase d'accompagnement.
+- Ne retiens que ce qui joue en faveur du dossier. Une information neutre ou défavorable (période d'essai, contrat court, revenu modeste, impôt faible, titre de séjour à renouveler, pièce manquante) n'est pas écrite. Ce qui n'est pas établi n'est pas écrit. Tu n'écris jamais que le dossier est complet.
+- Les points forts sont trois à cinq lignes courtes, chacune un chiffre ou un fait, sans répéter mot pour mot le résumé.
+- Les trois cartes (salaires, imposition, épargne) reprennent les chiffres des fiches, recopiés tels qu'ils y sont écrits : le total du foyer en valeur, et une ligne par locataire dans la répartition quand le foyer compte deux locataires (les garants n'y entrent pas : ils sont cités dans le résumé). Une carte sans pièce correspondante garde une valeur null : elle ne sera pas affichée.
+- Troisième personne, paragraphes séparés par une ligne vide. Pas de formule d'appel ni de signature. En français. Aucun tiret long (—).
 TXT;
 
     public function __construct(private Assistant $assistant) {}
 
-    public function handle(DocumentRequest $request): DossierBriefData
+    /** `$force` : aucune fiche n'est reprise, toutes les parties sont relues. */
+    public function handle(DocumentRequest $request, bool $force = false): DossierBriefData
     {
         throw_unless($this->assistant->isConfigured(), RuntimeException::class, 'Assistant IA non configuré (ANTHROPIC_API_KEY).');
 
         $request->load(['uploads', 'lead.guarantorPeople', 'lead.assignee', 'lead.coAssignee']);
 
-        throw_unless(DossierPlan::isComplete($request), RuntimeException::class, 'Le dossier n’est pas complet : chaque pièce demandée doit être validée avant de le préparer.');
+        throw_unless(DossierPlan::hasValidFiles($request), RuntimeException::class, 'Aucune pièce validée : la synthèse se prépare dès qu’au moins une pièce est validée.');
 
         $fingerprint = DossierPlan::fingerprint($request);
+        $previous = $request->dossier_brief === null ? null : DossierBriefData::from($request->dossier_brief);
         /** @var list<SectionBrief> $sections */
         $sections = [];
+        $reread = 0;
 
         foreach (DossierPlan::sections($request) as $plan) {
+            $kept = $force ? null : $this->reusable($previous, $plan);
+
+            if ($kept !== null) {
+                $sections[] = $kept;
+
+                continue;
+            }
+
             $sections[] = $this->section($plan);
+            $reread++;
         }
 
         $brief = new DossierBriefData(
@@ -93,11 +119,19 @@ TXT;
         // Sans acteur : c'est l'assistant qui parle, aux personnes qui suivent le dossier.
         event(new DashboardUpdated(
             'documents',
-            ['id' => $request->id, 'uuid' => $request->uuid, 'mentions' => self::mentions($request)],
-            sprintf('L’assistant a préparé le dossier de %s : page de garde et %d fiche(s) récapitulative(s) prêtes', $request->fullName(), count($sections)),
+            ['id' => $request->id, 'uuid' => $request->uuid, 'brief_ready' => true, 'mentions' => self::mentions($request)],
+            $previous instanceof DossierBriefData
+                ? sprintf('L’assistant a mis à jour le dossier de %s : %d fiche(s) relue(s) sur %d, page de garde réécrite', $request->fullName(), $reread, count($sections))
+                : sprintf('L’assistant a préparé le dossier de %s : page de garde et %d fiche(s) récapitulative(s) prêtes', $request->fullName(), count($sections)),
         ));
 
         return $brief;
+    }
+
+    /** Consigne complète : le rôle, puis la forme des valeurs partagée. */
+    public static function system(string $role): string
+    {
+        return $role."\n".self::FORMAT_RULES;
     }
 
     /**
@@ -108,6 +142,26 @@ TXT;
     public static function mentions(DocumentRequest $request): array
     {
         return $request->lead === null ? [] : array_map(fn (User $member): int => $member->id, $request->lead->followers());
+    }
+
+    /**
+     * La fiche précédente de cette partie, si ses fichiers n'ont pas bougé et
+     * qu'elle a bien été lue : relire dix parties pour un RIB ajouté coûterait
+     * dix appels pour rien. Une partie restée sans résumé (panne, trop lourde)
+     * est retentée.
+     *
+     * @param  array{key: string, documents: list<array{key: string, label: string, uploads: list<DocumentUpload>}>}  $plan
+     * @return SectionBrief|null
+     */
+    private function reusable(?DossierBriefData $previous, array $plan): ?array
+    {
+        $section = $previous?->section($plan['key']);
+
+        if ($section === null || $section['summary'] === null || $section['fingerprint'] === null) {
+            return null;
+        }
+
+        return $section['fingerprint'] === DossierPlan::sectionFingerprint($plan) ? $section : null;
     }
 
     /**
@@ -141,7 +195,7 @@ TXT;
         if ($pdfs === [] || $weight > self::MAX_SECTION_BYTES) {
             Log::warning('Synthèse du dossier : partie non lue par l’assistant.', ['section' => $plan['key'], 'files' => count($files), 'bytes' => $weight]);
 
-            return DossierBriefData::sectionFrom([], $plan, $files);
+            return DossierBriefData::sectionFrom([], $plan, $files, DossierPlan::sectionFingerprint($plan));
         }
 
         $prompt = implode("\n", [
@@ -154,14 +208,14 @@ TXT;
         ]);
 
         try {
-            $reply = $this->assistant->extractFromPdf(self::SECTION_SYSTEM, $prompt, DossierBriefData::sectionSchema(), $pdfs);
+            $reply = $this->assistant->extractFromPdf(self::system(self::SECTION_SYSTEM), $prompt, DossierBriefData::sectionSchema(), $pdfs);
         } catch (RuntimeException $exception) {
             Log::warning('Synthèse du dossier : la lecture d’une partie a échoué.', ['section' => $plan['key'], 'error' => $exception->getMessage()]);
 
-            return DossierBriefData::sectionFrom([], $plan, $files);
+            return DossierBriefData::sectionFrom([], $plan, $files, DossierPlan::sectionFingerprint($plan));
         }
 
-        return DossierBriefData::sectionFrom($reply, $plan, $files);
+        return DossierBriefData::sectionFrom($reply, $plan, $files, DossierPlan::sectionFingerprint($plan));
     }
 
     /**
@@ -173,7 +227,20 @@ TXT;
      */
     private function cover(DocumentRequest $request, array $sections): array
     {
-        $lines = [DraftPresentationLetter::prompt($request), '', 'Fiches récapitulatives du dossier :'];
+        $lines = [DraftPresentationLetter::prompt($request), ''];
+        $missing = DossierPlan::missingLabels($request);
+
+        if ($missing !== []) {
+            $lines[] = 'Pièces encore attendues (demandées, pas encore validées) : ne les cite pas, n’écris pas que le dossier est complet.';
+
+            foreach ($missing as $label) {
+                $lines[] = "- {$label}";
+            }
+
+            $lines[] = '';
+        }
+
+        $lines[] = 'Fiches récapitulatives du dossier :';
 
         foreach ($sections as $section) {
             $lines[] = '';
@@ -183,13 +250,9 @@ TXT;
             foreach ($section['facts'] as $fact) {
                 $lines[] = "- {$fact['label']} : {$fact['value']}";
             }
-
-            foreach ($section['caveats'] as $caveat) {
-                $lines[] = "- Réserve : {$caveat}";
-            }
         }
 
-        $reply = $this->assistant->extract(self::COVER_SYSTEM, implode("\n", $lines), DossierBriefData::coverSchema());
+        $reply = $this->assistant->extract(self::system(self::COVER_SYSTEM), implode("\n", $lines), DossierBriefData::coverSchema());
 
         return DossierBriefData::from(['cover' => $reply])->cover;
     }

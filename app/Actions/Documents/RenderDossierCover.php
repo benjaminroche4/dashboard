@@ -26,9 +26,10 @@ final readonly class RenderDossierCover
 {
     public function __construct(private DocRaptor $docRaptor) {}
 
-    public function handle(DocumentRequest $request): string
+    /** `$withBrief` faux : la page de garde simple, même quand une synthèse à jour existe. */
+    public function handle(DocumentRequest $request, bool $withBrief = true): string
     {
-        return $this->docRaptor->pdf($this->html($request), self::fileName($request));
+        return $this->docRaptor->pdf($this->html($request, $withBrief), self::fileName($request));
     }
 
     public function isConfigured(): bool
@@ -36,13 +37,13 @@ final readonly class RenderDossierCover
         return $this->docRaptor->isConfigured();
     }
 
-    public function html(DocumentRequest $request): string
+    public function html(DocumentRequest $request, bool $withBrief = true): string
     {
         return view('documents.dossier-cover', [
             'request' => $request,
             'persons' => self::persons($request),
-            // Page de garde rédigée par l'assistant, seulement si elle porte sur ces pièces.
-            'brief' => RenderDossierSectionSheet::isFresh($request) ? RenderDossierSectionSheet::brief($request)?->cover : null,
+            // Page de garde rédigée par l'assistant, seulement si elle porte sur ces pièces et qu'on la veut.
+            'brief' => $withBrief && RenderDossierSectionSheet::isFresh($request) ? RenderDossierSectionSheet::brief($request)?->cover : null,
             'company' => config('company'),
             'logo' => SendInvoice::logoDataUri(),
         ])->render();

@@ -147,10 +147,11 @@ export type DossierSectionBrief = {
     summary: string | null;
     facts: DossierFact[];
     documents: { label: string; note: string | null }[];
-    caveats: string[];
+    /** Empreinte des fichiers lus : une partie inchangée garde sa fiche à la mise à jour. */
+    fingerprint: string | null;
 };
 
-/** Une des trois cartes de la page de garde ; `value` null = « Non renseigné ». */
+/** Une des trois cartes de la page de garde ; `value` null = carte masquée. */
 export type DossierFigure = {
     value: string | null;
     detail: string | null;
@@ -169,7 +170,6 @@ export type DossierCoverBrief = {
     };
     /** Points forts du dossier, une ligne chiffrée chacun. */
     highlights: string[];
-    caveats: string[];
 };
 
 /**

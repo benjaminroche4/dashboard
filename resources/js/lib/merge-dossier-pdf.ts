@@ -69,14 +69,18 @@ async function append(
  */
 export async function mergeDossierPdf(
     request: DocumentRequestDetail,
-    options: { withCover?: boolean } = {},
+    options: { withCover?: boolean; withBrief?: boolean } = {},
 ): Promise<MergeResult | null> {
     const sections = dossierSections(request);
     const parts = sections.flatMap((section) => section.parts);
-    // Les fiches demandent DocRaptor (comme la page de garde) et une synthèse
-    // rédigée sur **ces** pièces : périmée, elle décrirait un autre dossier.
+    // Les fiches demandent DocRaptor (comme la page de garde), une synthèse
+    // rédigée sur **ces** pièces (périmée, elle décrirait un autre dossier) et
+    // que l'équipe la veuille (`withBrief` faux : dossier sans synthèse).
+    const withBrief = options.withBrief !== false;
     const withSheets =
-        options.withCover !== false && request.brief?.fresh === true;
+        options.withCover !== false &&
+        withBrief &&
+        request.brief?.fresh === true;
 
     if (parts.length === 0) {
         // Des pièces peuvent exister sans qu'aucune soit fusionnable : celles
@@ -111,7 +115,10 @@ export async function mergeDossierPdf(
 
         if (options.withCover !== false) {
             const bytes = await fetchPdf(
-                cover({ documentRequest: request.uuid }).url,
+                cover(
+                    { documentRequest: request.uuid },
+                    withBrief ? undefined : { query: { brief: 0 } },
+                ).url,
             );
 
             // Sans DocRaptor (ou en cas de panne), le dossier part sans page

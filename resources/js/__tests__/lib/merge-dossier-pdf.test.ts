@@ -192,6 +192,19 @@ describe('mergeDossierPdf', () => {
         ).toBe(false);
     });
 
+    it('asks a plain cover and no sheet when the team declines the synthesis', async () => {
+        const fetchMock = vi.fn((url: string) => Promise.resolve(body(url)));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const fresh = request([{ name: 'cni.pdf', url: '/u/1' }]);
+        fresh.brief = makeDossierBrief();
+        await mergeDossierPdf(fresh, { withBrief: false });
+
+        const urls = fetchMock.mock.calls.map(([url]) => String(url));
+        expect(urls.some((url) => url.includes('/cover?brief=0'))).toBe(true);
+        expect(urls.some((url) => url.includes('/sections/'))).toBe(false);
+    });
+
     it('skips a broken file, names it, and still delivers the others', async () => {
         vi.stubGlobal(
             'fetch',

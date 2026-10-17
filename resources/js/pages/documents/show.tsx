@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { CountryFlag } from '@/components/country-flag';
 import { CreatedBy } from '@/components/created-by';
 import { DocumentRequestRowActions } from '@/components/documents/document-request-row-actions';
-import { DossierBriefCard } from '@/components/documents/dossier-brief-card';
+import { DossierMergeDialog } from '@/components/documents/dossier-merge-dialog';
 import { HouseholdPersonTabs } from '@/components/documents/household-person-tabs';
 import { DetailSection } from '@/components/real-estate/detail-header';
 import { DocumentRequestLeadLink } from '@/components/documents/document-request-lead-link';
@@ -25,8 +25,10 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useStaffChannel } from '@/hooks/use-staff-channel';
 import { downloadDocumentRequestPdf } from '@/lib/download-document-request-pdf';
 import { mergeDossierPdf } from '@/lib/merge-dossier-pdf';
+import { notify } from '@/lib/toast';
 import { languageFlag } from '@/lib/language-flag';
 import { index as toolsIndex } from '@/routes/tools';
 import {
@@ -45,18 +47,64 @@ type Props = {
 export default function DocumentsShow({ request, pdfAvailable }: Props) {
     const [downloading, setDownloading] = useState(false);
     const [merging, setMerging] = useState(false);
+    const [mergeDialog, setMergeDialog] = useState(false);
     const { features } = usePage().props;
     // Seules les pièces validées par l'équipe sortent du backoffice.
     const validated = request.valid_uploads_count ?? 0;
 
-    const merge = async () => {
+    const merge = async (withBrief = true) => {
         setMerging(true);
         try {
-            await mergeDossierPdf(request, { withCover: pdfAvailable });
+            await mergeDossierPdf(request, {
+                withCover: pdfAvailable,
+                withBrief,
+            });
         } finally {
             setMerging(false);
         }
     };
+
+    // La synthèse IA se décide au moment où l'on demande le dossier : la
+    // modale demande si on veut la page de garde IA. À jour, elle part telle
+    // quelle ; absente ou périmée, elle se génère d'abord. Sans assistant ni
+    // DocRaptor, rien à proposer : on fusionne.
+    const canBrief =
+        request.can_update && features?.assistant === true && pdfAvailable;
+    const askMerge = () => {
+        if (canBrief && !request.brief?.pending) {
+            setMergeDialog(true);
+
+            return;
+        }
+
+        void merge();
+    };
+
+    // Le toast de fin de synthèse propose le geste suivant, sur cette page
+    // seulement : la fusion se fait dans le navigateur, sur les props à jour.
+    useStaffChannel({
+        notify: false,
+        reload: false,
+        onEvent: (event) => {
+            if (
+                event.payload.brief_ready === true &&
+                event.payload.uuid === request.uuid
+            ) {
+                notify.action(
+                    'Synthèse IA prête',
+                    `Le dossier de ${request.name} peut partir avec son profil et ses fiches.`,
+                    {
+                        label: 'Télécharger le dossier fusionné',
+                        onClick: () =>
+                            router.reload({
+                                only: ['request'],
+                                onSuccess: () => void merge(),
+                            }),
+                    },
+                );
+            }
+        },
+    });
 
     const download = async () => {
         setDownloading(true);
@@ -145,17 +193,21 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onSelect={() => void merge()}>
+                                <DropdownMenuItem onSelect={askMerge}>
                                     <FileStack aria-hidden />
                                     <span className="grid">
                                         Dossier fusionné (PDF)
-                                        {request.brief?.fresh &&
-                                            pdfAvailable && (
-                                                <span className="text-muted-foreground text-xs">
-                                                    Avec page de garde et fiches
-                                                    récapitulatives
-                                                </span>
-                                            )}
+                                        {pdfAvailable && (
+                                            <span className="text-muted-foreground text-xs">
+                                                {request.brief?.fresh
+                                                    ? 'Avec profil IA et fiches récapitulatives'
+                                                    : request.brief?.pending
+                                                      ? 'Synthèse IA en cours de rédaction'
+                                                      : canBrief
+                                                        ? 'Sans synthèse IA : elle se propose au clic'
+                                                        : 'Avec page de garde'}
+                                            </span>
+                                        )}
                                     </span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem asChild>
@@ -188,6 +240,13 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                     </div>
                 </div>
 
+                <DossierMergeDialog
+                    request={request}
+                    open={mergeDialog}
+                    onOpenChange={setMergeDialog}
+                    onMergeNow={(withBrief) => void merge(withBrief)}
+                />
+
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
                     {/* Deux colonnes, comme sur les autres fiches : les pièces
                         du foyer à gauche (un onglet par personne), la colonne
@@ -198,21 +257,6 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                             requestUuid={request.uuid}
                             canReview={request.can_update}
                         />
-
-                        <DetailSection
-                            title="Dossier préparé par l’IA"
-                            count={
-                                request.brief?.cover
-                                    ? request.brief.sections.length
-                                    : undefined
-                            }
-                        >
-                            <DossierBriefCard
-                                request={request}
-                                canUpdate={request.can_update}
-                                assistant={features?.assistant === true}
-                            />
-                        </DetailSection>
 
                         {request.can_update && (
                             <DetailSection title="Lettre de présentation">

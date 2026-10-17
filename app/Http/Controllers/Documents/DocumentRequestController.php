@@ -223,13 +223,14 @@ class DocumentRequestController extends Controller
      * page, devant les pièces déposées (la fusion se fait là-bas, aucun
      * fusionneur de PDF n'étant installable sur l'hébergement).
      */
-    public function cover(DocumentRequest $documentRequest, RenderDossierCover $cover): HttpResponse
+    public function cover(Request $request, DocumentRequest $documentRequest, RenderDossierCover $cover): HttpResponse
     {
         $this->authorize('view', $documentRequest);
 
         $documentRequest->load('uploads');
 
-        return response($cover->handle($documentRequest), 200, [
+        // `?brief=0` : la page de garde simple, quand l'équipe décline la synthèse dans la modale.
+        return response($cover->handle($documentRequest, $request->boolean('brief', true)), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="'.RenderDossierCover::fileName($documentRequest).'"',
         ]);
@@ -256,14 +257,16 @@ class DocumentRequestController extends Controller
     /**
      * Lance la préparation du dossier par l'assistant : il lit chaque partie
      * sur ses pièces validées, rédige sa fiche récapitulative, puis la page de
-     * garde. Refusé tant qu'une pièce demandée n'est pas validée.
+     * garde. Refusé seulement sans aucune pièce validée : un dossier incomplet
+     * se prépare sur ses pièces validées. `force` relit toutes les parties, même
+     * inchangées (après un changement de consigne, ou une lecture ratée).
      */
-    public function brief(DocumentRequest $documentRequest, RequestDossierBrief $request): RedirectResponse
+    public function brief(Request $http, DocumentRequest $documentRequest, RequestDossierBrief $request): RedirectResponse
     {
         $this->authorize('update', $documentRequest);
 
         try {
-            $request->handle($documentRequest);
+            $request->handle($documentRequest, force: $http->boolean('force'));
         } catch (RuntimeException $exception) {
             Inertia::flash('toast', ['type' => 'warning', 'message' => $exception->getMessage()]);
 

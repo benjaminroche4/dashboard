@@ -254,7 +254,6 @@ export function makeDossierBrief(
                 'Revenus : 4 150 € nets par mois',
                 'Taux d’effort : 30 %',
             ],
-            caveats: [],
         },
         sections: [
             {
@@ -270,7 +269,7 @@ export function makeDossierBrief(
                 documents: [
                     { label: 'paie-juin.pdf', note: 'Juin 2026 : 4 100 €' },
                 ],
-                caveats: [],
+                fingerprint: 'fp-0-income',
             },
         ],
         ...overrides,

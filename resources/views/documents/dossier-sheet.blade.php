@@ -29,8 +29,6 @@
         ol { margin: 0; padding-left: 20px; }
         ol li { padding: 4px 0; border-bottom: 1px solid #f0f0f0; }
         ol li .note { display: block; color: #525252; font-size: 9.5pt; }
-        ul.caveats { margin: 0; padding-left: 18px; color: #7a1f2b; }
-        ul.caveats li { padding: 3px 0; }
         .ai { font-size: 8.5pt; color: #737373; margin-top: 22px; border-top: 1px solid #e5e5e5; padding-top: 8px; }
         .footer { margin-top: 14px; font-size: 9pt; color: #737373; }
     </style>
@@ -92,15 +90,6 @@
             @endforeach
         @endforeach
     </ol>
-
-    @if ($brief !== null && $brief['caveats'] !== [])
-        <h3>Points d’attention</h3>
-        <ul class="caveats">
-            @foreach ($brief['caveats'] as $caveat)
-                <li>{{ $caveat }}</li>
-            @endforeach
-        </ul>
-    @endif
 
     @if ($brief !== null && $brief['summary'] !== null)
         <div class="ai">Synthèse établie par notre assistant à partir des pièces jointes, puis relue par l’équipe. Les pièces font foi.</div>

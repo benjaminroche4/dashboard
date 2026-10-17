@@ -15,10 +15,10 @@ use App\Support\JsonSchema;
  * dont elle est tirée : si une pièce change, la synthèse est périmée.
  *
  * @phpstan-type Fact array{label: string, value: string}
- * @phpstan-type SectionBrief array{key: string, person_index: int, person: string, role: string, section: string, label: string, title: string, summary: string|null, facts: list<Fact>, documents: list<array{label: string, note: string|null}>, caveats: list<string>}
+ * @phpstan-type SectionBrief array{key: string, person_index: int, person: string, role: string, section: string, label: string, title: string, summary: string|null, facts: list<Fact>, documents: list<array{label: string, note: string|null}>, fingerprint: string|null}
  * @phpstan-type Figure array{value: string|null, detail: string|null, breakdown: list<Fact>}
  * @phpstan-type Figures array{salary: Figure, taxes: Figure, savings: Figure}
- * @phpstan-type Cover array{summary: string, figures: Figures, highlights: list<string>, caveats: list<string>}
+ * @phpstan-type Cover array{summary: string, figures: Figures, highlights: list<string>}
  */
 final readonly class DossierBriefData
 {
@@ -48,13 +48,13 @@ final readonly class DossierBriefData
         return [
             'type' => 'object',
             'additionalProperties' => false,
-            'required' => ['title', 'summary', 'facts', 'documents', 'caveats'],
+            'required' => ['title', 'summary', 'facts', 'documents'],
             'properties' => [
                 'title' => ['type' => 'string', 'description' => 'Titre court de la fiche, en français (« Revenus : 4 150 € nets par mois en moyenne »).'],
-                'summary' => ['type' => 'string', 'description' => 'Deux à quatre phrases qui disent ce que les pièces établissent, avec les chiffres clés ; rien qui ne soit lu sur les pièces.'],
+                'summary' => ['type' => 'string', 'description' => 'Une phrase, 160 caractères au plus, qui dit ce que les pièces établissent avec le chiffre clé ; rien qui ne soit lu sur les pièces, rien qui ne joue pas en faveur du dossier.'],
                 'facts' => [
                     'type' => 'array',
-                    'description' => 'Trois à huit faits chiffrés ou datés lus sur les pièces (libellé court, valeur courte).',
+                    'description' => 'Deux à quatre faits chiffrés ou datés lus sur les pièces (libellé court, valeur courte), favorables au dossier.',
                     'items' => [
                         'type' => 'object',
                         'additionalProperties' => false,
@@ -78,11 +78,6 @@ final readonly class DossierBriefData
                         ],
                     ],
                 ],
-                'caveats' => [
-                    'type' => 'array',
-                    'description' => 'Points d’attention pour le lecteur (incohérence, période non couverte, document proche de l’expiration). Vide s’il n’y en a pas.',
-                    'items' => ['type' => 'string'],
-                ],
             ],
         ];
     }
@@ -99,7 +94,7 @@ final readonly class DossierBriefData
         return [
             'type' => 'object',
             'additionalProperties' => false,
-            'required' => ['summary', 'figures', 'highlights', 'caveats'],
+            'required' => ['summary', 'figures', 'highlights'],
             'properties' => [
                 'figures' => [
                     'type' => 'object',
@@ -112,15 +107,10 @@ final readonly class DossierBriefData
                         'savings' => self::figureSchema('Épargne : en valeur le total de l’épargne disponible lue sur les relevés (livrets, comptes titres, assurance-vie, solde créditeur), en détail les supports et la date, en répartition une ligne par personne ou par support quand il y en a plusieurs.'),
                     ],
                 ],
-                'summary' => ['type' => 'string', 'description' => 'Le profil des locataires : un paragraphe chiffré par locataire (situation, revenu net mensuel, revenu fiscal, épargne), un pour le foyer (revenus cumulés, garants, emménagement), une phrase de clôture. Paragraphes séparés par une ligne vide, entre 500 et 1 000 caractères, chaque affirmation lue sur les pièces.'],
+                'summary' => ['type' => 'string', 'description' => 'Le profil des locataires : une ou deux phrases par locataire (nom, situation, revenu net mensuel, épargne, revenu fiscal) et, si elle apporte un chiffre, une phrase pour le foyer. Paragraphes séparés par une ligne vide, entre 300 et 600 caractères en tout, uniquement des faits lus sur les pièces qui jouent en faveur du dossier.'],
                 'highlights' => [
                     'type' => 'array',
-                    'description' => 'Points forts du dossier : trois à six lignes courtes et concrètes, chacune avec son chiffre ou son fait (« Revenus du foyer : 7 300 € nets par mois, soit 3,4 fois le loyer », « CDI depuis 2021 chez Nestlé, hors période d’essai »).',
-                    'items' => ['type' => 'string'],
-                ],
-                'caveats' => [
-                    'type' => 'array',
-                    'description' => 'Réserves à connaître avant de présenter le dossier. Vide s’il n’y en a pas.',
+                    'description' => 'Points forts du dossier : trois à cinq lignes courtes, chacune un chiffre ou un fait favorable (« Revenus du foyer : 7 300 € nets par mois, soit 3,4 fois le loyer », « CDI depuis 2021 chez Nestlé »).',
                     'items' => ['type' => 'string'],
                 ],
             ],
@@ -171,7 +161,6 @@ final readonly class DossierBriefData
                 'summary' => mb_substr(self::text($cover['summary'] ?? null) ?? '', 0, self::SUMMARY_LENGTH),
                 'figures' => self::figures($cover['figures'] ?? null),
                 'highlights' => self::lines($cover['highlights'] ?? null),
-                'caveats' => self::lines($cover['caveats'] ?? null),
             ],
             sections: array_values(array_filter(array_map(self::storedSection(...), $sections))),
         );
@@ -186,7 +175,7 @@ final readonly class DossierBriefData
      * @param  list<string>  $files  noms des fichiers de la partie, dans l'ordre
      * @return SectionBrief
      */
-    public static function sectionFrom(array $reply, array $plan, array $files): array
+    public static function sectionFrom(array $reply, array $plan, array $files, ?string $fingerprint = null): array
     {
         $notes = [];
 
@@ -208,7 +197,8 @@ final readonly class DossierBriefData
             'facts' => self::facts($reply['facts'] ?? null),
             // Une note par fichier **du plan**, jamais un fichier inventé.
             'documents' => array_map(fn (string $file): array => ['label' => $file, 'note' => $notes[$file] ?? null], $files),
-            'caveats' => self::lines($reply['caveats'] ?? null),
+            // Les fichiers lus : une partie inchangée garde sa fiche à la mise à jour.
+            'fingerprint' => $fingerprint,
         ];
     }
 
@@ -257,7 +247,6 @@ final readonly class DossierBriefData
                 'summary' => $section['summary'] ?? null,
                 'facts' => $section['facts'] ?? null,
                 'documents' => $section['documents'] ?? null,
-                'caveats' => $section['caveats'] ?? null,
             ], fn (mixed $value): bool => $value !== null),
             [
                 'key' => (string) $section['key'],
@@ -267,11 +256,12 @@ final readonly class DossierBriefData
                 'section' => $theme,
             ],
             array_values(array_map(fn (mixed $document): string => (string) (is_array($document) ? ($document['label'] ?? '') : ''), is_array($section['documents'] ?? null) ? $section['documents'] : [])),
+            self::text($section['fingerprint'] ?? null),
         );
     }
 
     /**
-     * Les trois cartes, toujours présentes : une carte absente est vide (« Non renseigné » à l'affichage).
+     * Les trois cartes, toujours présentes dans la donnée : une carte sans valeur ne s'affiche pas.
      *
      * @return Figures
      */

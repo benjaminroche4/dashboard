@@ -133,17 +133,61 @@ final class DossierPlan
     /** Pièces demandées sans aucun fichier validé. */
     public static function missingCount(DocumentRequest $request): int
     {
-        $missing = 0;
+        return count(self::missingLabels($request));
+    }
+
+    /**
+     * Les pièces encore attendues, nommées : « Léa Durand (Locataire) : RIB ».
+     * La synthèse les dit au lecteur plutôt que de passer pour complète.
+     *
+     * @return list<string>
+     */
+    public static function missingLabels(DocumentRequest $request): array
+    {
+        $labels = [];
 
         foreach ($request->persons as $index => $person) {
+            $who = trim(($person['first_name'] ?? '').' '.($person['last_name'] ?? '')) ?: 'Personne '.($index + 1);
+            $role = HouseholdRole::tryFrom($person['role'])?->label() ?? '';
+
             foreach ($person['documents'] as $key) {
                 if (self::accepted($request, $index, $key) === []) {
-                    $missing++;
+                    $labels[] = sprintf('%s%s : %s', $who, $role === '' ? '' : " ({$role})", DocumentCatalog::label($key));
                 }
             }
         }
 
-        return $missing;
+        return $labels;
+    }
+
+    /**
+     * Au moins un fichier validé : la synthèse a de quoi lire. Elle n'attend
+     * pas que le dossier soit complet, elle dit ce qui manque.
+     */
+    public static function hasValidFiles(DocumentRequest $request): bool
+    {
+        return self::valid($request)->isNotEmpty();
+    }
+
+    /**
+     * Empreinte d'une seule partie : ses fichiers validés. Une fiche dont la
+     * partie n'a pas bougé est gardée telle quelle à la mise à jour.
+     *
+     * @param  array{documents: list<PlanDocument>}  $plan
+     */
+    public static function sectionFingerprint(array $plan): string
+    {
+        $ids = [];
+
+        foreach ($plan['documents'] as $document) {
+            foreach ($document['uploads'] as $upload) {
+                $ids[] = $upload->id;
+            }
+        }
+
+        sort($ids);
+
+        return hash('sha256', implode(',', $ids));
     }
 
     /**

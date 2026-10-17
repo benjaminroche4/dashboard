@@ -16,6 +16,7 @@ use App\Models\Lead;
 use App\Models\User;
 use App\Services\Assistant;
 use App\Support\DossierPlan;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -34,6 +35,10 @@ function briefAssistant(array $sectionReply, array $coverReply, bool $configured
 
         public string $coverPrompt = '';
 
+        public string $sectionSystem = '';
+
+        public string $coverSystem = '';
+
         public function __construct(private readonly array $sectionReply, private readonly array $coverReply, private readonly bool $configured)
         {
             parent::__construct(key: $configured ? 'test-key' : null, model: 'claude-opus-5');
@@ -47,6 +52,7 @@ function briefAssistant(array $sectionReply, array $coverReply, bool $configured
         public function extractFromPdf(string $system, string $prompt, array $schema, array $pdfs, int $maxTokens = 8000, Effort $effort = Effort::LOW): array
         {
             $this->sectionCalls[] = ['prompt' => $prompt, 'pdfs' => count($pdfs)];
+            $this->sectionSystem = $system;
 
             throw_if(str_contains($prompt, 'Épargne et banque'), RuntimeException::class, 'Assistant IA injoignable.');
 
@@ -56,6 +62,7 @@ function briefAssistant(array $sectionReply, array $coverReply, bool $configured
         public function extract(string $system, string $prompt, array $schema, int $maxTokens = 8000, Effort $effort = Effort::LOW): array
         {
             $this->coverPrompt = $prompt;
+            $this->coverSystem = $system;
 
             return $this->coverReply;
         }
@@ -97,7 +104,6 @@ $sectionReply = [
     'summary' => 'Deux bulletins de juin et juillet 2026, salaire stable.',
     'facts' => [['label' => 'Net mensuel moyen', 'value' => '4 150 €'], ['label' => 'Période', 'value' => 'juin à juillet 2026']],
     'documents' => [['label' => 'paie-juin.pdf', 'note' => 'Juin 2026 : 4 100 €'], ['label' => 'invente.pdf', 'note' => 'Un fichier qui n’existe pas']],
-    'caveats' => ['Un seul employeur, période de deux mois seulement.'],
 ];
 $coverReply = [
     'summary' => "Nous présentons le dossier de Léa Durand.\n\nSes revenus couvrent trois fois le loyer visé.",
@@ -107,7 +113,6 @@ $coverReply = [
         // Carte oubliée par l'assistant : elle existe quand même, vide.
     ],
     'highlights' => ['Revenus : 4 150 € nets par mois', 'Taux d’effort : 43 %'],
-    'caveats' => [],
 ];
 
 test('the plan orders the parts of a complete dossier and fingerprints its validated files', function (): void {
@@ -174,21 +179,89 @@ test('the assistant writes one sheet per part on its files, then the cover from 
         ->and(RenderDossierSectionSheet::isFresh($request))->toBeTrue()
         ->and(DossierBriefData::from($request->dossier_brief)->sections)->toHaveCount(4);
 
+    // Les deux consignes partagent la forme des valeurs : arrondi à l'euro supérieur, dates en lettres.
+    foreach ([$assistant->sectionSystem, $assistant->coverSystem] as $system) {
+        expect($system)->toContain('arrondis à l\'euro supérieur')->toContain('de juin à août 2026')->toContain('RFR 2025 : 29 400 €');
+    }
+
     Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->resource === 'documents'
         && str_contains((string) $event->message, 'a préparé le dossier de Léa Durand')
         && str_contains((string) $event->message, '4 fiche(s)'));
 });
 
-test('the dossier is not prepared while a requested piece is still unvalidated', function () use ($sectionReply, $coverReply): void {
+test('an incomplete dossier is prepared on its validated pieces, and the cover prompt names what is missing', function () use ($sectionReply, $coverReply): void {
     $request = completeDossier();
     $request->uploads->firstWhere('original_name', 'rib.pdf')->forceFill(['status' => DocumentUploadStatus::Refused])->save();
+    $assistant = briefAssistant($sectionReply, $coverReply);
+    app()->instance(Assistant::class, $assistant);
+
+    resolve(GenerateDossierBrief::class)->handle($request->refresh());
+
+    // Trois parties lues (le RIB refusé n'en fait plus une), la page de garde sait ce qui manque.
+    expect(DossierBriefData::from($request->refresh()->dossier_brief)->sections)->toHaveCount(3)
+        ->and(DossierPlan::missingLabels($request->load('uploads')))->toBe(['Léa Durand (Locataire) : RIB'])
+        ->and($assistant->coverPrompt)->toContain('Pièces encore attendues')->toContain('Léa Durand (Locataire) : RIB');
+});
+
+test('an update rereads only the parts whose files changed, and retries a part left unread', function () use ($sectionReply, $coverReply): void {
+    $request = completeDossier();
+    $first = briefAssistant($sectionReply, $coverReply);
+    app()->instance(Assistant::class, $first);
+    resolve(GenerateDossierBrief::class)->handle($request);
+
+    // Quatre parties lues ; l'épargne a échoué (doublure) et reste sans résumé.
+    expect($first->sectionCalls)->toHaveCount(4)
+        ->and(DossierBriefData::from($request->refresh()->dossier_brief)->section('0-savings')['summary'])->toBeNull()
+        ->and(DossierBriefData::from($request->dossier_brief)->section('0-income')['fingerprint'])->not->toBeNull();
+
+    // Un bulletin de plus dans les revenus : seules cette partie et la partie
+    // restée sans résumé sont relues ; identité et garant gardent leur fiche.
+    $added = DocumentUpload::factory()->for($request, 'request')->reviewed(DocumentUploadStatus::Accepted)->create([
+        'person_index' => 0,
+        'document_key' => 'payslips',
+        'original_name' => 'paie-aout.pdf',
+    ]);
+    Storage::disk(DocumentUpload::DISK)->put($added->path, '%PDF-1.4 aout');
+
+    $second = briefAssistant($sectionReply, $coverReply);
+    app()->instance(Assistant::class, $second);
+    resolve(GenerateDossierBrief::class)->handle($request->refresh()->load('uploads'));
+
+    expect(array_map(fn (array $call): bool => str_contains($call['prompt'], 'Revenus et salaires') || str_contains($call['prompt'], 'Épargne et banque'), $second->sectionCalls))->toBe([true, true])
+        ->and($second->coverPrompt)->not->toBe('')
+        ->and(RenderDossierSectionSheet::isFresh($request->refresh()->load('uploads')))->toBeTrue();
+
+    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => str_contains((string) $event->message, 'a mis à jour le dossier de Léa Durand : 2 fiche(s) relue(s) sur 4')
+        && ($event->payload['brief_ready'] ?? false) === true);
+
+    // Forcée : les quatre parties sont relues, même inchangées.
+    $third = briefAssistant($sectionReply, $coverReply);
+    app()->instance(Assistant::class, $third);
+    resolve(GenerateDossierBrief::class)->handle($request->refresh()->load('uploads'), force: true);
+    expect($third->sectionCalls)->toHaveCount(4);
+    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => str_contains((string) $event->message, '4 fiche(s) relue(s) sur 4'));
+});
+
+test('the brief route passes the force flag to the job', function () use ($sectionReply, $coverReply): void {
+    Queue::fake();
+    $request = completeDossier();
+    app()->instance(Assistant::class, briefAssistant($sectionReply, $coverReply));
+
+    $this->actingAs(User::factory()->create())->post(route('tools.documents.brief', $request), ['force' => true])->assertRedirect();
+
+    Queue::assertPushed(GenerateDossierBriefJob::class, fn (GenerateDossierBriefJob $job): bool => $job->force);
+});
+
+test('the dossier is not prepared while nothing at all is validated', function () use ($sectionReply, $coverReply): void {
+    $request = completeDossier();
+    $request->uploads->each(fn (DocumentUpload $upload) => $upload->forceFill(['status' => DocumentUploadStatus::Pending])->save());
     app()->instance(Assistant::class, briefAssistant($sectionReply, $coverReply));
 
     expect(fn () => resolve(GenerateDossierBrief::class)->handle($request->refresh()))
-        ->toThrow(RuntimeException::class, 'Le dossier n’est pas complet');
+        ->toThrow(RuntimeException::class, 'Aucune pièce validée');
 });
 
-test('the brief route queues the job, dates the request and refuses an incomplete dossier', function () use ($sectionReply, $coverReply): void {
+test('the brief route queues the job, dates the request and refuses a dossier without any validated piece', function () use ($sectionReply, $coverReply): void {
     Queue::fake();
     $request = completeDossier();
     $staff = User::factory()->create();
@@ -208,8 +281,8 @@ test('the brief route queues the job, dates the request and refuses an incomplet
             ->where('request.brief.cover', null)
             ->where('request.persons.0.categories.0.documents.0.section', 'savings'));
 
-    // Une pièce de moins : refus avec un toast, rien n'est mis en file.
-    $request->uploads->firstWhere('original_name', 'cni-marc.pdf')->delete();
+    // Plus rien de validé : refus avec un toast, rien n'est mis en file.
+    $request->uploads()->update(['status' => DocumentUploadStatus::Pending->value]);
     $this->actingAs($staff)->post(route('tools.documents.brief', $request->refresh()))->assertRedirect();
     Queue::assertPushed(GenerateDossierBriefJob::class, 1);
 
@@ -240,17 +313,22 @@ test('the sheet and the cover print the synthesis, and the page marks it stale o
     $sheet = resolve(RenderDossierSectionSheet::class)->html($request, '0-income');
     expect($sheet)->toContain('Fiche récapitulative')->toContain('Revenus et salaires')->toContain('Léa Durand')
         ->toContain('Revenus : 4 150 € nets par mois')->toContain('Net mensuel moyen')->toContain('paie-juin.pdf')->toContain('Juin 2026 : 4 100 €')
-        ->toContain('Points d’attention')->toContain('Un seul employeur')
+        // Aucune réserve : la fiche met le dossier en valeur.
+        ->not->toContain('Points d’attention')
         ->not->toContain($request->access_code);
 
     // Partie non lue : la fiche liste les pièces, sans résumé ni mention de l'assistant.
     $plain = resolve(RenderDossierSectionSheet::class)->html($request, '0-savings');
     expect($plain)->toContain('rib.pdf')->not->toContain('Synthèse établie par notre assistant');
 
+    // Déclinée dans la modale : la page de garde simple, même avec une synthèse à jour.
+    expect(resolve(RenderDossierCover::class)->html($request, withBrief: false))->not->toContain('Profil des locataires');
+
     $cover = resolve(RenderDossierCover::class)->html($request);
     expect($cover)->toContain('Nous présentons le dossier')->toContain('Points forts')->toContain('Taux d’effort : 43 %')->toContain('Revenus et salaires')
-        // Les trois cartes : salaires renseignés, épargne « Non renseigné ».
-        ->toContain('Salaires')->toContain('4 150 € nets / mois')->toContain('Imposition')->toContain('Épargne')->toContain('Non renseigné');
+        // Seules les cartes renseignées : les salaires ; ni imposition ni épargne sans valeur.
+        ->toContain('<div class="label">Salaires</div>')->toContain('4 150 € nets / mois')
+        ->not->toContain('<div class="label">Imposition</div>')->not->toContain('<div class="label">Épargne</div>')->not->toContain('Non renseigné');
 
     Http::fake(['docraptor.com/*' => Http::response('%PDF-1.4 fiche', 200, ['Content-Type' => 'application/pdf'])]);
     config()->set('services.docraptor.key', 'doc-key');
@@ -261,6 +339,9 @@ test('the sheet and the cover print the synthesis, and the page marks it stale o
         ->assertOk()
         ->assertHeader('Content-Type', 'application/pdf');
     $this->actingAs($staff)->get(route('tools.documents.sheet', [$request, '0-taxes']))->assertNotFound();
+    // `?brief=0` : la page de garde simple, quand l'équipe décline la synthèse dans la modale.
+    $this->actingAs($staff)->get(route('tools.documents.cover', [$request, 'brief' => 0]))->assertOk();
+    Http::assertSent(fn (Request $sent): bool => str_contains((string) ($sent['document_content'] ?? ''), 'Dossier de location') && ! str_contains((string) ($sent['document_content'] ?? ''), 'Profil des locataires'));
 
     $this->actingAs($staff)->get(route('tools.documents.show', $request))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
