@@ -75,6 +75,8 @@ export type DocumentDetail = {
     hint: string | null;
     /** Fichiers déposés par le client pour cette pièce (page de la liste). */
     uploads?: DocumentUpload[];
+    /** Partie du dossier fusionné où la pièce est rangée (miroir de `DossierSection`). */
+    section?: string;
 };
 
 /** Catégorie d'une personne avec ses pièces, dans l'ordre du catalogue. */
@@ -128,6 +130,61 @@ export type DocumentAnalysis = {
     profile: Record<string, string | number>;
 };
 
+/** Fait chiffré ou daté relevé par l'assistant sur les pièces d'une partie. */
+export type DossierFact = { label: string; value: string };
+
+/** Fiche récapitulative d'une partie du dossier (miroir de `DossierBriefData`). */
+export type DossierSectionBrief = {
+    /** « 0-income » : index de la personne et thème. */
+    key: string;
+    person_index: number;
+    person: string;
+    role: string;
+    section: string;
+    label: string;
+    title: string;
+    /** Null quand l'assistant n'a pas pu lire la partie : la fiche liste seulement les pièces. */
+    summary: string | null;
+    facts: DossierFact[];
+    documents: { label: string; note: string | null }[];
+    caveats: string[];
+};
+
+/** Une des trois cartes de la page de garde ; `value` null = « Non renseigné ». */
+export type DossierFigure = {
+    value: string | null;
+    detail: string | null;
+    /** Une ligne par locataire quand le foyer en compte deux, ou par support. */
+    breakdown: DossierFact[];
+};
+
+/** Page de garde rédigée par l'assistant. */
+export type DossierCoverBrief = {
+    summary: string;
+    /** Salaires, imposition, épargne : les trois cartes en tête de la page. */
+    figures: {
+        salary: DossierFigure;
+        taxes: DossierFigure;
+        savings: DossierFigure;
+    };
+    /** Points forts du dossier, une ligne chiffrée chacun. */
+    highlights: string[];
+    caveats: string[];
+};
+
+/**
+ * Synthèse du dossier fusionné : null tant que rien n'a été demandé ;
+ * `pending` pendant que l'assistant lit ; `fresh` faux si les pièces validées
+ * ont changé depuis la rédaction.
+ */
+export type DossierBrief = {
+    pending: boolean;
+    fresh: boolean;
+    generated_at: string | null;
+    cover: DossierCoverBrief | null;
+    sections: DossierSectionBrief[];
+};
+
 export type DocumentRequestDetail = DocumentRequestSummary & {
     message: string | null;
     /** Lien externe facultatif (Drive…), en plus de la page publique. */
@@ -149,6 +206,12 @@ export type DocumentRequestDetail = DocumentRequestSummary & {
     can_update: boolean;
     /** Pièces que « Relire les pièces avec l'IA » relira (à vérifier, jamais lues). */
     pending_ai_count?: number;
+    /** Chaque pièce demandée a un fichier validé : le dossier peut être préparé. */
+    is_complete?: boolean;
+    /** Pièces demandées sans fichier validé. */
+    missing_count?: number;
+    /** Page de garde et fiches rédigées par l'assistant. */
+    brief?: DossierBrief | null;
     persons: HouseholdPersonDetail[];
 };
 

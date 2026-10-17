@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     dossierFileName,
     dossierPlan,
+    dossierSections,
     dossierWeight,
 } from '@/lib/document-dossier';
 import {
@@ -34,6 +35,7 @@ const request = makeDocumentRequestDetail({
                             key: 'identity_document',
                             label: "Passeport ou carte d'identité",
                             hint: null,
+                            section: 'identity',
                             uploads: [
                                 accepted({
                                     id: 1,
@@ -57,6 +59,7 @@ const request = makeDocumentRequestDetail({
                             key: 'identity_document',
                             label: "Passeport ou carte d'identité",
                             hint: null,
+                            section: 'identity',
                             // Deux fichiers pour une pièce : l'ordre de dépôt est gardé.
                             uploads: [
                                 accepted({
@@ -73,6 +76,7 @@ const request = makeDocumentRequestDetail({
                             key: 'family_record_book',
                             label: 'Livret de famille',
                             hint: null,
+                            section: 'identity',
                             // Pièce demandée mais pas déposée : absente du dossier.
                             uploads: [],
                         },
@@ -86,6 +90,7 @@ const request = makeDocumentRequestDetail({
                             key: 'payslips',
                             label: '3 derniers bulletins de salaire',
                             hint: null,
+                            section: 'income',
                             uploads: [
                                 accepted({
                                     id: 4,
@@ -101,8 +106,98 @@ const request = makeDocumentRequestDetail({
     ],
 });
 
+describe('dossierSections', () => {
+    it('groups the pieces by person then by dossier part, in the reading order', () => {
+        const sections = dossierSections(request);
+
+        expect(
+            sections.map((section) => [
+                section.key,
+                section.label,
+                section.parts.map((part) => part.upload.name),
+            ]),
+        ).toEqual([
+            ['1-identity', 'Identité et séjour', ['recto.pdf', 'verso.pdf']],
+            ['1-income', 'Revenus et salaires', ['paie.pdf']],
+            ['0-identity', 'Identité et séjour', ['cni-paul.pdf']],
+        ]);
+        expect(sections[0]?.person).toBe('Léa Martin');
+        expect(sections[2]?.role).toBe('Garant');
+    });
+
+    it('orders the parts by theme, not by catalogue category: taxes and savings leave Finance', () => {
+        const finance = makeDocumentRequestDetail({
+            persons: [
+                {
+                    name: 'Léa Martin',
+                    role: 'Locataire',
+                    categories: [
+                        {
+                            value: 'finance',
+                            label: 'Finance',
+                            documents: [
+                                {
+                                    key: 'rib',
+                                    label: 'RIB',
+                                    hint: null,
+                                    section: 'savings',
+                                    uploads: [
+                                        accepted({ id: 1, name: 'rib.pdf' }),
+                                    ],
+                                },
+                                {
+                                    key: 'tax_notices',
+                                    label: 'Avis d’imposition',
+                                    hint: null,
+                                    section: 'taxes',
+                                    uploads: [
+                                        accepted({ id: 2, name: 'impots.pdf' }),
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            value: 'work',
+                            label: 'Travail',
+                            documents: [
+                                {
+                                    key: 'payslips',
+                                    label: 'Bulletins',
+                                    hint: null,
+                                    section: 'income',
+                                    uploads: [
+                                        accepted({ id: 3, name: 'paie.pdf' }),
+                                    ],
+                                },
+                                {
+                                    key: 'custom',
+                                    label: 'Pièce sans section',
+                                    hint: null,
+                                    uploads: [
+                                        accepted({ id: 4, name: 'autre.pdf' }),
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+
+        expect(
+            dossierSections(finance).map((section) => section.section),
+        ).toEqual(['income', 'taxes', 'savings', 'other']);
+        expect(dossierPlan(finance).map((part) => part.upload.name)).toEqual([
+            'paie.pdf',
+            'impots.pdf',
+            'rib.pdf',
+            'autre.pdf',
+        ]);
+    });
+});
+
 describe('dossierPlan', () => {
-    it('orders the dossier: tenants first, then the catalogue, then the uploads', () => {
+    it('orders the dossier: tenants first, then the dossier parts, then the uploads', () => {
         const parts = dossierPlan(request);
 
         expect(
@@ -115,7 +210,9 @@ describe('dossierPlan', () => {
             ['Paul Martin', "Passeport ou carte d'identité", 'cni-paul.pdf'],
         ]);
         expect(parts[0]?.category).toBe('Identité');
+        expect(parts[0]?.section).toBe('identity');
         expect(parts[2]?.category).toBe('Travail');
+        expect(parts[2]?.section).toBe('income');
     });
 
     it('leaves out the pieces that were never deposited', () => {

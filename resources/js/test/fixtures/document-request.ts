@@ -7,6 +7,7 @@ import type {
     DocumentRequestDetail,
     DocumentRequestEdit,
     DocumentRequestSummary,
+    DossierBrief,
     HouseholdPersonForm,
 } from '@/types';
 
@@ -173,6 +174,7 @@ export function makeDocumentRequestDetail(
                                 key: 'id_document',
                                 label: "Passeport ou carte d'identité",
                                 hint: 'Recto et verso',
+                                section: 'identity',
                                 uploads: [],
                             },
                         ],
@@ -185,6 +187,7 @@ export function makeDocumentRequestDetail(
                                 key: 'payslips',
                                 label: '3 derniers bulletins de salaire',
                                 hint: null,
+                                section: 'income',
                                 uploads: [],
                             },
                         ],
@@ -215,6 +218,60 @@ export function makeDocumentRequestEdit(
                 role: 'guarantor',
                 documents: ['identity_document'],
             }),
+        ],
+        ...overrides,
+    };
+}
+
+/** Synthèse du dossier rédigée par l'assistant : page de garde et une fiche. */
+export function makeDossierBrief(
+    overrides: Partial<DossierBrief> = {},
+): DossierBrief {
+    return {
+        pending: false,
+        fresh: true,
+        generated_at: '2026-10-17T09:30:00+02:00',
+        cover: {
+            summary:
+                'Nous présentons le dossier de Léa Martin, en CDI chez Nestlé.\n\nSes revenus couvrent trois fois le loyer visé.',
+            figures: {
+                salary: {
+                    value: '7 350 € nets / mois',
+                    detail: 'CDI, moyenne de juin à août 2026',
+                    breakdown: [
+                        { label: 'Léa Martin', value: '4 150 €' },
+                        { label: 'Paul Martin', value: '3 200 €' },
+                    ],
+                },
+                taxes: {
+                    value: '78 400 €',
+                    detail: 'Revenu fiscal de référence 2025, 2 parts',
+                    breakdown: [],
+                },
+                savings: { value: null, detail: null, breakdown: [] },
+            },
+            highlights: [
+                'Revenus : 4 150 € nets par mois',
+                'Taux d’effort : 30 %',
+            ],
+            caveats: [],
+        },
+        sections: [
+            {
+                key: '0-income',
+                person_index: 0,
+                person: 'Léa Martin',
+                role: 'Locataire',
+                section: 'income',
+                label: 'Revenus et salaires',
+                title: 'Revenus : 4 150 € nets par mois en moyenne',
+                summary: 'Trois bulletins de juin à août 2026, salaire stable.',
+                facts: [{ label: 'Net mensuel moyen', value: '4 150 €' }],
+                documents: [
+                    { label: 'paie-juin.pdf', note: 'Juin 2026 : 4 100 €' },
+                ],
+                caveats: [],
+            },
         ],
         ...overrides,
     };

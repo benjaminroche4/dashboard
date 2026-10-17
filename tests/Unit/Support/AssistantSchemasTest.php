@@ -10,6 +10,7 @@ use App\Actions\Documents\DraftPresentationLetter;
 use App\Actions\Partners\DraftPartnerMessage;
 use App\Data\AgencyEnrichmentData;
 use App\Data\DocumentAnalysisData;
+use App\Data\DossierBriefData;
 use App\Data\LeadQualificationData;
 use App\Data\ListingExtractionData;
 use App\Data\PropertyTransitData;
@@ -64,6 +65,8 @@ test('the schemas sent to the assistant use only what the API accepts', function
         'matching agence ↔ client' => ExplainClientAgentSuggestions::schema(['agency:1', 'agent:2']),
         'mot à l’agence' => DraftHousingSearchMessage::schema(),
         'profil d’agence lu sur son site' => AgencyEnrichmentData::schema(),
+        'fiche d’une partie du dossier' => DossierBriefData::sectionSchema(),
+        'page de garde du dossier' => DossierBriefData::coverSchema(),
     ];
 
     foreach ($schemas as $nom => $schema) {

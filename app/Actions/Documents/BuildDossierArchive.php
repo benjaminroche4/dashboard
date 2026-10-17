@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Documents;
 
-use App\Enums\DocumentUploadStatus;
-use App\Enums\HouseholdRole;
 use App\Models\DocumentRequest;
 use App\Models\DocumentUpload;
+use App\Support\DossierPlan;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -19,8 +18,8 @@ use ZipArchive;
  * un dossier par personne, un fichier par pièce, tous numérotés pour que
  * l'ordre du dossier survive dans n'importe quel explorateur de fichiers.
  *
- * Même ordre que le PDF fusionné (`resources/js/lib/document-dossier.ts`) :
- * locataires d'abord, puis les pièces dans l'ordre du catalogue. **Les pièces
+ * Même ordre que le PDF fusionné (`resources/js/lib/document-dossier.ts`),
+ * celui de `DossierPlan` : locataires d'abord, puis les parties du dossier. **Les pièces
  * refusées par l'équipe en sont écartées** : elles ne sont pas valides, elles
  * n'ont rien à faire dans le dossier qu'on envoie.
  */
@@ -67,63 +66,42 @@ final readonly class BuildDossierArchive
     }
 
     /**
-     * Pièces à archiver, dans l'ordre du dossier, avec leur chemin dans le zip.
+     * Pièces à archiver, dans l'ordre du dossier (`DossierPlan`), avec leur
+     * chemin dans le zip : un dossier par personne, un fichier par pièce
+     * numéroté et préfixé de sa partie.
      *
      * @return list<array{entry: string, upload: DocumentUpload}>
      */
     public static function plan(DocumentRequest $request): array
     {
-        $persons = RenderDocumentRequestPdf::persons($request);
-        $raw = $request->persons;
-        $order = [];
-
-        // Locataires d'abord, garants ensuite, chacun gardant sa place.
-        foreach ([HouseholdRole::Tenant, HouseholdRole::Guarantor] as $role) {
-            foreach ($raw as $index => $person) {
-                if ($person['role'] === $role->value) {
-                    $order[] = $index;
-                }
-            }
-        }
-
         $plan = [];
-        $position = 0;
+        $folders = [];
+        $pieces = [];
 
-        foreach ($order as $index) {
-            $person = $persons[$index] ?? null;
+        foreach (DossierPlan::sections($request) as $section) {
+            $index = $section['person_index'];
 
-            if ($person === null) {
-                continue;
+            if (! isset($folders[$index])) {
+                $folders[$index] = sprintf('%02d - %s (%s)', count($folders) + 1, self::clean($section['person']), self::clean($section['role']));
+                $pieces[$index] = 0;
             }
 
-            $position++;
-            $folder = sprintf('%02d - %s (%s)', $position, self::clean($person['name']), self::clean($person['role']));
-            $piece = 0;
+            foreach ($section['documents'] as $document) {
+                $count = count($document['uploads']);
 
-            foreach ($person['categories'] as $category) {
-                foreach ($category['documents'] as $document) {
-                    $uploads = $request->uploads
-                        ->where('person_index', $index)
-                        ->where('document_key', $document['key'])
-                        ->where('status', DocumentUploadStatus::Accepted)
-                        ->sortBy('created_at')
-                        ->values();
-
-                    foreach ($uploads as $rank => $upload) {
-                        $piece++;
-                        $suffix = $uploads->count() > 1 ? ' ('.($rank + 1).')' : '';
-                        $plan[] = [
-                            'entry' => sprintf(
-                                '%s/%02d - %s - %s%s.pdf',
-                                $folder,
-                                $piece,
-                                self::clean($category['label']),
-                                self::clean($document['label']),
-                                $suffix,
-                            ),
-                            'upload' => $upload,
-                        ];
-                    }
+                foreach ($document['uploads'] as $rank => $upload) {
+                    $pieces[$index]++;
+                    $plan[] = [
+                        'entry' => sprintf(
+                            '%s/%02d - %s - %s%s.pdf',
+                            $folders[$index],
+                            $pieces[$index],
+                            self::clean($section['section']->label()),
+                            self::clean($document['label']),
+                            $count > 1 ? ' ('.($rank + 1).')' : '',
+                        ),
+                        'upload' => $upload,
+                    ];
                 }
             }
         }

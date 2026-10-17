@@ -87,6 +87,10 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('tools/documents/{documentRequest}/pdf', [DocumentRequestController::class, 'pdf'])->name('tools.documents.pdf');
     // Page de garde du dossier fusionné, que le navigateur met devant les pièces.
     Route::get('tools/documents/{documentRequest}/cover', [DocumentRequestController::class, 'cover'])->name('tools.documents.cover');
+    // Fiche récapitulative qui ouvre une partie du dossier fusionné (« 0-income »).
+    Route::get('tools/documents/{documentRequest}/sections/{section}/sheet', [DocumentRequestController::class, 'sheet'])->where('section', '[0-9]+-[a-z_]+')->name('tools.documents.sheet');
+    // Préparation du dossier par l'assistant : page de garde et fiches, en arrière-plan.
+    Route::post('tools/documents/{documentRequest}/brief', [DocumentRequestController::class, 'brief'])->middleware('throttle:10,1')->name('tools.documents.brief');
     // Toutes les pièces déposées, non fusionnées, dans une archive zip.
     Route::get('tools/documents/{documentRequest}/archive', [DocumentRequestController::class, 'archive'])->name('tools.documents.archive');
     Route::post('tools/documents/{documentRequest}/send-link', [DocumentRequestController::class, 'sendLink'])->name('tools.documents.send-link');

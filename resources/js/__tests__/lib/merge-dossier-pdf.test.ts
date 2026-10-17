@@ -50,6 +50,7 @@ import { mergeDossierPdf } from '@/lib/merge-dossier-pdf';
 import {
     makeDocumentRequestDetail,
     makeDocumentUpload,
+    makeDossierBrief,
 } from '@/test/fixtures/document-request';
 
 /** Fichier validé par l'équipe : seuls ceux-là entrent dans le dossier. */
@@ -121,7 +122,7 @@ describe('mergeDossierPdf', () => {
             ]),
         );
 
-        expect(result).toEqual({ merged: 2, skipped: [] });
+        expect(result).toEqual({ merged: 2, skipped: [], sheets: 0 });
         // La page de garde d'abord, puis les pièces dans l'ordre du dossier.
         expect(loaded).toEqual(['garde', 'fichier:/u/1', 'fichier:/u/2']);
         expect(added).toEqual(['garde', 'fichier:/u/1', 'fichier:/u/2']);
@@ -131,6 +132,64 @@ describe('mergeDossierPdf', () => {
             'Dossier de 2 pièce(s) téléchargé.',
             undefined,
         );
+    });
+
+    it('opens each part with its sheet when the assistant prepared the dossier on these files', async () => {
+        const fetchMock = vi.fn((url: string) =>
+            Promise.resolve(
+                url.includes('/cover')
+                    ? body('garde')
+                    : url.includes('/sections/')
+                      ? body(`fiche:${url.split('/sections/')[1]}`)
+                      : body(`fichier:${url}`),
+            ),
+        );
+        vi.stubGlobal('fetch', fetchMock);
+
+        const detail = request([
+            { name: 'cni.pdf', url: '/u/1' },
+            { name: 'paie.pdf', url: '/u/2' },
+        ]);
+        // Deux parties : identité puis revenus.
+        detail.persons[0]!.categories[0]!.documents[0]!.section = 'identity';
+        detail.persons[0]!.categories[0]!.documents[1]!.section = 'income';
+        detail.brief = makeDossierBrief();
+
+        const result = await mergeDossierPdf(detail);
+
+        expect(result).toEqual({ merged: 2, skipped: [], sheets: 2 });
+        // Garde, puis pour chaque partie sa fiche **devant** ses pièces.
+        expect(added).toEqual([
+            'garde',
+            'fiche:0-identity/sheet',
+            'fichier:/u/1',
+            'fiche:0-income/sheet',
+            'fichier:/u/2',
+        ]);
+        expect(notify.resolve).toHaveBeenCalledWith(
+            'toast-1',
+            'Dossier de 2 pièce(s) téléchargé.',
+            'Page de garde et 2 fiche(s) récapitulative(s) incluses.',
+        );
+    });
+
+    it('leaves the sheets out when the synthesis is stale or the cover is not available', async () => {
+        const fetchMock = vi.fn((url: string) => Promise.resolve(body(url)));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const stale = request([{ name: 'cni.pdf', url: '/u/1' }]);
+        stale.brief = makeDossierBrief({ fresh: false });
+        await mergeDossierPdf(stale);
+
+        const fresh = request([{ name: 'cni.pdf', url: '/u/1' }]);
+        fresh.brief = makeDossierBrief();
+        await mergeDossierPdf(fresh, { withCover: false });
+
+        expect(
+            fetchMock.mock.calls.some(([url]) =>
+                String(url).includes('/sections/'),
+            ),
+        ).toBe(false);
     });
 
     it('skips a broken file, names it, and still delivers the others', async () => {

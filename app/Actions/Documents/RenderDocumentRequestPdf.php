@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Actions\Documents;
 
 use App\Actions\Invoices\SendInvoice;
+use App\Enums\DocumentCategory;
+use App\Enums\DossierSection;
 use App\Enums\HouseholdRole;
 use App\Models\DocumentRequest;
 use App\Services\DocRaptor;
@@ -54,7 +56,10 @@ final readonly class RenderDocumentRequestPdf
      * Personnes avec leurs pièces libellées et traduites dans la locale
      * courante, regroupées par catégorie dans l'ordre du catalogue.
      *
-     * @return list<array{name: string, role: string, categories: list<array{value: string, label: string, documents: list<array{key: string, label: string, hint: string|null}>}>}>
+     * Chaque pièce porte aussi sa `section` : la partie du dossier fusionné
+     * (`DossierSection`) où elle est rangée, qui n'est pas sa catégorie.
+     *
+     * @return list<array{name: string, role: string, categories: list<array{value: string, label: string, documents: list<array{key: string, label: string, hint: string|null, section: string}>}>}>
      */
     public static function persons(DocumentRequest $request): array
     {
@@ -80,6 +85,7 @@ final readonly class RenderDocumentRequestPdf
                         'key' => $key,
                         'label' => DocumentCatalog::label($key),
                         'hint' => DocumentCatalog::hint($key),
+                        'section' => DossierSection::forDocument($key, DocumentCategory::from($group['value']))->value,
                     ], $keys),
                 ];
             }

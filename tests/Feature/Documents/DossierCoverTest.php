@@ -54,7 +54,7 @@ function dossier(): DocumentRequest
     return $request->refresh()->load('uploads');
 }
 
-test('the cover lists what was received and what is still missing, in the catalogue order', function (): void {
+test('the cover lists what was received and what is still missing, in the dossier order', function (): void {
     $request = dossier();
     $persons = RenderDossierCover::persons($request);
 
@@ -62,7 +62,9 @@ test('the cover lists what was received and what is still missing, in the catalo
         ->and($persons[0]['name'])->toBe('Léa Durand')
         ->and($persons[0]['role'])->toBe('Locataire')
         // Identité puis Finance : l'ordre du catalogue, pas celui du dépôt.
-        ->and(array_column($persons[0]['received'], 'label'))->toBe(['RIB', 'Passeport ou carte d\'identité'])
+        // Les parties du dossier : l'identité avant l'épargne, quelle que soit la catégorie du catalogue.
+        ->and(array_column($persons[0]['received'], 'label'))->toBe(['Passeport ou carte d\'identité', 'RIB'])
+        ->and(array_column($persons[0]['sections'], 'label'))->toBe(['Identité et séjour', 'Épargne et banque'])
         ->and($persons[0]['received'][0]['files'])->toBe(1)
         ->and($persons[0]['missing'])->toBe(['3 derniers bulletins de salaire'])
         // Le garant n'a rien déposé : tout est attendu.
@@ -94,7 +96,8 @@ test('the cover page is a PDF, never revealing the deposit link nor its code', f
         return str_contains($html, 'Dossier de location')
             && str_contains($html, 'Léa Durand')
             && str_contains($html, 'Marc Durand')
-            && str_contains($html, 'Pièces jointes')
+            && str_contains($html, 'Identité et séjour')
+            && str_contains($html, 'Épargne et banque')
             && str_contains($html, 'Pièces encore attendues')
             // Ce document part chez un partenaire : ni lien de dépôt, ni code.
             && ! str_contains($html, $request->access_code)
@@ -116,7 +119,7 @@ test('the file page announces how many files can be merged', function (): void {
             ->where('request.persons.0.name', 'Léa Durand'));
 });
 
-test('the archive keeps every piece as it was deposited, ordered by person and catalogue', function (): void {
+test('the archive keeps every piece as it was deposited, ordered by person and dossier part', function (): void {
     $request = dossier();
     $staff = User::factory()->create();
 
@@ -145,10 +148,10 @@ test('the archive keeps every piece as it was deposited, ordered by person and c
     unlink($path);
 
     // Un dossier par personne, les pièces numérotées dans l'ordre du
-    // catalogue. Le garant n'a rien déposé : il n'a pas de dossier.
+    // dossier (par partie). Le garant n'a rien déposé : il n'a pas de dossier.
     expect($entries)->toBe([
-        '01 - Léa Durand (Locataire)/01 - Finance - RIB.pdf',
-        "01 - Léa Durand (Locataire)/02 - Identité - Passeport ou carte d'identité.pdf",
+        "01 - Léa Durand (Locataire)/01 - Identité et séjour - Passeport ou carte d'identité.pdf",
+        '01 - Léa Durand (Locataire)/02 - Épargne et banque - RIB.pdf',
     ]);
 });
 
@@ -181,10 +184,10 @@ test('two files on the same piece are numbered, and a missing file is skipped', 
     $entries = array_column(BuildDossierArchive::plan($request->refresh()->load('uploads')), 'entry');
 
     expect($entries)->toBe([
-        '01 - Léa Durand (Locataire)/01 - Finance - RIB (1).pdf',
-        '01 - Léa Durand (Locataire)/02 - Finance - RIB (2).pdf',
-        "01 - Léa Durand (Locataire)/03 - Identité - Passeport ou carte d'identité.pdf",
-        '01 - Léa Durand (Locataire)/04 - Travail - 3 derniers bulletins de salaire.pdf',
+        "01 - Léa Durand (Locataire)/01 - Identité et séjour - Passeport ou carte d'identité.pdf",
+        '01 - Léa Durand (Locataire)/02 - Revenus et salaires - 3 derniers bulletins de salaire.pdf',
+        '01 - Léa Durand (Locataire)/03 - Épargne et banque - RIB (1).pdf',
+        '01 - Léa Durand (Locataire)/04 - Épargne et banque - RIB (2).pdf',
     ]);
 
     // Le fichier absent du stockage est sauté : l'archive part quand même.

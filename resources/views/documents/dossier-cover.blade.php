@@ -27,7 +27,20 @@
         .count { width: 70px; text-align: right; color: #737373; font-size: 9.5pt; }
         .missing li { color: #a3a3a3; }
         .missing .mark { color: #a3a3a3; }
-        .letter { margin: 8px 0 18px; line-height: 1.55; }
+        .letter { margin: 8px 0 14px; line-height: 1.55; }
+        .figures { width: 100%; border-collapse: separate; border-spacing: 8px 0; margin: 6px -8px 10px; }
+        .figures td { width: 33.33%; padding: 0; vertical-align: top; }
+        .figure { background: #f5f5f5; border-radius: 8px; padding: 10px 12px; min-height: 64px; }
+        .figure .value { font-size: 13pt; font-weight: 600; letter-spacing: -0.01em; }
+        .figure .value.empty { color: #a3a3a3; font-weight: 500; font-size: 10.5pt; }
+        .figure .detail { font-size: 8.5pt; color: #737373; margin-top: 2px; }
+        .figure .line { display: table; width: 100%; font-size: 9pt; margin-top: 4px; border-top: 1px solid #e5e5e5; padding-top: 3px; }
+        .figure .line > span { display: table-cell; }
+        .figure .amount { text-align: right; font-weight: 600; }
+        .highlights li { border-bottom: 0; padding: 2px 0; font-weight: 600; }
+        .highlights .mark { color: #7a1f2b; font-size: 7pt; }
+        .caveats li { border-bottom: 0; padding: 2px 0; color: #7a1f2b; }
+        .caveats .mark { color: #7a1f2b; font-size: 7pt; }
         .summary { background: #f5f5f5; border-radius: 8px; padding: 12px 14px; margin: 16px 0; }
         .footer { margin-top: 28px; border-top: 1px solid #e5e5e5; padding-top: 10px; font-size: 9pt; color: #737373; }
     </style>
@@ -52,7 +65,51 @@
     <div class="label">Dossier de</div>
     <div><strong>{{ $request->fullName() }}</strong></div>
 
-    @if (! empty($request->presentation_letter))
+    @if ($brief !== null && $brief['summary'] !== '')
+        {{-- Présentation rédigée par l'assistant sur les pièces validées : elle prime sur la lettre, qui reste sans elle. --}}
+        <h2>Présentation du dossier</h2>
+
+        {{-- Trois cartes : salaires, imposition, épargne. `gap` n'étant pas supporté, le `border-spacing` fait l'espace. --}}
+        <table class="figures">
+            <tr>
+                @foreach (['salary' => 'Salaires', 'taxes' => 'Imposition', 'savings' => 'Épargne'] as $key => $title)
+                    @php $figure = $brief['figures'][$key]; @endphp
+                    <td>
+                        <div class="figure">
+                            <div class="label">{{ $title }}</div>
+                            <div class="value{{ $figure['value'] === null ? ' empty' : '' }}">{{ $figure['value'] ?? 'Non renseigné' }}</div>
+                            @if ($figure['detail'] !== null)
+                                <div class="detail">{{ $figure['detail'] }}</div>
+                            @endif
+                            @foreach ($figure['breakdown'] as $line)
+                                <div class="line"><span>{{ $line['label'] }}</span><span class="amount">{{ $line['value'] }}</span></div>
+                            @endforeach
+                        </div>
+                    </td>
+                @endforeach
+            </tr>
+        </table>
+
+        <div class="letter">{!! nl2br(e($brief['summary'])) !!}</div>
+
+        @if ($brief['highlights'] !== [])
+            <h3>Points forts</h3>
+            <ul class="highlights">
+                @foreach ($brief['highlights'] as $highlight)
+                    <li><span class="mark">&#9679;</span><span>{{ $highlight }}</span></li>
+                @endforeach
+            </ul>
+        @endif
+
+        @if ($brief['caveats'] !== [])
+            <h3>Points d’attention</h3>
+            <ul class="caveats">
+                @foreach ($brief['caveats'] as $caveat)
+                    <li><span class="mark">&#9650;</span><span>{{ $caveat }}</span></li>
+                @endforeach
+            </ul>
+        @endif
+    @elseif (! empty($request->presentation_letter))
         <h2>Présentation du dossier</h2>
         <div class="letter">{!! nl2br(e($request->presentation_letter)) !!}</div>
     @endif
@@ -60,8 +117,10 @@
     <div class="summary">
         Ce document réunit les pièces justificatives du dossier, dans l’ordre du
         sommaire ci-dessous : les locataires d’abord, puis les garants, et pour
-        chaque personne ses pièces par catégorie. Seules les pièces vérifiées et
-        validées par notre équipe y figurent.
+        chaque personne ses pièces par partie : identité, situation
+        professionnelle, revenus, impôts, épargne, garanties, logement. Chaque
+        partie s’ouvre sur une fiche récapitulative. Seules les pièces vérifiées
+        et validées par notre équipe y figurent.
     </div>
 
     @foreach ($persons as $person)
@@ -70,16 +129,18 @@
         @if ($person['received'] === [])
             <p class="muted">Aucune pièce reçue pour cette personne.</p>
         @else
-            <h3>Pièces jointes</h3>
-            <ul>
-                @foreach ($person['received'] as $document)
-                    <li>
-                        <span class="mark">&#10003;</span>
-                        <span>{{ $document['label'] }}</span>
-                        <span class="count">{{ $document['files'] }} fichier{{ $document['files'] > 1 ? 's' : '' }}</span>
-                    </li>
-                @endforeach
-            </ul>
+            @foreach ($person['sections'] as $section)
+                <h3>{{ $section['label'] }}</h3>
+                <ul>
+                    @foreach ($section['documents'] as $document)
+                        <li>
+                            <span class="mark">&#10003;</span>
+                            <span>{{ $document['label'] }}</span>
+                            <span class="count">{{ $document['files'] }} fichier{{ $document['files'] > 1 ? 's' : '' }}</span>
+                        </li>
+                    @endforeach
+                </ul>
+            @endforeach
         @endif
 
         @if ($person['pending'] !== [])

@@ -6,6 +6,10 @@ export type ResolveStep =
           /** Page à ouvrir ; absente, c'est la page résolue par l'étape précédente. */
           list?: string;
           pattern: RegExp;
+          /** Ne retenir qu'un lien dont la ligne de tableau (`tr`) contient ce texte. */
+          near?: RegExp;
+          /** Entrées `localStorage` à poser avant de lire la liste (vue Tableau, par exemple). */
+          storage?: Record<string, string>;
       }
     | {
           /**
@@ -50,10 +54,54 @@ export const keyPages: KeyPage[] = [
             { derive: (client) => client.replace('/clients/', '/locataires/') },
         ],
     },
+    {
+        name: 'Lead : modification',
+        steps: [
+            { list: '/clients', pattern: detail('clients') },
+            {
+                derive: (client) =>
+                    `${client.replace('/clients/', '/locataires/')}/edit`,
+            },
+        ],
+    },
     { name: 'Leads propriétaires', path: '/owners/leads' },
+    { name: 'Lead propriétaire : création', path: '/owners/leads/create' },
+    {
+        name: 'Lead propriétaire : modification',
+        steps: [
+            // Le kanban n'a pas de liens : on bascule la liste en vue Tableau.
+            {
+                list: '/owners/leads',
+                pattern: detail('locataires'),
+                storage: { 'owners.leads.view': 'table' },
+            },
+            {
+                derive: (lead) =>
+                    `${lead.replace('/locataires/', '/owners/leads/')}/edit`,
+            },
+        ],
+    },
     { name: 'Dossiers clients', path: '/clients' },
     { name: 'Dossier client', steps: firstOf('/clients', 'clients') },
+    {
+        name: 'Dossier client : modification',
+        steps: [
+            { list: '/clients', pattern: detail('clients') },
+            { derive: (client) => `${client}/edit` },
+        ],
+    },
     { name: 'Visites', path: '/clients/visits' },
+    {
+        name: 'Visite : fiche',
+        steps: firstOf('/clients/visits', 'clients/visits'),
+    },
+    {
+        name: 'Visite : modification',
+        steps: [
+            { list: '/clients/visits', pattern: detail('clients/visits') },
+            { derive: (visit) => `${visit}/edit` },
+        ],
+    },
     { name: 'Agents', path: '/real-estate/agents' },
     { name: 'Agences', path: '/real-estate/agencies' },
     { name: 'Partenaires', path: '/partners' },
@@ -83,14 +131,45 @@ export const keyPages: KeyPage[] = [
     { name: 'Devis : liste', path: '/tools/quotes' },
     { name: 'Devis : création', path: '/tools/quotes/create' },
     { name: 'Devis : fiche', steps: firstOf('/tools/quotes', 'tools/quotes') },
+    {
+        name: 'Devis : modification',
+        steps: [
+            // Seul un brouillon se modifie : un devis envoyé répond 403, à raison.
+            {
+                list: '/tools/quotes',
+                pattern: detail('tools/quotes'),
+                near: /Brouillon/,
+            },
+            { derive: (quote) => `${quote}/edit` },
+        ],
+    },
     { name: 'Factures : liste', path: '/invoices' },
     { name: 'Factures : création', path: '/invoices/create' },
     { name: 'Facture : fiche', steps: firstOf('/invoices', 'invoices') },
+    {
+        name: 'Facture : modification',
+        steps: [
+            // Seule une facture en brouillon se modifie.
+            { list: '/invoices?status=draft', pattern: detail('invoices') },
+            { derive: (invoice) => `${invoice}/edit` },
+        ],
+    },
     { name: 'Documents : liste', path: '/tools/documents' },
+    {
+        name: 'Documents : catalogue des pièces',
+        path: '/tools/documents/catalog',
+    },
     { name: 'Documents : création', path: '/tools/documents/create' },
     {
         name: 'Documents : fiche',
         steps: firstOf('/tools/documents', 'tools/documents'),
+    },
+    {
+        name: 'Documents : modification',
+        steps: [
+            { list: '/tools/documents', pattern: detail('tools/documents') },
+            { derive: (request) => `${request}/edit` },
+        ],
     },
     {
         // Seule page vue par des gens hors de l'équipe : le jeton de dépôt est
@@ -118,7 +197,19 @@ async function firstLink(
     page: Page,
     list: string,
     pattern: RegExp,
+    near?: RegExp,
+    storage?: Record<string, string>,
 ): Promise<string | null> {
+    if (storage) {
+        // `localStorage` n'est accessible que sur l'origine : ouvrir la page une
+        // première fois, poser les clés, puis la laisser se recharger ci-dessous.
+        await page.goto(list, { waitUntil: 'domcontentloaded' });
+        await page.evaluate((entries) => {
+            for (const [key, value] of Object.entries(entries)) {
+                localStorage.setItem(key, value);
+            }
+        }, storage);
+    }
     // Pas `networkidle` : la connexion Reverb reste ouverte et, en dev, Vite
     // recharge en fond — le réseau ne s'endort jamais et le hook expire. Le
     // DOM chargé suffit pour lire le premier lien de la liste.
@@ -144,15 +235,26 @@ async function firstLink(
     // par le test suivant sur une page encore en cours de chargement se fait
     // supplanter, et Playwright lui répond `null` au lieu d'une réponse.
     await page.waitForLoadState('load');
-    const hrefs = await page
-        .locator('main a[href]')
-        .evaluateAll((anchors) =>
-            anchors.map(
-                (anchor) =>
-                    new URL((anchor as HTMLAnchorElement).href).pathname,
-            ),
-        );
-    return hrefs.find((href) => pattern.test(href)) ?? null;
+    const links = await page.locator('main a[href]').evaluateAll((anchors) =>
+        anchors.map((anchor) => ({
+            path: new URL((anchor as HTMLAnchorElement).href).pathname,
+            row: anchor.closest('tr')?.textContent ?? '',
+        })),
+    );
+    if (storage) {
+        // Ne pas laisser la préférence posée : les pages clés s'auditent dans
+        // leur état par défaut.
+        await page.evaluate((entries) => {
+            for (const key of Object.keys(entries)) {
+                localStorage.removeItem(key);
+            }
+        }, storage);
+    }
+    return (
+        links.find(
+            (link) => pattern.test(link.path) && (!near || near.test(link.row)),
+        )?.path ?? null
+    );
 }
 
 /**
@@ -182,7 +284,13 @@ export async function resolvePath(
         if (!list) {
             return null;
         }
-        current = await firstLink(page, list, step.pattern);
+        current = await firstLink(
+            page,
+            list,
+            step.pattern,
+            step.near,
+            step.storage,
+        );
         if (current === null) {
             return null;
         }

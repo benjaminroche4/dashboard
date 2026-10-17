@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { CountryFlag } from '@/components/country-flag';
 import { CreatedBy } from '@/components/created-by';
 import { DocumentRequestRowActions } from '@/components/documents/document-request-row-actions';
+import { DossierBriefCard } from '@/components/documents/dossier-brief-card';
 import { HouseholdPersonTabs } from '@/components/documents/household-person-tabs';
 import { DetailSection } from '@/components/real-estate/detail-header';
 import { DocumentRequestLeadLink } from '@/components/documents/document-request-lead-link';
@@ -84,8 +85,8 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                     </div>
                     <div className="flex items-center gap-2">
                         {request.can_update && features?.assistant && (
-                            /* Le bouton dit combien de pièces il relira — celles
-                               à vérifier, jamais lues — et se désactive quand il
+                            /* Le bouton dit combien de pièces il relira (celles
+                               à vérifier, jamais lues) et se désactive quand il
                                n'y en a pas : un clic sans effet visible passait
                                pour une panne. Une pièce déjà tranchée se relit
                                depuis sa carte. */
@@ -146,7 +147,16 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                             <DropdownMenuContent align="end">
                                 <DropdownMenuItem onSelect={() => void merge()}>
                                     <FileStack aria-hidden />
-                                    Dossier fusionné (PDF)
+                                    <span className="grid">
+                                        Dossier fusionné (PDF)
+                                        {request.brief?.fresh &&
+                                            pdfAvailable && (
+                                                <span className="text-muted-foreground text-xs">
+                                                    Avec page de garde et fiches
+                                                    récapitulatives
+                                                </span>
+                                            )}
+                                    </span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem asChild>
                                     <a
@@ -188,6 +198,21 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                             requestUuid={request.uuid}
                             canReview={request.can_update}
                         />
+
+                        <DetailSection
+                            title="Dossier préparé par l’IA"
+                            count={
+                                request.brief?.cover
+                                    ? request.brief.sections.length
+                                    : undefined
+                            }
+                        >
+                            <DossierBriefCard
+                                request={request}
+                                canUpdate={request.can_update}
+                                assistant={features?.assistant === true}
+                            />
+                        </DetailSection>
 
                         {request.can_update && (
                             <DetailSection title="Lettre de présentation">

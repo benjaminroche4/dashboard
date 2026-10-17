@@ -1,3 +1,4 @@
+import { sectionLabel, sectionRank } from '@/lib/dossier-sections';
 import type { DocumentRequestDetail, DocumentUpload } from '@/types';
 
 /** Une pièce du dossier fusionné, à sa place dans le PDF final. */
@@ -8,54 +9,97 @@ export type DossierPart = {
     role: string;
     /** Catégorie du catalogue (Identité, Finance…). */
     category: string;
+    /** Partie du dossier (« income »), celle de la fiche qui précède la pièce. */
+    section: string;
     /** Libellé de la pièce demandée. */
     document: string;
     upload: DocumentUpload;
 };
 
-/**
- * Ordre du dossier fusionné : **les personnes dans l'ordre du foyer**
- * (locataires d'abord, garants ensuite), puis pour chacune ses pièces dans
- * l'ordre du catalogue (catégorie puis position), et pour chaque pièce ses
- * fichiers dans l'ordre de dépôt.
- *
- * Le serveur envoie déjà `persons` dans cet ordre : on ne fait que l'aplatir,
- * en écartant les pièces sans fichier **et les fichiers refusés par l'équipe**,
- * qui ne sont pas valides et n'ont pas à partir dans le dossier.
- */
-export function dossierPlan(request: DocumentRequestDetail): DossierPart[] {
-    const parts: DossierPart[] = [];
-    const tenants = request.persons.filter(
-        (person) => !isGuarantor(person.role),
-    );
-    const guarantors = request.persons.filter((person) =>
-        isGuarantor(person.role),
-    );
+/** Une partie du dossier : une personne, un thème, et ses pièces dans l'ordre. */
+export type DossierSectionPlan = {
+    /** « 0-income » : la clé de la fiche récapitulative côté serveur. */
+    key: string;
+    personIndex: number;
+    person: string;
+    role: string;
+    section: string;
+    label: string;
+    parts: DossierPart[];
+};
 
-    for (const person of [...tenants, ...guarantors]) {
+/**
+ * Ordre du dossier fusionné, miroir de `App\Support\DossierPlan` : **les
+ * personnes dans l'ordre du foyer** (locataires d'abord, garants ensuite),
+ * puis pour chacune les **parties** du dossier (`dossierSections` : identité,
+ * situation professionnelle, revenus, impôts, épargne…), dans une partie les
+ * pièces dans l'ordre du catalogue, et pour chaque pièce ses fichiers dans
+ * l'ordre de dépôt.
+ *
+ * Seules les pièces **validées par l'équipe** en font partie : une pièce à
+ * vérifier attend, une pièce refusée reste dehors. Une partie sans fichier
+ * validé n'existe pas.
+ */
+export function dossierSections(
+    request: DocumentRequestDetail,
+): DossierSectionPlan[] {
+    const sections: DossierSectionPlan[] = [];
+    const ordered = request.persons
+        .map((person, index) => ({ person, index }))
+        .sort(
+            (a, b) =>
+                Number(isGuarantor(a.person.role)) -
+                Number(isGuarantor(b.person.role)),
+        );
+
+    for (const { person, index } of ordered) {
+        const byTheme = new Map<string, DossierPart[]>();
+
         for (const category of person.categories) {
             for (const document of category.documents) {
+                const section = document.section ?? 'other';
+
                 // `uploads` n'est servi que par la fiche d'une liste.
                 for (const upload of document.uploads ?? []) {
-                    // Rien ne sort du backoffice sans qu'un membre l'ait vu :
-                    // une pièce à vérifier attend, une pièce refusée reste dehors.
                     if (upload.status !== 'accepted') {
                         continue;
                     }
 
+                    const parts = byTheme.get(section) ?? [];
                     parts.push({
                         person: person.name,
                         role: person.role,
                         category: category.label,
+                        section,
                         document: document.label,
                         upload,
                     });
+                    byTheme.set(section, parts);
                 }
             }
         }
+
+        for (const [section, parts] of [...byTheme.entries()].sort(
+            ([a], [b]) => sectionRank(a) - sectionRank(b),
+        )) {
+            sections.push({
+                key: `${index}-${section}`,
+                personIndex: index,
+                person: person.name,
+                role: person.role,
+                section,
+                label: sectionLabel(section),
+                parts,
+            });
+        }
     }
 
-    return parts;
+    return sections;
+}
+
+/** Les pièces du dossier à plat, dans l'ordre du PDF final. */
+export function dossierPlan(request: DocumentRequestDetail): DossierPart[] {
+    return dossierSections(request).flatMap((section) => section.parts);
 }
 
 /** Le rôle est libellé (« Garant », « Guarantor ») : on compare sans casse. */

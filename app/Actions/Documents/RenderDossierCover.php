@@ -9,12 +9,14 @@ use App\Enums\DocumentUploadStatus;
 use App\Models\DocumentRequest;
 use App\Models\DocumentUpload;
 use App\Services\DocRaptor;
+use App\Support\DossierPlan;
 use Illuminate\Support\Collection;
 
 /**
- * Page de garde du dossier fusionné : qui est dans le foyer, et le sommaire
- * des pièces reçues **dans l'ordre où elles arrivent** dans le PDF, celles qui
- * manquent en gris. Le lien de dépôt et le code d'appairage n'y figurent pas :
+ * Page de garde du dossier fusionné : la présentation du foyer rédigée par
+ * l'assistant quand elle existe (`GenerateDossierBrief`), et le sommaire des
+ * pièces reçues **dans l'ordre où elles arrivent** dans le PDF — par personne
+ * puis par partie —, celles qui manquent en gris. Le lien de dépôt et le code d'appairage n'y figurent pas :
  * ce document part chez une agence ou un propriétaire.
  *
  * Rendue **toujours en français** : c'est un document interne à l'équipe et à
@@ -39,47 +41,61 @@ final readonly class RenderDossierCover
         return view('documents.dossier-cover', [
             'request' => $request,
             'persons' => self::persons($request),
+            // Page de garde rédigée par l'assistant, seulement si elle porte sur ces pièces.
+            'brief' => RenderDossierSectionSheet::isFresh($request) ? RenderDossierSectionSheet::brief($request)?->cover : null,
             'company' => config('company'),
             'logo' => SendInvoice::logoDataUri(),
         ])->render();
     }
 
     /**
-     * Sommaire : une entrée par personne, ses pièces reçues (avec le nombre de
-     * fichiers) et ses pièces manquantes, dans l'ordre du catalogue. Une pièce
-     * qui n'a pas encore été **validée** par l'équipe n'entre pas dans le
-     * dossier : reçue mais à vérifier, elle est listée « en attente » ;
-     * refusée ou jamais déposée, elle est comptée **manquante**.
+     * Sommaire : une entrée par personne, ses pièces reçues **dans l'ordre du
+     * dossier** (par partie, puis par pièce, avec le nombre de fichiers) et ses
+     * pièces manquantes. Une pièce qui n'a pas encore été **validée** par
+     * l'équipe n'entre pas dans le dossier : reçue mais à vérifier, elle est
+     * listée « en attente » ; refusée ou jamais déposée, elle est comptée
+     * **manquante**.
      *
-     * @return list<array{name: string, role: string, received: list<array{label: string, files: int}>, pending: list<string>, missing: list<string>}>
+     * @return list<array{name: string, role: string, sections: list<array{label: string, documents: list<array{label: string, files: int}>}>, received: list<array{label: string, files: int}>, pending: list<string>, missing: list<string>}>
      */
     public static function persons(DocumentRequest $request): array
     {
         $uploads = self::valid($request);
         $waiting = $request->uploads->where('status', DocumentUploadStatus::Pending);
+        $plan = DossierPlan::sections($request);
+        $persons = RenderDocumentRequestPdf::persons($request);
+        $result = [];
 
-        return array_map(function (array $person, int $index) use ($uploads, $waiting): array {
+        foreach (DossierPlan::personOrder($request) as $index) {
+            $person = $persons[$index] ?? null;
+
+            if ($person === null) {
+                continue;
+            }
+
+            $sections = [];
             $received = [];
+
+            foreach ($plan as $section) {
+                if ($section['person_index'] !== $index) {
+                    continue;
+                }
+
+                $documents = array_map(fn (array $document): array => ['label' => $document['label'], 'files' => count($document['uploads'])], $section['documents']);
+                $sections[] = ['label' => $section['section']->label(), 'documents' => $documents];
+                $received = [...$received, ...$documents];
+            }
+
             $pending = [];
             $missing = [];
 
             foreach ($person['categories'] as $category) {
                 foreach ($category['documents'] as $document) {
-                    $files = $uploads
-                        ->where('person_index', $index)
-                        ->where('document_key', $document['key'])
-                        ->count();
-
-                    if ($files > 0) {
-                        $received[] = ['label' => $document['label'], 'files' => $files];
-
+                    if ($uploads->where('person_index', $index)->where('document_key', $document['key'])->isNotEmpty()) {
                         continue;
                     }
 
-                    $isWaiting = $waiting
-                        ->where('person_index', $index)
-                        ->where('document_key', $document['key'])
-                        ->isNotEmpty();
+                    $isWaiting = $waiting->where('person_index', $index)->where('document_key', $document['key'])->isNotEmpty();
 
                     if ($isWaiting) {
                         $pending[] = $document['label'];
@@ -89,14 +105,17 @@ final readonly class RenderDossierCover
                 }
             }
 
-            return [
+            $result[] = [
                 'name' => $person['name'],
                 'role' => $person['role'],
+                'sections' => $sections,
                 'received' => $received,
                 'pending' => $pending,
                 'missing' => $missing,
             ];
-        }, RenderDocumentRequestPdf::persons($request), array_keys($request->persons));
+        }
+
+        return $result;
     }
 
     /** Nombre de fichiers validés, les seuls que le dossier fusionné emporte. */
@@ -113,7 +132,7 @@ final readonly class RenderDossierCover
      */
     private static function valid(DocumentRequest $request): Collection
     {
-        return $request->uploads->where('status', DocumentUploadStatus::Accepted);
+        return DossierPlan::valid($request);
     }
 
     public static function fileName(DocumentRequest $request): string

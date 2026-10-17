@@ -13,10 +13,13 @@ use App\Actions\Documents\DraftPresentationLetter;
 use App\Actions\Documents\LinkDocumentRequestToLead;
 use App\Actions\Documents\RenderDocumentRequestPdf;
 use App\Actions\Documents\RenderDossierCover;
+use App\Actions\Documents\RenderDossierSectionSheet;
+use App\Actions\Documents\RequestDossierBrief;
 use App\Actions\Documents\SavePresentationLetter;
 use App\Actions\Documents\SendDocumentUploadLink;
 use App\Actions\Documents\UpdateDocumentRequest;
 use App\Data\DocumentRequestData;
+use App\Data\DossierBriefData;
 use App\Enums\DocumentPreset;
 use App\Enums\DocumentUploadStatus;
 use App\Enums\GuarantorType;
@@ -37,6 +40,7 @@ use App\Models\DocumentUpload;
 use App\Models\Lead;
 use App\Services\Assistant;
 use App\Support\DocumentCatalog;
+use App\Support\DossierPlan;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Bus\PendingDispatch;
 use Illuminate\Http\JsonResponse;
@@ -172,6 +176,10 @@ class DocumentRequestController extends Controller
                 'can_update' => $request->user()?->can('update', $documentRequest) ?? false,
                 // Pièces que « Relire les pièces avec l'IA » relira : à vérifier, jamais lues, en PDF.
                 'pending_ai_count' => $documentRequest->uploads->filter(fn (DocumentUpload $upload): bool => $upload->status === DocumentUploadStatus::Pending && $upload->ai_review === null && $upload->mime_type === 'application/pdf')->count(),
+                // Le dossier est complet quand chaque pièce demandée a un fichier validé.
+                'is_complete' => DossierPlan::isComplete($documentRequest),
+                'missing_count' => DossierPlan::missingCount($documentRequest),
+                'brief' => $this->briefProps($documentRequest),
                 'persons' => $this->personsWithUploads($documentRequest),
             ],
             'pdfAvailable' => $pdf->isConfigured(),
@@ -225,6 +233,46 @@ class DocumentRequestController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="'.RenderDossierCover::fileName($documentRequest).'"',
         ]);
+    }
+
+    /**
+     * Fiche récapitulative d'une partie du dossier, insérée par le navigateur
+     * devant les pièces de la partie dans le PDF fusionné.
+     */
+    public function sheet(DocumentRequest $documentRequest, string $section, RenderDossierSectionSheet $sheet): HttpResponse
+    {
+        $this->authorize('view', $documentRequest);
+
+        $documentRequest->load('uploads');
+
+        abort_if(DossierPlan::section($documentRequest, $section) === null, 404);
+
+        return response($sheet->handle($documentRequest, $section), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="fiche-'.$section.'.pdf"',
+        ]);
+    }
+
+    /**
+     * Lance la préparation du dossier par l'assistant : il lit chaque partie
+     * sur ses pièces validées, rédige sa fiche récapitulative, puis la page de
+     * garde. Refusé tant qu'une pièce demandée n'est pas validée.
+     */
+    public function brief(DocumentRequest $documentRequest, RequestDossierBrief $request): RedirectResponse
+    {
+        $this->authorize('update', $documentRequest);
+
+        try {
+            $request->handle($documentRequest);
+        } catch (RuntimeException $exception) {
+            Inertia::flash('toast', ['type' => 'warning', 'message' => $exception->getMessage()]);
+
+            return back();
+        }
+
+        Inertia::flash('toast', ['type' => 'info', 'message' => __('L’assistant prépare le dossier de :name : la page de garde et les fiches arriveront dans quelques minutes.', ['name' => $documentRequest->fullName()])]);
+
+        return back();
     }
 
     /**
@@ -423,6 +471,31 @@ class DocumentRequestController extends Controller
 
             return $person;
         }, RenderDocumentRequestPdf::persons($documentRequest), array_keys($documentRequest->persons));
+    }
+
+    /**
+     * Synthèse du dossier rédigée par l'assistant : page de garde et fiches,
+     * avec sa fraîcheur (les pièces ont-elles changé depuis ?) et l'état d'une
+     * demande en cours.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function briefProps(DocumentRequest $request): ?array
+    {
+        $brief = RenderDossierSectionSheet::brief($request);
+        $pending = $request->dossier_brief_requested_at !== null;
+
+        if (! $brief instanceof DossierBriefData) {
+            return $pending ? ['pending' => true, 'fresh' => false, 'generated_at' => null, 'cover' => null, 'sections' => []] : null;
+        }
+
+        return [
+            'pending' => $pending,
+            'fresh' => RenderDossierSectionSheet::isFresh($request),
+            'generated_at' => $request->dossier_brief_at?->toIso8601String(),
+            'cover' => $brief->cover,
+            'sections' => $brief->sections,
+        ];
     }
 
     /**

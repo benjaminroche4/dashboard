@@ -1,11 +1,11 @@
 import { PDFDocument } from 'pdf-lib';
 import {
     dossierFileName,
-    dossierPlan,
+    dossierSections,
     type DossierPart,
 } from '@/lib/document-dossier';
 import { notify } from '@/lib/toast';
-import { cover } from '@/routes/tools/documents';
+import { cover, sheet } from '@/routes/tools/documents';
 import type { DocumentRequestDetail } from '@/types';
 
 /**
@@ -15,6 +15,8 @@ export type MergeResult = {
     merged: number;
     /** Fichiers refusés (PDF illisible ou protégé), nommés pour l'équipe. */
     skipped: string[];
+    /** Fiches récapitulatives insérées devant les parties du dossier. */
+    sheets: number;
 };
 
 /** Télécharge un PDF et renvoie ses octets, ou null si la requête échoue. */
@@ -56,7 +58,9 @@ async function append(
 
 /**
  * Fusionne les pièces d'une liste en **un seul PDF**, dans l'ordre du dossier,
- * précédées de la page de garde. Tout se passe dans le navigateur : les pièces
+ * précédées de la page de garde et, quand l'assistant a préparé le dossier
+ * (`request.brief` à jour), d'une **fiche récapitulative devant chaque
+ * partie** (identité, revenus, impôts, épargne…). Tout se passe dans le navigateur : les pièces
  * (cartes d'identité, avis d'imposition) ne transitent chez aucun prestataire,
  * et l'hébergement n'a pas de fusionneur de PDF à installer.
  *
@@ -67,7 +71,12 @@ export async function mergeDossierPdf(
     request: DocumentRequestDetail,
     options: { withCover?: boolean } = {},
 ): Promise<MergeResult | null> {
-    const parts = dossierPlan(request);
+    const sections = dossierSections(request);
+    const parts = sections.flatMap((section) => section.parts);
+    // Les fiches demandent DocRaptor (comme la page de garde) et une synthèse
+    // rédigée sur **ces** pièces : périmée, elle décrirait un autre dossier.
+    const withSheets =
+        options.withCover !== false && request.brief?.fresh === true;
 
     if (parts.length === 0) {
         // Des pièces peuvent exister sans qu'aucune soit fusionnable : celles
@@ -114,15 +123,33 @@ export async function mergeDossierPdf(
 
         const skipped: string[] = [];
         let merged = 0;
+        let sheets = 0;
 
-        for (const part of parts) {
-            const bytes = await fetchPdf(part.upload.download_url);
-            const added = bytes === null ? false : await append(dossier, bytes);
+        for (const section of sections) {
+            if (withSheets) {
+                const bytes = await fetchPdf(
+                    sheet({
+                        documentRequest: request.uuid,
+                        section: section.key,
+                    }).url,
+                );
 
-            if (added) {
-                merged++;
-            } else {
-                skipped.push(label(part));
+                // Une fiche qui manque ne retient pas la partie qu'elle ouvre.
+                if (bytes !== null && (await append(dossier, bytes))) {
+                    sheets++;
+                }
+            }
+
+            for (const part of section.parts) {
+                const bytes = await fetchPdf(part.upload.download_url);
+                const added =
+                    bytes === null ? false : await append(dossier, bytes);
+
+                if (added) {
+                    merged++;
+                } else {
+                    skipped.push(label(part));
+                }
             }
         }
 
@@ -133,7 +160,7 @@ export async function mergeDossierPdf(
                 'Les fichiers déposés ne sont pas des PDF lisibles.',
             );
 
-            return { merged: 0, skipped };
+            return { merged: 0, skipped, sheets };
         }
 
         download(await dossier.save(), dossierFileName(request.name));
@@ -143,10 +170,12 @@ export async function mergeDossierPdf(
             `Dossier de ${merged} pièce(s) téléchargé.`,
             skipped.length > 0
                 ? `${skipped.length} fichier(s) illisible(s) écarté(s) : ${skipped.join(', ')}.`
-                : undefined,
+                : sheets > 0
+                  ? `Page de garde et ${sheets} fiche(s) récapitulative(s) incluses.`
+                  : undefined,
         );
 
-        return { merged, skipped };
+        return { merged, skipped, sheets };
     } catch {
         notify.reject(
             pending,

@@ -32,6 +32,7 @@ import DocumentsShow from '@/pages/documents/show';
 import {
     makeDocumentRequestDetail,
     makeDocumentUpload,
+    makeDossierBrief,
 } from '@/test/fixtures/document-request';
 
 describe('Documents show page', () => {
@@ -161,6 +162,51 @@ describe('Documents show page', () => {
         expect(
             screen.getByRole('button', { name: /Pièces validées/ }),
         ).toHaveTextContent('2');
+    });
+
+    it('tells where the AI-prepared dossier stands and announces the sheets in the merge entry', async () => {
+        const user = userEvent.setup();
+        const { unmount } = render(
+            <DocumentsShow
+                request={makeDocumentRequestDetail({
+                    valid_uploads_count: 1,
+                    is_complete: false,
+                    missing_count: 2,
+                })}
+                pdfAvailable
+            />,
+        );
+        // Pas complet : la carte dit ce qui manque, pas de bouton.
+        expect(
+            screen.getByText(/2 pièce\(s\) encore sans fichier validé/),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /Préparer le dossier/ }),
+        ).not.toBeInTheDocument();
+        unmount();
+
+        render(
+            <DocumentsShow
+                request={makeDocumentRequestDetail({
+                    valid_uploads_count: 2,
+                    is_complete: true,
+                    missing_count: 0,
+                    brief: makeDossierBrief(),
+                })}
+                pdfAvailable
+            />,
+        );
+        expect(screen.getByText('Dossier préparé')).toBeInTheDocument();
+        expect(
+            screen.getByText('Revenus : 4 150 € nets par mois en moyenne'),
+        ).toBeInTheDocument();
+
+        await user.click(
+            screen.getByRole('button', { name: /Pièces validées/ }),
+        );
+        expect(
+            screen.getByText('Avec page de garde et fiches récapitulatives'),
+        ).toBeInTheDocument();
     });
 
     it('downloads the PDF', async () => {

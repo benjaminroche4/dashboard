@@ -26,6 +26,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $message
  * @property string|null $upload_url
  * @property string|null $presentation_letter
+ * @property array<string, mixed>|null $dossier_brief
+ * @property CarbonInterface|null $dossier_brief_at
+ * @property string|null $dossier_brief_fingerprint
+ * @property CarbonInterface|null $dossier_brief_requested_at
  * @property string $public_token
  * @property string $access_code
  * @property string|null $link_sent_to
@@ -68,6 +72,10 @@ class DocumentRequest extends Model
             'language' => LeadLanguage::class,
             'persons' => 'array',
             'link_sent_at' => 'datetime',
+            // Synthèse IA du dossier fusionné, et l'empreinte des pièces lues.
+            'dossier_brief' => 'array',
+            'dossier_brief_at' => 'datetime',
+            'dossier_brief_requested_at' => 'datetime',
         ];
     }
 
