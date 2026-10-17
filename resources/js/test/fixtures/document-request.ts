@@ -229,6 +229,7 @@ export function makeDossierBrief(
 ): DossierBrief {
     return {
         pending: false,
+        progress: null,
         fresh: true,
         generated_at: '2026-10-17T09:30:00+02:00',
         cover: {

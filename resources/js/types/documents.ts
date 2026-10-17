@@ -177,8 +177,24 @@ export type DossierCoverBrief = {
  * `pending` pendant que l'assistant lit ; `fresh` faux si les pièces validées
  * ont changé depuis la rédaction.
  */
+/** Une étape de la synthèse en cours : une partie du dossier, puis la page de garde. */
+export type DossierBriefStep = {
+    key: string;
+    label: string;
+    person: string | null;
+    state: 'pending' | 'reading' | 'done' | 'kept';
+};
+
+export type DossierBriefProgress = {
+    done: number;
+    total: number;
+    steps: DossierBriefStep[];
+};
+
 export type DossierBrief = {
     pending: boolean;
+    /** L'avancement, tant que `pending` ; null sinon. */
+    progress?: DossierBriefProgress | null;
     fresh: boolean;
     generated_at: string | null;
     cover: DossierCoverBrief | null;

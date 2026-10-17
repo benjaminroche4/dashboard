@@ -87,22 +87,35 @@ TXT;
 
         $fingerprint = DossierPlan::fingerprint($request);
         $previous = $request->dossier_brief === null ? null : DossierBriefData::from($request->dossier_brief);
+        $plans = DossierPlan::sections($request);
         /** @var list<SectionBrief> $sections */
         $sections = [];
         $reread = 0;
 
-        foreach (DossierPlan::sections($request) as $plan) {
+        // L'avancement, partie par partie, pour que la page suive le travail.
+        $steps = array_map(fn (array $plan): array => ['key' => $plan['key'], 'label' => $plan['section']->label(), 'person' => $plan['person'], 'state' => 'pending'], $plans);
+        $steps[] = ['key' => 'cover', 'label' => 'Page de garde', 'person' => null, 'state' => 'pending'];
+
+        foreach ($plans as $index => $plan) {
             $kept = $force ? null : $this->reusable($previous, $plan);
 
             if ($kept !== null) {
                 $sections[] = $kept;
+                $steps = $this->step($steps, $index, 'kept');
+                $this->progress($request, $steps);
 
                 continue;
             }
 
+            $steps = $this->step($steps, $index, 'reading');
+            $this->progress($request, $steps);
             $sections[] = $this->section($plan);
+            $steps = $this->step($steps, $index, 'done');
             $reread++;
         }
+
+        $steps = $this->step($steps, count($plans), 'reading');
+        $this->progress($request, $steps);
 
         $brief = new DossierBriefData(
             cover: $this->cover($request, $sections),
@@ -114,6 +127,7 @@ TXT;
             'dossier_brief_at' => now(),
             'dossier_brief_fingerprint' => $fingerprint,
             'dossier_brief_requested_at' => null,
+            'dossier_brief_progress' => null,
         ])->save();
 
         // Sans acteur : c'est l'assistant qui parle, aux personnes qui suivent le dossier.
@@ -121,11 +135,33 @@ TXT;
             'documents',
             ['id' => $request->id, 'uuid' => $request->uuid, 'brief_ready' => true, 'mentions' => self::mentions($request)],
             $previous instanceof DossierBriefData
-                ? sprintf('L’assistant a mis à jour le dossier de %s : %d fiche(s) relue(s) sur %d, page de garde réécrite', $request->fullName(), $reread, count($sections))
-                : sprintf('L’assistant a préparé le dossier de %s : page de garde et %d fiche(s) récapitulative(s) prêtes', $request->fullName(), count($sections)),
+                ? sprintf('L’assistant a mis à jour le dossier de %s (%d %s relue%s sur %d)', $request->fullName(), $reread, $reread > 1 ? 'fiches' : 'fiche', $reread > 1 ? 's' : '', count($sections))
+                : sprintf('L’assistant a préparé le dossier de %s (%d %s)', $request->fullName(), count($sections), count($sections) > 1 ? 'fiches' : 'fiche'),
         ));
 
         return $brief;
+    }
+
+    /**
+     * @param  list<array{key: string, label: string, person: string|null, state: string}>  $steps
+     * @return list<array{key: string, label: string, person: string|null, state: string}>
+     */
+    private function step(array $steps, int $index, string $state): array
+    {
+        return array_map(fn (array $step, int $at): array => $at === $index ? [...$step, 'state' => $state] : $step, $steps, array_keys($steps));
+    }
+
+    /**
+     * Écrit l'avancement sur la liste : la page le relit tant que la synthèse
+     * est en cours.
+     *
+     * @param  list<array{key: string, label: string, person: string|null, state: string}>  $steps
+     */
+    private function progress(DocumentRequest $request, array $steps): void
+    {
+        $done = count(array_filter($steps, fn (array $step): bool => in_array($step['state'], ['done', 'kept'], true)));
+
+        $request->forceFill(['dossier_brief_progress' => ['done' => $done, 'total' => count($steps), 'steps' => $steps]])->save();
     }
 
     /** Consigne complète : le rôle, puis la forme des valeurs partagée. */

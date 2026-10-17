@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -18,7 +18,7 @@ vi.mock('@inertiajs/react', () => ({
         href: { url: string };
         children: ReactNode;
     }) => <a href={href.url}>{children}</a>,
-    router: { delete: vi.fn(), post, patch },
+    router: { delete: vi.fn(), post, patch, reload },
     usePage: () => ({ props: usePageProps }),
 }));
 
@@ -34,10 +34,10 @@ vi.mock('@/lib/download-document-request-pdf', () => ({
     downloadDocumentRequestPdf: download,
 }));
 
-const { merge, staffChannel, action } = vi.hoisted(() => ({
+const { merge, staffChannel, reload } = vi.hoisted(() => ({
     merge: vi.fn(() => Promise.resolve()),
     staffChannel: vi.fn(),
-    action: vi.fn(),
+    reload: vi.fn(),
 }));
 
 vi.mock('@/lib/merge-dossier-pdf', () => ({ mergeDossierPdf: merge }));
@@ -46,7 +46,6 @@ vi.mock('@/hooks/use-staff-channel', () => ({
 }));
 vi.mock('@/lib/toast', () => ({
     notify: {
-        action,
         success: vi.fn(),
         info: vi.fn(),
         warning: vi.fn(),
@@ -70,7 +69,7 @@ describe('Documents show page', () => {
         download.mockClear();
         merge.mockClear();
         post.mockClear();
-        action.mockClear();
+        reload.mockClear();
     });
 
     it('shows each person by name with their documents, the client and the upload link, without sending', async () => {
@@ -292,21 +291,58 @@ describe('Documents show page', () => {
         usePageProps.features = undefined;
     });
 
-    it('offers to download the merged dossier from the toast once the synthesis is ready', () => {
+    it('reloads the request when the synthesis of this dossier is ready, and shows the progress panel meanwhile', () => {
         render(
             <DocumentsShow
-                request={makeDocumentRequestDetail({ valid_uploads_count: 2 })}
+                request={makeDocumentRequestDetail({
+                    valid_uploads_count: 2,
+                    brief: makeDossierBrief({
+                        pending: true,
+                        cover: null,
+                        progress: {
+                            done: 1,
+                            total: 3,
+                            steps: [
+                                {
+                                    key: '0-identity',
+                                    label: 'Identité et séjour',
+                                    person: 'Léa Martin',
+                                    state: 'done',
+                                },
+                                {
+                                    key: '0-income',
+                                    label: 'Revenus et salaires',
+                                    person: 'Léa Martin',
+                                    state: 'reading',
+                                },
+                                {
+                                    key: 'cover',
+                                    label: 'Page de garde',
+                                    person: null,
+                                    state: 'pending',
+                                },
+                            ],
+                        },
+                    }),
+                })}
                 pdfAvailable
             />,
         );
 
+        expect(
+            screen.getByRole('status', { name: 'Synthèse IA' }),
+        ).toHaveTextContent('Synthèse IA en cours');
+        expect(
+            within(
+                screen.getByRole('status', { name: 'Synthèse IA' }),
+            ).getByRole('progressbar'),
+        ).toHaveAttribute('aria-valuenow', '1');
+
         const options = staffChannel.mock.calls.at(-1)?.[0] as {
             onEvent: (event: { payload: Record<string, unknown> }) => void;
         };
-        options.onEvent({
-            payload: { brief_ready: true, uuid: 'autre' },
-        });
-        expect(action).not.toHaveBeenCalled();
+        options.onEvent({ payload: { brief_ready: true, uuid: 'autre' } });
+        expect(reload).not.toHaveBeenCalled();
 
         options.onEvent({
             payload: {
@@ -314,15 +350,8 @@ describe('Documents show page', () => {
                 uuid: '0199b0c0-0000-7000-8000-000000000001',
             },
         });
-        expect(action).toHaveBeenCalledWith(
-            'Synthèse IA prête',
-            expect.stringContaining('Léa Martin'),
-            expect.objectContaining({
-                label: 'Télécharger le dossier fusionné',
-            }),
-        );
+        expect(reload).toHaveBeenCalledWith({ only: ['request'] });
     });
-
     it('downloads the PDF', async () => {
         const user = userEvent.setup();
         render(

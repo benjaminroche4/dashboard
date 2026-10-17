@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { CountryFlag } from '@/components/country-flag';
 import { CreatedBy } from '@/components/created-by';
 import { DocumentRequestRowActions } from '@/components/documents/document-request-row-actions';
+import { DossierBriefProgress } from '@/components/documents/dossier-brief-progress';
 import { DossierMergeDialog } from '@/components/documents/dossier-merge-dialog';
 import { HouseholdPersonTabs } from '@/components/documents/household-person-tabs';
 import { DetailSection } from '@/components/real-estate/detail-header';
@@ -28,7 +29,6 @@ import {
 import { useStaffChannel } from '@/hooks/use-staff-channel';
 import { downloadDocumentRequestPdf } from '@/lib/download-document-request-pdf';
 import { mergeDossierPdf } from '@/lib/merge-dossier-pdf';
-import { notify } from '@/lib/toast';
 import { languageFlag } from '@/lib/language-flag';
 import { index as toolsIndex } from '@/routes/tools';
 import {
@@ -80,8 +80,8 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
         void merge();
     };
 
-    // Le toast de fin de synthèse propose le geste suivant, sur cette page
-    // seulement : la fusion se fait dans le navigateur, sur les props à jour.
+    // Fin de synthèse : les props se rechargent aussitôt, et le panneau
+    // d'avancement passe à « prête » avec le téléchargement.
     useStaffChannel({
         notify: false,
         reload: false,
@@ -90,18 +90,7 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                 event.payload.brief_ready === true &&
                 event.payload.uuid === request.uuid
             ) {
-                notify.action(
-                    'Synthèse IA prête',
-                    `Le dossier de ${request.name} peut partir avec son profil et ses fiches.`,
-                    {
-                        label: 'Télécharger le dossier fusionné',
-                        onClick: () =>
-                            router.reload({
-                                only: ['request'],
-                                onSuccess: () => void merge(),
-                            }),
-                    },
-                );
+                router.reload({ only: ['request'] });
             }
         },
     });
@@ -245,6 +234,10 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
                     open={mergeDialog}
                     onOpenChange={setMergeDialog}
                     onMergeNow={(withBrief) => void merge(withBrief)}
+                />
+                <DossierBriefProgress
+                    request={request}
+                    onDownload={() => void merge()}
                 />
 
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">

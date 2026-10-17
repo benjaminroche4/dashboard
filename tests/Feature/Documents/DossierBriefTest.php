@@ -39,6 +39,9 @@ function briefAssistant(array $sectionReply, array $coverReply, bool $configured
 
         public string $coverSystem = '';
 
+        /** L'avancement tel que la page le lirait au moment de la page de garde. */
+        public mixed $progressAtCover = null;
+
         public function __construct(private readonly array $sectionReply, private readonly array $coverReply, private readonly bool $configured)
         {
             parent::__construct(key: $configured ? 'test-key' : null, model: 'claude-opus-5');
@@ -63,6 +66,7 @@ function briefAssistant(array $sectionReply, array $coverReply, bool $configured
         {
             $this->coverPrompt = $prompt;
             $this->coverSystem = $system;
+            $this->progressAtCover = DocumentRequest::query()->whereNotNull('dossier_brief_progress')->first()?->dossier_brief_progress;
 
             return $this->coverReply;
         }
@@ -186,7 +190,13 @@ test('the assistant writes one sheet per part on its files, then the cover from 
 
     Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->resource === 'documents'
         && str_contains((string) $event->message, 'a préparé le dossier de Léa Durand')
-        && str_contains((string) $event->message, '4 fiche(s)'));
+        && str_contains((string) $event->message, '(4 fiches)'));
+
+    // Pendant la page de garde, toutes les parties étaient lues ; une fois écrite, l'avancement s'efface.
+    expect($assistant->progressAtCover['done'])->toBe(4)
+        ->and($assistant->progressAtCover['total'])->toBe(5)
+        ->and(array_column($assistant->progressAtCover['steps'], 'state'))->toBe(['done', 'done', 'done', 'done', 'reading'])
+        ->and($request->refresh()->dossier_brief_progress)->toBeNull();
 });
 
 test('an incomplete dossier is prepared on its validated pieces, and the cover prompt names what is missing', function () use ($sectionReply, $coverReply): void {
@@ -231,7 +241,7 @@ test('an update rereads only the parts whose files changed, and retries a part l
         ->and($second->coverPrompt)->not->toBe('')
         ->and(RenderDossierSectionSheet::isFresh($request->refresh()->load('uploads')))->toBeTrue();
 
-    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => str_contains((string) $event->message, 'a mis à jour le dossier de Léa Durand : 2 fiche(s) relue(s) sur 4')
+    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => str_contains((string) $event->message, 'a mis à jour le dossier de Léa Durand (2 fiches relues sur 4)')
         && ($event->payload['brief_ready'] ?? false) === true);
 
     // Forcée : les quatre parties sont relues, même inchangées.
@@ -239,7 +249,7 @@ test('an update rereads only the parts whose files changed, and retries a part l
     app()->instance(Assistant::class, $third);
     resolve(GenerateDossierBrief::class)->handle($request->refresh()->load('uploads'), force: true);
     expect($third->sectionCalls)->toHaveCount(4);
-    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => str_contains((string) $event->message, '4 fiche(s) relue(s) sur 4'));
+    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => str_contains((string) $event->message, '4 fiches relues sur 4'));
 });
 
 test('the brief route passes the force flag to the job', function () use ($sectionReply, $coverReply): void {

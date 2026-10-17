@@ -489,11 +489,12 @@ class DocumentRequestController extends Controller
         $pending = $request->dossier_brief_requested_at !== null;
 
         if (! $brief instanceof DossierBriefData) {
-            return $pending ? ['pending' => true, 'fresh' => false, 'generated_at' => null, 'cover' => null, 'sections' => []] : null;
+            return $pending ? ['pending' => true, 'progress' => $request->dossier_brief_progress, 'fresh' => false, 'generated_at' => null, 'cover' => null, 'sections' => []] : null;
         }
 
         return [
             'pending' => $pending,
+            'progress' => $pending ? $request->dossier_brief_progress : null,
             'fresh' => RenderDossierSectionSheet::isFresh($request),
             'generated_at' => $request->dossier_brief_at?->toIso8601String(),
             'cover' => $brief->cover,

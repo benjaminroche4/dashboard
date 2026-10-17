@@ -29,7 +29,7 @@ final readonly class RequestDossierBrief
 
         throw_unless(DossierPlan::hasValidFiles($request), RuntimeException::class, 'Aucune pièce validée : la synthèse se prépare dès qu’au moins une pièce est validée.');
 
-        $request->forceFill(['dossier_brief_requested_at' => now()])->save();
+        $request->forceFill(['dossier_brief_requested_at' => now(), 'dossier_brief_progress' => null])->save();
 
         dispatch(new GenerateDossierBriefJob($request, $force));
     }

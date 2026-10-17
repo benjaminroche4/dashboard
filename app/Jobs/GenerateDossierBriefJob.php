@@ -37,7 +37,7 @@ final class GenerateDossierBriefJob implements ShouldQueue
         } catch (RuntimeException $exception) {
             Log::warning('Synthèse du dossier impossible.', ['request' => $request->id, 'error' => $exception->getMessage()]);
 
-            $request->forceFill(['dossier_brief_requested_at' => null])->save();
+            $request->forceFill(['dossier_brief_requested_at' => null, 'dossier_brief_progress' => null])->save();
             $request->loadMissing('lead.assignee', 'lead.coAssignee');
 
             event(new DashboardUpdated(

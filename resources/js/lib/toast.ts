@@ -31,17 +31,4 @@ export const notify = {
     reject: (id: string, title: string, description?: string) =>
         toast.update(id, { type: 'error', title, description, timeout: 8000 }),
     close: (id: string) => toast.close(id),
-    /** Un toast qui propose le geste suivant (« Télécharger »), tenu ouvert jusqu'au clic ou à la fermeture. */
-    action: (
-        title: string,
-        description: string | undefined,
-        action: { label: string; onClick: () => void },
-    ) =>
-        toast.add({
-            type: 'success',
-            title,
-            description,
-            timeout: 0,
-            actionProps: { children: action.label, onClick: action.onClick },
-        }),
 };

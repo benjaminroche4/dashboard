@@ -30,6 +30,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property CarbonInterface|null $dossier_brief_at
  * @property string|null $dossier_brief_fingerprint
  * @property CarbonInterface|null $dossier_brief_requested_at
+ * @property array<string, mixed>|null $dossier_brief_progress
  * @property string $public_token
  * @property string $access_code
  * @property string|null $link_sent_to
@@ -76,6 +77,7 @@ class DocumentRequest extends Model
             'dossier_brief' => 'array',
             'dossier_brief_at' => 'datetime',
             'dossier_brief_requested_at' => 'datetime',
+            'dossier_brief_progress' => 'array',
         ];
     }
 
