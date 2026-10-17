@@ -66,8 +66,8 @@
     <div><strong>{{ $request->fullName() }}</strong></div>
 
     @if ($brief !== null && $brief['summary'] !== '')
-        {{-- Présentation rédigée par l'assistant sur les pièces validées : elle prime sur la lettre, qui reste sans elle. --}}
-        <h2>Présentation du dossier</h2>
+        {{-- Profil rédigé par l'assistant sur les pièces validées : il prime sur la lettre, qui reste sans lui. --}}
+        <h2>Profil des locataires</h2>
 
         {{-- Trois cartes : salaires, imposition, épargne. `gap` n'étant pas supporté, le `border-spacing` fait l'espace. --}}
         <table class="figures">

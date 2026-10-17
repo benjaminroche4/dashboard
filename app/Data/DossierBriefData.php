@@ -28,7 +28,6 @@ final readonly class DossierBriefData
     /** Les trois cartes de la page de garde, dans l'ordre : salaires, imposition, épargne. */
     public const array FIGURES = ['salary', 'taxes', 'savings'];
 
-
     /**
      * @param  Cover  $cover
      * @param  list<SectionBrief>  $sections
@@ -113,7 +112,7 @@ final readonly class DossierBriefData
                         'savings' => self::figureSchema('Épargne : en valeur le total de l’épargne disponible lue sur les relevés (livrets, comptes titres, assurance-vie, solde créditeur), en détail les supports et la date, en répartition une ligne par personne ou par support quand il y en a plusieurs.'),
                     ],
                 ],
-                'summary' => ['type' => 'string', 'description' => 'La présentation du dossier : trois ou quatre paragraphes séparés par une ligne vide, de l’atout le plus fort à la disponibilité du foyer, chaque affirmation appuyée sur un fait ou un chiffre. Entre 800 et 1 500 caractères.'],
+                'summary' => ['type' => 'string', 'description' => 'Le profil des locataires : un paragraphe chiffré par locataire (situation, revenu net mensuel, revenu fiscal, épargne), un pour le foyer (revenus cumulés, garants, emménagement), une phrase de clôture. Paragraphes séparés par une ligne vide, entre 500 et 1 000 caractères, chaque affirmation lue sur les pièces.'],
                 'highlights' => [
                     'type' => 'array',
                     'description' => 'Points forts du dossier : trois à six lignes courtes et concrètes, chacune avec son chiffre ou son fait (« Revenus du foyer : 7 300 € nets par mois, soit 3,4 fois le loyer », « CDI depuis 2021 chez Nestlé, hors période d’essai »).',
