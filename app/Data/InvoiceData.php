@@ -39,6 +39,8 @@ final readonly class InvoiceData
         /** Compte d'encaissement figé sur le document ; null = compte par défaut de la devise. */
         public ?string $bankName = null,
         public ?string $bankIban = null,
+        /** BIC (SWIFT), pour un virement hors zone SEPA. */
+        public ?string $bankBic = null,
         /** Communication à rappeler sur le virement. */
         public ?string $bankReference = null,
     ) {}
@@ -68,6 +70,7 @@ final readonly class InvoiceData
             partnerId: isset($data['partner_id']) ? (int) $data['partner_id'] : null,
             bankName: self::blank($data['bank_name'] ?? null),
             bankIban: self::blank($data['bank_iban'] ?? null),
+            bankBic: self::blank($data['bank_bic'] ?? null),
             bankReference: self::blank($data['bank_reference'] ?? null),
         );
     }

@@ -28,6 +28,8 @@ import { makeQuoteDetail, makeQuoteStatusChange } from '@/test/fixtures/quote';
 
 const company = {
     name: 'Relocation In Paris',
+    legal_name: 'Bridgeline Group Sàrl',
+    registry_number: 'CH-660.3.566.026-2',
     address: 'Rue des Alpes 5',
     email: 'contact@relocation-in-paris.com',
     phone: '+33',

@@ -14,6 +14,7 @@ const accounts: BankAccountOption[] = [
         label: 'Compte suisse',
         bank: 'BCGE',
         iban: 'CH11',
+        bic: '',
         reference: '',
         currency: 'CHF',
     },
@@ -21,6 +22,7 @@ const accounts: BankAccountOption[] = [
         label: 'Compte français',
         bank: 'Qonto',
         iban: 'FR22',
+        bic: '',
         reference: 'RIP-FR',
         currency: 'EUR',
     },
@@ -28,6 +30,7 @@ const accounts: BankAccountOption[] = [
         label: 'Compte pivot',
         bank: 'Wise',
         iban: 'BE33',
+        bic: '',
         reference: 'RIP-PIVOT',
         currency: null,
     },
@@ -47,6 +50,7 @@ describe('accountsFor', () => {
                 label: 'Vide',
                 bank: '',
                 iban: '',
+                bic: '',
                 reference: '',
                 currency: null,
             },
@@ -109,6 +113,7 @@ describe('BankAccountField', () => {
         expect(onChange).toHaveBeenCalledWith({
             bank_name: 'Revolut',
             bank_iban: 'LT44 1234',
+            bank_bic: '',
             bank_reference: '',
         });
     });
@@ -127,6 +132,7 @@ describe('BankAccountField', () => {
         expect(onChange).toHaveBeenCalledWith({
             bank_name: '',
             bank_iban: 'LT44 1234',
+            bank_bic: '',
             bank_reference: 'RIP-2026-04',
         });
     });
@@ -141,6 +147,7 @@ describe('BankAccountField', () => {
         expect(onChange).toHaveBeenCalledWith({
             bank_name: 'Wise',
             bank_iban: 'BE33',
+            bank_bic: '',
             bank_reference: 'RIP-PIVOT',
         });
     });
@@ -207,6 +214,7 @@ describe('BankAccountField', () => {
         expect(onChange).not.toHaveBeenCalledWith({
             bank_name: '',
             bank_iban: '',
+            bank_bic: '',
             bank_reference: '',
         });
     });
@@ -240,5 +248,54 @@ describe('BankAccountField', () => {
         );
         // La modale vit dans un portail, mais React fait remonter l'événement.
         expect(onSubmit).not.toHaveBeenCalled();
+    });
+});
+
+describe('BIC', () => {
+    it('records the BIC typed in the dialog, in capitals', async () => {
+        const user = userEvent.setup();
+        const onChange = vi.fn();
+        render(
+            <BankAccountField
+                accounts={accounts}
+                currency="EUR"
+                bankName=""
+                bankIban=""
+                bankReference=""
+                errors={{}}
+                onChange={onChange}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Ajouter un compte' }),
+        );
+        await user.type(screen.getByLabelText('IBAN'), 'BE38 9030 3006 2672');
+        await user.type(screen.getByLabelText('BIC / SWIFT'), 'trwibeb1xxx');
+        await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+        expect(onChange).toHaveBeenCalledWith({
+            bank_name: '',
+            bank_iban: 'BE38 9030 3006 2672',
+            bank_bic: 'TRWIBEB1XXX',
+            bank_reference: '',
+        });
+    });
+
+    it('shows the BIC set on the document', () => {
+        render(
+            <BankAccountField
+                accounts={accounts}
+                currency="EUR"
+                bankName="Wise"
+                bankIban="BE38"
+                bankBic="TRWIBEB1XXX"
+                bankReference=""
+                errors={{}}
+                onChange={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByText('BIC : TRWIBEB1XXX')).toBeInTheDocument();
     });
 });

@@ -50,6 +50,7 @@ export function makeInvoiceDetail(
         notes: null,
         bank_name: null,
         bank_iban: null,
+        bank_bic: null,
         bank_reference: null,
         created_by: 'Admin',
         created_by_avatar: null,

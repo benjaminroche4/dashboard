@@ -207,6 +207,7 @@ class InvoiceController extends Controller
                 'notes' => $invoice->notes,
                 'bank_name' => $invoice->bank_name,
                 'bank_iban' => $invoice->bank_iban,
+                'bank_bic' => $invoice->bank_bic,
                 'bank_reference' => $invoice->bank_reference,
                 'lead' => $this->leadSummary($invoice),
                 'partner' => PartnerController::linkSummary($invoice->partner),
@@ -405,6 +406,7 @@ class InvoiceController extends Controller
                 // sur le compte par défaut et ignorait l'IBAN saisi.
                 'bank_name' => $invoice->bank_name,
                 'bank_iban' => $invoice->bank_iban,
+                'bank_bic' => $invoice->bank_bic,
                 'bank_reference' => $invoice->bank_reference,
                 'created_by' => $invoice->creator?->name,
                 'created_by_avatar' => $invoice->creator?->avatar,

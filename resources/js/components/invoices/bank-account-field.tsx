@@ -25,6 +25,7 @@ import type { BankAccountOption, Currency } from '@/types';
 export type BankAccountValues = {
     bank_name: string;
     bank_iban: string;
+    bank_bic: string;
     bank_reference: string;
 };
 
@@ -65,6 +66,7 @@ export function accountValues(
     return {
         bank_name: account?.bank ?? '',
         bank_iban: account?.iban ?? '',
+        bank_bic: account?.bic ?? '',
         bank_reference: account?.reference ?? '',
     };
 }
@@ -78,6 +80,7 @@ export function optionsWithCustom(
     currency: Currency,
     bankName: string,
     bankIban: string,
+    bankBic = '',
 ): BankAccountOption[] {
     const usable = accountsFor(accounts, currency);
     const iban = bankIban.trim();
@@ -92,6 +95,7 @@ export function optionsWithCustom(
             label: bankName.trim() || 'Compte saisi',
             bank: bankName.trim(),
             iban,
+            bic: bankBic.trim(),
             reference: '',
             currency: null,
         },
@@ -104,6 +108,7 @@ export function BankAccountDialog({
     onOpenChange,
     bankName,
     bankIban,
+    bankBic,
     bankReference,
     onSave,
 }: {
@@ -111,11 +116,13 @@ export function BankAccountDialog({
     onOpenChange: (open: boolean) => void;
     bankName: string;
     bankIban: string;
+    bankBic: string;
     bankReference: string;
     onSave: (values: BankAccountValues) => void;
 }) {
     const [name, setName] = useState(bankName);
     const [iban, setIban] = useState(bankIban);
+    const [bic, setBic] = useState(bankBic);
     const [reference, setReference] = useState(bankReference);
     const [error, setError] = useState<string | undefined>();
 
@@ -124,6 +131,7 @@ export function BankAccountDialog({
         if (open) {
             setName(bankName);
             setIban(bankIban);
+            setBic(bankBic);
             setReference(bankReference);
             setError(undefined);
         }
@@ -140,6 +148,7 @@ export function BankAccountDialog({
         onSave({
             bank_name: name.trim(),
             bank_iban: iban.trim(),
+            bank_bic: bic.trim().toUpperCase(),
             bank_reference: reference.trim(),
         });
         onOpenChange(false);
@@ -193,6 +202,21 @@ export function BankAccountDialog({
                         <InputError message={error} />
                     </div>
                     <div className="grid gap-2">
+                        <Label htmlFor="bank-account-bic">BIC / SWIFT</Label>
+                        <Input
+                            id="bank-account-bic"
+                            value={bic}
+                            onChange={(event) => setBic(event.target.value)}
+                            placeholder="TRWIBEB1XXX"
+                            autoComplete="off"
+                            maxLength={11}
+                        />
+                        <p className="text-muted-foreground text-xs">
+                            Facultatif : nécessaire pour un virement depuis
+                            l’étranger, hors zone SEPA.
+                        </p>
+                    </div>
+                    <div className="grid gap-2">
                         <Label htmlFor="bank-account-reference">
                             Référence
                         </Label>
@@ -236,6 +260,7 @@ export function BankAccountField({
     currency,
     bankName,
     bankIban,
+    bankBic = '',
     bankReference,
     errors,
     onChange,
@@ -244,16 +269,24 @@ export function BankAccountField({
     currency: Currency;
     bankName: string;
     bankIban: string;
+    bankBic?: string;
     bankReference: string;
     errors: {
         bank_name?: string;
         bank_iban?: string;
+        bank_bic?: string;
         bank_reference?: string;
     };
     onChange: (values: BankAccountValues) => void;
 }) {
     const [editing, setEditing] = useState(false);
-    const options = optionsWithCustom(accounts, currency, bankName, bankIban);
+    const options = optionsWithCustom(
+        accounts,
+        currency,
+        bankName,
+        bankIban,
+        bankBic,
+    );
     const known = accountsFor(accounts, currency);
     const selected = bankIban.trim() || options[0]?.iban || '';
     // Le compte du document ne vient pas de la configuration : il se modifie.
@@ -282,6 +315,7 @@ export function BankAccountField({
                             onChange({
                                 bank_name: account.bank,
                                 bank_iban: account.iban,
+                                bank_bic: account.bic,
                                 bank_reference: account.reference,
                             });
                         }}
@@ -334,6 +368,11 @@ export function BankAccountField({
                     )}
                 </Button>
             </div>
+            {bankBic.trim() !== '' && (
+                <p className="text-muted-foreground text-xs">
+                    BIC : {bankBic.trim()}
+                </p>
+            )}
             {bankReference.trim() !== '' && (
                 <p className="text-muted-foreground text-xs">
                     Référence à indiquer : {bankReference.trim()}
@@ -343,6 +382,7 @@ export function BankAccountField({
                 message={
                     errors.bank_iban ??
                     errors.bank_name ??
+                    errors.bank_bic ??
                     errors.bank_reference
                 }
             />
@@ -351,6 +391,7 @@ export function BankAccountField({
                 onOpenChange={setEditing}
                 bankName={custom ? bankName : ''}
                 bankIban={custom ? bankIban : ''}
+                bankBic={custom ? bankBic : ''}
                 bankReference={custom ? bankReference : ''}
                 onSave={onChange}
             />

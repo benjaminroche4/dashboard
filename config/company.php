@@ -10,6 +10,9 @@ declare(strict_types=1);
 
 return [
     'name' => env('COMPANY_NAME', 'Relocation In Paris'),
+    // Entité juridique qui émet factures et devis (la marque reste « Relocation In Paris »).
+    'legal_name' => env('COMPANY_LEGAL_NAME', 'Bridgeline Group Sàrl'),
+    'registry_number' => env('COMPANY_REGISTRY_NUMBER', 'CH-660.3.566.026-2'),
     'address' => env('COMPANY_ADDRESS', "Rue des Alpes 5\n1201 Genève\nSuisse"),
     'email' => env('COMPANY_EMAIL', 'contact@relocation-in-paris.com'),
     'phone' => env('COMPANY_PHONE', '+33 1 84 80 43 44'),
@@ -20,11 +23,12 @@ return [
     /*
      * Comptes bancaires proposés sur une facture ou un devis : le compte servi
      * par défaut est le premier de la devise du document. `COMPANY_ACCOUNTS`
-     * accepte un JSON `[{"label":…,"bank":…,"iban":…,"reference":…,"currency":"EUR"}]`
-     * (« reference » = communication à rappeler sur le virement, facultative) ;
-     * sans lui, le compte historique COMPANY_BANK / COMPANY_IBAN sert seul.
+     * accepte un JSON `[{"label":…,"bank":…,"iban":…,"bic":…,"reference":…,"currency":"EUR"}]`
+     * (« bic » = SWIFT pour un virement hors SEPA, « reference » = communication
+     * à rappeler sur le virement, tous deux facultatifs). Le pays du compte se
+     * lit dans l'IBAN. Par défaut, le compte Wise EUR de Bridgeline Group Sàrl.
      */
-    'accounts' => env('COMPANY_ACCOUNTS'),
+    'accounts' => env('COMPANY_ACCOUNTS', '[{"label":"Wise EUR","bank":"Wise Europe SA","iban":"BE38 9030 3006 2672","bic":"TRWIBEB1XXX","reference":"","currency":"EUR"}]'),
 
     // Préfixe des numéros de facture : RP + code activité (27 = agent immobilier), puis séquence.
     'invoice_prefix' => env('COMPANY_INVOICE_PREFIX', 'RP-27'),

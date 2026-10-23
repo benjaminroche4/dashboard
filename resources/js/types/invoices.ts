@@ -103,6 +103,7 @@ export type InvoiceDetail = Invoice & {
     /** Compte d'encaissement figé sur la facture ; null = compte par défaut. */
     bank_name: string | null;
     bank_iban: string | null;
+    bank_bic: string | null;
     bank_reference: string | null;
     client_street: string | null;
     client_postal_code: string | null;
@@ -134,6 +135,9 @@ export type InvoiceStatusChange = {
 
 export type Company = {
     name: string;
+    /** Entité juridique émettrice et son numéro au registre du commerce. */
+    legal_name: string;
+    registry_number: string;
     address: string;
     email: string;
     phone: string;
@@ -173,6 +177,7 @@ export type InvoiceForm = {
     /** Compte d'encaissement : vide = compte par défaut de la devise. */
     bank_name: string;
     bank_iban: string;
+    bank_bic: string;
     bank_reference: string;
     items: InvoiceLineForm[];
 };
@@ -182,6 +187,8 @@ export type BankAccountOption = {
     label: string;
     bank: string;
     iban: string;
+    /** BIC (SWIFT) pour un virement hors zone SEPA, vide s'il n'est pas connu. */
+    bic: string;
     /** Communication à rappeler sur le virement, vide s'il n'y en a pas. */
     reference: string;
     /** Devise du compte, null s'il sert pour toutes. */

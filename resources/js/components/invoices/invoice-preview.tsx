@@ -46,6 +46,7 @@ export function InvoicePreview({
         form.client_country,
     ].filter((line) => line.trim() !== '');
     const money = (cents: number) => formatMoney(cents, form.currency);
+    const iban = form.bank_iban.trim() || company.iban;
 
     return (
         <article
@@ -69,7 +70,14 @@ export function InvoicePreview({
                         <br />
                         {company.phone}
                     </p>
-                    <p className="text-muted-foreground border-t pt-2 whitespace-pre-line">
+                    {company.legal_name && (
+                        <p className="text-muted-foreground border-t pt-2">
+                            {company.legal_name}
+                            {company.registry_number &&
+                                ` · RC ${company.registry_number}`}
+                        </p>
+                    )}
+                    <p className="text-muted-foreground whitespace-pre-line">
                         {company.address}
                     </p>
                 </div>
@@ -205,9 +213,13 @@ export function InvoicePreview({
                     </p>
                 )}
                 <p>
-                    {kind === 'quote' ? 'Règlement' : 'Paiement'} par virement
-                    sur {form.bank_name.trim() || company.bank}, IBAN{' '}
-                    {form.bank_iban.trim() || company.iban}, en {form.currency}.
+                    {/* Le titulaire plutôt que la banque : c'est lui que le client vérifie. */}
+                    {kind === 'quote' ? 'Règlement' : 'Paiement'} par virement à{' '}
+                    {company.legal_name || company.name}, IBAN {iban}
+                    {form.bank_bic.trim() !== '' && (
+                        <>, BIC {form.bank_bic.trim()}</>
+                    )}
+                    , en {form.currency}.
                     {form.bank_reference.trim() !== '' && (
                         <>
                             {' '}

@@ -11,14 +11,15 @@ use App\Enums\Currency;
  * société encaisse rarement sur un seul compte : le compte servi dépend de la
  * devise (et donc de la destination du virement).
  *
- * @phpstan-type Account array{label: string, bank: string, iban: string, reference: string, currency: string|null}
+ * @phpstan-type Account array{label: string, bank: string, iban: string, bic: string, reference: string, currency: string|null}
+ * @phpstan-type Printable array{bank: string, iban: string, bic: string, reference: string}
  */
 final class BankAccounts
 {
     /**
      * Tous les comptes déclarés, le compte historique en repli.
      *
-     * @return list<array{label: string, bank: string, iban: string, reference: string, currency: string|null}>
+     * @return list<Account>
      */
     public static function all(): array
     {
@@ -36,11 +37,11 @@ final class BankAccounts
             }
 
             $currency = isset($account['currency']) ? (string) $account['currency'] : null;
-
             $accounts[] = [
                 'label' => (string) ($account['label'] ?? $account['bank'] ?? $account['iban']),
                 'bank' => (string) ($account['bank'] ?? ''),
                 'iban' => (string) $account['iban'],
+                'bic' => (string) ($account['bic'] ?? ''),
                 'reference' => (string) ($account['reference'] ?? ''),
                 'currency' => Currency::tryFrom((string) $currency) !== null ? $currency : null,
             ];
@@ -53,6 +54,7 @@ final class BankAccounts
                 'label' => (string) config('company.bank'),
                 'bank' => (string) config('company.bank'),
                 'iban' => (string) config('company.iban'),
+                'bic' => '',
                 'reference' => '',
                 'currency' => null,
             ];
@@ -64,7 +66,7 @@ final class BankAccounts
     /**
      * Comptes utilisables pour une devise : les siens, puis ceux sans devise.
      *
-     * @return list<array{label: string, bank: string, iban: string, reference: string, currency: string|null}>
+     * @return list<Account>
      */
     public static function forCurrency(Currency $currency): array
     {
@@ -78,7 +80,7 @@ final class BankAccounts
      * Compte servi par défaut pour une devise ; null si la société n'en a
      * déclaré aucun.
      *
-     * @return array{label: string, bank: string, iban: string, reference: string, currency: string|null}|null
+     * @return Account|null
      */
     public static function default(Currency $currency): ?array
     {
@@ -89,12 +91,12 @@ final class BankAccounts
      * Coordonnées à imprimer : celles enregistrées sur le document, sinon le
      * compte par défaut de sa devise.
      *
-     * @return array{bank: string, iban: string, reference: string}
+     * @return Printable
      */
-    public static function resolve(?string $bank, ?string $iban, ?string $reference, Currency $currency): array
+    public static function resolve(?string $bank, ?string $iban, ?string $bic, ?string $reference, Currency $currency): array
     {
         if ($iban !== null && $iban !== '') {
-            return ['bank' => $bank ?? '', 'iban' => $iban, 'reference' => $reference ?? ''];
+            return ['bank' => $bank ?? '', 'iban' => $iban, 'bic' => $bic ?? '', 'reference' => $reference ?? ''];
         }
 
         $account = self::default($currency);
@@ -102,6 +104,7 @@ final class BankAccounts
         return [
             'bank' => $account['bank'] ?? '',
             'iban' => $account['iban'] ?? '',
+            'bic' => $account['bic'] ?? '',
             'reference' => $reference ?? ($account['reference'] ?? ''),
         ];
     }

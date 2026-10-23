@@ -5,6 +5,8 @@ import type { Company, InvoiceForm, Offer } from '@/types';
 
 const company: Company = {
     name: 'Relocation In Paris',
+    legal_name: 'Bridgeline Group Sàrl',
+    registry_number: 'CH-660.3.566.026-2',
     address: 'Rue des Alpes 5\n1201 Genève',
     email: 'contact@relocation-in-paris.com',
     phone: '+33 1 84 80 43 44',
@@ -47,6 +49,7 @@ const form: InvoiceForm = {
     notes: 'Merci.',
     bank_name: '',
     bank_iban: '',
+    bank_bic: '',
     bank_reference: '',
     items: [
         {
@@ -73,7 +76,11 @@ describe('InvoicePreview', () => {
             'src',
             '/images/logo.jpg',
         );
-        expect(screen.getByText(/Rue des Alpes 5/)).toHaveClass('border-t');
+        // Le trait sépare les contacts du bloc légal (entité, puis adresse).
+        expect(screen.getByText(/^Bridgeline Group Sàrl · RC/)).toHaveClass(
+            'border-t',
+        );
+        expect(screen.getByText(/Rue des Alpes 5/)).toBeInTheDocument();
         expect(screen.getByText('Acme SA')).toBeInTheDocument();
         expect(
             screen.getByText(/Rue du Rhône 1\s+1204 Genève\s+Suisse/),
@@ -145,5 +152,38 @@ describe('InvoicePreview', () => {
         expect(preview.getByText(/Bon pour accord/)).toBeInTheDocument();
         expect(preview.getByText(/Règlement par virement/)).toBeInTheDocument();
         expect(screen.queryByText('Facturé à')).toBeNull();
+    });
+});
+
+describe('InvoicePreview bank details', () => {
+    it('prints the BIC and the legal entity', () => {
+        render(
+            <InvoicePreview
+                form={{
+                    ...form,
+                    currency: 'EUR',
+                    bank_name: 'Wise Europe SA',
+                    bank_iban: 'BE38 9030 3006 2672',
+                    bank_bic: 'TRWIBEB1XXX',
+                }}
+                company={company}
+                offers={offers}
+            />,
+        );
+
+        expect(
+            screen.getByText(/IBAN BE38 9030 3006 2672/),
+        ).toBeInTheDocument();
+        expect(screen.getByText(/BIC TRWIBEB1XXX/)).toBeInTheDocument();
+        // Le titulaire du compte, pas la banque.
+        expect(
+            screen.getByText(/virement à Bridgeline Group Sàrl, IBAN/),
+        ).toBeInTheDocument();
+        expect(screen.queryByText(/Wise Europe SA/)).toBeNull();
+        expect(
+            screen.getByText(
+                /Bridgeline Group Sàrl · RC CH-660\.3\.566\.026-2/,
+            ),
+        ).toBeInTheDocument();
     });
 });

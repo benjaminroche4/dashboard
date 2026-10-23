@@ -43,7 +43,7 @@ test('an account without an IBAN is not an account', function (): void {
 
     expect(BankAccounts::all())->toBe([])
         ->and(BankAccounts::default(Currency::EUR))->toBeNull()
-        ->and(BankAccounts::resolve(null, null, null, Currency::EUR))->toBe(['bank' => '', 'iban' => '', 'reference' => '']);
+        ->and(BankAccounts::resolve(null, null, null, null, Currency::EUR))->toBe(['bank' => '', 'iban' => '', 'bic' => '', 'reference' => '']);
 });
 
 test('an invoice keeps the account it was issued with, and falls back to the default of its currency', function (): void {
@@ -54,8 +54,8 @@ test('an invoice keeps the account it was issued with, and falls back to the def
     $chosen = Invoice::factory()->create(['currency' => Currency::EUR, 'bank_name' => 'BCGE', 'bank_iban' => 'CH11']);
     $default = Invoice::factory()->create(['currency' => Currency::EUR, 'bank_name' => null, 'bank_iban' => null]);
 
-    expect($chosen->bankAccount())->toBe(['bank' => 'BCGE', 'iban' => 'CH11', 'reference' => ''])
-        ->and($default->bankAccount())->toBe(['bank' => 'Qonto', 'iban' => 'FR22', 'reference' => '']);
+    expect($chosen->bankAccount())->toBe(['bank' => 'BCGE', 'iban' => 'CH11', 'bic' => '', 'reference' => ''])
+        ->and($default->bankAccount())->toBe(['bank' => 'Qonto', 'iban' => 'FR22', 'bic' => '', 'reference' => '']);
 
     // Le compte figé survit à un changement de configuration.
     config(['company.accounts' => [['label' => 'Autre', 'bank' => 'Revolut', 'iban' => 'LT44', 'currency' => 'EUR']]]);
@@ -103,7 +103,7 @@ test('a quote carries its own account too', function (): void {
 
     $quote = Quote::factory()->create(['currency' => Currency::EUR, 'bank_name' => 'Revolut', 'bank_iban' => 'LT44']);
 
-    expect($quote->bankAccount())->toBe(['bank' => 'Revolut', 'iban' => 'LT44', 'reference' => '']);
+    expect($quote->bankAccount())->toBe(['bank' => 'Revolut', 'iban' => 'LT44', 'bic' => '', 'reference' => '']);
 });
 
 test('the reference to quote on the transfer travels with the account', function (): void {
@@ -178,4 +178,55 @@ test('the fiche prints the account of the document, not the one of the configura
         ->get(route('tools.quotes.show', $quote))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->where('quote.bank_iban', 'FR76 1234'));
+});
+
+test('by default the company collects on the Wise EUR account of Bridgeline Group', function (): void {
+    // La configuration par défaut (sans surcharge dans le test) porte le vrai compte.
+    expect(BankAccounts::default(Currency::EUR))->toMatchArray([
+        'bank' => 'Wise Europe SA',
+        'iban' => 'BE38 9030 3006 2672',
+        'bic' => 'TRWIBEB1XXX',
+    ]);
+});
+
+test('the BIC travels with the account and is printed on the PDF', function (): void {
+    config(['company.accounts' => [
+        ['label' => 'Wise EUR', 'bank' => 'Wise Europe SA', 'iban' => 'BE38 9030 3006 2672', 'bic' => 'TRWIBEB1XXX', 'currency' => 'EUR'],
+    ]]);
+    $admin = User::factory()->admin()->create();
+
+    $this->actingAs($admin)
+        ->get(route('invoices.create'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->where('bankAccounts.0.bic', 'TRWIBEB1XXX'));
+
+    $this->actingAs($admin)
+        ->post(route('invoices.store'), [
+            'client_name' => 'Léa Durand',
+            'currency' => 'EUR',
+            'vat_rate' => 8.1,
+            'issued_at' => '2026-10-01',
+            'due_at' => '2026-10-31',
+            'bank_name' => 'Wise Europe SA',
+            'bank_iban' => 'BE38 9030 3006 2672',
+            'bank_bic' => 'TRWIBEB1XXX',
+            'items' => [['offer' => 'accompagne', 'quantity' => 1, 'unit_price_cents' => 100_000]],
+        ])
+        ->assertSessionHasNoErrors();
+
+    $invoice = Invoice::query()->where('client_name', 'Léa Durand')->sole();
+
+    expect($invoice->bank_bic)->toBe('TRWIBEB1XXX');
+
+    $pdf = view('invoices.pdf', ['invoice' => $invoice, 'company' => config('company')])->render();
+
+    expect($pdf)->toContain('virement à Bridgeline Group Sàrl, IBAN BE38 9030 3006 2672')
+        ->toContain('BIC TRWIBEB1XXX')
+        // L'entité juridique et son numéro RC figurent en en-tête.
+        ->toContain('Bridgeline Group Sàrl')
+        ->toContain('RC CH-660.3.566.026-2');
+
+    // Un devis converti en facture garde le BIC.
+    $quote = Quote::factory()->create(['currency' => Currency::EUR, 'bank_name' => 'Wise Europe SA', 'bank_iban' => 'BE38 9030 3006 2672', 'bank_bic' => 'TRWIBEB1XXX']);
+    expect($quote->bankAccount()['bic'])->toBe('TRWIBEB1XXX');
 });

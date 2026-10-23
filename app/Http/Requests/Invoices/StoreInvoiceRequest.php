@@ -54,6 +54,7 @@ class StoreInvoiceRequest extends FormRequest
             // Compte d'encaissement : laissé vide, le compte par défaut de la devise s'applique.
             'bank_name' => ['nullable', 'string', 'max:255'],
             'bank_iban' => ['nullable', 'string', 'max:60'],
+            'bank_bic' => ['nullable', 'string', 'max:11'],
             'bank_reference' => ['nullable', 'string', 'max:120'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
             'items.*.offer' => ['nullable', 'required_without:items.*.description', Rule::enum(Offer::class)],

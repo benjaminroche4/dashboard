@@ -46,7 +46,10 @@
             </div>
             <div class="muted">{{ $company['email'] }}</div>
             <div class="muted">{{ $company['phone'] }}</div>
-            <div class="muted pre divider">{{ $company['address'] }}</div>
+            @if (! empty($company['legal_name']))
+                <div class="muted divider">{{ $company['legal_name'] }}@if (! empty($company['registry_number'])) · RC {{ $company['registry_number'] }}@endif</div>
+            @endif
+            <div class="muted pre">{{ $company['address'] }}</div>
         </div>
         <div class="meta">
             <h1>Devis</h1>
@@ -108,7 +111,7 @@
         @endif
         Devis valable jusqu'au {{ $quote->valid_until->translatedFormat('j F Y') }}. Bon pour accord : date et signature du client.<br>
         @php($account = $quote->bankAccount())
-        Règlement par virement sur {{ $account['bank'] }}, IBAN {{ $account['iban'] }}, en {{ $quote->currency->value }}.@if ($account['reference'] !== '') Référence à indiquer : {{ $account['reference'] }}.@endif
+        Règlement par virement à {{ $company['legal_name'] ?? $company['name'] }}, IBAN {{ $account['iban'] }}@if ($account['bic'] !== ''), BIC {{ $account['bic'] }}@endif, en {{ $quote->currency->value }}.@if ($account['reference'] !== '') Référence à indiquer : {{ $account['reference'] }}.@endif
     </div>
 </body>
 </html>

@@ -44,6 +44,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $notes
  * @property string|null $bank_name
  * @property string|null $bank_iban
+ * @property string|null $bank_bic
  * @property string|null $bank_reference
  * @property int|null $created_by
  * @property int|null $lead_id
@@ -55,7 +56,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'number', 'client_name', 'client_email', 'client_street', 'client_postal_code', 'client_city', 'client_country',
     'client_address', 'items', 'vat_rate', 'discount_percent', 'discount_cents',
     'subtotal_cents', 'vat_cents', 'amount_cents', 'deposit_cents', 'currency', 'status',
-    'issued_at', 'due_at', 'sent_at', 'paid_at', 'notes', 'created_by', 'lead_id', 'partner_id', 'bank_name', 'bank_iban', 'bank_reference',
+    'issued_at', 'due_at', 'sent_at', 'paid_at', 'notes', 'created_by', 'lead_id', 'partner_id', 'bank_name', 'bank_iban', 'bank_bic', 'bank_reference',
 ])]
 class Invoice extends Model
 {
@@ -137,11 +138,11 @@ class Invoice extends Model
      * Coordonnées bancaires à imprimer : celles figées sur le document, sinon
      * le compte par défaut de sa devise.
      *
-     * @return array{bank: string, iban: string, reference: string}
+     * @return array{bank: string, iban: string, bic: string, reference: string}
      */
     public function bankAccount(): array
     {
-        return BankAccounts::resolve($this->bank_name, $this->bank_iban, $this->bank_reference, $this->currency);
+        return BankAccounts::resolve($this->bank_name, $this->bank_iban, $this->bank_bic, $this->bank_reference, $this->currency);
     }
 
     /** Reste à payer : total TTC moins l'acompte déjà versé. */

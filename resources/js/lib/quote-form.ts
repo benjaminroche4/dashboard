@@ -22,6 +22,7 @@ export function quoteFormToInvoiceForm(form: QuoteForm): InvoiceForm {
         notes: form.notes,
         bank_name: form.bank_name,
         bank_iban: form.bank_iban,
+        bank_bic: form.bank_bic,
         bank_reference: form.bank_reference,
         items: form.items,
     };
@@ -44,6 +45,7 @@ export function quoteToForm(quote: QuoteDetail): QuoteForm {
         notes: quote.notes ?? '',
         bank_name: quote.bank_name ?? '',
         bank_iban: quote.bank_iban ?? '',
+        bank_bic: quote.bank_bic ?? '',
         bank_reference: quote.bank_reference ?? '',
         items: quote.items.map((line) => ({
             offer: line.offer,

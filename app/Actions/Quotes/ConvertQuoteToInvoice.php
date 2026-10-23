@@ -56,6 +56,7 @@ final readonly class ConvertQuoteToInvoice
                 // client a déjà lu ces coordonnées.
                 bankName: $quote->bank_name,
                 bankIban: $quote->bank_iban,
+                bankBic: $quote->bank_bic,
                 bankReference: $quote->bank_reference,
             ), $by);
 

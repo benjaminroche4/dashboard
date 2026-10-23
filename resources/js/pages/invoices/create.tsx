@@ -896,10 +896,12 @@ export default function InvoicesCreate({
                                 currency={form.data.currency}
                                 bankName={form.data.bank_name}
                                 bankIban={form.data.bank_iban}
+                                bankBic={form.data.bank_bic}
                                 bankReference={form.data.bank_reference}
                                 errors={{
                                     bank_name: errors.bank_name,
                                     bank_iban: errors.bank_iban,
+                                    bank_bic: errors.bank_bic,
                                     bank_reference: errors.bank_reference,
                                 }}
                                 // `setData` avec un objet **remplace** les données du

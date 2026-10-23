@@ -186,6 +186,7 @@ class QuoteController extends Controller
                 'notes' => $quote->notes,
                 'bank_name' => $quote->bank_name,
                 'bank_iban' => $quote->bank_iban,
+                'bank_bic' => $quote->bank_bic,
                 'bank_reference' => $quote->bank_reference,
                 'lead' => LeadController::linkSummary($quote->lead),
                 'partner' => PartnerController::linkSummary($quote->partner),
@@ -238,6 +239,7 @@ class QuoteController extends Controller
                 // document, il lui faut donc ses coordonnées.
                 'bank_name' => $quote->bank_name,
                 'bank_iban' => $quote->bank_iban,
+                'bank_bic' => $quote->bank_bic,
                 'bank_reference' => $quote->bank_reference,
                 'created_by' => $quote->creator?->name,
                 'created_by_avatar' => $quote->creator?->avatar,

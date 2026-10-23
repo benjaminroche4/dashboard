@@ -46,7 +46,10 @@
             </div>
             <div class="muted">{{ $company['email'] }}</div>
             <div class="muted">{{ $company['phone'] }}</div>
-            <div class="muted pre divider">{{ $company['address'] }}</div>
+            @if (! empty($company['legal_name']))
+                <div class="muted divider">{{ $company['legal_name'] }}@if (! empty($company['registry_number'])) · RC {{ $company['registry_number'] }}@endif</div>
+            @endif
+            <div class="muted pre">{{ $company['address'] }}</div>
         </div>
         <div class="meta">
             <h1>Facture</h1>
@@ -111,7 +114,7 @@
             <div class="notes">{{ $invoice->notes }}</div>
         @endif
         @php($account = $invoice->bankAccount())
-        Paiement par virement sur {{ $account['bank'] }}, IBAN {{ $account['iban'] }}, en {{ $invoice->currency->value }}.@if ($account['reference'] !== '') Référence à indiquer : {{ $account['reference'] }}.@endif
+        Paiement par virement à {{ $company['legal_name'] ?? $company['name'] }}, IBAN {{ $account['iban'] }}@if ($account['bic'] !== ''), BIC {{ $account['bic'] }}@endif, en {{ $invoice->currency->value }}.@if ($account['reference'] !== '') Référence à indiquer : {{ $account['reference'] }}.@endif
     </div>
 </body>
 </html>

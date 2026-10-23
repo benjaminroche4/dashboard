@@ -48,6 +48,7 @@ export type QuoteDetail = Quote & {
     /** Compte d'encaissement figé sur le devis ; null = compte par défaut. */
     bank_name: string | null;
     bank_iban: string | null;
+    bank_bic: string | null;
     bank_reference: string | null;
     client_street: string | null;
     client_postal_code: string | null;
@@ -108,6 +109,7 @@ export type QuoteForm = {
     /** Compte d'encaissement : vide = compte par défaut de la devise. */
     bank_name: string;
     bank_iban: string;
+    bank_bic: string;
     bank_reference: string;
     client_name: string;
     client_email: string;

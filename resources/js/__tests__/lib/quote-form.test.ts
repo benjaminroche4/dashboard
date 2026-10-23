@@ -23,6 +23,7 @@ const form: QuoteForm = {
     notes: '',
     bank_name: '',
     bank_iban: '',
+    bank_bic: '',
     bank_reference: '',
     items: [
         {

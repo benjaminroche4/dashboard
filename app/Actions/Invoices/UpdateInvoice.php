@@ -50,6 +50,7 @@ final class UpdateInvoice
             'notes' => $data->notes,
             'bank_name' => $data->bankName,
             'bank_iban' => $data->bankIban,
+            'bank_bic' => $data->bankBic,
             'bank_reference' => $data->bankReference,
         ]);
 
