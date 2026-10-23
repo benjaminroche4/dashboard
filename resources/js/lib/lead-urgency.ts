@@ -17,7 +17,10 @@ export const URGENT_ARRIVAL_DAYS = 20;
 
 /** Jours entre aujourd'hui et une date ISO (0 = aujourd'hui, négatif = passée). */
 export function daysUntil(dateIso: string, now = new Date()): number {
-    return Math.ceil(
+    // Deux minuits locaux : l'écart est un nombre entier de jours, à une heure
+    // près autour d'un changement d'heure. `round` absorbe cette heure là où
+    // `ceil` comptait un jour de trop la semaine du passage à l'heure d'hiver.
+    return Math.round(
         (new Date(`${dateIso}T00:00:00`).getTime() -
             new Date(now.toDateString()).getTime()) /
             DAY,

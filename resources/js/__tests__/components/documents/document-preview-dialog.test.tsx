@@ -60,9 +60,11 @@ describe('DocumentPreviewDialog', () => {
 
         render(<DocumentPreviewDialog file={file} onOpenChange={vi.fn()} />);
 
-        expect(await screen.findByRole('status')).toHaveTextContent(
-            'L’aperçu n’a pas pu être chargé',
-        );
+        // Le statut existe dès le rendu (« Chargement… ») : attendre le texte
+        // d'échec, pas seulement l'élément.
+        expect(
+            await screen.findByText(/L’aperçu n’a pas pu être chargé/),
+        ).toHaveAttribute('role', 'status');
         expect(
             screen.queryByTitle('Aperçu de cni.pdf'),
         ).not.toBeInTheDocument();
