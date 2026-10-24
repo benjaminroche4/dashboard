@@ -305,6 +305,29 @@ describe('Documents create page', () => {
         ).toBeInTheDocument();
     });
 
+    it('opens an existing list without a Drive folder on the platform deposit', () => {
+        // Le serveur envoie `upload_url: null` pour une liste sans dossier
+        // Drive : la page s'ouvrait sur un écran blanc (`.trim()` sur null).
+        render(
+            <DocumentsCreate
+                catalog={catalog}
+                roles={roles}
+                languages={languages}
+                leads={documentRequestLeads}
+                request={makeDocumentRequestEdit({
+                    upload_url: null as unknown as string,
+                })}
+            />,
+        );
+
+        expect(
+            screen.getByRole('heading', {
+                name: 'Modifier la liste de Léa Martin',
+            }),
+        ).toBeInTheDocument();
+        expect(screen.getByLabelText(/Sur notre plateforme/)).toBeChecked();
+    });
+
     it('prefills an existing list, shows its persons and saves with PUT', async () => {
         const user = userEvent.setup();
         render(

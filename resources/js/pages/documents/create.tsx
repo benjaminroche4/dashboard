@@ -84,7 +84,7 @@ export default function DocumentsCreate({
             ? {
                   language: request.language,
                   message: request.message,
-                  upload_url: request.upload_url,
+                  upload_url: request.upload_url ?? '',
                   persons: request.persons,
               }
             : prefill

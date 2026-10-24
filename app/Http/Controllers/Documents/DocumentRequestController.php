@@ -104,7 +104,7 @@ class DocumentRequestController extends Controller
                 'lead_id' => $documentRequest->lead_id,
                 'language' => $documentRequest->language->value,
                 'message' => $documentRequest->message ?? '',
-                'upload_url' => $documentRequest->upload_url,
+                'upload_url' => $documentRequest->upload_url ?? '',
                 'persons' => array_map(fn (array $person): array => [
                     'first_name' => $person['first_name'] ?? '',
                     'last_name' => $person['last_name'] ?? '',

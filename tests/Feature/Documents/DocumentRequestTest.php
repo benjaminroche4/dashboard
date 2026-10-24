@@ -120,6 +120,19 @@ test('the PDF is generated through DocRaptor in the client language', function (
     Http::assertSent(fn ($apiRequest): bool => str_contains((string) $apiRequest->data()['document_content'], 'Documents to provide'));
 });
 
+test('the edit page sends an empty upload_url for a list without a Drive folder', function (): void {
+    // Un `null` faisait planter la page de modification (écran blanc) : le
+    // formulaire attend une chaîne, comme pour le message.
+    $request = DocumentRequest::factory()->create(['upload_url' => null]);
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('tools.documents.edit', $request))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('documents/create')
+            ->where('request.upload_url', ''));
+});
+
 test('the edit page prefills the form and a staff member updates the request', function (): void {
     Event::fake([DashboardUpdated::class]);
     $request = DocumentRequest::factory()->withGuarantor()->create(['first_name' => 'Léa', 'last_name' => 'Martin']);
@@ -133,6 +146,7 @@ test('the edit page prefills the form and a staff member updates the request', f
             ->has('catalog', 7)
             ->where('request.id', $request->id)
             ->where('request.name', 'Léa Martin')
+            ->where('request.upload_url', $request->upload_url)
             ->where('request.persons.0.first_name', $request->persons[0]['first_name'])
             ->where('request.persons.1.role', 'guarantor'));
 

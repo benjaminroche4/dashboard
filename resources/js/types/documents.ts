@@ -239,7 +239,8 @@ export type DocumentRequestEdit = {
     lead_id: number | null;
     language: DocumentLanguage;
     message: string;
-    upload_url: string;
+    /** Vide sans dossier Drive ; le serveur peut encore envoyer `null`. */
+    upload_url: string | null;
     persons: HouseholdPersonForm[];
 };
 
