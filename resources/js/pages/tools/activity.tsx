@@ -11,7 +11,6 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { show as leadShow } from '@/routes/leads';
-import { index as toolsIndex } from '@/routes/tools';
 import { index as activityIndex } from '@/routes/tools/activity';
 import type {
     Activity,
@@ -267,7 +266,7 @@ export default function ActivityIndex({
 
 ActivityIndex.layout = {
     breadcrumbs: [
-        { title: 'Outils', href: toolsIndex() },
+        { title: 'Outils', href: activityIndex() },
         { title: "Journal d'activité", href: activityIndex() },
     ],
 };

@@ -343,7 +343,7 @@ export function VisitForm({
                 {client?.offer_label && (
                     <div
                         role="note"
-                        className="bg-muted/40 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border p-3 text-sm"
+                        className="bg-sidebar flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border p-3 text-sm"
                     >
                         <VisitModeBadge mode={visitMode} />
                         <span>

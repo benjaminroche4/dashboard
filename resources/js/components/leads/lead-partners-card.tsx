@@ -422,11 +422,11 @@ export function LeadPartnersCard({
                         : 'Aucun partenaire n’intervient sur ce dossier.'}
                 </p>
             ) : (
-                <ul role="list" className="grid gap-2">
+                <ul role="list" className="divide-y">
                     {links.map((link) => (
                         <li
                             key={link.id}
-                            className="bg-background grid gap-1.5 rounded-lg border p-3 text-sm"
+                            className="grid gap-1.5 py-3 text-sm first:pt-0 last:pb-0"
                         >
                             <div className="flex items-start justify-between gap-2">
                                 <div className="grid min-w-0 gap-0.5">

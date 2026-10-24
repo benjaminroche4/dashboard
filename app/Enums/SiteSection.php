@@ -19,6 +19,7 @@ enum SiteSection: string
     case Visits = 'visits';
     case Agents = 'agents';
     case Partners = 'partners';
+    case Companies = 'companies';
     case Owners = 'owners';
     case Properties = 'properties';
     case Quotes = 'quotes';
@@ -38,6 +39,7 @@ enum SiteSection: string
             self::Visits => 'Visites',
             self::Agents => 'Agents et agences',
             self::Partners => 'Partenaires',
+            self::Companies => 'Entreprises',
             self::Owners => 'Propriétaires',
             self::Properties => 'Biens',
             self::Quotes => 'Devis',
@@ -72,6 +74,7 @@ enum SiteSection: string
             self::Visits => 'supprimer une visite',
             self::Agents => 'supprimer un agent ou une agence',
             self::Partners => 'supprimer un partenaire',
+            self::Companies => 'supprimer une entreprise',
             self::Owners => 'supprimer un propriétaire',
             self::Properties => 'supprimer un bien',
             self::Quotes => 'supprimer un devis',
@@ -102,9 +105,9 @@ enum SiteSection: string
     {
         return match ($this) {
             self::Leads, self::LeadsCreate, self::OwnerLeads, self::OwnerLeadsCreate => 'Leads',
-            self::Clients, self::Visits => 'Clients',
-            self::Agents, self::Partners, self::Owners, self::Properties => 'Réseau',
-            self::Quotes, self::Invoices, self::Documents, self::Reports, self::Activity => 'Outils',
+            self::Clients, self::Visits, self::Documents => 'Clients',
+            self::Agents, self::Partners, self::Companies, self::Owners, self::Properties => 'Annuaire',
+            self::Quotes, self::Invoices, self::Reports, self::Activity => 'Outils',
         };
     }
 
@@ -131,13 +134,13 @@ enum SiteSection: string
             str_starts_with($route, 'clients.') => [self::Clients],
             str_starts_with($route, 'agents.'), str_starts_with($route, 'agencies.') => [self::Agents],
             str_starts_with($route, 'partners.') => [self::Partners],
+            str_starts_with($route, 'companies.') => [self::Companies],
             str_starts_with($route, 'properties.') => [self::Properties],
             str_starts_with($route, 'tools.quotes.') => [self::Quotes],
             str_starts_with($route, 'invoices.') => [self::Invoices],
             str_starts_with($route, 'tools.documents.') => [self::Documents],
             str_starts_with($route, 'tools.reports.') => [self::Reports],
             str_starts_with($route, 'tools.activity.') => [self::Activity],
-            $route === 'tools.index' => [self::Quotes, self::Invoices, self::Documents, self::Reports, self::Activity],
             default => [],
         };
     }

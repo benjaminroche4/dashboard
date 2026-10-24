@@ -42,8 +42,12 @@ export type Invoice = {
     can_pay: boolean;
     /** Brouillon : la facture est encore modifiable. */
     can_edit?: boolean;
+    /** Peut encore devenir un devis (ni payée, ni déjà transformée). */
+    can_quote?: boolean;
     /** Lead rattaché à la facture, ou null. */
     lead: LinkedLead | null;
+    /** Devis créé depuis la facture quand elle a été transformée, ou null. */
+    quote?: { id: number; uuid: string; number: string } | null;
 };
 
 /** Facture vue depuis une fiche lead. */

@@ -313,9 +313,9 @@ describe('Property edit page', () => {
         expect(recap.getByText('Disponible')).toBeInTheDocument();
     });
 
-    it('declares breadcrumbs under Réseau › Biens', () => {
+    it('declares breadcrumbs under Annuaire › Biens', () => {
         expect(
             PropertyEdit.layout.breadcrumbs.map((item) => item.title),
-        ).toEqual(['Réseau', 'Biens', 'Nouveau bien']);
+        ).toEqual(['Annuaire', 'Biens', 'Nouveau bien']);
     });
 });

@@ -11,6 +11,10 @@ vi.mock('@/components/ui/sidebar', () => ({
 }));
 vi.mock('@inertiajs/react', () => ({
     router: { visit: vi.fn() },
+    // La palette ⌘K lit les droits du membre pour filtrer ses pages.
+    usePage: () => ({
+        props: { auth: { can: { manageStaff: false }, access: null } },
+    }),
     // La cloche d'activité est un lien vers le journal.
     Link: ({
         href,

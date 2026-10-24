@@ -133,7 +133,7 @@ export default function PropertiesIndex({
 
 PropertiesIndex.layout = {
     breadcrumbs: [
-        { title: 'Réseau', href: propertiesIndex() },
+        { title: 'Annuaire', href: propertiesIndex() },
         { title: 'Biens', href: propertiesIndex() },
     ],
 };

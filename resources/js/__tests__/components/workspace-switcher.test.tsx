@@ -80,7 +80,7 @@ describe('WorkspaceSwitcher', () => {
             '/images/estate-in-paris.svg',
         );
 
-        expect(screen.queryByText('Tableau de bord')).not.toBeInTheDocument();
+        expect(screen.queryByText('Aujourd’hui')).not.toBeInTheDocument();
         expect(screen.queryByText('Paramètres')).not.toBeInTheDocument();
         expect(screen.queryByText('Ajouter un espace')).not.toBeInTheDocument();
     });

@@ -6,6 +6,7 @@ import { FavoriteStar } from '@/components/favorite-star';
 import { AgencyAgentsPopover } from '@/components/real-estate/agency-agents-popover';
 import { AgentLeadsPopover } from '@/components/real-estate/agent-leads-popover';
 import { RealEstateRowActions } from '@/components/real-estate/real-estate-row-actions';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -378,10 +379,15 @@ export function agentColumns(
             accessorKey: 'visits_count',
             header: () => <div className="text-right">Visites</div>,
             cell: ({ row }) => (
-                <div className="text-right text-sm tabular-nums">
-                    {row.original.visits_count > 0
-                        ? row.original.visits_count
-                        : '—'}
+                <div className="text-right">
+                    {/* Une pastille, comme le nombre de clients d'une entreprise ; rien à zéro. */}
+                    {row.original.visits_count > 0 ? (
+                        <Badge variant="secondary" className="tabular-nums">
+                            {row.original.visits_count}
+                        </Badge>
+                    ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
+                    )}
                 </div>
             ),
         },

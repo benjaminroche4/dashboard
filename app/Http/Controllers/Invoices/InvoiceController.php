@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Invoices;
 
+use App\Actions\Invoices\ConvertInvoiceToQuote;
 use App\Actions\Invoices\CreateInvoice;
 use App\Actions\Invoices\LinkInvoiceToLead;
 use App\Actions\Invoices\LinkInvoiceToPartner;
@@ -56,7 +57,7 @@ class InvoiceController extends Controller
         $status = $request->status();
 
         $paginator = Invoice::query()
-            ->with(['lead', 'partner'])
+            ->with(['lead', 'partner', 'quote'])
             ->when($search !== '', fn (Builder $query): Builder => $query->where(fn (Builder $where): Builder => $where
                 ->where('number', 'like', "%{$search}%")
                 ->orWhere('client_name', 'like', "%{$search}%")))
@@ -87,6 +88,8 @@ class InvoiceController extends Controller
                 'can_send' => $invoice->status->canTransitionTo(InvoiceStatus::Sent) && $invoice->client_email !== null,
                 'can_pay' => $invoice->status->canTransitionTo(InvoiceStatus::Paid),
                 'can_edit' => $invoice->status === InvoiceStatus::Draft,
+                'can_quote' => ConvertInvoiceToQuote::allowed($invoice),
+                'quote' => $this->quoteSummary($invoice),
             ])
             ->all();
 
@@ -371,7 +374,7 @@ class InvoiceController extends Controller
     {
         $this->authorize('view', $invoice);
 
-        $invoice->load(['statusChanges.author', 'creator', 'lead', 'partner']);
+        $invoice->load(['statusChanges.author', 'creator', 'lead', 'partner', 'quote']);
 
         return Inertia::render('invoices/show', [
             'invoice' => [
@@ -415,6 +418,8 @@ class InvoiceController extends Controller
                 'can_send' => $invoice->status->canTransitionTo(InvoiceStatus::Sent) && $invoice->client_email !== null,
                 'can_pay' => $invoice->status->canTransitionTo(InvoiceStatus::Paid),
                 'can_edit' => $invoice->status === InvoiceStatus::Draft,
+                'can_quote' => ConvertInvoiceToQuote::allowed($invoice),
+                'quote' => $this->quoteSummary($invoice),
             ],
             'history' => self::history($invoice),
             'company' => config('company'),
@@ -422,6 +427,30 @@ class InvoiceController extends Controller
                 ->map(fn (Offer $offer): array => ['value' => $offer->value, 'label' => $offer->label(), 'description' => $offer->description()])
                 ->all(),
         ]);
+    }
+
+    /** Transforme la facture en devis brouillon ; la facture est annulée et garde le lien. */
+    public function quote(Invoice $invoice, ConvertInvoiceToQuote $convert): RedirectResponse
+    {
+        $this->authorize('update', $invoice);
+
+        $quote = $convert->handle($invoice, auth()->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Devis :quote créé depuis la facture :number, qui est annulée.', ['quote' => $quote->number, 'number' => $invoice->number])]);
+
+        return to_route('tools.quotes.show', $quote);
+    }
+
+    /**
+     * Devis issu de la facture, pour le lien de la fiche et de la liste.
+     *
+     * @return array{id: int, uuid: string, number: string}|null
+     */
+    private function quoteSummary(Invoice $invoice): ?array
+    {
+        $quote = $invoice->quote;
+
+        return $quote === null ? null : ['id' => $quote->id, 'uuid' => $quote->uuid, 'number' => $quote->number];
     }
 
     public function send(Invoice $invoice, SendInvoice $sendInvoice): RedirectResponse

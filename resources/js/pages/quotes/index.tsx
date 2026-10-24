@@ -4,7 +4,6 @@ import { DataTable } from '@/components/data-table';
 import { QuoteBulkActions } from '@/components/quotes/quote-bulk-actions';
 import { quoteColumnLabels, quoteColumns } from '@/components/quotes/columns';
 import { Button } from '@/components/ui/button';
-import { index as toolsIndex } from '@/routes/tools';
 import {
     create as quotesCreate,
     index as quotesIndex,
@@ -78,7 +77,7 @@ export default function QuotesIndex({ quotes }: Props) {
 
 QuotesIndex.layout = {
     breadcrumbs: [
-        { title: 'Outils', href: toolsIndex() },
+        { title: 'Outils', href: quotesIndex() },
         { title: 'Devis', href: quotesIndex() },
     ],
 };

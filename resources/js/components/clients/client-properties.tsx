@@ -209,11 +209,11 @@ export function ClientProperties({
                     canPropose={options.length > 0}
                 />
             ) : (
-                <ul role="list" className="grid gap-3">
+                <ul role="list" className="divide-y">
                     {ordered.map((property) => (
                         <li
                             key={property.id}
-                            className="bg-sidebar flex flex-wrap items-start justify-between gap-3 rounded-lg border p-3 text-sm"
+                            className="flex flex-wrap items-start justify-between gap-3 py-3 text-sm first:pt-0 last:pb-0"
                         >
                             {/* La photo devant les informations, comme dans
                                 l'annuaire des biens et les fiches d'annuaire. */}
@@ -391,11 +391,11 @@ export function ClientProperties({
                             {explainError}
                         </p>
                     )}
-                    <ul role="list" className="grid gap-3">
+                    <ul role="list" className="divide-y">
                         {orderedSuggestions.map((suggestion) => (
                             <li
                                 key={suggestion.id}
-                                className="bg-background flex flex-wrap items-start justify-between gap-3 rounded-lg border p-3 text-sm"
+                                className="flex flex-wrap items-start justify-between gap-3 py-3 text-sm first:pt-0 last:pb-0"
                             >
                                 {/* La photo d'abord : un logement se reconnaît
                                     à son image avant son adresse. */}

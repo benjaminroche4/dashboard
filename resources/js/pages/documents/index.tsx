@@ -1,3 +1,4 @@
+import { index as clientsIndex } from '@/routes/clients';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { MoreHorizontal, Plus } from 'lucide-react';
 import { DataTable } from '@/components/data-table';
@@ -13,7 +14,6 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { index as toolsIndex } from '@/routes/tools';
 import {
     create as documentsCreate,
     index as documentsIndex,
@@ -93,7 +93,7 @@ export default function DocumentsIndex({ requests }: Props) {
 
 DocumentsIndex.layout = {
     breadcrumbs: [
-        { title: 'Outils', href: toolsIndex() },
+        { title: 'Clients', href: clientsIndex() },
         { title: 'Listes de pièces', href: documentsIndex() },
     ],
 };

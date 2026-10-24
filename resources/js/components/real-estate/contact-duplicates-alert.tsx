@@ -9,13 +9,13 @@ export function ContactDuplicatesAlert({
 }: {
     duplicates: ContactDuplicate[];
     /** « agent », « agence » ou « partenaire », pour le libellé. */
-    noun: 'agent' | 'agence' | 'partenaire' | 'propriétaire';
+    noun: 'agent' | 'agence' | 'partenaire' | 'propriétaire' | 'entreprise';
 }) {
     if (duplicates.length === 0) {
         return null;
     }
 
-    const feminine = noun === 'agence';
+    const feminine = noun === 'agence' || noun === 'entreprise';
 
     return (
         <Alert variant="warning" data-testid="contact-duplicates">

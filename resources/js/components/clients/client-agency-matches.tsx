@@ -168,7 +168,7 @@ export function ClientAgencyMatches({
                         agences.
                     </p>
                 ) : (
-                    <ol role="list" className="grid gap-3">
+                    <ol role="list" className="divide-y">
                         {ordered.map((suggestion, index) => {
                             const explanation = explanations[suggestion.key];
                             const best = suggestion.best_agent;
@@ -178,7 +178,7 @@ export function ClientAgencyMatches({
                             return (
                                 <li
                                     key={suggestion.key}
-                                    className="bg-background grid gap-2 rounded-lg border p-3 text-sm"
+                                    className="grid gap-2 py-3 text-sm first:pt-0 last:pb-0"
                                 >
                                     <div className="flex flex-wrap items-start justify-between gap-2">
                                         <span className="flex min-w-0 items-center gap-2">

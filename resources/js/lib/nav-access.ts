@@ -68,10 +68,23 @@ export function filterNavGroups(
                     ];
                 }
 
-                return item.section === undefined ||
-                    canAccessSection(access, item.section)
-                    ? [item]
-                    : [];
+                if (
+                    item.section !== undefined &&
+                    !canAccessSection(access, item.section)
+                ) {
+                    return [];
+                }
+
+                // Le bouton « + » demande son propre droit (créer un lead
+                // n'est pas consulter la liste) : fermé, il disparaît seul.
+                const create =
+                    item.create &&
+                    (item.create.section === undefined ||
+                        canAccessSection(access, item.create.section))
+                        ? item.create
+                        : undefined;
+
+                return [create === item.create ? item : { ...item, create }];
             }),
         }))
         .filter((group) => group.items.length > 0);

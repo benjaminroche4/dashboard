@@ -24,6 +24,7 @@ final class ActivityResource
         'agents' => 'Agents immobiliers',
         'agencies' => 'Agents immobiliers',
         'partners' => 'Partenaires',
+        'companies' => 'Entreprises',
         'owners' => 'Propriétaires',
         'documents' => 'Documents',
         'catalog' => 'Documents',

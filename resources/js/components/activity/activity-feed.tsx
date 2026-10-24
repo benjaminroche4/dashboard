@@ -17,7 +17,7 @@ const timeFormat = parisFormat({
 });
 
 /** Une entrée : avatar de l'acteur signé par l'icône de la ressource. */
-function ActivityRow({ activity }: { activity: Activity }) {
+export function ActivityRow({ activity }: { activity: Activity }) {
     const initials = useInitials();
     const actorName = activity.actor?.name ?? 'Le système';
     const tone = activityTone(activity.resource);

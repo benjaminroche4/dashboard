@@ -1,3 +1,4 @@
+import { index as clientsIndex } from '@/routes/clients';
 import { Head, Link, useForm } from '@inertiajs/react';
 import {
     Check,
@@ -37,7 +38,6 @@ import { languageFlag } from '@/lib/language-flag';
 import { notify } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { show as leadShow } from '@/routes/leads';
-import { index as toolsIndex } from '@/routes/tools';
 import {
     index as documentsIndex,
     show as documentsShow,
@@ -247,7 +247,7 @@ export default function DocumentsCreate({
 
     const cancelHref = request
         ? documentsShow({ documentRequest: request.uuid })
-        : toolsIndex();
+        : documentsIndex();
 
     const errorsFor = (index: number) => ({
         first_name: errors[`persons.${index}.first_name`],
@@ -669,7 +669,7 @@ export default function DocumentsCreate({
 
 DocumentsCreate.layout = {
     breadcrumbs: [
-        { title: 'Outils', href: toolsIndex() },
+        { title: 'Clients', href: clientsIndex() },
         { title: 'Listes de pièces', href: documentsIndex() },
         { title: 'Nouvelle liste', href: '#' },
     ],

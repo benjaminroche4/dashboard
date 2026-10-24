@@ -25,8 +25,14 @@ declare module '@inertiajs/core' {
             counts: {
                 leadsTodo: number;
                 ownerLeadsTodo: number;
-                /** Dossiers clients suivis (leads convertis). */
+                /** Dossiers clients suivis (leads convertis) : un total, pas une alerte. */
                 clients: number;
+                /** Visites passées sans compte rendu. */
+                visitReports: number;
+                /** Pièces déposées encore à vérifier. */
+                pendingUploads: number;
+                /** Factures en retard. */
+                overdueInvoices: number;
             };
             sidebarOpen: boolean;
             /** Props à recharger sur un événement temps réel (vide = toute la page). */

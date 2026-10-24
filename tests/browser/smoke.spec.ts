@@ -11,7 +11,7 @@ test.describe('Parcours de base', () => {
         await login(page);
         await expect(page).toHaveURL(/\/dashboard$/);
         await expect(
-            page.getByRole('link', { name: 'Tableau de bord' }).first(),
+            page.getByRole('link', { name: 'Aujourd’hui' }).first(),
         ).toBeVisible();
         await page.close();
     });

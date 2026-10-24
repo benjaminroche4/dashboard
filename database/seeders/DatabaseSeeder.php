@@ -29,6 +29,7 @@ final class DatabaseSeeder extends Seeder
             DocumentRequestSeeder::class,
             RealEstateSeeder::class,
             PartnerSeeder::class,
+            CompanySeeder::class,
             OwnerSeeder::class,
             PropertySeeder::class,
             ActivitySeeder::class,

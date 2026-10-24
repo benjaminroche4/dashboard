@@ -31,6 +31,7 @@ use App\Models\Partner;
 use App\Models\PartnerContact;
 use App\Models\Quote;
 use App\Services\DistrictStaticMap;
+use App\Support\SearchSql;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -242,7 +243,7 @@ class PartnerController extends Controller
                     ->orWhere('email', 'like', "%{$query}%")
                     ->orWhere('phone', 'like', "%{$query}%")
                     ->orWhereHas('contacts', function ($contacts) use ($query): void {
-                        $contacts->whereRaw("first_name || ' ' || last_name like ?", ["%{$query}%"])
+                        $contacts->where(SearchSql::fullName(), 'like', "%{$query}%")
                             ->orWhere('email', 'like', "%{$query}%")
                             ->orWhere('phone', 'like', "%{$query}%");
                     });

@@ -1,3 +1,4 @@
+import { index as clientsIndex } from '@/routes/clients';
 import { Head, router, usePage } from '@inertiajs/react';
 import {
     Download,
@@ -30,7 +31,6 @@ import { useStaffChannel } from '@/hooks/use-staff-channel';
 import { downloadDocumentRequestPdf } from '@/lib/download-document-request-pdf';
 import { mergeDossierPdf } from '@/lib/merge-dossier-pdf';
 import { languageFlag } from '@/lib/language-flag';
-import { index as toolsIndex } from '@/routes/tools';
 import {
     analyze as analyzeRequest,
     archive as archiveRequest,
@@ -335,7 +335,7 @@ export default function DocumentsShow({ request, pdfAvailable }: Props) {
 
 DocumentsShow.layout = {
     breadcrumbs: [
-        { title: 'Outils', href: toolsIndex() },
+        { title: 'Clients', href: clientsIndex() },
         { title: 'Listes de pièces', href: documentsIndex() },
         { title: 'Détail', href: '#' },
     ],

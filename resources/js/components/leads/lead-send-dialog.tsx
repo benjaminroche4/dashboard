@@ -210,7 +210,7 @@ export function LeadSendDialog({
                     })}
                 </div>
                 {showPlans && (
-                    <fieldset className="grid gap-2 rounded-lg border p-3">
+                    <fieldset className="bg-sidebar grid gap-2 rounded-lg border p-3">
                         <legend className="px-1 text-sm font-medium">
                             Modalité de paiement
                         </legend>

@@ -32,6 +32,7 @@ export function DetailHeader({
     deleteTitle,
     deleteDescription,
     tone = 'bg-primary/10 text-primary',
+    avatar,
     favorite,
     actions,
     editInMenu = false,
@@ -39,6 +40,8 @@ export function DetailHeader({
     children,
 }: {
     name: string;
+    /** Remplace la pastille d'initiales : logo cliquable, photo… */
+    avatar?: ReactNode;
     /** Favori personnel : étoile à côté du nom, bascule dans le menu « ⋯ ». */
     favorite?: { active: boolean; url: string };
     subtitle?: ReactNode;
@@ -69,61 +72,73 @@ export function DetailHeader({
                     verb="Ajouté(e) par"
                 />
             </p>
-            <div className="bg-muted/40 grid gap-4 rounded-xl border p-4">
-                <div className="flex flex-wrap items-center gap-4">
-                    <span
-                        aria-hidden
-                        className={cn(
-                            'flex size-11 shrink-0 items-center justify-center rounded-lg text-sm font-semibold',
-                            tone,
+            {/* La coquille du tableau de bord : panneau gris, carte blanche dedans. */}
+            <div className="bg-sidebar rounded-xl border p-3">
+                <div className="bg-background grid gap-4 rounded-lg border p-4">
+                    <div className="flex flex-wrap items-center gap-4">
+                        {avatar ?? (
+                            <span
+                                aria-hidden
+                                className={cn(
+                                    'flex size-11 shrink-0 items-center justify-center rounded-lg text-sm font-semibold',
+                                    tone,
+                                )}
+                            >
+                                {initials(name)}
+                            </span>
                         )}
-                    >
-                        {initials(name)}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                        {/* L'étoile reste hors du titre : le nom accessible du <h1>
+                        <div className="min-w-0 flex-1">
+                            {/* L'étoile reste hors du titre : le nom accessible du <h1>
                         ne doit pas se terminer par « Favori ». */}
-                        <div className="flex items-center gap-1.5">
-                            <h1 className="truncate text-base font-semibold">
-                                {name}
-                            </h1>
-                            {favorite && (
-                                <FavoriteStar favorite={favorite.active} />
+                            <div className="flex items-center gap-1.5">
+                                <h1 className="truncate text-base font-semibold">
+                                    {name}
+                                </h1>
+                                {favorite && (
+                                    <FavoriteStar favorite={favorite.active} />
+                                )}
+                            </div>
+                            {subtitle && (
+                                <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-sm">
+                                    {subtitle}
+                                </div>
                             )}
                         </div>
-                        {subtitle && (
-                            <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-sm">
-                                {subtitle}
-                            </div>
-                        )}
+                        <div className="flex items-center gap-2">
+                            {actions}
+                            {!editInMenu && (
+                                <Button variant="outline" onClick={onEdit}>
+                                    <Pencil />
+                                    Modifier
+                                </Button>
+                            )}
+                            <RealEstateRowActions
+                                favorite={favorite}
+                                name={name}
+                                deleteUrl={deleteUrl}
+                                deleteTitle={deleteTitle}
+                                deleteDescription={deleteDescription}
+                                onEdit={onEdit}
+                                extra={menu}
+                            />
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        {actions}
-                        {!editInMenu && (
-                            <Button variant="outline" onClick={onEdit}>
-                                <Pencil />
-                                Modifier
-                            </Button>
-                        )}
-                        <RealEstateRowActions
-                            favorite={favorite}
-                            name={name}
-                            deleteUrl={deleteUrl}
-                            deleteTitle={deleteTitle}
-                            deleteDescription={deleteDescription}
-                            onEdit={onEdit}
-                            extra={menu}
-                        />
-                    </div>
+                    {/* Coordonnées ou chiffres clés, sous un filet, dans la même carte. */}
+                    {children && (
+                        <div className="border-t pt-4">{children}</div>
+                    )}
                 </div>
-                {/* Coordonnées ou chiffres clés, sous un filet, dans le même panneau. */}
-                {children && <div className="border-t pt-4">{children}</div>}
             </div>
         </div>
     );
 }
 
-/** Carte de section d'une fiche : intitulé en capitales puis contenu. */
+/**
+ * Carte de section : **la coquille du tableau de bord**, la seule du
+ * backoffice. Un panneau gris (`bg-sidebar`), l'intitulé en petites capitales
+ * au-dessus, et le contenu dans une carte blanche. Les listes d'une carte se
+ * séparent d'un filet (`divide-y`), jamais de cartes blanches imbriquées.
+ */
 export function DetailSection({
     title,
     count,
@@ -146,11 +161,11 @@ export function DetailSection({
         <section
             aria-label={title}
             className={cn(
-                'bg-card grid gap-3 rounded-xl border p-4',
+                'bg-sidebar grid content-start gap-3 rounded-xl border p-3',
                 className,
             )}
         >
-            <header className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+            <header className="flex flex-wrap items-center justify-between gap-2 px-1 pt-1">
                 <h2 className="text-muted-foreground flex items-center gap-2 text-xs tracking-wide uppercase">
                     {Icon && <Icon aria-hidden className="size-3.5 shrink-0" />}
                     {title}
@@ -168,7 +183,9 @@ export function DetailSection({
                 </h2>
                 {action}
             </header>
-            {children}
+            <div className="bg-background grid gap-3 rounded-lg border p-4">
+                {children}
+            </div>
         </section>
     );
 }

@@ -1,7 +1,7 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@inertiajs/react', () => ({
     Link: ({
@@ -20,32 +20,97 @@ vi.mock('@inertiajs/react', () => ({
 
 import { ActivityBell } from '@/components/activity-bell';
 import { clearMissedEvents, recordMissedEvent } from '@/lib/missed-events';
+import { makeActivity } from '@/test/fixtures/activity';
+
+const fetchMock = vi.fn();
+
+function jsonResponse(body: unknown, status = 200): Response {
+    return new Response(JSON.stringify(body), {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+    });
+}
 
 describe('ActivityBell', () => {
-    beforeEach(() => clearMissedEvents());
+    beforeEach(() => {
+        clearMissedEvents();
+        fetchMock.mockReset();
+        vi.stubGlobal('fetch', fetchMock);
+    });
+    afterEach(() => vi.unstubAllGlobals());
 
-    it('counts the actions that passed in silence and leads to the journal', async () => {
+    it('counts the actions that passed in silence and opens the latest ones', async () => {
         const user = userEvent.setup();
+        fetchMock.mockResolvedValue(
+            jsonResponse([
+                makeActivity({
+                    id: 1,
+                    message: 'a créé le lead Léa Durand',
+                    actor: { id: 2, name: 'Chloé Martin', avatar: null },
+                }),
+            ]),
+        );
         render(<ActivityBell />);
 
         expect(
-            screen.getByRole('link', { name: 'Journal d’activité' }),
-        ).toHaveAttribute('href', '/tools/activity');
+            screen.getByRole('button', {
+                name: 'Dernières actions de l’équipe',
+            }),
+        ).toBeInTheDocument();
 
         act(() => {
             recordMissedEvent();
             recordMissedEvent();
         });
-        expect(
-            screen.getByRole('link', {
-                name: '2 actions de l’équipe depuis votre dernière consultation',
-            }),
-        ).toHaveTextContent('2');
+        // Une pastille rouge sans chiffre : le nombre reste dans le libellé.
+        const bell = screen.getByRole('button', {
+            name: '2 actions de l’équipe depuis votre dernière consultation',
+        });
+        expect(bell).not.toHaveTextContent('2');
+        expect(bell.querySelector('[data-missed="2"]')).toHaveClass(
+            'bg-red-500',
+        );
+        // Ce qu'on n'a pas vu survit au rechargement de l'onglet.
+        expect(sessionStorage.getItem('dashboard.missed-events')).toBe('2');
 
-        // Un clic consulte : le compteur repart de zéro.
-        await user.click(screen.getByRole('link'));
+        // Ouvrir consulte : le compteur repart de zéro et les actions arrivent.
+        await user.click(screen.getByRole('button'));
         expect(
-            screen.getByRole('link', { name: 'Journal d’activité' }),
+            screen.getByRole('button', {
+                name: 'Dernières actions de l’équipe',
+            }),
         ).toBeInTheDocument();
+        expect(sessionStorage.getItem('dashboard.missed-events')).toBeNull();
+        expect(fetchMock).toHaveBeenCalledWith(
+            '/tools/activity/recent',
+            expect.objectContaining({ credentials: 'same-origin' }),
+        );
+        const list = await screen.findByRole('list', {
+            name: 'Dernières actions',
+        });
+        expect(list).toHaveTextContent(
+            'Chloé Martin a créé le lead Léa Durand',
+        );
+        expect(
+            screen.getByRole('link', { name: 'Tout le journal' }),
+        ).toHaveAttribute('href', '/tools/activity');
+    });
+
+    it('explains a journal closed to the member', async () => {
+        const user = userEvent.setup();
+        fetchMock.mockResolvedValue(
+            jsonResponse({ message: 'Forbidden' }, 403),
+        );
+        render(<ActivityBell />);
+
+        await user.click(screen.getByRole('button'));
+
+        await waitFor(() =>
+            expect(
+                screen.getByText(
+                    'Le journal d’activité n’est pas ouvert à votre compte.',
+                ),
+            ).toBeInTheDocument(),
+        );
     });
 });

@@ -1,5 +1,6 @@
 import {
     BadgeCheck,
+    Briefcase,
     Building,
     Building2,
     CalendarCheck,
@@ -26,6 +27,7 @@ const icons: Record<string, LucideIcon> = {
     agents: BadgeCheck,
     agencies: Building,
     partners: Handshake,
+    companies: Briefcase,
     owners: KeyRound,
     documents: Files,
     catalog: Files,
@@ -94,6 +96,12 @@ const tones: Record<string, ResourceTone> = {
         soft: 'bg-orange-50 dark:bg-orange-950/40',
         border: 'border-orange-200 dark:border-orange-900',
         dot: 'bg-orange-500',
+    },
+    companies: {
+        text: 'text-cyan-700 dark:text-cyan-300',
+        soft: 'bg-cyan-50 dark:bg-cyan-950/40',
+        border: 'border-cyan-200 dark:border-cyan-900',
+        dot: 'bg-cyan-500',
     },
     owners: {
         text: 'text-lime-700 dark:text-lime-300',

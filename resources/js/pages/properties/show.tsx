@@ -585,7 +585,7 @@ export default function PropertyShow({
 
 PropertyShow.layout = {
     breadcrumbs: [
-        { title: 'Réseau', href: propertiesIndex() },
+        { title: 'Annuaire', href: propertiesIndex() },
         { title: 'Biens', href: propertiesIndex() },
         { title: 'Fiche', href: '#' },
     ],

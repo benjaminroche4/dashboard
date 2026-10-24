@@ -70,6 +70,22 @@
 
     /* Un seuil vient d'être franchi (30 minutes sans contact, décision qui
        traîne) : une seule pulsation, pas un clignotement continu. */
+    /* Chiffre d'horloge qui entre par le bas quand il change (effet machine à sous). */
+    --animate-slot-in: slot-in 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+    @keyframes slot-in {
+        from {
+            transform: translateY(70%);
+            opacity: 0;
+            filter: blur(2px);
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+            filter: blur(0);
+        }
+    }
+
     --animate-pulse-once: pulse-once 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
 
     @keyframes pulse-once {

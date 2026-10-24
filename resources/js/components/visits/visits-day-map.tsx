@@ -195,9 +195,9 @@ export function VisitsDayMap({
     return (
         <section
             aria-label="Visites du jour"
-            className="bg-card grid gap-4 rounded-xl border p-4"
+            className="bg-sidebar grid gap-3 rounded-xl border p-3"
         >
-            <header className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+            <header className="flex flex-wrap items-center justify-between gap-2 px-1 pt-1">
                 <div className="flex items-center gap-2">
                     <h2 className="text-muted-foreground text-xs tracking-wide uppercase">
                         {title}
@@ -241,7 +241,7 @@ export function VisitsDayMap({
                     </Button>
                 </div>
             </header>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+            <div className="bg-background grid grid-cols-1 gap-4 rounded-lg border p-4 sm:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
                 {features.googleMapsKey && !mapFailed ? (
                     <GoogleVisitsMap
                         apiKey={features.googleMapsKey}
@@ -270,7 +270,7 @@ export function VisitsDayMap({
                     {tours.length > 1 && (
                         /* Les onglets restent visibles pendant le défilement :
                            on sait toujours quelle tournée on suit. */
-                        <div className="bg-card sticky top-0 z-10 -mx-1 shrink-0 overflow-x-auto px-1 pt-px pb-2">
+                        <div className="bg-background sticky top-0 z-10 -mx-1 shrink-0 overflow-x-auto px-1 pt-px pb-2">
                             <div
                                 role="tablist"
                                 aria-label="Tournée par membre"
@@ -312,7 +312,7 @@ export function VisitsDayMap({
                     )}
                     <ol
                         aria-label="Tournée du jour"
-                        className="grid list-none content-start gap-2"
+                        className="list-none divide-y"
                     >
                         {shown.map((visit, position) => {
                             const spot = propertyPosition(visit.property);
@@ -320,7 +320,7 @@ export function VisitsDayMap({
                             return (
                                 <li
                                     key={visit.id}
-                                    className="bg-background flex items-start gap-3 rounded-lg border p-3 text-sm"
+                                    className="flex items-start gap-3 py-3 text-sm first:pt-0 last:pb-0"
                                 >
                                     <span
                                         aria-hidden
@@ -382,7 +382,7 @@ export function VisitsDayMap({
                             );
                         })}
                         {approximate > 0 && (
-                            <li className="text-muted-foreground text-xs">
+                            <li className="text-muted-foreground py-3 text-xs last:pb-0">
                                 {approximate} adresse
                                 {approximate > 1 ? 's' : ''} non géocodée
                                 {approximate > 1 ? 's' : ''} : pastille au
@@ -390,7 +390,7 @@ export function VisitsDayMap({
                             </li>
                         )}
                         {unlocated > 0 && (
-                            <li className="text-muted-foreground text-xs">
+                            <li className="text-muted-foreground py-3 text-xs last:pb-0">
                                 {unlocated} adresse{unlocated > 1 ? 's' : ''}{' '}
                                 non localisée{unlocated > 1 ? 's' : ''} :
                                 absente

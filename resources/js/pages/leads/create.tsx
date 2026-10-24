@@ -93,6 +93,8 @@ type Props = {
     lead?: LeadEditable;
     /** Liste de destination à la création (`?segment=owner` depuis le menu Propriétaires). */
     segment?: LeadSegment;
+    /** Nom déjà saisi (`?name=` depuis la palette ⌘K sans résultat). */
+    prefill?: { first_name: string; last_name: string } | null;
 };
 
 type Duplicate = {
@@ -205,6 +207,7 @@ export default function LeadsCreate({
     recontactChannels,
     lead,
     segment = 'tenant',
+    prefill = null,
 }: Props) {
     const editing = lead !== undefined;
     const owner = (lead?.segment ?? segment) === 'owner';
@@ -213,8 +216,8 @@ export default function LeadsCreate({
         lead
             ? { ...toForm(lead) }
             : {
-                  first_name: '',
-                  last_name: '',
+                  first_name: prefill?.first_name ?? '',
+                  last_name: prefill?.last_name ?? '',
                   email: '',
                   phone: '',
                   company: '',

@@ -29,6 +29,7 @@ use App\Models\Owner;
 use App\Models\Property;
 use App\Models\Visit;
 use App\Services\DistrictStaticMap;
+use App\Support\SearchSql;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
@@ -55,7 +56,7 @@ class OwnerController extends Controller
             ->with('creator')
             ->withCount('properties')
             ->when($search !== '', fn (Builder $query): Builder => $query->where(fn (Builder $where): Builder => $where
-                ->whereRaw("first_name || ' ' || last_name like ?", ["%{$search}%"])
+                ->where(SearchSql::fullName(), 'like', "%{$search}%")
                 ->orWhere('company', 'like', "%{$search}%")
                 ->orWhere('email', 'like', "%{$search}%")
                 ->orWhere('phone', 'like', "%{$search}%")
@@ -206,7 +207,7 @@ class OwnerController extends Controller
 
         return response()->json(Owner::query()
             ->where(function ($builder) use ($query): void {
-                $builder->whereRaw("first_name || ' ' || last_name like ?", ["%{$query}%"])
+                $builder->where(SearchSql::fullName(), 'like', "%{$query}%")
                     ->orWhere('company', 'like', "%{$query}%")
                     ->orWhere('email', 'like', "%{$query}%")
                     ->orWhere('phone', 'like', "%{$query}%");

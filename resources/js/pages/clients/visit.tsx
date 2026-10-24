@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { OfferBadge } from '@/components/clients/offer-badge';
 import { CreatedBy } from '@/components/created-by';
+import { DetailSection } from '@/components/real-estate/detail-header';
 import { PhotoGallery } from '@/components/photo-gallery';
 import {
     PropertyFollowUp,
@@ -52,6 +53,7 @@ type Props = {
 };
 
 /** Carte de section de la fiche : intitulé en capitales puis contenu. */
+/** Même carte que les fiches d'annuaire. */
 function Section({
     title,
     action,
@@ -62,18 +64,9 @@ function Section({
     children: React.ReactNode;
 }) {
     return (
-        <section
-            aria-label={title}
-            className="bg-card grid gap-3 rounded-xl border p-4"
-        >
-            <header className="flex items-center justify-between gap-2 border-b pb-3">
-                <h2 className="text-muted-foreground text-xs tracking-wide uppercase">
-                    {title}
-                </h2>
-                {action}
-            </header>
+        <DetailSection title={title} action={action}>
             {children}
-        </section>
+        </DetailSection>
     );
 }
 
@@ -136,51 +129,57 @@ export default function VisitShow({
                             verb="planifiée par"
                         />
                     </p>
-                    <div className="bg-muted/40 flex flex-wrap items-center gap-4 rounded-xl border p-4">
-                        <span
-                            aria-hidden
-                            className="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-lg"
-                        >
-                            <CalendarClock className="size-5" />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                            <h1 className="truncate text-base font-semibold">
-                                {dateTime.format(new Date(visit.scheduled_at))}
-                            </h1>
-                            <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
-                                <Link
-                                    href={clientShow({
-                                        lead: visit.client.uuid,
-                                    })}
-                                    className="hover:text-foreground font-medium underline-offset-4 hover:underline"
-                                >
-                                    {visit.client.name}
-                                </Link>
-                                {visit.client.reference && (
-                                    <span>{visit.client.reference}</span>
-                                )}
-                                <VisitStatusBadge
-                                    status={visit.status}
-                                    label={visit.status_label}
-                                />
-                                {visit.report_due && (
-                                    <Badge
-                                        data-report="due"
-                                        className="bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+                    <div className="bg-sidebar rounded-xl border p-3">
+                        <div className="bg-background flex flex-wrap items-center gap-4 rounded-lg border p-4">
+                            <span
+                                aria-hidden
+                                className="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-lg"
+                            >
+                                <CalendarClock className="size-5" />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                                <h1 className="truncate text-base font-semibold">
+                                    {dateTime.format(
+                                        new Date(visit.scheduled_at),
+                                    )}
+                                </h1>
+                                <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
+                                    <Link
+                                        href={clientShow({
+                                            lead: visit.client.uuid,
+                                        })}
+                                        className="hover:text-foreground font-medium underline-offset-4 hover:underline"
                                     >
-                                        Compte rendu à rédiger
-                                    </Badge>
-                                )}
+                                        {visit.client.name}
+                                    </Link>
+                                    {visit.client.reference && (
+                                        <span>{visit.client.reference}</span>
+                                    )}
+                                    <VisitStatusBadge
+                                        status={visit.status}
+                                        label={visit.status_label}
+                                    />
+                                    {visit.report_due && (
+                                        <Badge
+                                            data-report="due"
+                                            className="bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+                                        >
+                                            Compte rendu à rédiger
+                                        </Badge>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Button variant="outline" asChild>
-                                <Link href={visitEdit({ visit: visit.uuid })}>
-                                    <Pencil />
-                                    Modifier
-                                </Link>
-                            </Button>
-                            <VisitRowActions visit={visit} />
+                            <div className="flex items-center gap-2">
+                                <Button variant="outline" asChild>
+                                    <Link
+                                        href={visitEdit({ visit: visit.uuid })}
+                                    >
+                                        <Pencil />
+                                        Modifier
+                                    </Link>
+                                </Button>
+                                <VisitRowActions visit={visit} />
+                            </div>
                         </div>
                     </div>
                 </div>

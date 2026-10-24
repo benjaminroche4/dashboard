@@ -255,7 +255,7 @@ function PersonCard({
     ) : null;
 
     return (
-        <li className="bg-card grid gap-3 rounded-lg border p-4">
+        <li className="grid gap-3 py-4 first:pt-0 last:pb-0">
             <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
                     {avatarNode('size-11')}
@@ -300,7 +300,7 @@ function People({
     return rows.length === 0 ? (
         <p className="text-muted-foreground text-sm">{empty}</p>
     ) : (
-        <ul role="list" className="grid gap-3">
+        <ul role="list" className="divide-y">
             {rows}
         </ul>
     );

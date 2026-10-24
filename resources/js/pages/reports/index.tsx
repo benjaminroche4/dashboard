@@ -4,7 +4,6 @@ import { PeriodPicker } from '@/components/reports/period-picker';
 import { VisitsByBooker } from '@/components/reports/visits-by-booker';
 import { VisitsChart } from '@/components/reports/visits-chart';
 import { formatDate } from '@/lib/format';
-import { index as toolsIndex } from '@/routes/tools';
 import { index as reportsIndex } from '@/routes/tools/reports';
 import type { Report, ReportPeriodOption } from '@/types';
 
@@ -104,7 +103,7 @@ export default function ReportsIndex({ report, period, periods }: Props) {
 
 ReportsIndex.layout = {
     breadcrumbs: [
-        { title: 'Outils', href: toolsIndex() },
+        { title: 'Outils', href: reportsIndex() },
         { title: 'Rapports', href: reportsIndex() },
     ],
 };

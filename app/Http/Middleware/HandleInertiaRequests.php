@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Enums\DocumentUploadStatus;
+use App\Enums\InvoiceStatus;
 use App\Enums\LeadStatus;
 use App\Enums\StaffFunction;
 use App\Enums\WebsiteHelpType;
 use App\Http\Controllers\Auth\GoogleLoginController;
+use App\Models\DocumentUpload;
+use App\Models\Invoice;
 use App\Models\Lead;
 use App\Models\User;
+use App\Models\Visit;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -79,10 +84,12 @@ class HandleInertiaRequests extends Middleware
                 // « Se connecter avec Google » : le bouton n'apparaît qu'avec des identifiants OAuth.
                 'googleLogin' => GoogleLoginController::configured(),
             ],
-            // Compteurs du menu : leads « À traiter » (tous, et ceux des propriétaires)
-            // et dossiers clients ouverts, rafraîchis à chaque événement temps réel.
+            // Compteurs du menu, rafraîchis à chaque événement temps réel. Les
+            // pastilles colorées disent **ce qui attend une action** (leads à
+            // traiter, comptes rendus à rédiger, pièces à vérifier, factures en
+            // retard) ; `clients` est un simple total, affiché en gris.
             'counts' => fn (): array => $request->user() === null
-                ? ['leadsTodo' => 0, 'ownerLeadsTodo' => 0, 'clients' => 0]
+                ? ['leadsTodo' => 0, 'ownerLeadsTodo' => 0, 'clients' => 0, 'visitReports' => 0, 'pendingUploads' => 0, 'overdueInvoices' => 0]
                 : [
                     // Chaque badge compte son segment : le menu « Leads
                     // locataires » annonçait aussi les leads propriétaires.
@@ -96,6 +103,11 @@ class HandleInertiaRequests extends Middleware
                     // Un dossier client est un lead converti : c'est le nombre
                     // de dossiers suivis, pas une file d'attente.
                     'clients' => Lead::query()->where('status', LeadStatus::Converted)->count(),
+                    // Visites passées sans compte rendu : l'équipe doit l'écrire.
+                    'visitReports' => Visit::query()->awaitingReport()->count(),
+                    // Pièces déposées que personne n'a encore validées ni refusées.
+                    'pendingUploads' => DocumentUpload::query()->where('status', DocumentUploadStatus::Pending)->count(),
+                    'overdueInvoices' => Invoice::query()->where('status', InvoiceStatus::Overdue)->count(),
                 ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

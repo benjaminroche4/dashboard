@@ -1,9 +1,10 @@
 import { parisFormat } from '@/lib/datetime';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { Check, Download, Pencil, Send } from 'lucide-react';
+import { Check, Download, FileText, Pencil, Send } from 'lucide-react';
 import { useState } from 'react';
 import { CreatedBy } from '@/components/created-by';
 import { InvoicePreview } from '@/components/invoices/invoice-preview';
+import { InvoiceToQuoteDialog } from '@/components/invoices/invoice-to-quote-dialog';
 import { MarkPaidDialog } from '@/components/invoices/mark-paid-dialog';
 import { SendInvoiceDialog } from '@/components/invoices/send-invoice-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +15,7 @@ import { downloadInvoicePdf } from '@/lib/download-invoice-pdf';
 import { invoiceToForm } from '@/lib/invoice-to-form';
 import { cn } from '@/lib/utils';
 import { edit as invoiceEdit, index as invoicesIndex } from '@/routes/invoices';
-import { index as toolsIndex } from '@/routes/tools';
+import { show as quoteShow } from '@/routes/tools/quotes';
 import type {
     Company,
     InvoiceDetail,
@@ -55,6 +56,7 @@ export default function InvoicesShow({
 }: Props) {
     const [paying, setPaying] = useState(false);
     const [sending, setSending] = useState(false);
+    const [quoting, setQuoting] = useState(false);
     const { auth } = usePage().props;
     const canManage = auth.user.role !== 'member';
 
@@ -116,6 +118,16 @@ export default function InvoicesShow({
                             <Download />
                             PDF
                         </Button>
+                        {invoice.can_quote && canManage && (
+                            <Button
+                                variant="outline"
+                                onClick={() => setQuoting(true)}
+                                data-test="invoice-to-quote"
+                            >
+                                <FileText />
+                                Transformer en devis
+                            </Button>
+                        )}
                         {invoice.can_send && (
                             <Button
                                 variant="outline"
@@ -158,6 +170,23 @@ export default function InvoicesShow({
                             partner={invoice.partner}
                             canEdit={canManage}
                         />
+                        {invoice.quote && (
+                            <section className="grid gap-2 text-sm">
+                                <p>
+                                    <span className="text-muted-foreground">
+                                        Devis :{' '}
+                                    </span>
+                                    <Link
+                                        href={quoteShow({
+                                            quote: invoice.quote.uuid,
+                                        })}
+                                        className="font-medium underline-offset-4 hover:underline"
+                                    >
+                                        {invoice.quote.number}
+                                    </Link>
+                                </p>
+                            </section>
+                        )}
                         <section className="grid gap-3">
                             <h2 className="text-base font-medium">
                                 Historique
@@ -256,6 +285,12 @@ export default function InvoicesShow({
                 open={paying}
                 onOpenChange={setPaying}
             />
+            <InvoiceToQuoteDialog
+                invoiceUuid={invoice.uuid}
+                invoiceNumber={invoice.number}
+                open={quoting}
+                onOpenChange={setQuoting}
+            />
         </>
     );
 }
@@ -263,7 +298,7 @@ export default function InvoicesShow({
 // Objet et non fonction : Inertia v3 traiterait une fonction comme un composant de layout.
 InvoicesShow.layout = {
     breadcrumbs: [
-        { title: 'Outils', href: toolsIndex() },
+        { title: 'Outils', href: invoicesIndex() },
         { title: 'Factures', href: invoicesIndex() },
         { title: 'Détail', href: '#' },
     ],

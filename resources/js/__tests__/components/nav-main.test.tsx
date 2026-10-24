@@ -1,19 +1,32 @@
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LayoutGrid, Users } from 'lucide-react';
+import { forwardRef, useImperativeHandle } from 'react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const visit = vi.hoisted(() => vi.fn());
+
 vi.mock('@inertiajs/react', () => ({
+    router: { visit },
+    // Comme le vrai Link d'Inertia avec `prefetch` : il pose **ses** gestionnaires
+    // de survol après les props reçues, qui sont donc écrasées.
     Link: ({
         href,
         children,
+        prefetch: _prefetch,
         ...props
     }: {
         href: string;
         children: ReactNode;
+        prefetch?: boolean;
     }) => (
-        <a href={href} {...props}>
+        <a
+            href={href}
+            {...props}
+            onMouseEnter={() => undefined}
+            onMouseLeave={() => undefined}
+        >
             {children}
         </a>
     ),
@@ -43,6 +56,7 @@ const groups: NavGroup[] = [
                 href: '/dashboard',
                 icon: LayoutGrid,
                 badge: 3,
+                shortcut: 'G A',
             },
         ],
     },
@@ -293,5 +307,166 @@ describe('NavMain remembered branches', () => {
             screen.getByRole('button', { name: /Personnes/ }),
         ).toHaveAttribute('data-state', 'open');
         expect(screen.getByRole('link', { name: 'Employés' })).toBeVisible();
+    });
+});
+
+describe('NavMain collapsible groups', () => {
+    it('folds a group from its label, hides its links and remembers it across refreshes, even with the current page inside', async () => {
+        const user = userEvent.setup();
+        const { unmount } = renderNav();
+
+        const label = screen.getByRole('button', { name: 'Replier Gestion' });
+        expect(label).toHaveAttribute('aria-expanded', 'true');
+        // Les liens arrivent en cascade à l'ouverture, un décalage par ligne.
+        expect(
+            screen.getByRole('link', { name: 'Tableau de bord' }).closest('li'),
+        ).toHaveStyle({ animationDelay: '40ms' });
+
+        await user.click(label);
+
+        expect(localStorage.getItem('sidebar.group.Gestion')).toBe('0');
+        expect(
+            screen.getByRole('button', { name: 'Déplier Gestion' }),
+        ).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.queryByRole('link', { name: 'Employés' })).toBeNull();
+        // L'autre groupe n'a pas bougé.
+        expect(
+            screen.getByRole('link', { name: 'Tableau de bord' }),
+        ).toBeVisible();
+        unmount();
+
+        // Au rechargement, le groupe reste plié : il ne se rouvre pas parce
+        // que la page courante (/people/employees) est dedans.
+        renderNav();
+        expect(
+            screen.getByRole('button', { name: 'Déplier Gestion' }),
+        ).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.queryByRole('link', { name: 'Employés' })).toBeNull();
+    });
+
+    it('does not fold a group without a label', () => {
+        render(
+            <TooltipProvider>
+                <SidebarProvider>
+                    <NavMain
+                        groups={[
+                            {
+                                label: '',
+                                items: [
+                                    { title: 'Accueil', href: '/dashboard' },
+                                ],
+                            },
+                        ]}
+                    />
+                </SidebarProvider>
+            </TooltipProvider>,
+        );
+
+        expect(screen.queryByRole('button', { name: /Replier/ })).toBeNull();
+        expect(screen.getByRole('link', { name: 'Accueil' })).toBeVisible();
+    });
+});
+
+describe('NavMain folded group markers', () => {
+    it('sums the pending badges on a folded group and marks the one holding the current page', async () => {
+        const user = userEvent.setup();
+        renderNav();
+
+        // Ouvert : pas de pastille sur l'intitulé, le compteur est sur la ligne.
+        expect(screen.queryByLabelText('3 en attente')).not.toBeInTheDocument();
+
+        await user.click(
+            screen.getByRole('button', { name: 'Replier Général' }),
+        );
+        expect(screen.getByLabelText('3 en attente')).toHaveTextContent('3');
+
+        // « Général » plié ne contient pas la page courante : pas de filet.
+        expect(
+            screen.getByRole('button', { name: 'Déplier Général' }),
+        ).not.toHaveAttribute('data-active');
+        // « Gestion » contient la page courante (/people/employees) : plié, il garde un filet.
+        await user.click(
+            screen.getByRole('button', { name: 'Replier Gestion' }),
+        );
+        expect(
+            screen.getByRole('button', { name: 'Déplier Gestion' }),
+        ).toHaveAttribute('data-active', 'true');
+    });
+});
+
+describe('NavMain keyboard shortcuts', () => {
+    beforeEach(() => visit.mockClear());
+
+    it('navigates with « G » then the letter, never from a field', () => {
+        renderNav();
+
+        fireEvent.keyDown(window, { key: 'g' });
+        fireEvent.keyDown(window, { key: 'a' });
+        expect(visit).toHaveBeenCalledWith('/dashboard');
+
+        // Sans « G » d'abord, la lettre ne fait rien.
+        visit.mockClear();
+        fireEvent.keyDown(window, { key: 'a' });
+        expect(visit).not.toHaveBeenCalled();
+
+        // Dans un champ, les lettres restent au champ.
+        const input = document.createElement('input');
+        document.body.appendChild(input);
+        act(() => {
+            fireEvent.keyDown(input, { key: 'g' });
+            fireEvent.keyDown(input, { key: 'a' });
+        });
+        expect(visit).not.toHaveBeenCalled();
+        input.remove();
+
+        // Avec ⌘, c'est un autre raccourci.
+        fireEvent.keyDown(window, { key: 'g', metaKey: true });
+        fireEvent.keyDown(window, { key: 'a' });
+        expect(visit).not.toHaveBeenCalled();
+    });
+});
+
+// Poignée d'une icône animée, au niveau du module : le compilateur React
+// sort les fonctions des composants, une fermeture locale ne le survit pas.
+const iconSpies = { startAnimation: vi.fn(), stopAnimation: vi.fn() };
+const AnimatedIcon = forwardRef<
+    { startAnimation: () => void; stopAnimation: () => void },
+    { size?: number; animateOnHover?: boolean; className?: string }
+>(function AnimatedIcon(_props, ref) {
+    useImperativeHandle(ref, () => iconSpies);
+
+    return <svg data-testid="animated-icon" />;
+});
+
+describe('NavMain animated icons', () => {
+    it('plays the icon when the row is hovered, even though the Inertia Link owns its own hover handlers', () => {
+        const groups: NavGroup[] = [
+            {
+                label: 'Clients',
+                items: [
+                    {
+                        title: 'Dossiers',
+                        href: '/clients',
+                        icon: Users,
+                        animatedIcon: AnimatedIcon as never,
+                    },
+                ],
+            },
+        ];
+
+        render(
+            <TooltipProvider>
+                <SidebarProvider>
+                    <NavMain groups={groups} />
+                </SidebarProvider>
+            </TooltipProvider>,
+        );
+
+        const link = screen.getByRole('link', { name: 'Dossiers' });
+        fireEvent.mouseEnter(link);
+        expect(iconSpies.startAnimation).toHaveBeenCalledTimes(1);
+
+        fireEvent.mouseLeave(link.closest('li')!);
+        expect(iconSpies.stopAnimation).toHaveBeenCalledTimes(1);
     });
 });

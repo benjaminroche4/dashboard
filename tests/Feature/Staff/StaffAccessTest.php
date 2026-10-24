@@ -134,9 +134,7 @@ test('levels drive the policies and the middleware: none refuses the pages, read
         ->and($member->can('create', Partner::class))->toBeFalse()
         ->and($member->can('viewAny', CatalogDocument::class))->toBeFalse();
 
-    // « Tous les outils » s'ouvre dès qu'un outil est consultable.
     $member->forceFill(['permissions' => [...array_fill_keys(array_column(SiteSection::cases(), 'value'), 'none'), 'reports' => 'read']])->save();
-    $this->actingAs($member)->get(route('tools.index'))->assertOk();
     $this->actingAs($member)->get(route('tools.reports.index'))->assertOk();
     $this->actingAs($member)->get(route('invoices.index'))->assertForbidden();
 });

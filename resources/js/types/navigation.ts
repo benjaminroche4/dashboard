@@ -1,3 +1,4 @@
+import type { ForwardRefExoticComponent, RefAttributes } from 'react';
 import type { InertiaLinkProps } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
 import type { SiteSection } from '@/types/auth';
@@ -7,18 +8,56 @@ export type BreadcrumbItem = {
     href: NonNullable<InertiaLinkProps['href']>;
 };
 
+/** Poignée d'une icône `lucide-animated` : lance ou arrête son mouvement. */
+export type AnimatedNavIconHandle = {
+    startAnimation: () => void;
+    stopAnimation: () => void;
+};
+
+export type AnimatedNavIcon = ForwardRefExoticComponent<
+    {
+        size?: number;
+        animateOnHover?: boolean;
+        className?: string;
+    } & RefAttributes<AnimatedNavIconHandle>
+>;
+
 export type NavItem = {
     title: string;
     href: NonNullable<InertiaLinkProps['href']>;
     icon?: LucideIcon | null;
+    /**
+     * Icône animée (`lucide-animated`) qui remplace `icon` dans la sidebar :
+     * elle joue son mouvement au survol de toute la ligne, pas seulement de
+     * l'icône, et se tient tranquille avec `prefers-reduced-motion`.
+     */
+    animatedIcon?: AnimatedNavIcon | null;
     isActive?: boolean;
-    /** Compteur affiché à droite (pastille ronde), point discret en mode icône. */
+    /**
+     * Ce qui **attend une action** : pastille colorée à droite, point en mode
+     * icône, et reporté sur l'intitulé du groupe quand il est plié.
+     */
     badge?: number;
+    /** Simple total, affiché en gris : il n'appelle rien. */
+    total?: number;
+    /** Bouton « + » révélé au survol, vers le formulaire de création. */
+    create?: NavCreate;
+    /** Raccourci clavier « G puis touche » (ex. `G L`), annoncé dans l'infobulle. */
+    shortcut?: string;
     /** Sous-entrées (menu dépliable). */
     items?: NavSubItem[];
     /** Clé de mémorisation de l'état déplié, quand deux menus portent le même titre. */
     key?: string;
     /** Section requise ; absente = toujours visible. */
+    section?: SiteSection;
+};
+
+/** Création en un geste depuis une entrée du menu. */
+export type NavCreate = {
+    href: NonNullable<InertiaLinkProps['href']>;
+    /** Libellé accessible du bouton (« Nouveau lead locataire »). */
+    label: string;
+    /** Section requise pour créer ; absente = toujours visible. */
     section?: SiteSection;
 };
 

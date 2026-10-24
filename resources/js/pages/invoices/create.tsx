@@ -63,7 +63,6 @@ import {
     store,
     update,
 } from '@/routes/invoices';
-import { index as toolsIndex } from '@/routes/tools';
 import type {
     BankAccountOption,
     Company,
@@ -973,7 +972,7 @@ export default function InvoicesCreate({
 
 InvoicesCreate.layout = {
     breadcrumbs: [
-        { title: 'Outils', href: toolsIndex() },
+        { title: 'Outils', href: invoicesIndex() },
         { title: 'Factures', href: invoicesIndex() },
         { title: 'Nouvelle facture', href: '#' },
     ],

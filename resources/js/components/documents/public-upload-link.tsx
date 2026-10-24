@@ -51,7 +51,7 @@ export function PublicUploadLink({
         <div className="grid gap-3">
             {/* Le panneau vit dans une colonne étroite : tout s'empile, rien
                 n'est mis en concurrence sur une même ligne. */}
-            <div className="bg-background grid gap-2 rounded-lg border p-3">
+            <div className="bg-sidebar grid gap-2 rounded-lg border p-3">
                 <div className="grid gap-1">
                     <p className="text-muted-foreground text-xs">
                         Adresse de dépôt

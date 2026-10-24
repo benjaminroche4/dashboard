@@ -57,7 +57,6 @@ import {
     validateQuoteForm,
     type QuoteFormErrors,
 } from '@/lib/quote-form';
-import { index as toolsIndex } from '@/routes/tools';
 import {
     create as quotesCreate,
     index as quotesIndex,
@@ -946,7 +945,7 @@ export default function QuotesCreate({
 
 QuotesCreate.layout = {
     breadcrumbs: [
-        { title: 'Outils', href: toolsIndex() },
+        { title: 'Outils', href: quotesIndex() },
         { title: 'Devis', href: quotesIndex() },
         { title: 'Nouveau devis', href: '#' },
     ],

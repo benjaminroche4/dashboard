@@ -95,13 +95,13 @@ export function LeadInboundMessage({
             data-testid="lead-inbound"
             data-state={open ? 'open' : 'collapsed'}
             className={cn(
-                'bg-card grid gap-3 rounded-xl border p-4',
+                'bg-sidebar grid gap-3 rounded-xl border p-3',
                 className,
             )}
         >
-            {/* Même carte que les autres sections d'une fiche ; l'intitulé
+            {/* Même coquille que les autres sections d'une fiche ; l'intitulé
                 garde sa ligne de provenance et son bouton de repli. */}
-            <header className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+            <header className="flex flex-wrap items-center justify-between gap-2 px-1 pt-1">
                 <div className="grid min-w-0 gap-0.5">
                     <h2 className="text-muted-foreground text-xs tracking-wide uppercase">
                         {title}
@@ -134,7 +134,7 @@ export function LeadInboundMessage({
                 )}
             </header>
             {open && (
-                <>
+                <div className="bg-background grid gap-3 rounded-lg border p-4">
                     <blockquote className="text-sm whitespace-pre-line">
                         {inbound.body}
                     </blockquote>
@@ -189,7 +189,7 @@ export function LeadInboundMessage({
                             </Button>
                         )}
                     </div>
-                </>
+                </div>
             )}
         </section>
     );

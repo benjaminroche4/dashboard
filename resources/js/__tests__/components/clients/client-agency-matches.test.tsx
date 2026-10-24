@@ -79,10 +79,11 @@ describe('ClientAgencyMatches', () => {
         });
         const rows = within(card)
             .getAllByRole('listitem')
+            // Les agences sont des lignes séparées d'un filet, pas des cartes.
             .filter(
                 (item) =>
                     item.tagName === 'LI' &&
-                    item.classList.contains('bg-background'),
+                    item.parentElement?.tagName === 'OL',
             );
         expect(rows).toHaveLength(2);
         expect(

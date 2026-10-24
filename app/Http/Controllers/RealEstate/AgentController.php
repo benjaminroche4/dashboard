@@ -29,6 +29,7 @@ use App\Models\Agency;
 use App\Models\Agent;
 use App\Models\Lead;
 use App\Services\DistrictStaticMap;
+use App\Support\SearchSql;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -58,7 +59,7 @@ class AgentController extends Controller
             ->withMax('visits', 'scheduled_at')
             ->withFavoriteOf($user)
             ->when($search !== '', fn (Builder $query): Builder => $query->where(fn (Builder $where): Builder => $where
-                ->whereRaw("first_name || ' ' || last_name like ?", ["%{$search}%"])
+                ->where(SearchSql::fullName(), 'like', "%{$search}%")
                 ->orWhere('email', 'like', "%{$search}%")
                 ->orWhere('phone', 'like', "%{$search}%")
                 ->orWhere('city', 'like', "%{$search}%")
@@ -320,7 +321,7 @@ class AgentController extends Controller
         return response()->json(Agent::query()
             ->with('agency')
             ->where(function (Builder $builder) use ($query): void {
-                $builder->whereRaw("first_name || ' ' || last_name like ?", ["%{$query}%"])
+                $builder->where(SearchSql::fullName(), 'like', "%{$query}%")
                     ->orWhere('email', 'like', "%{$query}%")
                     ->orWhere('phone', 'like', "%{$query}%")
                     ->orWhereHas('agency', fn (Builder $agency) => $agency->where('name', 'like', "%{$query}%"));

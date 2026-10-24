@@ -49,6 +49,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int|null $created_by
  * @property int|null $lead_id
  * @property int|null $partner_id
+ * @property int|null $quote_id
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  */
@@ -56,7 +57,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'number', 'client_name', 'client_email', 'client_street', 'client_postal_code', 'client_city', 'client_country',
     'client_address', 'items', 'vat_rate', 'discount_percent', 'discount_cents',
     'subtotal_cents', 'vat_cents', 'amount_cents', 'deposit_cents', 'currency', 'status',
-    'issued_at', 'due_at', 'sent_at', 'paid_at', 'notes', 'created_by', 'lead_id', 'partner_id', 'bank_name', 'bank_iban', 'bank_bic', 'bank_reference',
+    'issued_at', 'due_at', 'sent_at', 'paid_at', 'notes', 'created_by', 'lead_id', 'partner_id', 'quote_id', 'bank_name', 'bank_iban', 'bank_bic', 'bank_reference',
 ])]
 class Invoice extends Model
 {
@@ -124,6 +125,16 @@ class Invoice extends Model
     public function partner(): BelongsTo
     {
         return $this->belongsTo(Partner::class);
+    }
+
+    /**
+     * Devis créé depuis cette facture quand elle a été transformée (et annulée).
+     *
+     * @return BelongsTo<Quote, $this>
+     */
+    public function quote(): BelongsTo
+    {
+        return $this->belongsTo(Quote::class);
     }
 
     /**

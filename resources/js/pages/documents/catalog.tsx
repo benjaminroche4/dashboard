@@ -1,3 +1,4 @@
+import { index as clientsIndex } from '@/routes/clients';
 import { Head, router } from '@inertiajs/react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
@@ -13,7 +14,6 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { categoryIcon } from '@/lib/document-category-icons';
-import { index as toolsIndex } from '@/routes/tools';
 import { index as documentsIndex } from '@/routes/tools/documents';
 import {
     destroy,
@@ -227,7 +227,7 @@ export default function DocumentsCatalog({ groups, categories }: Props) {
 
 DocumentsCatalog.layout = {
     breadcrumbs: [
-        { title: 'Outils', href: toolsIndex() },
+        { title: 'Clients', href: clientsIndex() },
         { title: 'Listes de pièces', href: documentsIndex() },
         { title: 'Catalogue des pièces', href: catalogIndex() },
     ],

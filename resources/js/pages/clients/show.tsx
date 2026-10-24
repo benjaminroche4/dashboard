@@ -443,32 +443,34 @@ export default function ClientShow({
                 </div>
                 <section
                     aria-label="Chiffres du dossier"
-                    className="grid grid-cols-1 rounded-xl border px-4 sm:grid-cols-3"
+                    className="bg-sidebar rounded-xl border p-3"
                 >
-                    <Stat label="Arrivée">
-                        {client.arrival_at ? (
-                            // Même barre d'avancement que la liste des dossiers.
-                            <ArrivalProgress
-                                convertedAt={client.converted_at}
-                                arrivalAt={client.arrival_at}
-                            />
-                        ) : (
-                            <p className="text-xl font-semibold tabular-nums">
-                                —
-                            </p>
-                        )}
-                    </Stat>
-                    {/* Où en est la recherche, plutôt que la facturation :
+                    <div className="bg-background grid grid-cols-1 rounded-lg border px-4 sm:grid-cols-3">
+                        <Stat label="Arrivée">
+                            {client.arrival_at ? (
+                                // Même barre d'avancement que la liste des dossiers.
+                                <ArrivalProgress
+                                    convertedAt={client.converted_at}
+                                    arrivalAt={client.arrival_at}
+                                />
+                            ) : (
+                                <p className="text-xl font-semibold tabular-nums">
+                                    —
+                                </p>
+                            )}
+                        </Stat>
+                        {/* Où en est la recherche, plutôt que la facturation :
                         elle a ses propres sections. */}
-                    <Stat
-                        label="Visites réalisées"
-                        value={String(progress.visits_done)}
-                    />
-                    <Stat
-                        label="Biens refusés"
-                        hint="Les logements que le client a écartés lui-même. Une candidature refusée par l’agence ou le propriétaire n’est pas comptée ici."
-                        value={String(progress.properties_refused)}
-                    />
+                        <Stat
+                            label="Visites réalisées"
+                            value={String(progress.visits_done)}
+                        />
+                        <Stat
+                            label="Biens refusés"
+                            hint="Les logements que le client a écartés lui-même. Une candidature refusée par l’agence ou le propriétaire n’est pas comptée ici."
+                            value={String(progress.properties_refused)}
+                        />
+                    </div>
                 </section>
                 {closed && (
                     <div

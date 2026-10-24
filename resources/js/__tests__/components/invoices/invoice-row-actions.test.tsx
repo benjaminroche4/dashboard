@@ -58,4 +58,57 @@ describe('InvoiceRowActions', () => {
             'Marquer RP-27001 comme payée',
         );
     });
+
+    it('offers the quote conversion to managers only and links an existing quote', async () => {
+        const user = userEvent.setup();
+        const { rerender } = render(
+            <InvoiceRowActions invoice={makeInvoice({ can_quote: true })} />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Actions pour RP-27001' }),
+        );
+        expect(
+            screen.queryByRole('menuitem', { name: 'Transformer en devis' }),
+        ).not.toBeInTheDocument();
+        await user.keyboard('{Escape}');
+
+        rerender(
+            <InvoiceRowActions
+                invoice={makeInvoice({
+                    can_quote: false,
+                    quote: { id: 7, uuid: 'q-uuid', number: 'DV-27007' },
+                })}
+                canManage
+            />,
+        );
+        await user.click(
+            screen.getByRole('button', { name: 'Actions pour RP-27001' }),
+        );
+        expect(
+            screen.queryByRole('menuitem', { name: 'Transformer en devis' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('menuitem', { name: 'Voir le devis DV-27007' }),
+        ).toHaveAttribute('href', '/tools/quotes/q-uuid');
+        await user.keyboard('{Escape}');
+
+        rerender(
+            <InvoiceRowActions
+                invoice={makeInvoice({ can_quote: true })}
+                canManage
+            />,
+        );
+        await user.click(
+            screen.getByRole('button', { name: 'Actions pour RP-27001' }),
+        );
+        await user.click(
+            screen.getByRole('menuitem', { name: 'Transformer en devis' }),
+        );
+        expect(
+            screen.getByRole('dialog', {
+                name: 'Transformer RP-27001 en devis',
+            }),
+        ).toBeInTheDocument();
+    });
 });

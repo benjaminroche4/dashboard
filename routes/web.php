@@ -1,10 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Http\Controllers\Auth\GoogleLoginController;
 use App\Http\Controllers\Clients\ClientAgencyController;
 use App\Http\Controllers\Clients\ClientController;
 use App\Http\Controllers\Clients\ClientPropertyController;
 use App\Http\Controllers\Clients\VisitController;
+use App\Http\Controllers\Companies\CompanyClientController;
+use App\Http\Controllers\Companies\CompanyContactController;
+use App\Http\Controllers\Companies\CompanyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Documents\CatalogDocumentController;
 use App\Http\Controllers\Documents\DocumentRequestController;
@@ -23,6 +28,7 @@ use App\Http\Controllers\Quotes\QuoteController;
 use App\Http\Controllers\RealEstate\AgencyController;
 use App\Http\Controllers\RealEstate\AgentController;
 use App\Http\Controllers\Reports\ReportController;
+use App\Http\Controllers\SearchController;
 use App\Http\Controllers\Tools\ActivityController;
 use App\Http\Controllers\Webhooks\AlloWebhookController;
 use App\Http\Controllers\Webhooks\WebsiteContactController;
@@ -73,7 +79,8 @@ Route::get('depot/{documentRequest:public_token}/fichiers/{upload}', [PublicDocu
 
 Route::middleware(['auth'])->group(function (): void {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
-    Route::inertia('tools', 'tools/index')->name('tools.index');
+    // Recherche unifiée ⌘K : route libre, l'Action ne lit que les sections ouvertes au membre.
+    Route::get('search', SearchController::class)->middleware('throttle:120,1')->name('search');
     Route::get('tools/documents', [DocumentRequestController::class, 'index'])->name('tools.documents.index');
     Route::get('tools/documents/create', [DocumentRequestController::class, 'create'])->name('tools.documents.create');
     Route::post('tools/documents', [DocumentRequestController::class, 'store'])->name('tools.documents.store');
@@ -116,6 +123,8 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('tools/reports', [ReportController::class, 'index'])->name('tools.reports.index');
     // Journal d'activité : toutes les actions du backoffice (droits de la section Rapports).
     Route::get('tools/activity', [ActivityController::class, 'index'])->name('tools.activity.index');
+    // Les dix dernières actions, pour le menu de la cloche de l'en-tête.
+    Route::get('tools/activity/recent', [ActivityController::class, 'recent'])->middleware('throttle:60,1')->name('tools.activity.recent');
     Route::get('tools/quotes', [QuoteController::class, 'index'])->name('tools.quotes.index');
     Route::get('tools/quotes/search', [QuoteController::class, 'search'])->middleware('throttle:60,1')->name('tools.quotes.search');
     Route::get('tools/quotes/create', [QuoteController::class, 'create'])->name('tools.quotes.create');
@@ -191,6 +200,23 @@ Route::middleware(['auth'])->group(function (): void {
     Route::post('partners/{partner}/contacts', [PartnerContactController::class, 'store'])->name('partners.contacts.store');
     Route::patch('partners/{partner}/contacts/{contact}', [PartnerContactController::class, 'update'])->scopeBindings()->name('partners.contacts.update');
     Route::delete('partners/{partner}/contacts/{contact}', [PartnerContactController::class, 'destroy'])->scopeBindings()->name('partners.contacts.destroy');
+
+    // Entreprises : annuaire des employeurs et sociétés qui nous confient leurs collaborateurs.
+    Route::get('companies', [CompanyController::class, 'index'])->name('companies.index');
+    Route::get('companies/duplicates', [CompanyController::class, 'duplicates'])->middleware('throttle:60,1')->name('companies.duplicates');
+    Route::get('companies/search', [CompanyController::class, 'search'])->middleware('throttle:60,1')->name('companies.search');
+    Route::post('companies', [CompanyController::class, 'store'])->name('companies.store');
+    Route::get('companies/{company}', [CompanyController::class, 'show'])->name('companies.show');
+    Route::patch('companies/{company}', [CompanyController::class, 'update'])->name('companies.update');
+    Route::delete('companies/{company}', [CompanyController::class, 'destroy'])->name('companies.destroy');
+    Route::post('companies/{company}/follow-up', [CompanyController::class, 'followUp'])->middleware('throttle:20,1')->name('companies.follow-up');
+    Route::post('companies/{company}/logo', [CompanyController::class, 'updateLogo'])->name('companies.logo.update');
+    Route::delete('companies/{company}/logo', [CompanyController::class, 'destroyLogo'])->name('companies.logo.destroy');
+    Route::post('companies/{company}/contacts', [CompanyContactController::class, 'store'])->name('companies.contacts.store');
+    Route::patch('companies/{company}/contacts/{contact}', [CompanyContactController::class, 'update'])->scopeBindings()->name('companies.contacts.update');
+    Route::delete('companies/{company}/contacts/{contact}', [CompanyContactController::class, 'destroy'])->scopeBindings()->name('companies.contacts.destroy');
+    Route::post('companies/{company}/clients', [CompanyClientController::class, 'store'])->name('companies.clients.store');
+    Route::delete('companies/{company}/clients/{lead}', [CompanyClientController::class, 'destroy'])->name('companies.clients.destroy');
     Route::get('clients', [ClientController::class, 'index'])->name('clients.index');
     // Dossier client ouvert sans passer par un lead (recommandation, client déjà signé).
     Route::post('clients', [ClientController::class, 'store'])->name('clients.store');
@@ -287,6 +313,7 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
     Route::post('invoices/{invoice}/send', [InvoiceController::class, 'send'])->name('invoices.send');
     Route::post('invoices/{invoice}/pay', [InvoiceController::class, 'pay'])->name('invoices.pay');
+    Route::post('invoices/{invoice}/quote', [InvoiceController::class, 'quote'])->name('invoices.quote');
     Route::patch('invoices/{invoice}/lead', [InvoiceController::class, 'link'])->name('invoices.link');
     Route::get('invoices/{invoice}/edit', [InvoiceController::class, 'edit'])->name('invoices.edit');
     Route::put('invoices/{invoice}', [InvoiceController::class, 'update'])->name('invoices.update');

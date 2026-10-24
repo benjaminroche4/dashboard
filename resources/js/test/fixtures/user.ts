@@ -86,6 +86,7 @@ export const memberAccess: AccessMap = {
     visits: 'write',
     agents: 'write',
     partners: 'write',
+    companies: 'write',
     owners: 'write',
     properties: 'write',
     quotes: 'read',
@@ -195,8 +196,15 @@ export const siteSections: SiteSectionOption[] = [
     {
         value: 'partners',
         label: 'Partenaires',
-        group: 'Réseau',
+        group: 'Annuaire',
         manage_hint: 'supprimer un partenaire',
+        has_manage: true,
+    },
+    {
+        value: 'companies',
+        label: 'Entreprises',
+        group: 'Annuaire',
+        manage_hint: 'supprimer une entreprise',
         has_manage: true,
     },
     {

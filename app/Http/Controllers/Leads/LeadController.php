@@ -70,6 +70,8 @@ use App\Models\Quote;
 use App\Models\User;
 use App\Services\PaymentLinks;
 use App\Services\Yousign;
+use App\Support\PersonName;
+use App\Support\SearchSql;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
@@ -236,7 +238,7 @@ class LeadController extends Controller
 
         $leads = Lead::query()
             ->where(function ($builder) use ($query): void {
-                $builder->whereRaw("first_name || ' ' || last_name like ?", ["%{$query}%"])
+                $builder->where(SearchSql::fullName(), 'like', "%{$query}%")
                     ->orWhere('email', 'like', "%{$query}%")
                     ->orWhere('phone', 'like', "%{$query}%")
                     ->orWhere('reference', 'like', "%{$query}%")
@@ -270,7 +272,18 @@ class LeadController extends Controller
         // `?segment=owner` (menu Propriétaires) : le lead rejoint « Leads propriétaires ».
         $segment = LeadSegment::tryFrom((string) $request->query('segment')) ?? LeadSegment::Tenant;
 
-        return Inertia::render('leads/create', [...$this->formProps(), 'segment' => $segment->value]);
+        // `?name=Léa Durand` (palette ⌘K sans résultat) : le nom est déjà saisi.
+        $name = trim((string) $request->query('name', ''));
+        $words = $name === '' ? [] : (preg_split('/\s+/', PersonName::capitalize($name)) ?: []);
+
+        return Inertia::render('leads/create', [
+            ...$this->formProps(),
+            'segment' => $segment->value,
+            'prefill' => $words === [] ? null : [
+                'first_name' => $words[0],
+                'last_name' => implode(' ', array_slice($words, 1)),
+            ],
+        ]);
     }
 
     public function store(StoreLeadRequest $request, CreateLead $createLead): RedirectResponse

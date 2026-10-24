@@ -40,7 +40,7 @@ export default function PropertyEdit({
 
 PropertyEdit.layout = {
     breadcrumbs: [
-        { title: 'Réseau', href: propertiesIndex() },
+        { title: 'Annuaire', href: propertiesIndex() },
         { title: 'Biens', href: propertiesIndex() },
         // Le dernier fil dit ce qu'on fait, comme « Nouvelle facture » ou « Nouveau devis ».
         { title: 'Nouveau bien', href: propertyCreate() },

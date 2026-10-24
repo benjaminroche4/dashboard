@@ -1,24 +1,31 @@
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import {
+    Briefcase,
+    Building2,
+    CalendarClock,
+    CalendarPlus,
+    ChartPie,
     Contact,
     FileSignature,
     FileText,
+    FolderOpen,
+    Handshake,
+    History,
     Home,
+    HousePlus,
     KeyRound,
     LayoutGrid,
     Palette,
+    Receipt,
     Search,
     ShieldCheck,
     Sparkles,
     UserCircle,
-    Building2,
-    CalendarClock,
-    Handshake,
-    House,
     UserRound,
+    Users,
+    UsersRound,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { search as leadsSearch } from '@/routes/leads';
 import {
     CommandDialog,
     CommandEmpty,
@@ -28,138 +35,184 @@ import {
     CommandList,
     CommandShortcut,
 } from '@/components/ui/command';
-import { dashboard } from '@/routes';
-import { edit as editAppearance } from '@/routes/appearance';
+import { useStoredState } from '@/hooks/use-stored-state';
+import { dashboard, search as unifiedSearch } from '@/routes';
 import { index as agenciesIndex } from '@/routes/agencies';
 import { index as agentsIndex } from '@/routes/agents';
+import { edit as editAppearance } from '@/routes/appearance';
 import {
-    index as invoicesIndex,
-    search as invoicesSearch,
-} from '@/routes/invoices';
-import { search as quotesSearch } from '@/routes/tools/quotes';
-import { search as agenciesSearch } from '@/routes/agencies';
-import { search as agentsSearch } from '@/routes/agents';
-import { search as ownersSearch } from '@/routes/owners';
-import {
-    index as partnersIndex,
-    search as partnersSearch,
-} from '@/routes/partners';
-import {
-    index as propertiesIndex,
-    search as propertiesSearch,
-} from '@/routes/properties';
-import { visits as clientsVisits } from '@/routes/clients';
-import { formatMoney } from '@/lib/format';
-import { partnerTypeIcons } from '@/lib/partner-type-icons';
-import type { PartnerType } from '@/types';
+    index as clientsIndex,
+    visits as clientsVisits,
+} from '@/routes/clients';
+import { create as visitCreate } from '@/routes/clients/visits';
+import { index as companiesIndex } from '@/routes/companies';
+import { index as invoicesIndex } from '@/routes/invoices';
 import { create as leadsCreate, index as leadsIndex } from '@/routes/leads';
+import { index as ownersIndex, leads as ownersLeads } from '@/routes/owners';
+import { create as ownerLeadCreate } from '@/routes/owners/leads';
+import { index as partnersIndex } from '@/routes/partners';
 import { edit as editProfile } from '@/routes/profile';
+import {
+    create as propertyCreate,
+    index as propertiesIndex,
+} from '@/routes/properties';
 import { edit as editSecurity } from '@/routes/security';
+import { index as teamIndex } from '@/routes/team';
+import { index as activityIndex } from '@/routes/tools/activity';
+import {
+    create as documentCreate,
+    index as documentsIndex,
+} from '@/routes/tools/documents';
+import { index as quotesIndex } from '@/routes/tools/quotes';
+import { index as reportsIndex } from '@/routes/tools/reports';
+import type {
+    AccessMap,
+    SearchGroup,
+    SearchHit,
+    SearchResponse,
+    SiteSection,
+} from '@/types';
 
-type LeadHit = {
-    id: number;
-    reference: string | null;
-    name: string;
-    email: string | null;
-    company: string | null;
-    status_label: string;
-    url: string;
-};
+type Icon = typeof LayoutGrid;
 
-type PartnerHit = {
-    id: number;
-    uuid: string;
-    name: string;
-    type: PartnerType;
-    type_label: string;
-    contact: string | null;
-    url: string;
-};
-
-type InvoiceHit = {
-    id: number;
-    uuid: string;
-    number: string;
-    client_name: string;
-    amount_cents: number;
-    currency: string;
-    status_label: string;
-    url: string;
-};
-
-/** Forme commune des résultats des devis, des biens et des propriétaires. */
-type SearchHit = {
-    id: number;
-    uuid: string;
-    title: string;
-    subtitle: string | null;
-    url: string;
-};
-
-type Destination = {
+export type Destination = {
     title: string;
     keywords: string;
     url: string;
-    icon: typeof LayoutGrid;
+    icon: Icon;
     shortcut?: string;
+    /** Section qui ouvre la page ; absente = page libre (Aujourd'hui, paramètres). */
+    section?: SiteSection;
+    /** Réservée aux administrateurs (page Équipe). */
+    admin?: boolean;
+    /** Une création : listée sous « Créer », pas sous « Pages ». */
+    create?: boolean;
 };
 
-// Pages accessibles depuis la recherche. Les futures pages s'ajoutent ici.
-const destinations: Destination[] = [
+/**
+ * Pages et créations accessibles depuis la palette. **Toute page du menu doit
+ * y figurer** : `__tests__/components/search-command.test.tsx` compare cette
+ * liste aux liens de la sidebar et échoue dès qu'une page manque.
+ */
+export const destinations: Destination[] = [
     {
-        title: 'Tableau de bord',
-        keywords: 'accueil dashboard',
+        title: 'Aujourd’hui',
+        keywords: 'accueil dashboard tableau de bord',
         url: dashboard().url,
         icon: LayoutGrid,
         shortcut: '⌘D',
     },
     {
-        title: 'Leads',
-        keywords: 'kanban prospects clients statut suivi',
+        title: 'Leads locataires',
+        keywords: 'kanban prospects statut suivi',
         url: leadsIndex().url,
         icon: Contact,
+        section: 'leads',
     },
     {
-        title: 'Nouveau lead',
-        keywords: 'lead prospect nouveau formulaire qualification',
-        url: leadsCreate().url,
-        icon: Sparkles,
+        title: 'Leads propriétaires',
+        keywords: 'kanban prospection gestion locative',
+        url: ownersLeads().url,
+        icon: KeyRound,
+        section: 'owner_leads',
     },
     {
-        title: 'Factures',
-        keywords: 'leads facturation paiement',
-        url: invoicesIndex().url,
-        icon: FileText,
+        title: 'Dossiers clients',
+        keywords: 'client dossier converti',
+        url: clientsIndex().url,
+        icon: Users,
+        section: 'clients',
+    },
+    {
+        title: 'Visites',
+        keywords: 'visite client bien rendez-vous tournée',
+        url: clientsVisits().url,
+        icon: CalendarClock,
+        section: 'visits',
     },
     {
         title: 'Agents immobiliers',
-        keywords: 'agent immobilier négociateur partenaire',
+        keywords: 'agent immobilier négociateur',
         url: agentsIndex().url,
-        icon: Building2,
+        icon: UserRound,
+        section: 'agents',
     },
     {
         title: 'Agences immobilières',
-        keywords: 'agence immobilière partenaire',
+        keywords: 'agence immobilière',
         url: agenciesIndex().url,
         icon: Building2,
+        section: 'agents',
     },
     {
         title: 'Partenaires',
         keywords: 'partenaire gestion assurance banque déménagement',
         url: partnersIndex().url,
         icon: Handshake,
+        section: 'partners',
+    },
+    {
+        title: 'Entreprises',
+        keywords: 'entreprise société employeur rh relocation',
+        url: companiesIndex().url,
+        icon: Briefcase,
+        section: 'companies',
+    },
+    {
+        title: 'Propriétaires',
+        keywords: 'propriétaire annuaire bailleur',
+        url: ownersIndex().url,
+        icon: KeyRound,
+        section: 'owners',
     },
     {
         title: 'Biens',
-        keywords: 'bien logement appartement annonce visite',
+        keywords: 'bien logement appartement annonce',
         url: propertiesIndex().url,
-        icon: House,
+        icon: Home,
+        section: 'properties',
     },
     {
-        title: 'Visites',
-        keywords: 'visite client bien rendez-vous',
-        url: clientsVisits().url,
-        icon: CalendarClock,
+        title: 'Devis',
+        keywords: 'devis chiffrage offre',
+        url: quotesIndex().url,
+        icon: FileSignature,
+        section: 'quotes',
+    },
+    {
+        title: 'Factures',
+        keywords: 'facture facturation paiement',
+        url: invoicesIndex().url,
+        icon: Receipt,
+        section: 'invoices',
+    },
+    {
+        title: 'Listes de pièces',
+        keywords: 'documents pièces justificatifs dépôt',
+        url: documentsIndex().url,
+        icon: FileText,
+        section: 'documents',
+    },
+    {
+        title: 'Rapports',
+        keywords: 'rapport statistiques chiffres',
+        url: reportsIndex().url,
+        icon: ChartPie,
+        section: 'reports',
+    },
+    {
+        title: 'Journal d’activité',
+        keywords: 'journal activité historique actions',
+        url: activityIndex().url,
+        icon: History,
+        section: 'activity',
+    },
+    {
+        title: 'Équipe',
+        keywords: 'équipe membres droits accès',
+        url: teamIndex().url,
+        icon: UsersRound,
+        admin: true,
     },
     {
         title: 'Mon compte',
@@ -180,74 +233,202 @@ const destinations: Destination[] = [
         url: editAppearance().url,
         icon: Palette,
     },
+    // Créations : ce que le menu ne porte plus, la palette le garde.
+    {
+        title: 'Nouveau lead locataire',
+        keywords: 'lead prospect nouveau formulaire qualification créer',
+        url: leadsCreate().url,
+        icon: Sparkles,
+        section: 'leads_create',
+        create: true,
+    },
+    {
+        title: 'Nouveau lead propriétaire',
+        keywords: 'lead propriétaire nouveau gestion locative créer',
+        url: ownerLeadCreate().url,
+        icon: Sparkles,
+        section: 'owner_leads_create',
+        create: true,
+    },
+    {
+        title: 'Nouveau bien',
+        keywords: 'bien logement ajouter annonce créer',
+        url: propertyCreate().url,
+        icon: HousePlus,
+        section: 'properties',
+        create: true,
+    },
+    {
+        title: 'Planifier une visite',
+        keywords: 'visite planifier rendez-vous créer',
+        url: visitCreate().url,
+        icon: CalendarPlus,
+        section: 'visits',
+        create: true,
+    },
+    {
+        title: 'Nouvelle liste de pièces',
+        keywords: 'documents pièces liste créer',
+        url: documentCreate().url,
+        icon: FileText,
+        section: 'documents',
+        create: true,
+    },
 ];
 
-/** Interroge une source de recherche ; toute erreur (HTTP, réseau, abandon) vaut une liste vide. */
-async function fetchHits(url: string, signal: AbortSignal): Promise<unknown[]> {
-    try {
-        const response = await fetch(url, {
-            credentials: 'same-origin',
-            headers: { Accept: 'application/json' },
-            signal,
-        });
+/** Icône par groupe de résultats. */
+const kindIcons: Record<string, Icon> = {
+    clients: FolderOpen,
+    leads: Contact,
+    visits: CalendarClock,
+    partners: Handshake,
+    companies: Briefcase,
+    agents: UserRound,
+    agencies: Building2,
+    owners: KeyRound,
+    properties: Home,
+    quotes: FileSignature,
+    invoices: Receipt,
+};
 
-        if (!response.ok) {
-            return [];
+/** Sans accent ni majuscule, pour le filtre local des pages. */
+export function normalize(text: string): string {
+    return text
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .toLowerCase();
+}
+
+/** Pages ouvertes au membre : section au moins consultable, et admin pour l'Équipe. */
+export function visibleDestinations(
+    access: AccessMap | null | undefined,
+    manageStaff: boolean,
+): Destination[] {
+    return destinations.filter((destination) => {
+        if (destination.admin && !manageStaff) {
+            return false;
         }
 
-        const hits: unknown = await response.json();
+        if (destination.section && access) {
+            return access[destination.section] !== 'none';
+        }
 
-        return Array.isArray(hits) ? hits : [];
+        return true;
+    });
+}
+
+/** Filtre local des pages, insensible aux accents : le serveur ne les connaît pas. */
+export function matchDestinations(
+    list: Destination[],
+    query: string,
+): Destination[] {
+    const needle = normalize(query.trim());
+
+    if (needle === '') {
+        return list;
+    }
+
+    return list.filter((destination) =>
+        normalize(`${destination.title} ${destination.keywords}`).includes(
+            needle,
+        ),
+    );
+}
+
+/** Fiches ouvertes depuis la palette, les plus récentes d'abord. */
+export const RECENT_LIMIT = 6;
+
+export function rememberRecent(
+    recent: SearchHit[],
+    hit: SearchHit,
+): SearchHit[] {
+    return [hit, ...recent.filter((item) => item.url !== hit.url)].slice(
+        0,
+        RECENT_LIMIT,
+    );
+}
+
+type Feed =
+    | { state: 'idle' }
+    | { state: 'loading' }
+    | { state: 'ready'; data: SearchResponse };
+
+async function fetchSearch(
+    needle: string,
+    signal: AbortSignal,
+): Promise<SearchResponse> {
+    const empty: SearchResponse = { groups: [], mine: [] };
+
+    try {
+        const response = await fetch(
+            unifiedSearch({ query: { q: needle } }).url,
+            {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json' },
+                signal,
+            },
+        );
+
+        if (!response.ok) {
+            return empty;
+        }
+
+        const data = (await response.json()) as Partial<SearchResponse>;
+
+        return {
+            groups: Array.isArray(data.groups) ? data.groups : [],
+            mine: Array.isArray(data.mine) ? data.mine : [],
+        };
     } catch {
-        return [];
+        return empty;
     }
 }
 
-/** Groupe de résultats au format commun (titre, sous-titre, fiche). */
-function HitGroup({
-    heading,
-    kind,
-    icon: Icon,
-    hits,
+function HitRow({
+    hit,
     onSelect,
 }: {
-    heading: string;
-    kind: string;
-    icon: typeof LayoutGrid;
-    hits: SearchHit[];
-    onSelect: (url: string) => void;
+    hit: SearchHit;
+    onSelect: (hit: SearchHit) => void;
 }) {
-    if (hits.length === 0) {
-        return null;
-    }
+    const Icon = kindIcons[hit.kind] ?? Search;
 
     return (
-        <CommandGroup heading={heading}>
-            {hits.map((hit) => (
-                <CommandItem
-                    key={hit.uuid}
-                    value={`${kind} ${hit.title} ${hit.subtitle ?? ''}`}
-                    onSelect={() => onSelect(hit.url)}
-                >
-                    <Icon />
-                    <span className="truncate">{hit.title}</span>
-                    {hit.subtitle && (
-                        <span className="text-muted-foreground ml-auto truncate text-xs">
-                            {hit.subtitle}
-                        </span>
-                    )}
-                </CommandItem>
-            ))}
-        </CommandGroup>
+        <CommandItem
+            value={`${hit.kind}-${hit.uuid}`}
+            onSelect={() => onSelect(hit)}
+        >
+            <Icon />
+            <span className="truncate">
+                <span>{hit.title}</span>
+                {hit.subtitle && (
+                    <span className="text-muted-foreground">
+                        {' '}
+                        · {hit.subtitle}
+                    </span>
+                )}
+            </span>
+            {hit.meta && (
+                <span className="text-muted-foreground ml-auto shrink-0 truncate text-xs">
+                    {hit.meta}
+                </span>
+            )}
+        </CommandItem>
     );
 }
 
 /**
  * Champ de recherche de l'en-tête : un clic (ou ⌘K / Ctrl+K) ouvre une
- * palette de commandes pour naviguer dans le backoffice.
+ * palette de commandes. Une seule requête interroge tous les annuaires
+ * ouverts au membre (`search`) ; les pages et les créations se filtrent ici.
  */
 export function SearchCommand() {
     const [open, setOpen] = useState(false);
+    const { auth } = usePage().props;
+    const pages = visibleDestinations(
+        auth?.access ?? null,
+        auth?.can?.manageStaff ?? false,
+    );
 
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
@@ -266,66 +447,73 @@ export function SearchCommand() {
     }, []);
 
     const [query, setQuery] = useState('');
-    const [leads, setLeads] = useState<LeadHit[]>([]);
-    const [partners, setPartners] = useState<PartnerHit[]>([]);
-    const [invoices, setInvoices] = useState<InvoiceHit[]>([]);
-    const [quotes, setQuotes] = useState<SearchHit[]>([]);
-    const [properties, setProperties] = useState<SearchHit[]>([]);
-    const [owners, setOwners] = useState<SearchHit[]>([]);
-    const [agents, setAgents] = useState<SearchHit[]>([]);
-    const [agencies, setAgencies] = useState<SearchHit[]>([]);
+    const [feed, setFeed] = useState<Feed>({ state: 'idle' });
+    const [recent, setRecent] = useStoredState<SearchHit[]>(
+        'search.recent',
+        [],
+    );
 
-    // Recherche côté serveur, toutes les sources en parallèle, avec un léger
-    // délai pour ne pas spammer. Une source refusée (section fermée, 403) ou en
-    // erreur renvoie une liste vide sans gêner les autres.
+    // Une requête, avec un léger délai pour ne pas spammer ; à vide, le
+    // serveur renvoie « mes dossiers ».
     useEffect(() => {
-        const needle = query.trim();
-
-        if (needle.length < 2) {
-            setLeads([]);
-            setPartners([]);
-            setInvoices([]);
-            setQuotes([]);
-            setProperties([]);
-            setOwners([]);
-            setAgents([]);
-            setAgencies([]);
-
+        if (!open) {
             return;
         }
 
+        const needle = query.trim();
         const controller = new AbortController();
-        const timer = setTimeout(() => {
-            const q = { query: { q: needle } };
-            const load = <T,>(url: string, apply: (hits: T[]) => void) =>
-                fetchHits(url, controller.signal).then((hits) => {
+        setFeed({ state: 'loading' });
+        const timer = setTimeout(
+            () => {
+                void fetchSearch(needle, controller.signal).then((data) => {
                     if (!controller.signal.aborted) {
-                        apply(hits as T[]);
+                        setFeed({ state: 'ready', data });
                     }
                 });
-
-            void Promise.allSettled([
-                load<LeadHit>(leadsSearch(q).url, setLeads),
-                load<PartnerHit>(partnersSearch(q).url, setPartners),
-                load<InvoiceHit>(invoicesSearch(q).url, setInvoices),
-                load<SearchHit>(quotesSearch(q).url, setQuotes),
-                load<SearchHit>(propertiesSearch(q).url, setProperties),
-                load<SearchHit>(ownersSearch(q).url, setOwners),
-                load<SearchHit>(agentsSearch(q).url, setAgents),
-                load<SearchHit>(agenciesSearch(q).url, setAgencies),
-            ]);
-        }, 200);
+            },
+            needle === '' ? 0 : 200,
+        );
 
         return () => {
             clearTimeout(timer);
             controller.abort();
         };
-    }, [query]);
+    }, [query, open]);
 
     const go = useCallback((url: string) => {
         setOpen(false);
         router.visit(url);
     }, []);
+
+    const openHit = useCallback(
+        (hit: SearchHit) => {
+            setRecent((current) => rememberRecent(current, hit));
+            go(hit.url);
+        },
+        [go, setRecent],
+    );
+
+    const needle = query.trim();
+    const searching = needle.length >= 2;
+    const groups: SearchGroup[] =
+        feed.state === 'ready' && searching ? feed.data.groups : [];
+    const mine: SearchHit[] =
+        feed.state === 'ready' && !searching ? feed.data.mine : [];
+    const matchedPages = matchDestinations(
+        pages.filter((page) => !page.create),
+        query,
+    );
+    const matchedCreates = matchDestinations(
+        pages.filter((page) => page.create),
+        query,
+    );
+    const loading = searching && feed.state !== 'ready';
+    const nothing =
+        !loading &&
+        groups.length === 0 &&
+        matchedPages.length === 0 &&
+        matchedCreates.length === 0;
+    const canCreateLead = pages.some((page) => page.section === 'leads_create');
 
     return (
         <>
@@ -348,153 +536,111 @@ export function SearchCommand() {
                 onOpenChange={setOpen}
                 title="Recherche"
                 description="Naviguer dans le backoffice"
+                // Les résultats viennent déjà filtrés du serveur ; cmdk ne les
+                // refiltre pas (« lea » doit garder « Léa »), les pages le sont ici.
+                shouldFilter={false}
             >
                 <CommandInput
-                    placeholder="Rechercher une page, un lead ou un partenaire…"
+                    placeholder="Rechercher un nom, une référence, un téléphone, une adresse…"
                     value={query}
                     onValueChange={setQuery}
                 />
                 <CommandList>
-                    <CommandEmpty>Aucun résultat.</CommandEmpty>
-                    {leads.length > 0 && (
-                        <CommandGroup heading="Leads">
-                            {leads.map((lead) => (
-                                <CommandItem
-                                    key={lead.id}
-                                    value={`lead ${lead.name} ${lead.email ?? ''} ${lead.reference ?? ''} ${lead.company ?? ''}`}
-                                    onSelect={() => go(lead.url)}
-                                >
-                                    <Contact />
-                                    <span className="truncate">
-                                        {lead.name}
-                                        {lead.company && (
-                                            <span className="text-muted-foreground">
-                                                {' '}
-                                                · {lead.company}
-                                            </span>
-                                        )}
-                                    </span>
-                                    {lead.reference && (
-                                        <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
-                                            {lead.reference}
-                                        </span>
-                                    )}
-                                    <span className="text-muted-foreground ml-auto truncate text-xs">
-                                        {lead.status_label}
-                                    </span>
-                                </CommandItem>
-                            ))}
-                        </CommandGroup>
+                    {loading && (
+                        <p
+                            role="status"
+                            className="text-muted-foreground px-4 py-6 text-center text-sm"
+                        >
+                            Recherche…
+                        </p>
                     )}
-                    {partners.length > 0 && (
-                        <CommandGroup heading="Partenaires">
-                            {partners.map((partner) => {
-                                const Icon =
-                                    partnerTypeIcons[partner.type] ?? Handshake;
-
-                                return (
-                                    <CommandItem
-                                        key={partner.uuid}
-                                        value={`partenaire ${partner.name} ${partner.contact ?? ''} ${partner.type_label}`}
-                                        onSelect={() => go(partner.url)}
-                                    >
-                                        <Icon />
-                                        <span className="truncate">
-                                            {partner.name}
-                                            {partner.contact && (
-                                                <span className="text-muted-foreground">
-                                                    {' '}
-                                                    · {partner.contact}
-                                                </span>
-                                            )}
-                                        </span>
-                                        <span className="text-muted-foreground ml-auto truncate text-xs">
-                                            {partner.type_label}
-                                        </span>
-                                    </CommandItem>
-                                );
-                            })}
-                        </CommandGroup>
-                    )}
-                    {invoices.length > 0 && (
-                        <CommandGroup heading="Factures">
-                            {invoices.map((invoice) => (
-                                <CommandItem
-                                    key={invoice.uuid}
-                                    value={`facture ${invoice.number} ${invoice.client_name}`}
-                                    onSelect={() => go(invoice.url)}
-                                >
-                                    <FileText />
-                                    <span className="truncate">
-                                        {invoice.number}
-                                        <span className="text-muted-foreground">
-                                            {' '}
-                                            · {invoice.client_name} ·{' '}
-                                            {formatMoney(
-                                                invoice.amount_cents,
-                                                invoice.currency,
-                                            )}
-                                        </span>
-                                    </span>
-                                    <span className="text-muted-foreground ml-auto truncate text-xs">
-                                        {invoice.status_label}
-                                    </span>
-                                </CommandItem>
-                            ))}
-                        </CommandGroup>
-                    )}
-                    <HitGroup
-                        heading="Devis"
-                        kind="devis"
-                        icon={FileSignature}
-                        hits={quotes}
-                        onSelect={go}
-                    />
-                    <HitGroup
-                        heading="Biens"
-                        kind="bien"
-                        icon={Home}
-                        hits={properties}
-                        onSelect={go}
-                    />
-                    <HitGroup
-                        heading="Propriétaires"
-                        kind="propriétaire"
-                        icon={KeyRound}
-                        hits={owners}
-                        onSelect={go}
-                    />
-                    <HitGroup
-                        heading="Agents"
-                        kind="agent"
-                        icon={UserRound}
-                        hits={agents}
-                        onSelect={go}
-                    />
-                    <HitGroup
-                        heading="Agences"
-                        kind="agence"
-                        icon={Building2}
-                        hits={agencies}
-                        onSelect={go}
-                    />
-                    <CommandGroup heading="Pages">
-                        {destinations.map((destination) => (
+                    {nothing && <CommandEmpty>Aucun résultat.</CommandEmpty>}
+                    {searching && !loading && canCreateLead && (
+                        <CommandGroup heading="Créer">
                             <CommandItem
-                                key={destination.url}
-                                value={`${destination.title} ${destination.keywords}`}
-                                onSelect={() => go(destination.url)}
+                                value="create-lead"
+                                onSelect={() =>
+                                    go(
+                                        leadsCreate({ query: { name: needle } })
+                                            .url,
+                                    )
+                                }
                             >
-                                <destination.icon />
-                                <span>{destination.title}</span>
-                                {destination.shortcut && (
-                                    <CommandShortcut>
-                                        {destination.shortcut}
-                                    </CommandShortcut>
-                                )}
+                                <Sparkles />
+                                <span className="truncate">
+                                    Créer le lead « {needle} »
+                                </span>
                             </CommandItem>
-                        ))}
-                    </CommandGroup>
+                        </CommandGroup>
+                    )}
+                    {!searching && recent.length > 0 && (
+                        <CommandGroup heading="Récents">
+                            {recent.map((hit) => (
+                                <HitRow
+                                    key={`recent-${hit.url}`}
+                                    hit={hit}
+                                    onSelect={openHit}
+                                />
+                            ))}
+                        </CommandGroup>
+                    )}
+                    {mine.length > 0 && (
+                        <CommandGroup heading="Mes dossiers">
+                            {mine.map((hit) => (
+                                <HitRow
+                                    key={`mine-${hit.uuid}`}
+                                    hit={hit}
+                                    onSelect={openHit}
+                                />
+                            ))}
+                        </CommandGroup>
+                    )}
+                    {groups.map((group) => (
+                        <CommandGroup key={group.kind} heading={group.heading}>
+                            {group.hits.map((hit) => (
+                                <HitRow
+                                    key={hit.uuid}
+                                    hit={hit}
+                                    onSelect={openHit}
+                                />
+                            ))}
+                        </CommandGroup>
+                    ))}
+                    {matchedCreates.length > 0 && (
+                        <CommandGroup
+                            heading={searching ? 'Créer aussi' : 'Créer'}
+                        >
+                            {matchedCreates.map((destination) => (
+                                <CommandItem
+                                    key={destination.url}
+                                    value={destination.url}
+                                    onSelect={() => go(destination.url)}
+                                >
+                                    <destination.icon />
+                                    <span>{destination.title}</span>
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    )}
+                    {matchedPages.length > 0 && (
+                        <CommandGroup heading="Pages">
+                            {matchedPages.map((destination) => (
+                                <CommandItem
+                                    key={destination.url}
+                                    value={destination.url}
+                                    onSelect={() => go(destination.url)}
+                                >
+                                    <destination.icon />
+                                    <span>{destination.title}</span>
+                                    {destination.shortcut && (
+                                        <CommandShortcut>
+                                            {destination.shortcut}
+                                        </CommandShortcut>
+                                    )}
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    )}
                 </CommandList>
             </CommandDialog>
         </>

@@ -8,7 +8,8 @@ import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
 /**
  * En-tête de page en trois zones : navigation à gauche, recherche au centre,
- * membres en ligne à droite.
+ * membres en ligne à droite. **Collant** : il reste visible quand la page
+ * défile, pour que la recherche et la cloche soient toujours à portée.
  */
 export function AppSidebarHeader({
     breadcrumbs = [],
@@ -16,7 +17,7 @@ export function AppSidebarHeader({
     breadcrumbs?: BreadcrumbItemType[];
 }) {
     return (
-        <header className="border-sidebar-border/50 grid h-16 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-4 border-b px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
+        <header className="border-sidebar-border/50 bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky top-0 z-30 grid h-16 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-4 border-b px-6 backdrop-blur transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
             <div className="flex min-w-0 items-center gap-2">
                 <SidebarTrigger className="-ml-1" />
                 <Breadcrumbs breadcrumbs={breadcrumbs} />

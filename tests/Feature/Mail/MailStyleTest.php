@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\LeadMailItem;
 use App\Enums\PartnerRole;
+use App\Mail\CompanyFollowUp;
 use App\Mail\DirectoryWelcome;
 use App\Mail\DocumentUploadLinkSent;
 use App\Mail\FirstContactOverdue;
@@ -20,6 +21,7 @@ use App\Mail\VisitReportDue;
 use App\Mail\VisitReportSent;
 use App\Mail\VisitScheduled;
 use App\Models\Agent;
+use App\Models\Company;
 use App\Models\DocumentRequest;
 use App\Models\Invoice;
 use App\Models\Lead;
@@ -53,6 +55,7 @@ function everyMailable(): array
     ]);
 
     return [
+        'CompanyFollowUp' => new CompanyFollowUp(Company::factory()->create(['name' => 'Zen Conseil']), 'Marie Durand', 'Point sur vos arrivées de janvier', "Bonjour,\n\nOù en êtes-vous des trois arrivées prévues ?\n\nBien à vous", $advisor),
         'DirectoryWelcome' => new DirectoryWelcome('Agence du Marais', 'agence immobilière partenaire', 'agence@example.com', '+33 1 00 00 00 00', $advisor),
         'DocumentUploadLinkSent' => new DocumentUploadLinkSent(DocumentRequest::factory()->create()),
         'FirstContactOverdue' => new FirstContactOverdue($lead, 30),
@@ -93,6 +96,7 @@ test('each e-mail still says what it is for', function (): void {
     // Ce que chaque e-mail doit contenir, un à un : la charte ne doit rien
     // avoir emporté de ce qui fait le message.
     $expected = [
+        'CompanyFollowUp' => ['Point sur vos arrivées de janvier', 'Bonjour Marie Durand,', 'Zen Conseil', 'trois arrivées prévues'],
         'DirectoryWelcome' => ['Bienvenue parmi nos partenaires', 'agence immobilière partenaire', 'agence@example.com'],
         'DocumentUploadLinkSent' => ['depot/', 'Comment ça se passe'],
         'FirstContactOverdue' => ['attend depuis 30 minutes', 'Ouvrir la fiche'],

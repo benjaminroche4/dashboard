@@ -11,6 +11,7 @@ use App\Models\Activity;
 use App\Models\Lead;
 use App\Models\User;
 use App\Support\ActivityResource;
+use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -21,6 +22,9 @@ use Inertia\Response;
 class ActivityController extends Controller
 {
     public const int PER_PAGE = 50;
+
+    /** Entrées servies au menu de la cloche. */
+    public const int RECENT = 10;
 
     public function index(ShowActivityLogRequest $request): Response
     {
@@ -67,6 +71,25 @@ class ActivityController extends Controller
             ],
             'lead' => $lead instanceof Lead ? ['id' => $lead->id, 'uuid' => $lead->uuid, 'name' => $lead->fullName()] : null,
         ]);
+    }
+
+    /**
+     * Les dernières actions de l'équipe, pour le menu de la cloche (JSON).
+     * Mêmes droits que le journal : la route porte le préfixe `tools.activity.`.
+     */
+    public function recent(): JsonResponse
+    {
+        $activities = Activity::query()
+            ->with(['actor', 'lead'])
+            ->latest('created_at')
+            ->latest('id')
+            ->limit(self::RECENT)
+            ->get()
+            ->map(fn (Activity $activity): array => self::summary($activity))
+            ->values()
+            ->all();
+
+        return response()->json($activities);
     }
 
     /**

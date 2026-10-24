@@ -19,7 +19,9 @@ export function makeInvoice(overrides: Partial<Invoice> = {}): Invoice {
         due_cents: 128_639,
         can_send: false,
         can_pay: true,
+        can_quote: true,
         lead: null,
+        quote: null,
         ...overrides,
     } as Invoice;
 }

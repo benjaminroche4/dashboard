@@ -129,7 +129,7 @@ describe('Team member rights page', () => {
         await user.click(
             screen.getByRole('button', { name: 'Tout consulter' }),
         );
-        expect(screen.getByText(/15 en consultation/)).toBeInTheDocument();
+        expect(screen.getByText(/16 en consultation/)).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Droits du rôle' }),
         ).toBeEnabled();
@@ -178,7 +178,7 @@ describe('Team member rights page', () => {
             screen.queryByRole('button', { name: 'Tout consulter' }),
         ).toBeNull();
 
-        await user.click(screen.getByLabelText('Facturation'));
+        await user.click(screen.getByRole('checkbox', { name: 'Facturation' }));
         await user.click(
             screen.getByRole('button', { name: 'Enregistrer les droits' }),
         );

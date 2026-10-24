@@ -16,8 +16,8 @@ type Props = {
 };
 
 /**
- * Panneau standard du backoffice : fond « sidebar », bord arrondi, titre
- * discret. Utilisé par la fiche lead, la facture et les paramètres du compte.
+ * Panneau standard du backoffice : fond « sidebar », bord arrondi, intitulé
+ * en petites capitales comme les cartes du tableau de bord. Utilisé par la fiche lead, la facture et les paramètres du compte.
  */
 export function Panel({
     title,
@@ -43,7 +43,7 @@ export function Panel({
                 <div className="min-w-0">
                     <h2
                         className={cn(
-                            'text-sm font-medium',
+                            'text-muted-foreground text-xs tracking-wide uppercase',
                             tone === 'destructive' &&
                                 'text-red-700 dark:text-red-300',
                         )}

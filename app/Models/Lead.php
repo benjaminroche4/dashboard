@@ -48,6 +48,8 @@ use Illuminate\Support\Collection;
  * @property string|null $email
  * @property string|null $phone
  * @property string|null $company
+ * @property int|null $company_id
+ * @property-read Company|null $companyEntry
  * @property LeadLanguage $language
  * @property Offer|null $offer
  * @property CarbonInterface|null $arrival_at
@@ -102,7 +104,7 @@ use Illuminate\Support\Collection;
  */
 #[Fillable([
     'reference', 'external_reference',
-    'first_name', 'last_name', 'email', 'phone', 'co_first_name', 'co_last_name', 'co_email', 'co_phone', 'tenant_profiles', 'company', 'language', 'offer', 'arrival_at', 'budget_cents', 'currency',
+    'first_name', 'last_name', 'email', 'phone', 'co_first_name', 'co_last_name', 'co_email', 'co_phone', 'tenant_profiles', 'company', 'company_id', 'language', 'offer', 'arrival_at', 'budget_cents', 'currency',
     'origin_city', 'districts', 'property_types', 'duration', 'guarantors', 'furnished', 'source', 'source_note', 'help_type', 'message', 'ai_qualification', 'ai_qualified_at',
     'score', 'priority', 'recontact_channel', 'recontact_at', 'visio_at', 'visio_event_id', 'visio_meet_link', 'visio_report', 'visio_report_submitted_at', 'visio_report_submitted_by', 'visio_report_reminded_at', 'qualification_note', 'status', 'loss_reason', 'loss_note', 'position', 'last_contacted_at', 'first_contact_alerted_at', 'arrival_alerted_days', 'created_by', 'assigned_to', 'co_assigned_to',
     'agent_id',
@@ -279,6 +281,16 @@ class Lead extends Model
     public function agent(): BelongsTo
     {
         return $this->belongsTo(Agent::class);
+    }
+
+    /**
+     * Entreprise de l'annuaire à laquelle le dossier client est rattaché.
+     *
+     * @return BelongsTo<Company, $this>
+     */
+    public function companyEntry(): BelongsTo
+    {
+        return $this->belongsTo(Company::class, 'company_id');
     }
 
     /**

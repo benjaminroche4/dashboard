@@ -15,6 +15,7 @@ dataset('search endpoints', [
     'quotes' => ['tools.quotes.search', 'quotes'],
     'properties' => ['properties.search', 'properties'],
     'owners' => ['owners.search', 'owners'],
+    'companies' => ['companies.search', 'companies'],
 ]);
 
 test('search endpoints require an authenticated member', function (string $route): void {

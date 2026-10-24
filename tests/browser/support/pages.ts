@@ -40,7 +40,7 @@ const firstOf = (list: string, prefix: string): ResolveStep[] => [
 ];
 
 export const keyPages: KeyPage[] = [
-    { name: 'Tableau de bord', path: '/dashboard' },
+    { name: 'Aujourd’hui', path: '/dashboard' },
     { name: 'Leads : liste', path: '/locataires' },
     { name: 'Leads : création', path: '/locataires/create' },
     {
@@ -106,6 +106,8 @@ export const keyPages: KeyPage[] = [
     { name: 'Agences', path: '/real-estate/agencies' },
     { name: 'Partenaires', path: '/partners' },
     { name: 'Partenaire : fiche', steps: firstOf('/partners', 'partners') },
+    { name: 'Entreprises', path: '/companies' },
+    { name: 'Entreprise : fiche', steps: firstOf('/companies', 'companies') },
     {
         name: 'Agent : fiche',
         steps: firstOf('/real-estate/agents', 'real-estate/agents'),
@@ -180,7 +182,6 @@ export const keyPages: KeyPage[] = [
             { pattern: /^\/depot\/[A-Za-z0-9]{48}$/ },
         ],
     },
-    { name: 'Outils', path: '/tools' },
     { name: 'Rapports', path: '/tools/reports' },
     { name: "Journal d'activité", path: '/tools/activity' },
     { name: 'Paramètres : profil', path: '/settings/profile' },

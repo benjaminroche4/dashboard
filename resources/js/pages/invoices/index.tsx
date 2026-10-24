@@ -16,7 +16,6 @@ import {
     create as invoicesCreate,
     index as invoicesIndex,
 } from '@/routes/invoices';
-import { index as toolsIndex } from '@/routes/tools';
 import type { Invoice } from '@/types';
 
 type Props = {
@@ -90,7 +89,7 @@ export default function InvoicesIndex({
 
 InvoicesIndex.layout = {
     breadcrumbs: [
-        { title: 'Outils', href: toolsIndex() },
+        { title: 'Outils', href: invoicesIndex() },
         { title: 'Factures', href: invoicesIndex() },
     ],
 };

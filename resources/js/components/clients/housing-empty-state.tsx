@@ -15,7 +15,7 @@ export function HousingEmptyState({
     canPropose: boolean;
 }) {
     return (
-        <div className="bg-sidebar flex flex-wrap items-center gap-4 rounded-lg border p-4">
+        <div className="bg-sidebar flex flex-wrap items-center gap-4 rounded-lg border p-3">
             <span className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-lg">
                 <House className="size-5" aria-hidden />
             </span>

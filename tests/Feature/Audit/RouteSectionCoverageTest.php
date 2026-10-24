@@ -26,6 +26,8 @@ const FREE_ROUTES = [
     // Tableau de bord et paramètres : toujours accessibles (les droits du staff
     // passent par le rôle, pas par une section).
     'home', 'dashboard',
+    // Recherche unifiée ⌘K : l'Action ne consulte que les sections ouvertes au membre.
+    'search',
     'profile.edit', 'profile.update', 'profile.destroy',
     'profile.avatar.update', 'profile.avatar.destroy',
     'appearance.edit', 'security.edit',

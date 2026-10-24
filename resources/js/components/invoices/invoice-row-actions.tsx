@@ -1,6 +1,7 @@
 import { Link, router } from '@inertiajs/react';
 import { MoreHorizontal } from 'lucide-react';
 import { useState } from 'react';
+import { InvoiceToQuoteDialog } from '@/components/invoices/invoice-to-quote-dialog';
 import { MarkPaidDialog } from '@/components/invoices/mark-paid-dialog';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,11 +14,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { downloadInvoicePdf } from '@/lib/download-invoice-pdf';
 import { edit, send, show } from '@/routes/invoices';
+import { show as quoteShow } from '@/routes/tools/quotes';
 import type { Invoice } from '@/types';
 
 /**
  * Menu « … » d'une ligne de la liste : voir, modifier (brouillon), PDF,
- * envoyer, marquer payée.
+ * envoyer, marquer payée, transformer en devis (managers).
  */
 export function InvoiceRowActions({
     invoice,
@@ -28,6 +30,7 @@ export function InvoiceRowActions({
     canManage?: boolean;
 }) {
     const [paying, setPaying] = useState(false);
+    const [quoting, setQuoting] = useState(false);
 
     return (
         <>
@@ -88,6 +91,20 @@ export function InvoiceRowActions({
                     >
                         Marquer comme payée
                     </DropdownMenuItem>
+                    {canManage && invoice.can_quote && (
+                        <DropdownMenuItem onClick={() => setQuoting(true)}>
+                            Transformer en devis
+                        </DropdownMenuItem>
+                    )}
+                    {invoice.quote && (
+                        <DropdownMenuItem asChild>
+                            <Link
+                                href={quoteShow({ quote: invoice.quote.uuid })}
+                            >
+                                Voir le devis {invoice.quote.number}
+                            </Link>
+                        </DropdownMenuItem>
+                    )}
                 </DropdownMenuContent>
             </DropdownMenu>
 
@@ -96,6 +113,12 @@ export function InvoiceRowActions({
                 invoiceNumber={invoice.number}
                 open={paying}
                 onOpenChange={setPaying}
+            />
+            <InvoiceToQuoteDialog
+                invoiceUuid={invoice.uuid}
+                invoiceNumber={invoice.number}
+                open={quoting}
+                onOpenChange={setQuoting}
             />
         </>
     );

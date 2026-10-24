@@ -96,6 +96,51 @@ describe('Invoice detail page', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('offers to turn the invoice into a quote and links the quote once converted', async () => {
+        const user = userEvent.setup();
+        const { rerender } = render(
+            <InvoicesShow
+                invoice={makeInvoiceDetail({ can_quote: true })}
+                history={[]}
+                company={company}
+                offers={offers}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Transformer en devis' }),
+        );
+        expect(
+            screen.getByRole('dialog', {
+                name: 'Transformer RP-27001 en devis',
+            }),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Devis :')).not.toBeInTheDocument();
+        await user.keyboard('{Escape}');
+
+        rerender(
+            <InvoicesShow
+                invoice={makeInvoiceDetail({
+                    status: 'cancelled',
+                    status_label: 'Annulée',
+                    can_quote: false,
+                    quote: { id: 7, uuid: 'q-uuid', number: 'DV-27007' },
+                })}
+                history={[]}
+                company={company}
+                offers={offers}
+            />,
+        );
+
+        expect(
+            screen.queryByRole('button', { name: 'Transformer en devis' }),
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'DV-27007' })).toHaveAttribute(
+            'href',
+            '/tools/quotes/q-uuid',
+        );
+    });
+
     it('offers to send a draft and posts to the send route after confirmation', async () => {
         const user = userEvent.setup();
         render(

@@ -14,7 +14,6 @@ import { quoteFormToInvoiceForm, quoteToForm } from '@/lib/quote-form';
 import { cn } from '@/lib/utils';
 import { QuoteLeadLink } from '@/components/quotes/quote-lead-link';
 import { show as invoiceShow } from '@/routes/invoices';
-import { index as toolsIndex } from '@/routes/tools';
 import {
     accept,
     edit as quoteEdit,
@@ -295,7 +294,7 @@ export default function QuotesShow({ quote, history, company, offers }: Props) {
 // Objet et non fonction : Inertia v3 traiterait une fonction comme un composant de layout.
 QuotesShow.layout = {
     breadcrumbs: [
-        { title: 'Outils', href: toolsIndex() },
+        { title: 'Outils', href: quotesIndex() },
         { title: 'Devis', href: quotesIndex() },
         { title: 'Détail', href: '#' },
     ],

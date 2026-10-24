@@ -153,7 +153,7 @@ export function LeadVisioDialog({
         <div className={cn('grid gap-2', className)}>
             {scheduled && lead.visio_at && (
                 <div
-                    className="bg-background grid gap-1 rounded-lg border p-3 text-sm"
+                    className="bg-sidebar grid gap-1 rounded-lg border p-3 text-sm"
                     data-test="visio-summary"
                 >
                     <span className="text-muted-foreground flex items-center gap-1.5 text-xs">

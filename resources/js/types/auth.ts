@@ -31,6 +31,7 @@ export type SiteSection =
     | 'visits'
     | 'agents'
     | 'partners'
+    | 'companies'
     | 'owners'
     | 'properties'
     | 'quotes'
@@ -42,7 +43,7 @@ export type SiteSection =
 export type SiteSectionOption = {
     value: SiteSection;
     label: string;
-    /** Groupe du menu (Leads, Clients, Réseau, Outils). */
+    /** Groupe du menu (Leads, Clients, Annuaire, Facturation, Suivi). */
     group: string;
     /** Ce que « Gérer » ajoute dans cette section. */
     manage_hint: string;
