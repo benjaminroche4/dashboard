@@ -43,7 +43,7 @@ class StoreClientRequest extends FormRequest
             'currency' => ['nullable', Rule::enum(Currency::class)],
             'arrival_at' => ['nullable', 'date'],
             'assigned_to' => ['nullable', 'integer', Rule::exists('users', 'id')],
-            'message' => ['nullable', 'string', 'max:5000'],
+            'message' => ['nullable', 'string', 'max:20000'],
         ];
     }
 

@@ -57,7 +57,7 @@ class UpdateClientRequest extends FormRequest
             'guarantors.*' => [Rule::enum(GuarantorType::class), 'distinct'],
             'furnished' => ['nullable', Rule::enum(Furnished::class)],
             'origin_city' => ['nullable', 'string', 'max:120'],
-            'message' => ['nullable', 'string', 'max:5000'],
+            'message' => ['nullable', 'string', 'max:20000'],
         ];
     }
 

@@ -4,7 +4,6 @@ import {
     Building2,
     CalendarClock,
     CalendarPlus,
-    ChartPie,
     Contact,
     FileSignature,
     FileText,
@@ -64,7 +63,6 @@ import {
     index as documentsIndex,
 } from '@/routes/tools/documents';
 import { index as quotesIndex } from '@/routes/tools/quotes';
-import { index as reportsIndex } from '@/routes/tools/reports';
 import type {
     AccessMap,
     SearchGroup,
@@ -192,13 +190,6 @@ export const destinations: Destination[] = [
         url: documentsIndex().url,
         icon: FileText,
         section: 'documents',
-    },
-    {
-        title: 'Rapports',
-        keywords: 'rapport statistiques chiffres',
-        url: reportsIndex().url,
-        icon: ChartPie,
-        section: 'reports',
     },
     {
         title: 'Journal d’activité',

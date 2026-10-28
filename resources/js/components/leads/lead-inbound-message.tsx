@@ -1,3 +1,4 @@
+import { ClampedText } from '@/components/clamped-text';
 import {
     ChevronDown,
     Globe,
@@ -117,7 +118,7 @@ export function LeadInboundMessage({
                                 {inbound.topic}
                             </p>
                         )}
-                        <p className="whitespace-pre-line">{inbound.body}</p>
+                        <ClampedText text={inbound.body} lines={10} />
                     </blockquote>
                 </div>
             )}

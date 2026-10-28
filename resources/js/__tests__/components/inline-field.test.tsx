@@ -199,4 +199,36 @@ describe('InlineField city', () => {
             origin_country: null,
         });
     });
+
+    it('stays open with the reason when the server refuses, instead of closing silently', () => {
+        const { rerender } = render(
+            <InlineField
+                label="Notes libres"
+                display="Ancienne note"
+                edit={{ kind: 'textarea', value: 'Ancienne note' }}
+                open
+                saving
+                onSave={() => undefined}
+            />,
+        );
+
+        rerender(
+            <InlineField
+                label="Notes libres"
+                display="Ancienne note"
+                edit={{ kind: 'textarea', value: 'Ancienne note' }}
+                open
+                saving={false}
+                error="Le texte ne peut pas dépasser 20 000 caractères."
+                onSave={() => undefined}
+            />,
+        );
+
+        expect(screen.getByRole('alert')).toHaveTextContent(
+            'ne peut pas dépasser 20 000 caractères',
+        );
+        expect(
+            screen.getByRole('textbox', { name: 'Notes libres' }),
+        ).toBeInTheDocument();
+    });
 });

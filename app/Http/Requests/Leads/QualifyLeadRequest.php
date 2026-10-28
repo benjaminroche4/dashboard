@@ -26,7 +26,7 @@ class QualifyLeadRequest extends FormRequest
     {
         return [
             'score' => ['nullable', 'integer', 'between:1,5'],
-            'qualification_note' => ['nullable', 'string', 'max:5000'],
+            'qualification_note' => ['nullable', 'string', 'max:20000'],
         ];
     }
 

@@ -68,6 +68,8 @@ type Props = {
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
     saving?: boolean;
+    /** Refus du serveur : le champ reste ouvert et l'affiche sous le contrôle. */
+    error?: string | null;
     onSave: (value: InlineValue) => void;
     className?: string;
 };
@@ -91,6 +93,7 @@ export function InlineField({
     open,
     onOpenChange,
     saving = false,
+    error = null,
     onSave,
     className,
 }: Props) {
@@ -111,14 +114,15 @@ export function InlineField({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editing]);
 
-    // L'enregistrement terminé referme le champ.
+    // L'enregistrement terminé referme le champ, sauf si le serveur a refusé :
+    // la saisie reste là, avec le motif, pour la corriger sans la retaper.
     useEffect(() => {
-        if (wasSaving.current && !saving) {
+        if (wasSaving.current && !saving && !error) {
             setEditing(false);
         }
         wasSaving.current = saving;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [saving]);
+    }, [saving, error]);
 
     const save = (value: InlineValue = draft) => onSave(normalize(edit, value));
     const cancel = () => setEditing(false);
@@ -185,175 +189,198 @@ export function InlineField({
         </div>
     );
 
-    switch (edit.kind) {
-        case 'text':
-            return (
-                <div className="flex w-full items-center gap-2">
-                    <Input
-                        autoFocus
-                        aria-label={label}
-                        placeholder={edit.placeholder}
-                        value={(draft as string | null) ?? ''}
-                        onChange={(event) => setDraft(event.target.value)}
-                        onKeyDown={onKeyDown}
-                        className="h-8"
-                    />
-                    {actions}
-                </div>
-            );
-        case 'city': {
-            const city = draft as CityDraft;
-
-            return (
-                <div
-                    className="flex w-full items-center gap-2"
-                    onKeyDown={onKeyDown}
-                >
-                    <AddressAutocomplete
-                        kind="cities"
-                        regionCodes={[]}
-                        enabled={edit.enabled}
-                        placeholder="Genève, Londres, New York…"
-                        value={city.city}
-                        onChange={(value) =>
-                            // Texte tapé sans choisir : le pays n'est plus sûr.
-                            setDraft({ city: value, country: null })
-                        }
-                        onSelect={(address) =>
-                            setDraft({
-                                city: address.city,
-                                country: address.countryCode,
-                            })
-                        }
-                        className="w-full max-w-72"
-                    />
-                    {actions}
-                </div>
-            );
-        }
-        case 'textarea':
-            return (
-                <div className="grid w-full gap-2">
-                    <Textarea
-                        autoFocus
-                        aria-label={label}
-                        rows={3}
-                        placeholder={edit.placeholder}
-                        value={(draft as string | null) ?? ''}
-                        onChange={(event) => setDraft(event.target.value)}
-                        onKeyDown={onKeyDown}
-                    />
-                    <div className="flex justify-end">{actions}</div>
-                </div>
-            );
-        case 'money':
-            return (
-                <div className="flex w-full items-center gap-2">
-                    <Input
-                        autoFocus
-                        type="number"
-                        inputMode="decimal"
-                        min={0}
-                        step={1}
-                        aria-label={label}
-                        value={typeof draft === 'number' ? draft : ''}
-                        onChange={(event) =>
-                            setDraft(
-                                event.target.value === ''
-                                    ? null
-                                    : Number(event.target.value),
-                            )
-                        }
-                        onKeyDown={onKeyDown}
-                        className="h-8 max-w-40 tabular-nums"
-                    />
-                    {edit.suffix && (
-                        <span className="text-muted-foreground text-sm">
-                            {edit.suffix}
-                        </span>
-                    )}
-                    {actions}
-                </div>
-            );
-        case 'date':
-            return (
-                <div className="flex w-full items-center gap-2">
-                    <DatePicker
-                        aria-label={label}
-                        value={(draft as string | null) ?? ''}
-                        onChange={(iso) => setDraft(iso)}
-                        className="max-w-56"
-                    />
-                    {actions}
-                </div>
-            );
-        case 'select':
-            return (
-                <div className="flex w-full items-center gap-2">
-                    <Select
-                        value={(draft as string | null) ?? NONE}
-                        onValueChange={(value) => {
-                            const next = value === NONE ? null : value;
-                            setDraft(next);
-                            save(next);
-                        }}
-                        disabled={saving}
-                    >
-                        <SelectTrigger
-                            aria-label={label}
-                            className="h-8 w-full max-w-64"
+    const control = (() => {
+        switch (edit.kind) {
+            case 'text':
+                return (
+                    <div className="flex w-full items-center gap-2">
+                        <Input
                             autoFocus
+                            aria-label={label}
+                            placeholder={edit.placeholder}
+                            value={(draft as string | null) ?? ''}
+                            onChange={(event) => setDraft(event.target.value)}
+                            onKeyDown={onKeyDown}
+                            className="h-8"
+                        />
+                        {actions}
+                    </div>
+                );
+            case 'city': {
+                const city = draft as CityDraft;
+
+                return (
+                    <div
+                        className="flex w-full items-center gap-2"
+                        onKeyDown={onKeyDown}
+                    >
+                        <AddressAutocomplete
+                            kind="cities"
+                            regionCodes={[]}
+                            enabled={edit.enabled}
+                            placeholder="Genève, Londres, New York…"
+                            value={city.city}
+                            onChange={(value) =>
+                                // Texte tapé sans choisir : le pays n'est plus sûr.
+                                setDraft({ city: value, country: null })
+                            }
+                            onSelect={(address) =>
+                                setDraft({
+                                    city: address.city,
+                                    country: address.countryCode,
+                                })
+                            }
+                            className="w-full max-w-72"
+                        />
+                        {actions}
+                    </div>
+                );
+            }
+            case 'textarea':
+                return (
+                    <div className="grid w-full gap-2">
+                        <Textarea
+                            autoFocus
+                            aria-label={label}
+                            rows={3}
+                            placeholder={edit.placeholder}
+                            value={(draft as string | null) ?? ''}
+                            onChange={(event) => setDraft(event.target.value)}
+                            onKeyDown={onKeyDown}
+                        />
+                        <div className="flex justify-end">{actions}</div>
+                    </div>
+                );
+            case 'money':
+                return (
+                    <div className="flex w-full items-center gap-2">
+                        <Input
+                            autoFocus
+                            type="number"
+                            inputMode="decimal"
+                            min={0}
+                            step={1}
+                            aria-label={label}
+                            value={typeof draft === 'number' ? draft : ''}
+                            onChange={(event) =>
+                                setDraft(
+                                    event.target.value === ''
+                                        ? null
+                                        : Number(event.target.value),
+                                )
+                            }
+                            onKeyDown={onKeyDown}
+                            className="h-8 max-w-40 tabular-nums"
+                        />
+                        {edit.suffix && (
+                            <span className="text-muted-foreground text-sm">
+                                {edit.suffix}
+                            </span>
+                        )}
+                        {actions}
+                    </div>
+                );
+            case 'date':
+                return (
+                    <div className="flex w-full items-center gap-2">
+                        <DatePicker
+                            aria-label={label}
+                            value={(draft as string | null) ?? ''}
+                            onChange={(iso) => setDraft(iso)}
+                            className="max-w-56"
+                        />
+                        {actions}
+                    </div>
+                );
+            case 'select':
+                return (
+                    <div className="flex w-full items-center gap-2">
+                        <Select
+                            value={(draft as string | null) ?? NONE}
+                            onValueChange={(value) => {
+                                const next = value === NONE ? null : value;
+                                setDraft(next);
+                                save(next);
+                            }}
+                            disabled={saving}
                         >
-                            <SelectValue placeholder="Choisir…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value={NONE}>Non renseigné</SelectItem>
-                            {edit.options.map((option) => (
-                                <SelectItem
-                                    key={option.value}
-                                    value={option.value}
-                                >
-                                    {option.label}
+                            <SelectTrigger
+                                aria-label={label}
+                                className="h-8 w-full max-w-64"
+                                autoFocus
+                            >
+                                <SelectValue placeholder="Choisir…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={NONE}>
+                                    Non renseigné
                                 </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    {saving ? (
-                        <Spinner />
-                    ) : (
-                        <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="size-7"
-                            aria-label="Annuler"
-                            onClick={cancel}
-                        >
-                            <X aria-hidden />
-                        </Button>
-                    )}
-                </div>
-            );
-        case 'multi':
-        case 'districts':
-            return (
-                <div className="grid w-full gap-2" onKeyDown={onKeyDown}>
-                    <ChoicePills
-                        id={`inline-${slug(label)}`}
-                        label={label}
-                        multiple
-                        options={
-                            edit.kind === 'districts'
-                                ? districtOptions
-                                : edit.options
-                        }
-                        value={(draft as string[] | number[]).map(String)}
-                        onChange={(values) => setDraft(values)}
-                    />
-                    <div className="flex justify-end">{actions}</div>
-                </div>
-            );
-    }
+                                {edit.options.map((option) => (
+                                    <SelectItem
+                                        key={option.value}
+                                        value={option.value}
+                                    >
+                                        {option.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {saving ? (
+                            <Spinner />
+                        ) : (
+                            <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="size-7"
+                                aria-label="Annuler"
+                                onClick={cancel}
+                            >
+                                <X aria-hidden />
+                            </Button>
+                        )}
+                    </div>
+                );
+            case 'multi':
+            case 'districts':
+                return (
+                    <div className="grid w-full gap-2" onKeyDown={onKeyDown}>
+                        <ChoicePills
+                            id={`inline-${slug(label)}`}
+                            label={label}
+                            multiple
+                            options={
+                                edit.kind === 'districts'
+                                    ? districtOptions
+                                    : edit.options
+                            }
+                            value={(draft as string[] | number[]).map(String)}
+                            onChange={(values) => setDraft(values)}
+                        />
+                        <div className="flex justify-end">{actions}</div>
+                    </div>
+                );
+        }
+    })();
+
+    return (
+        <div className="grid w-full gap-1">
+            {control}
+            {error && (
+                <p role="alert" className="text-destructive text-xs">
+                    {error}
+                </p>
+            )}
+        </div>
+    );
+}
+
+function slug(label: string): string {
+    return label
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-');
 }
 
 function initial(edit: InlineEdit): InlineValue {
@@ -400,12 +427,4 @@ export function normalize(edit: InlineEdit, value: InlineValue): InlineValue {
         case 'select':
             return value;
     }
-}
-
-function slug(label: string): string {
-    return label
-        .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-');
 }

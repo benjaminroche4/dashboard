@@ -177,3 +177,19 @@ test('the source and its note are edited in place too', function (): void {
         ->and($lead->fresh()?->source_note)->toBe('Par un ancien client');
     Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => str_contains($event->message, 'la source'));
 });
+
+test('the free notes of the project accept long texts, up to 20 000 characters', function (): void {
+    $lead = Lead::factory()->create();
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->patch(route('leads.fields', $lead), ['project_notes' => str_repeat('a', 20000)])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+    expect(mb_strlen((string) $lead->fresh()->project_notes))->toBe(20000);
+
+    $this->actingAs($user)
+        ->from(route('leads.show', $lead))
+        ->patch(route('leads.fields', $lead), ['project_notes' => str_repeat('a', 20001)])
+        ->assertSessionHasErrors('project_notes');
+});

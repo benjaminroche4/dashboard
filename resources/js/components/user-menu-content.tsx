@@ -1,5 +1,5 @@
-import { Link, router } from '@inertiajs/react';
-import { CircleUser, LogOut, Settings } from 'lucide-react';
+import { Link, router, usePage } from '@inertiajs/react';
+import { CircleUser, History, LogOut, Settings } from 'lucide-react';
 import {
     DropdownMenuGroup,
     DropdownMenuItem,
@@ -8,9 +8,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { UserInfo } from '@/components/user-info';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
+import { canAccessSection } from '@/lib/nav-access';
 import { logout } from '@/routes';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editProfile } from '@/routes/profile';
+import { index as activityIndex } from '@/routes/tools/activity';
 import type { User } from '@/types';
 
 type Props = {
@@ -19,6 +21,10 @@ type Props = {
 
 export function UserMenuContent({ user }: Props) {
     const cleanup = useMobileNavigation();
+    const { auth } = usePage().props;
+    // Le journal d'activité vit ici, pas dans la sidebar (28 octobre 2026) ;
+    // il reste fermé aux membres sans accès à la section.
+    const showActivity = canAccessSection(auth?.access ?? null, 'activity');
 
     const handleLogout = () => {
         cleanup();
@@ -56,6 +62,19 @@ export function UserMenuContent({ user }: Props) {
                         Paramètres
                     </Link>
                 </DropdownMenuItem>
+                {showActivity && (
+                    <DropdownMenuItem asChild>
+                        <Link
+                            className="block w-full cursor-pointer"
+                            href={activityIndex()}
+                            prefetch
+                            onClick={cleanup}
+                        >
+                            <History className="mr-2" />
+                            Journal d'activité
+                        </Link>
+                    </DropdownMenuItem>
+                )}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>

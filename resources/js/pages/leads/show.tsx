@@ -55,6 +55,8 @@ import {
     memberTone,
 } from '@/components/leads/lead-assign-menu';
 import { LeadStatusMenu } from '@/components/leads/lead-status-menu';
+import { ClampedText } from '@/components/clamped-text';
+import { notify } from '@/lib/toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -168,15 +170,30 @@ export default function LeadsShow({
     const { staff, auth, features } = usePage().props;
     // Champ du projet en cours d'enregistrement en place (nom côté serveur).
     const [savingField, setSavingField] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const saveField = (name: string, value: InlineValue) => {
         setSavingField(name);
+        setFieldErrors({});
         router.patch(
             leadFields({ lead: lead.uuid }).url,
             // Un champ composé (ville et pays) envoie ses deux colonnes.
             value !== null && typeof value === 'object' && !Array.isArray(value)
                 ? value
                 : { [name]: value },
-            { preserveScroll: true, onFinish: () => setSavingField(null) },
+            {
+                preserveScroll: true,
+                // Un refus du serveur (texte trop long, dernier moyen de
+                // contact…) garde le champ ouvert avec son motif : sans cela
+                // la saisie disparaissait sans un mot.
+                onError: (errors) => {
+                    const message =
+                        Object.values(errors)[0] ??
+                        'Le champ n’a pas pu être enregistré.';
+                    setFieldErrors({ [name]: message });
+                    notify.error('Modification refusée', message);
+                },
+                onFinish: () => setSavingField(null),
+            },
         );
     };
     const noteForm = useForm({ body: '' });
@@ -411,7 +428,11 @@ export default function LeadsShow({
                       label: 'Notes libres',
                       icon: factIcon(NotebookPen),
                       multiline: true,
-                      value: lead.project_notes ?? missing(),
+                      value: lead.project_notes ? (
+                          <ClampedText text={lead.project_notes} lines={4} />
+                      ) : (
+                          missing()
+                      ),
                       empty: lead.project_notes === null,
                       edit: editOptions && {
                           name: 'project_notes',
@@ -903,6 +924,7 @@ export default function LeadsShow({
                                 map={map}
                                 onSave={editOptions ? saveField : undefined}
                                 saving={savingField}
+                                fieldErrors={fieldErrors}
                             />
                         )
                     }

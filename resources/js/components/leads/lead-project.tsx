@@ -8,6 +8,7 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { ClampedText } from '@/components/clamped-text';
 import { InlineField, type InlineValue } from '@/components/inline-field';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +25,8 @@ type Props = {
     facts: Fact[];
     /** Note sur le projet, en citation sous les critères. */
     message?: string | null;
+    /** Refus du serveur par champ, affiché sous le contrôle ouvert. */
+    fieldErrors?: Record<string, string>;
     /** Carte des arrondissements (lecture seule). */
     map: ReactNode;
 };
@@ -52,6 +55,7 @@ export function LeadProject({
     map,
     onSave,
     saving = null,
+    fieldErrors = {},
 }: Props) {
     const [mapOpen, setMapOpen] = useState(false);
 
@@ -123,6 +127,7 @@ export function LeadProject({
                                     }
                                     edit={fact.edit}
                                     saving={saving === fact.edit.name}
+                                    error={fieldErrors[fact.edit.name]}
                                     onSave={(value) =>
                                         onSave(fact.edit!.name, value)
                                     }
@@ -153,9 +158,11 @@ export function LeadProject({
                 ))}
             </dl>
             {message && (
-                <blockquote className="text-muted-foreground border-l-2 pl-3 text-sm/6 whitespace-pre-line">
-                    {message}
-                </blockquote>
+                <ClampedText
+                    as="blockquote"
+                    text={message}
+                    className="text-muted-foreground border-l-2 pl-3 text-sm/6"
+                />
             )}
             {mapToggle}
         </>

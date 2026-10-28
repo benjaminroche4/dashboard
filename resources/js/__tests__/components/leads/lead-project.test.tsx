@@ -141,9 +141,9 @@ describe('LeadProject', () => {
         expect(screen.getAllByText('Non renseigné')).toHaveLength(2);
         expect(screen.queryByText(/À compléter/)).toBeNull();
 
-        expect(screen.getByText('Arrive avec sa famille.').tagName).toBe(
-            'BLOCKQUOTE',
-        );
+        expect(
+            screen.getByText('Arrive avec sa famille.').closest('blockquote'),
+        ).not.toBeNull();
 
         // La carte est repliée par défaut pour alléger la fiche.
         expect(screen.queryByText('Carte')).not.toBeInTheDocument();

@@ -182,7 +182,6 @@ export const keyPages: KeyPage[] = [
             { pattern: /^\/depot\/[A-Za-z0-9]{48}$/ },
         ],
     },
-    { name: 'Rapports', path: '/tools/reports' },
     { name: "Journal d'activité", path: '/tools/activity' },
     { name: 'Paramètres : profil', path: '/settings/profile' },
     { name: 'Paramètres : sécurité', path: '/settings/security' },

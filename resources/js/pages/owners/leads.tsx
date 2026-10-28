@@ -1,7 +1,7 @@
-import { Head, Link } from '@inertiajs/react';
-import { Building2, Plus } from 'lucide-react';
+import { Head } from '@inertiajs/react';
+import { Building2 } from 'lucide-react';
+import { CreateButton } from '@/components/create-button';
 import { LeadListView } from '@/components/leads/lead-list-view';
-import { Button } from '@/components/ui/button';
 import { index as ownersIndex, leads as ownersLeads } from '@/routes/owners';
 import type {
     ArchivedLeads,
@@ -49,12 +49,10 @@ export default function OwnerLeads({
                 storageKey="owners.leads.view"
                 palette="owner"
                 action={
-                    <Button asChild>
-                        <Link href={ownersIndex()}>
-                            <Plus />
-                            Prospecter un propriétaire
-                        </Link>
-                    </Button>
+                    <CreateButton
+                        href={ownersIndex()}
+                        label="Prospecter un propriétaire"
+                    />
                 }
                 empty={{
                     icon: (

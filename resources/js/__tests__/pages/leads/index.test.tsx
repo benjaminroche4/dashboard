@@ -14,10 +14,18 @@ vi.mock('@inertiajs/react', () => ({
     Link: ({
         href,
         children,
+        ...props
     }: {
         href: { url: string };
         children: ReactNode;
-    }) => <a href={href.url}>{children}</a>,
+        className?: string;
+        'aria-label'?: string;
+        title?: string;
+    }) => (
+        <a href={href.url} {...props}>
+            {children}
+        </a>
+    ),
     router: { patch, visit, reload, on: () => () => undefined },
     usePage: () => ({
         props: {
@@ -233,7 +241,7 @@ describe('Leads kanban page', () => {
         ).toEqual([
             'Novembre 2026',
             'Janvier 2027',
-            "Sans date d'emménagement",
+            "Date d'arrivée à définir",
         ]);
         expect(within(sections[0]).getByText('2 leads')).toBeInTheDocument();
         expect(within(sections[0]).getByText('Léa Durand')).toBeInTheDocument();
@@ -388,6 +396,10 @@ describe('Leads kanban page', () => {
         for (const link of create) {
             expect(link).toHaveAttribute('href', '/locataires/create');
         }
+        // Dans l'en-tête, un simple bouton rond « + » (28 octobre 2026).
+        expect(
+            create.some((link) => link.classList.contains('rounded-full')),
+        ).toBe(true);
         expect(
             screen.queryByRole('list', { name: 'Kanban des leads' }),
         ).not.toBeInTheDocument();

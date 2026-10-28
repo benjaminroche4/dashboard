@@ -23,7 +23,7 @@ class StoreLeadNoteRequest extends FormRequest
      */
     public function rules(): array
     {
-        return ['body' => ['required', 'string', 'max:5000']];
+        return ['body' => ['required', 'string', 'max:20000']];
     }
 
     /**

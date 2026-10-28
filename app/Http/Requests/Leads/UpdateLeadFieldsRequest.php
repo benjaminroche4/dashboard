@@ -83,8 +83,8 @@ class UpdateLeadFieldsRequest extends FormRequest
             'origin_city' => ['sometimes', 'nullable', 'string', 'max:120'],
             'origin_country' => ['sometimes', 'nullable', 'string', 'size:2', 'alpha'],
             'employment_status' => ['sometimes', 'nullable', Rule::enum(EmploymentStatus::class)],
-            'message' => ['sometimes', 'nullable', 'string', 'max:5000'],
-            'project_notes' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'message' => ['sometimes', 'nullable', 'string', 'max:20000'],
+            'project_notes' => ['sometimes', 'nullable', 'string', 'max:20000'],
             'source' => ['sometimes', Rule::enum(LeadSource::class)],
             'source_note' => ['sometimes', 'nullable', 'string', 'max:255'],
         ];

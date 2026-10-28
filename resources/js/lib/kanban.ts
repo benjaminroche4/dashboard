@@ -129,9 +129,10 @@ export type LeadMonthGroup = {
 };
 
 /**
- * Les leads groupés par mois d'emménagement, du plus proche au plus
- * lointain, chaque mois trié par date d'arrivée ; les leads sans date
- * ferment la liste, dans l'ordre reçu.
+ * Les leads groupés par mois d'emménagement, d'après la date d'arrivée
+ * estimée (jamais la date de création), du plus proche au plus lointain,
+ * chaque mois trié par date d'arrivée ; les leads sans date ferment la
+ * liste dans un seul tableau « Date d'arrivée à définir ».
  */
 export function groupLeadsByArrivalMonth(leads: Lead[]): LeadMonthGroup[] {
     const months = new Map<string, Lead[]>();
@@ -160,7 +161,7 @@ export function groupLeadsByArrivalMonth(leads: Lead[]): LeadMonthGroup[] {
     if (undated.length > 0) {
         groups.push({
             key: 'none',
-            label: "Sans date d'emménagement",
+            label: "Date d'arrivée à définir",
             leads: undated,
         });
     }

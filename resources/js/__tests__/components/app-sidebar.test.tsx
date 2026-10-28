@@ -140,8 +140,6 @@ describe('AppSidebar', () => {
             ['Listes de pièces', '/tools/documents'],
             ['Devis', '/tools/quotes'],
             ['Factures', '/invoices'],
-            ['Rapports', '/tools/reports'],
-            ["Journal d'activité", '/tools/activity'],
         ]) {
             expect(screen.getByRole('link', { name })).toHaveAttribute(
                 'href',
@@ -180,12 +178,12 @@ describe('AppSidebar', () => {
                 .getByRole('button', { name: 'Annuaire' })
                 .closest('[data-sidebar="group"]'),
         ).toBe(document.querySelectorAll('[data-sidebar="group"]')[3]);
-        expect(groups[3].links).toEqual([
-            'Devis',
-            'Factures',
-            'Rapports',
-            "Journal d'activité",
-        ]);
+        expect(groups[3].links).toEqual(['Devis', 'Factures']);
+        // « Rapports » a quitté le menu, et le journal vit dans le menu de l'utilisateur.
+        expect(screen.queryByRole('link', { name: 'Rapports' })).toBeNull();
+        expect(
+            screen.queryByRole('link', { name: "Journal d'activité" }),
+        ).toBeNull();
         expect(screen.queryByText('Facturation')).toBeNull();
         expect(screen.queryByText('Suivi')).toBeNull();
         // Plus de page /tools : « Outils » n'est qu'un intitulé de groupe.
@@ -236,7 +234,7 @@ describe('AppSidebar', () => {
             expect(names).toContain('Factures');
             expect(names).not.toContain('Dossiers');
             expect(names).not.toContain('Partenaires');
-            expect(names).not.toContain('Rapports');
+            expect(names).not.toContain('Devis');
             // Les groupes vidés disparaissent avec leur libellé, et le menu
             // « Annuaire » avec ses sous-liens.
             expect(screen.queryByText('Annuaire')).toBeNull();

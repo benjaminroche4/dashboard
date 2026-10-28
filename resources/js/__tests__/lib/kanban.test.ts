@@ -171,7 +171,7 @@ describe('arrival month groups', () => {
         ).toEqual([
             ['2026-11', 'Novembre 2026', ['Nov', 'Nov bis']],
             ['2027-01', 'Janvier 2027', ['Jan']],
-            ['none', "Sans date d'emménagement", ['Sans date']],
+            ['none', "Date d'arrivée à définir", ['Sans date']],
         ]);
         expect(arrivalMonthLabel('2026-03')).toBe('Mars 2026');
     });

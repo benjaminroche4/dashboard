@@ -3,6 +3,7 @@ import { Pencil, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { leadStatusDot } from '@/components/leads/lead-status-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ClampedText } from '@/components/clamped-text';
 import { Bubble, BubbleContent, BubbleGroup } from '@/components/ui/bubble';
 import { Button } from '@/components/ui/button';
 import {
@@ -337,21 +338,23 @@ function NoteBubble({
                     </div>
                 </BubbleContent>
             ) : (
-                <BubbleContent className="py-1.5 leading-normal whitespace-pre-line">
-                    {highlightMentions(note.body, staffNames).map(
-                        (part, index) =>
-                            typeof part === 'string' ? (
-                                part
-                            ) : (
-                                <span
-                                    key={index}
-                                    data-mention
-                                    className="rounded bg-current/15 px-1 font-medium"
-                                >
-                                    {part.mention}
-                                </span>
-                            ),
-                    )}
+                <BubbleContent className="py-1.5 leading-normal">
+                    <ClampedText as="div" text={note.body}>
+                        {highlightMentions(note.body, staffNames).map(
+                            (part, index) =>
+                                typeof part === 'string' ? (
+                                    part
+                                ) : (
+                                    <span
+                                        key={index}
+                                        data-mention
+                                        className="rounded bg-current/15 px-1 font-medium"
+                                    >
+                                        {part.mention}
+                                    </span>
+                                ),
+                        )}
+                    </ClampedText>
                 </BubbleContent>
             )}
             {(note.can_edit || note.can_delete) &&

@@ -10,10 +10,18 @@ vi.mock('@inertiajs/react', () => ({
     Link: ({
         href,
         children,
+        ...props
     }: {
         href: { url: string };
         children: ReactNode;
-    }) => <a href={href.url}>{children}</a>,
+        className?: string;
+        'aria-label'?: string;
+        title?: string;
+    }) => (
+        <a href={href.url} {...props}>
+            {children}
+        </a>
+    ),
     router: { patch, visit, on: () => () => undefined },
     usePage: () => ({
         props: {
@@ -200,5 +208,9 @@ describe('Owner leads page', () => {
         links.forEach((link) =>
             expect(link).toHaveAttribute('href', '/owners'),
         );
+        // Dans l'en-tête, un simple bouton rond « + » (28 octobre 2026).
+        expect(
+            links.some((link) => link.classList.contains('rounded-full')),
+        ).toBe(true);
     });
 });

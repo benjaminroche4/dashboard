@@ -1,10 +1,8 @@
 import {
     CalendarCheckIcon,
-    ChartPieIcon,
     FilePenLineIcon,
     FileStackIcon,
     FolderOpenIcon,
-    HistoryIcon,
     KeyIcon,
     ReceiptEuroIcon,
     SunIcon,
@@ -35,10 +33,8 @@ import { index as ownersIndex, leads as ownersLeads } from '@/routes/owners';
 import { index as partnersIndex } from '@/routes/partners';
 import { index as companiesIndex } from '@/routes/companies';
 import { index as propertiesIndex } from '@/routes/properties';
-import { index as activityIndex } from '@/routes/tools/activity';
 import { index as documentsIndex } from '@/routes/tools/documents';
 import { index as quotesIndex } from '@/routes/tools/quotes';
-import { index as reportsIndex } from '@/routes/tools/reports';
 import { filterNavGroups } from '@/lib/nav-access';
 import type { NavGroup } from '@/types';
 
@@ -203,20 +199,8 @@ export function buildNavGroups(counts: Counts): NavGroup[] {
                     section: 'invoices',
                     shortcut: 'G F',
                 },
-                {
-                    title: 'Rapports',
-                    href: reportsIndex(),
-                    animatedIcon: ChartPieIcon,
-                    section: 'reports',
-                    shortcut: 'G S',
-                },
-                {
-                    title: "Journal d'activité",
-                    href: activityIndex(),
-                    animatedIcon: HistoryIcon,
-                    section: 'activity',
-                    shortcut: 'G J',
-                },
+                // « Rapports » a quitté le menu le 28 octobre 2026 (la page reste
+                // servie), et le journal d'activité vit dans le menu de l'utilisateur.
             ],
         },
     ];

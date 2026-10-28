@@ -1,7 +1,7 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { Sparkles } from 'lucide-react';
+import { CreateButton } from '@/components/create-button';
 import { LeadListView } from '@/components/leads/lead-list-view';
-import { Button } from '@/components/ui/button';
 import { create as leadsCreate, index as leadsIndex } from '@/routes/leads';
 import type {
     ArchivedLeads,
@@ -47,12 +47,7 @@ export default function LeadsIndex({
                 summary={`${leads.length + (archived.loaded ? 0 : archived.count)} lead(s) · ${open} en cours · ${converted} converti(s)`}
                 storageKey="leads.view"
                 action={
-                    <Button asChild>
-                        <Link href={leadsCreate()}>
-                            <Sparkles />
-                            Nouveau lead
-                        </Link>
-                    </Button>
+                    <CreateButton href={leadsCreate()} label="Nouveau lead" />
                 }
                 empty={{
                     icon: <Sparkles className="text-muted-foreground size-5" />,

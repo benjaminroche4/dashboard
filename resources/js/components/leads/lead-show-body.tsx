@@ -51,6 +51,8 @@ type Props = {
     /** Enregistre un champ du contact modifié en place (`name` côté serveur). */
     onSaveField?: (name: string, value: InlineValue) => void;
     savingField?: string | null;
+    /** Refus du serveur par champ (nom → message). */
+    fieldErrors?: Record<string, string>;
     facts: Fact[];
     /** Rendu personnalisé de la section Projet (remplace les lignes et la carte). */
     project?: ReactNode;
@@ -107,12 +109,14 @@ function Rows({
     columns = 1,
     onSave,
     saving,
+    errors = {},
 }: {
     facts: Fact[];
     columns?: 1 | 2;
     /** Enregistre un champ modifié en place ; sans lui, lecture seule. */
     onSave?: (name: string, value: InlineValue) => void;
     saving?: string | null;
+    errors?: Record<string, string>;
 }) {
     return (
         <dl
@@ -142,6 +146,7 @@ function Rows({
                                 display={fact.value}
                                 edit={fact.edit}
                                 saving={saving === fact.edit.name}
+                                error={errors[fact.edit.name]}
                                 onSave={(value) =>
                                     onSave(fact.edit!.name, value)
                                 }
@@ -316,6 +321,7 @@ export function LeadShowBody({
     contact,
     onSaveField,
     savingField = null,
+    fieldErrors = {},
     facts,
     project,
     projectTitle = 'Projet',
@@ -403,6 +409,7 @@ export function LeadShowBody({
                                 columns={2}
                                 onSave={onSaveField}
                                 saving={savingField}
+                                errors={fieldErrors}
                             />
                         )}
                     </section>
