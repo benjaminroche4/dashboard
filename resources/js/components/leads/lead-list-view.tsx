@@ -37,10 +37,8 @@ import type {
 /** Kanban, tableau, ou un tableau par mois d'emménagement. */
 export type LeadView = 'kanban' | 'table' | 'months';
 
-const views: LeadView[] = ['kanban', 'table', 'months'];
-
 /** Vue choisie par l'utilisateur, mémorisée entre deux visites sous `storageKey`. */
-function readView(storageKey: string): LeadView {
+function readView(storageKey: string, views: LeadView[]): LeadView {
     try {
         const stored = localStorage.getItem(storageKey);
 
@@ -72,6 +70,11 @@ type Props = {
     storageKey: string;
     /** Couleurs des colonnes du kanban (locataires par défaut). */
     palette?: KanbanPalette;
+    /**
+     * Propose la vue « Par mois » (un tableau par mois d'emménagement).
+     * Les leads locataires seulement : un propriétaire n'emménage pas.
+     */
+    byMonth?: boolean;
     /** Bouton principal à droite du sélecteur d'affichage. */
     action: ReactNode;
     /** État vide : icône, titre, texte et lien. */
@@ -98,9 +101,13 @@ export function LeadListView({
     summary,
     storageKey,
     palette = 'tenant',
+    byMonth = false,
     action,
     empty,
 }: Props) {
+    const views: LeadView[] = byMonth
+        ? ['kanban', 'table', 'months']
+        : ['kanban', 'table'];
     // Les filtres cochés sont mémorisés avec la vue ; le texte de recherche,
     // lui, repart vide — une liste filtrée par un mot oublié déroute.
     const { query: defaultQuery, ...defaultChoices } = defaultFilters;
@@ -119,7 +126,9 @@ export function LeadListView({
         setQuery(nextQuery);
         setChoices(nextChoices);
     };
-    const [view, setView] = useState<LeadView>(() => readView(storageKey));
+    const [view, setView] = useState<LeadView>(() =>
+        readView(storageKey, views),
+    );
     const changeView = (next: LeadView) => {
         setView(next);
         storeView(storageKey, next);
@@ -190,6 +199,7 @@ export function LeadListView({
                             <Table2 aria-hidden />
                             Tableau
                         </ToggleGroupItem>
+                        {byMonth && (
                         <ToggleGroupItem
                             value="months"
                             aria-label="Par mois"
@@ -198,6 +208,7 @@ export function LeadListView({
                             <CalendarRange aria-hidden />
                             Par mois
                         </ToggleGroupItem>
+                        )}
                     </ToggleGroup>
                     {action}
                 </div>

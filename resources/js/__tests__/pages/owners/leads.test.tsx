@@ -187,6 +187,22 @@ describe('Owner leads page', () => {
         expect(localStorage.getItem('leads.view')).toBeNull();
     });
 
+    it('offers no « Par mois » view: an owner does not move in', () => {
+        render(
+            <OwnerLeads
+                leads={leads}
+                archived={{ loaded: true, count: 0 }}
+                statuses={statuses}
+                offers={offers}
+                lossReasons={lossReasons}
+            />,
+        );
+
+        const views = within(screen.getByLabelText('Affichage'));
+        expect(views.getByRole('radio', { name: 'Tableau' })).toBeInTheDocument();
+        expect(views.queryByRole('radio', { name: 'Par mois' })).toBeNull();
+    });
+
     it('shows an empty state pointing to the owners to prospect', () => {
         render(
             <OwnerLeads

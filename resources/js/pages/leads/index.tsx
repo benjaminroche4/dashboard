@@ -46,6 +46,7 @@ export default function LeadsIndex({
                 title="Leads"
                 summary={`${leads.length + (archived.loaded ? 0 : archived.count)} lead(s) · ${open} en cours · ${converted} converti(s)`}
                 storageKey="leads.view"
+                byMonth
                 action={
                     <CreateButton href={leadsCreate()} label="Nouveau lead" />
                 }
