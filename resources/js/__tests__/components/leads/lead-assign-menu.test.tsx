@@ -73,4 +73,33 @@ describe('LeadAssignMenu', () => {
             expect.anything(),
         );
     });
+
+    it('frames « Attribuer » when nobody follows the lead, not when someone does', () => {
+        const { rerender } = render(
+            <LeadAssignMenu
+                lead={makeLead({ name: 'Aimée Dias', assignee: null })}
+                label="Attribuer"
+            />,
+        );
+
+        const trigger = screen.getByRole('button', {
+            name: 'Attribuer Aimée Dias',
+        });
+        expect(trigger).toHaveAttribute('data-unassigned', 'true');
+        expect(trigger).toHaveClass('border-dashed');
+
+        rerender(
+            <LeadAssignMenu
+                lead={makeLead({
+                    assignee: { id: 1, name: 'Admin', avatar: null },
+                })}
+                label="Attribuer"
+            />,
+        );
+        const assigned = screen.getByRole('button', {
+            name: 'Suivi par Admin, changer',
+        });
+        expect(assigned).not.toHaveAttribute('data-unassigned');
+        expect(assigned).not.toHaveClass('border-dashed');
+    });
 });

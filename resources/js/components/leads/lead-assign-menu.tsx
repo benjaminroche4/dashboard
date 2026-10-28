@@ -80,11 +80,18 @@ export function LeadAssignMenu({
                         : 'Non attribué'
                 }
                 disabled={pending}
+                data-unassigned={lead.assignee ? undefined : 'true'}
                 className={cn(
                     'transition-opacity outline-none hover:opacity-80 focus-visible:ring-2',
                     label
                         ? 'flex min-w-0 items-center gap-2 rounded-md'
                         : 'rounded-full',
+                    // Sans responsable, « Attribuer » est le geste attendu : un
+                    // cadre en pointillés et un peu de fond le font exister,
+                    // là où l'avatar grisé seul passait inaperçu.
+                    label &&
+                        !lead.assignee &&
+                        'bg-background hover:bg-muted border border-dashed py-1 pr-3 pl-1 hover:opacity-100',
                 )}
             >
                 <Avatar
