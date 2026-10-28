@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { DataTable } from '@/components/data-table';
+import { CreateButton } from '@/components/create-button';
 import { DirectoryBulkActions } from '@/components/real-estate/directory-bulk-actions';
 import { FavoritesFilter } from '@/components/favorites-filter';
 import {
@@ -10,7 +10,6 @@ import {
 } from '@/components/partners/columns';
 import { PartnerDialog } from '@/components/partners/partner-dialog';
 import { PartnerTypeFilter } from '@/components/partners/partner-type-filter';
-import { Button } from '@/components/ui/button';
 import { useStoredState } from '@/hooks/use-stored-state';
 import { bulkDestroy, index as partnersIndex } from '@/routes/partners';
 import type { Partner, PartnerType, PartnerTypeOption } from '@/types';
@@ -78,10 +77,7 @@ export default function PartnersIndex({
                             {partners.length} partenaire(s)
                         </p>
                     </div>
-                    <Button onClick={add}>
-                        <Plus />
-                        Nouveau partenaire
-                    </Button>
+                    <CreateButton onClick={add} label="Nouveau partenaire" />
                 </div>
                 <DataTable
                     storageKey="partners"

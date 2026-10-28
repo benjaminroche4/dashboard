@@ -1,9 +1,11 @@
 import { router } from '@inertiajs/react';
 import { CalendarCheck } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { ContactHistoryDialog } from '@/components/real-estate/contact-history-dialog';
 import { DetailSection } from '@/components/real-estate/detail-header';
 import { Button } from '@/components/ui/button';
 import { parisFormat } from '@/lib/datetime';
+import type { ContactHistoryEntry } from '@/types';
 
 const contactDate = parisFormat({
     day: 'numeric',
@@ -22,6 +24,8 @@ export function DirectoryRelationCard({
     touchUrl,
     notes = null,
     extraAction,
+    contacts = [],
+    name = '',
 }: {
     lastContactedAt: string | null;
     /** Route qui note l'échange (`agents.touch`, `partners.contact`…). */
@@ -29,6 +33,10 @@ export function DirectoryRelationCard({
     notes?: string | null;
     /** Action propre à la fiche, à côté d'« Échange noté ». */
     extraAction?: ReactNode;
+    /** Tous les échanges notés : « Voir l'historique » les liste dans une modale. */
+    contacts?: ContactHistoryEntry[];
+    /** Nom de l'entrée, pour le titre de la modale. */
+    name?: string;
 }) {
     return (
         <DetailSection
@@ -49,11 +57,14 @@ export function DirectoryRelationCard({
                 </div>
             }
         >
-            <p className="text-muted-foreground text-sm">
-                {lastContactedAt
-                    ? `Dernier échange le ${contactDate.format(new Date(lastContactedAt))}`
-                    : 'Aucun échange noté pour le moment.'}
-            </p>
+            <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                <p>
+                    {lastContactedAt
+                        ? `Dernier échange le ${contactDate.format(new Date(lastContactedAt))}`
+                        : 'Aucun échange noté pour le moment.'}
+                </p>
+                <ContactHistoryDialog contacts={contacts} name={name} />
+            </div>
             <div className="border-t pt-3">
                 {notes ? (
                     <p className="text-sm/6 whitespace-pre-line">{notes}</p>

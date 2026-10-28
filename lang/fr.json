@@ -332,5 +332,9 @@
     "Devis :quote créé depuis la facture :number, qui est annulée.": "Devis :quote créé depuis la facture :number, qui est annulée.",
     "Logo de :name mis à jour.": "Logo de :name mis à jour.",
     "Logo de :name retiré.": "Logo de :name retiré.",
+    "Photo de :name mise à jour.": "Photo de :name mise à jour.",
+    "Photo de :name retirée.": "Photo de :name retirée.",
+    ":name figure dans l’annuaire des entreprises.": ":name figure dans l’annuaire des entreprises.",
+    "Le lead n’a pas de société à ajouter.": "Le lead n’a pas de société à ajouter.",
     "Indiquez au moins un bien correspondant.": "Indiquez au moins un bien correspondant."
 }

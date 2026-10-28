@@ -2,6 +2,10 @@ import { Check, Pencil, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AddressAutocomplete } from '@/components/address-autocomplete';
 import { DatePicker } from '@/components/date-picker';
+import {
+    SearchSelect,
+    type SearchSelectOption,
+} from '@/components/search-select';
 import { ChoicePills } from '@/components/leads/condition-choices';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,8 +42,50 @@ export type InlineEdit =
           value: number | null;
           suffix?: string;
       }
+    | {
+          /** Nombre entier (surface, étage, chambres…). */
+          kind: 'number';
+          value: number | null;
+          suffix?: string;
+          min?: number;
+          max?: number;
+      }
+    | {
+          /** Adresse cherchée dans Google Places ; enregistre aussi le lieu (`place_id`). */
+          kind: 'address';
+          value: string | null;
+          placeId: string | null;
+          /** Faux sans clé Google : simple texte. */
+          enabled: boolean;
+      }
+    | {
+          /**
+           * Adresse postale en trois colonnes (rue, code postal, ville) saisie
+           * en un seul champ Google Places ; une suggestion remplit les trois,
+           * un texte tapé sans suggestion ne touche que la rue.
+           */
+          kind: 'postal_address';
+          street: string | null;
+          postalCode: string | null;
+          city: string | null;
+          /** Faux sans clé Google : simple texte. */
+          enabled: boolean;
+      }
     | { kind: 'date'; value: string | null }
     | { kind: 'select'; value: string | null; options: LabeledOption[] }
+    | {
+          /**
+           * Liste longue avec recherche (`SearchSelect`) : l'agence d'un
+           * agent, un annuaire qui se compte en centaines. Enregistré dès le
+           * choix, comme `select`.
+           */
+          kind: 'search';
+          value: string | null;
+          options: SearchSelectOption[];
+          /** Entrée qui vide la valeur (« Indépendant »), « Non renseigné » par défaut. */
+          emptyLabel?: string;
+          searchPlaceholder?: string;
+      }
     | { kind: 'multi'; value: string[]; options: LabeledOption[] }
     | {
           /** Arrondissements 1 à 20. */
@@ -57,6 +103,30 @@ export type InlineValue =
 
 /** Valeur d'un champ ville : la ville et son pays. */
 type CityDraft = { city: string; country: string | null };
+
+/** Valeur d'un champ adresse : l'adresse sur une ligne et son lieu Google. */
+type AddressDraft = { address: string; placeId: string | null };
+
+/** Valeur d'un champ adresse postale : ses trois colonnes. */
+type PostalAddressDraft = {
+    street: string;
+    postalCode: string;
+    city: string;
+};
+
+/** « 12 rue de Rivoli, 75004 Paris » depuis une adresse résolue par Google. */
+export function addressLine(address: {
+    street: string;
+    postalCode: string;
+    city: string;
+}): string {
+    return [
+        address.street,
+        [address.postalCode, address.city].filter(Boolean).join(' '),
+    ]
+        .filter(Boolean)
+        .join(', ');
+}
 
 type Props = {
     /** Libellé du champ, pour le nom accessible du bouton (« Modifier Budget mensuel »). */
@@ -236,6 +306,109 @@ export function InlineField({
                     </div>
                 );
             }
+            case 'address': {
+                const current = draft as AddressDraft;
+
+                return (
+                    <div
+                        className="flex w-full items-center gap-2"
+                        onKeyDown={onKeyDown}
+                    >
+                        <AddressAutocomplete
+                            kind="address"
+                            enabled={edit.enabled}
+                            regionCodes={['fr']}
+                            placeholder="12 rue de Rivoli, Paris"
+                            value={current.address}
+                            onChange={(value) =>
+                                // Texte tapé sans choisir : le lieu n'est plus sûr.
+                                setDraft({ address: value, placeId: null })
+                            }
+                            onSelect={(address) =>
+                                setDraft({
+                                    address: addressLine(address),
+                                    placeId: address.placeId ?? null,
+                                })
+                            }
+                            className="w-full max-w-96"
+                        />
+                        {actions}
+                    </div>
+                );
+            }
+            case 'postal_address': {
+                const current = draft as PostalAddressDraft;
+                const rest = [current.postalCode, current.city]
+                    .filter(Boolean)
+                    .join(' ');
+
+                return (
+                    <div
+                        className="flex w-full flex-wrap items-center gap-2"
+                        onKeyDown={onKeyDown}
+                    >
+                        <AddressAutocomplete
+                            kind="address"
+                            enabled={edit.enabled}
+                            regionCodes={['fr']}
+                            placeholder="12 rue de Rivoli, Paris"
+                            value={current.street}
+                            onChange={(value) =>
+                                // Texte tapé sans choisir : seule la rue change.
+                                setDraft({ ...current, street: value })
+                            }
+                            onSelect={(address) =>
+                                setDraft({
+                                    street: address.street,
+                                    postalCode: address.postalCode,
+                                    city: address.city,
+                                })
+                            }
+                            className="w-full max-w-96"
+                        />
+                        {/* Le code postal et la ville suivent la suggestion choisie. */}
+                        {rest !== '' && (
+                            <span
+                                className="text-muted-foreground text-xs"
+                                data-testid="postal-address-rest"
+                            >
+                                {rest}
+                            </span>
+                        )}
+                        {actions}
+                    </div>
+                );
+            }
+            case 'number':
+                return (
+                    <div className="flex w-full items-center gap-2">
+                        <Input
+                            autoFocus
+                            type="number"
+                            inputMode="numeric"
+                            min={edit.min}
+                            max={edit.max}
+                            step={1}
+                            aria-label={label}
+                            value={typeof draft === 'number' ? draft : ''}
+                            onChange={(event) =>
+                                setDraft(
+                                    event.target.value === ''
+                                        ? null
+                                        : Number(event.target.value),
+                                )
+                            }
+                            onKeyDown={onKeyDown}
+                            className="h-8 max-w-32 tabular-nums"
+                        />
+                        {edit.suffix && (
+                            <span className="text-muted-foreground text-sm">
+                                {edit.suffix}
+                            </span>
+                        )}
+                        {actions}
+                    </div>
+                );
             case 'textarea':
                 return (
                     <div className="grid w-full gap-2">
@@ -290,6 +463,39 @@ export function InlineField({
                             className="max-w-56"
                         />
                         {actions}
+                    </div>
+                );
+            case 'search':
+                return (
+                    <div className="flex w-full items-center gap-2">
+                        <SearchSelect
+                            aria-label={label}
+                            value={(draft as string | null) ?? ''}
+                            onChange={(value) => {
+                                const next = value === '' ? null : value;
+                                setDraft(next);
+                                save(next);
+                            }}
+                            options={edit.options}
+                            emptyLabel={edit.emptyLabel ?? 'Non renseigné'}
+                            searchPlaceholder={edit.searchPlaceholder}
+                            disabled={saving}
+                            className="min-h-8 w-full max-w-72 py-1"
+                        />
+                        {saving ? (
+                            <Spinner />
+                        ) : (
+                            <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="size-7"
+                                aria-label="Annuler"
+                                onClick={cancel}
+                            >
+                                <X aria-hidden />
+                            </Button>
+                        )}
                     </div>
                 );
             case 'select':
@@ -387,6 +593,14 @@ function initial(edit: InlineEdit): InlineValue {
     switch (edit.kind) {
         case 'city':
             return { city: edit.value ?? '', country: edit.country };
+        case 'address':
+            return { address: edit.value ?? '', placeId: edit.placeId };
+        case 'postal_address':
+            return {
+                street: edit.street ?? '',
+                postalCode: edit.postalCode ?? '',
+                city: edit.city ?? '',
+            };
         case 'money':
             return edit.value === null ? null : edit.value / 100;
         case 'multi':
@@ -410,6 +624,34 @@ export function normalize(edit: InlineEdit, value: InlineValue): InlineValue {
                     city === '' ? null : (value as CityDraft).country,
             };
         }
+        case 'address': {
+            const address = (value as AddressDraft).address.trim();
+
+            return {
+                address: address === '' ? null : address,
+                place_id:
+                    address === '' ? null : (value as AddressDraft).placeId,
+            };
+        }
+        case 'postal_address': {
+            const draft = value as PostalAddressDraft;
+            const blank = (text: string): string | null =>
+                text.trim() === '' ? null : text.trim();
+
+            // Sans rue, l'adresse est effacée en entier : un code postal seul
+            // ne situe personne.
+            return blank(draft.street) === null
+                ? { street: null, postal_code: null, city: null }
+                : {
+                      street: blank(draft.street),
+                      postal_code: blank(draft.postalCode),
+                      city: blank(draft.city),
+                  };
+        }
+        case 'number':
+            return value === null || value === ''
+                ? null
+                : Math.round(Number(value));
         case 'money':
             return value === null || value === ''
                 ? null
@@ -425,6 +667,7 @@ export function normalize(edit: InlineEdit, value: InlineValue): InlineValue {
                 ? null
                 : value;
         case 'select':
+        case 'search':
             return value;
     }
 }

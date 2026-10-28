@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Owners;
 
+use App\Actions\Directory\ListContactHistory;
 use App\Actions\Owners\AddLeadToDirectory;
 use App\Actions\Owners\CreateOwner;
 use App\Actions\Owners\DeleteOwner;
@@ -166,6 +167,8 @@ class OwnerController extends Controller
             'kinds' => OwnerKind::options(),
             // Carte statique de l'adresse du bien, si la clé Maps Static dédiée est configurée.
             'mapUrl' => resolve(DistrictStaticMap::class)->place(null, null, $this->addressLine($owner)),
+            // Tous les échanges notés, pour la modale « Voir l'historique ».
+            'contacts' => resolve(ListContactHistory::class)->handle($owner),
         ]);
     }
 

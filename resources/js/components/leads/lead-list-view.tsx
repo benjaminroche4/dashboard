@@ -7,9 +7,11 @@ import {
     LeadKanban,
     type KanbanPalette,
 } from '@/components/leads/kanban-board';
+import { LeadBulkActions } from '@/components/leads/lead-bulk-actions';
 import { LeadFilterBar } from '@/components/leads/lead-filter-bar';
 import { LeadMonthSection } from '@/components/leads/lead-month-section';
 import {
+    leadSelectColumn,
     leadTableColumnLabels,
     leadTableColumns,
 } from '@/components/leads/lead-table-columns';
@@ -257,12 +259,20 @@ export function LeadListView({
                     ) : view === 'table' ? (
                         <DataTable
                             storageKey={`${storageKey}.table`}
-                            columns={leadTableColumns}
+                            columns={[leadSelectColumn, ...leadTableColumns]}
                             data={filtered}
                             filterColumn="name"
                             filterPlaceholder="Filtrer par nom…"
                             columnLabels={leadTableColumnLabels}
                             frame="panel"
+                            bulkActions={(rows, clearSelection) => (
+                                <LeadBulkActions
+                                    leads={rows}
+                                    statuses={statuses}
+                                    lossReasons={lossReasons}
+                                    onDone={clearSelection}
+                                />
+                            )}
                         />
                     ) : (
                         <LeadKanban

@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { OfferBadge } from '@/components/clients/offer-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { formatDate, formatMoney } from '@/lib/format';
 import { show as leadShow } from '@/routes/leads';
 import type { Lead } from '@/types';
@@ -42,6 +43,35 @@ export const leadTableColumnLabels: Record<string, string> = {
     arrival_at: 'Arrivée',
     assignee: 'Suivi par',
     last_contacted_at: 'Dernier contact',
+};
+
+/**
+ * Colonne de cases à cocher, en tête de la vue tableau : la sélection sert
+ * aux actions groupées (`LeadBulkActions`), jamais au tri ni au masquage.
+ */
+export const leadSelectColumn: ColumnDef<Lead> = {
+    id: 'select',
+    header: ({ table }) => (
+        <Checkbox
+            checked={
+                table.getIsAllPageRowsSelected() ||
+                (table.getIsSomePageRowsSelected() && 'indeterminate')
+            }
+            onCheckedChange={(value) =>
+                table.toggleAllPageRowsSelected(!!value)
+            }
+            aria-label="Tout sélectionner"
+        />
+    ),
+    cell: ({ row }) => (
+        <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label={`Sélectionner ${row.original.name}`}
+        />
+    ),
+    enableSorting: false,
+    enableHiding: false,
 };
 
 /** Vue tableau de la liste des leads, même présentation que les dossiers clients. */

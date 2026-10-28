@@ -192,6 +192,12 @@ export type LeadDirectoryOwner = {
     name: string;
 };
 
+/** Entreprise de l'annuaire rattachée au lead (`leads.company_id`). */
+export type LeadDirectoryCompany = {
+    uuid: string;
+    name: string;
+};
+
 export type LeadDetail = Lead & {
     first_name: string;
     last_name: string;
@@ -308,4 +314,29 @@ export type LeadVerdictInfo = {
     label: string;
     reason: string | null;
     at: string | null;
+};
+
+/**
+ * Une personne du foyer d'un lead locataire (miroir de
+ * `LeadController::people()`) : le lead lui-même (`primary`, identité de son
+ * contact) ou la seconde personne d'un couple (`co`), avec sa situation
+ * professionnelle, son employeur et son revenu.
+ */
+export type LeadPerson = {
+    slot: 'primary' | 'co';
+    first_name: string | null;
+    last_name: string | null;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    employment_status: string | null;
+    employment_status_label: string | null;
+    employer: string | null;
+    income_cents: number | null;
+};
+
+export type LeadPeople = {
+    primary: LeadPerson;
+    /** Seconde personne du foyer, null tant qu'elle n'est pas nommée. */
+    co: LeadPerson | null;
 };

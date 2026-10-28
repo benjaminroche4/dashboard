@@ -1,12 +1,15 @@
 import type {
-    LeadEditOptions,
-    LeadVerdictInfo,
     Lead,
     LeadDetail,
+    LeadEditOptions,
     LeadInboundMessage,
+    LeadPeople,
+    LeadPerson,
     LeadProperty,
     LeadPropertyDetail,
+    LeadPropertyOptions,
     LeadStatusOption,
+    LeadVerdictInfo,
     OwnerLeadEditable,
 } from '@/types';
 
@@ -160,6 +163,8 @@ export function makeLeadProperty(
     return {
         address: '12 rue de Rivoli, 75004 Paris',
         place_id: null,
+        latitude: 48.8556,
+        longitude: 2.36,
         property_type: 't2',
         property_status: 'available',
         bedrooms: 1,
@@ -195,6 +200,38 @@ export function makeLeadPropertyDetail(
     };
 }
 
+/** Listes du bien proposé, telles que la fiche lead les reçoit (`propertyOptions`). */
+export function makeLeadPropertyOptions(): LeadPropertyOptions {
+    return {
+        propertyTypes: [
+            { value: 'studio', label: 'Studio' },
+            { value: 't2', label: 'T2' },
+            { value: 't3', label: 'T3' },
+        ],
+        propertyStatuses: [
+            { value: 'available', label: 'Disponible' },
+            { value: 'rented', label: 'Loué' },
+        ],
+        leaseTypes: [
+            { value: 'alur', label: 'Loi Alur' },
+            { value: 'mobility', label: 'Bail mobilité' },
+        ],
+        orientations: [
+            { value: 'north', label: 'Nord' },
+            { value: 'south', label: 'Sud' },
+            { value: 'west', label: 'Ouest' },
+        ],
+        amenities: [
+            { value: 'elevator', label: 'Ascenseur' },
+            { value: 'balcony', label: 'Balcon' },
+        ],
+        furnishingOptions: [
+            { value: 'furnished', label: 'Meublé' },
+            { value: 'unfurnished', label: 'Vide' },
+        ],
+    };
+}
+
 /** Lead propriétaire tel que reçu par la Converting Machine propriétaire en modification. */
 export function makeOwnerLeadEditable(
     overrides: Partial<OwnerLeadEditable> = {},
@@ -227,4 +264,28 @@ export function makeVerdict(
         at: '2026-10-28T09:00:00+01:00',
         ...overrides,
     };
+}
+
+export function makeLeadPerson(
+    overrides: Partial<LeadPerson> = {},
+): LeadPerson {
+    return {
+        slot: 'primary',
+        first_name: 'Léa',
+        last_name: 'Durand',
+        name: 'Léa Durand',
+        email: 'lea@example.com',
+        phone: '+33 6 12 34 56 78',
+        employment_status: null,
+        employment_status_label: null,
+        employer: null,
+        income_cents: null,
+        ...overrides,
+    };
+}
+
+export function makeLeadPeople(
+    overrides: Partial<LeadPeople> = {},
+): LeadPeople {
+    return { primary: makeLeadPerson(), co: null, ...overrides };
 }

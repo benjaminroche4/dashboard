@@ -6,6 +6,7 @@ import { FavoriteStar } from '@/components/favorite-star';
 import { AgencyAgentsPopover } from '@/components/real-estate/agency-agents-popover';
 import { AgentLeadsPopover } from '@/components/real-estate/agent-leads-popover';
 import { RealEstateRowActions } from '@/components/real-estate/real-estate-row-actions';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -21,6 +22,16 @@ import {
 } from '@/routes/agents';
 import type { Agency, Agent } from '@/types';
 import { parisFormat } from '@/lib/datetime';
+
+/** Deux lettres au plus, pour la pastille d'un agent sans photo ou d'une agence sans logo. */
+function personInitials(name: string): string {
+    return name
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((word) => word[0]?.toUpperCase() ?? '')
+        .join('');
+}
 
 function SortableHeader({
     label,
@@ -148,26 +159,44 @@ export function agencyColumns(
                 />
             ),
             cell: ({ row }) => (
-                <div className="grid">
-                    <span className="flex items-center gap-1.5">
-                        <Link
-                            href={agencyShow({ agency: row.original.uuid })}
-                            className="font-medium hover:underline"
-                        >
-                            {row.original.name}
-                        </Link>
-                        <FavoriteStar favorite={row.original.is_favorite} />
-                    </span>
-                    {row.original.website && (
-                        <a
-                            href={row.original.website}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-muted-foreground truncate text-xs underline-offset-4 hover:underline"
-                        >
-                            {row.original.website.replace(/^https?:\/\//, '')}
-                        </a>
-                    )}
+                <div className="flex min-w-0 items-center gap-3">
+                    {/* Le logo de l'agence devant son nom, en carré légèrement
+                        arrondi comme celui d'une entreprise, ses initiales à
+                        défaut (demandé le 28 octobre 2026). */}
+                    <Avatar className="size-8 rounded-md border">
+                        <AvatarImage
+                            src={row.original.logo ?? undefined}
+                            alt=""
+                            className="object-contain p-0.5"
+                        />
+                        <AvatarFallback className="bg-primary/10 text-primary rounded-md text-xs font-medium">
+                            {personInitials(row.original.name)}
+                        </AvatarFallback>
+                    </Avatar>
+                    <div className="grid min-w-0">
+                        <span className="flex items-center gap-1.5">
+                            <Link
+                                href={agencyShow({ agency: row.original.uuid })}
+                                className="truncate font-medium hover:underline"
+                            >
+                                {row.original.name}
+                            </Link>
+                            <FavoriteStar favorite={row.original.is_favorite} />
+                        </span>
+                        {row.original.website && (
+                            <a
+                                href={row.original.website}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-muted-foreground truncate text-xs underline-offset-4 hover:underline"
+                            >
+                                {row.original.website.replace(
+                                    /^https?:\/\//,
+                                    '',
+                                )}
+                            </a>
+                        )}
+                    </div>
                 </div>
             ),
         },
@@ -301,21 +330,36 @@ export function agentColumns(
                 />
             ),
             cell: ({ row }) => (
-                <div className="grid">
-                    <span className="flex items-center gap-1.5">
-                        <Link
-                            href={agentShow({ agent: row.original.uuid })}
-                            className="font-medium hover:underline"
-                        >
-                            {row.original.name}
-                        </Link>
-                        <FavoriteStar favorite={row.original.is_favorite} />
-                    </span>
-                    {row.original.position && (
-                        <span className="text-muted-foreground text-xs">
-                            {row.original.position}
+                <div className="flex min-w-0 items-center gap-3">
+                    {/* La photo de l'agent devant son nom, ses initiales à
+                        défaut (demandé le 28 octobre 2026). */}
+                    <Avatar className="size-8">
+                        <AvatarImage
+                            src={row.original.photo ?? undefined}
+                            alt=""
+                            className="object-cover"
+                        />
+                        {/* La teinte de la pastille de sa fiche (`AgentPhotoTile`). */}
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
+                            {personInitials(row.original.name)}
+                        </AvatarFallback>
+                    </Avatar>
+                    <div className="grid min-w-0">
+                        <span className="flex items-center gap-1.5">
+                            <Link
+                                href={agentShow({ agent: row.original.uuid })}
+                                className="truncate font-medium hover:underline"
+                            >
+                                {row.original.name}
+                            </Link>
+                            <FavoriteStar favorite={row.original.is_favorite} />
                         </span>
-                    )}
+                        {row.original.position && (
+                            <span className="text-muted-foreground truncate text-xs">
+                                {row.original.position}
+                            </span>
+                        )}
+                    </div>
                 </div>
             ),
         },

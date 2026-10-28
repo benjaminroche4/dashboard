@@ -26,6 +26,8 @@ use Illuminate\Support\Collection;
  * @property int $lead_id
  * @property string|null $address
  * @property string|null $place_id
+ * @property float|null $latitude
+ * @property float|null $longitude
  * @property OwnerPropertyType|null $property_type
  * @property PropertyStatus|null $property_status
  * @property int|null $bedrooms
@@ -46,7 +48,7 @@ use Illuminate\Support\Collection;
  * @property-read Lead $lead
  */
 #[Fillable([
-    'lead_id', 'address', 'place_id', 'property_type', 'property_status', 'bedrooms', 'bathrooms', 'surface', 'floor', 'building_floors',
+    'lead_id', 'address', 'place_id', 'latitude', 'longitude', 'property_type', 'property_status', 'bedrooms', 'bathrooms', 'surface', 'floor', 'building_floors',
     'furnishing', 'orientations', 'lease_types', 'rent_cents', 'charges_cents', 'deposit_cents', 'amenities', 'note',
 ])]
 class LeadProperty extends Model
@@ -62,6 +64,8 @@ class LeadProperty extends Model
         return [
             'property_type' => OwnerPropertyType::class,
             'property_status' => PropertyStatus::class,
+            'latitude' => 'float',
+            'longitude' => 'float',
             'bedrooms' => 'integer',
             'bathrooms' => 'integer',
             'surface' => 'integer',

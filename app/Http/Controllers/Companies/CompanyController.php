@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Companies;
 
+use App\Actions\Companies\AddLeadCompanyToDirectory;
 use App\Actions\Companies\CreateCompany;
 use App\Actions\Companies\DeleteCompany;
 use App\Actions\Companies\RemoveCompanyLogo;
@@ -173,6 +174,18 @@ class CompanyController extends Controller
         $company = $create->handle(CompanyData::from($request->validated()), $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Entreprise :name ajoutée.', ['name' => $company->name])]);
+
+        return to_route('companies.show', $company);
+    }
+
+    /** Fait entrer la société d'un lead dans l'annuaire, sans ressaisie, et y rattache le lead. */
+    public function fromLead(Request $request, Lead $lead, AddLeadCompanyToDirectory $add): RedirectResponse
+    {
+        $this->authorize('create', Company::class);
+
+        $company = $add->handle($lead, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __(':name figure dans l’annuaire des entreprises.', ['name' => $company->name])]);
 
         return to_route('companies.show', $company);
     }

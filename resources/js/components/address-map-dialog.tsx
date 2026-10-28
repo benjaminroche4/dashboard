@@ -11,6 +11,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { loadGoogleMaps } from '@/lib/google-maps';
+import { cn } from '@/lib/utils';
 
 /** Fond discret, identique à la carte des visites. */
 const mapStyles: google.maps.MapTypeStyle[] = [
@@ -42,18 +43,27 @@ export function directionsUrl(place: MappedPlace): string {
 }
 
 /**
- * Modale « Voir sur la carte » : la position d'une agence, d'un agent ou d'un
- * partenaire sur une carte Google, avec un lien d'itinéraire. Sans clé
- * navigateur ou sans position, la modale l'explique au lieu d'une carte vide.
+ * La carte Google d'une adresse, telle quelle : une pastille sur la position
+ * (28 octobre 2026 : posée **dans** le bloc Contact des fiches agence et
+ * agent, plus seulement derrière la modale). Sans clé navigateur, la carte
+ * statique `fallback` prend la place quand il y en a une ; sans position ni
+ * repli, rien ne s'affiche (`message` dit pourquoi à qui le demande).
  */
-export function AddressMapDialog({
+export function AddressMap({
     place,
-    open,
-    onOpenChange,
+    fallback = null,
+    active = true,
+    className,
+    showMessage = false,
 }: {
     place: MappedPlace;
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
+    /** Carte statique (clé Maps Static), servie sans clé navigateur. */
+    fallback?: string | null;
+    /** Faux tant que la carte n'est pas visible (modale fermée) : rien n'est chargé. */
+    active?: boolean;
+    className?: string;
+    /** Explique l'absence de carte (modale) au lieu de ne rien rendre (fiche). */
+    showMessage?: boolean;
 }) {
     const { features } = usePage().props;
     const key = features?.googleMapsKey ?? null;
@@ -62,7 +72,7 @@ export function AddressMapDialog({
     const located = place.latitude !== null && place.longitude !== null;
 
     useEffect(() => {
-        if (!open || !key || !located) {
+        if (!active || !key || !located) {
             return;
         }
 
@@ -93,7 +103,7 @@ export function AddressMapDialog({
         return () => {
             cancelled = true;
         };
-    }, [open, key, located, place.latitude, place.longitude, place.name]);
+    }, [active, key, located, place.latitude, place.longitude, place.name]);
 
     const message = !located
         ? 'Adresse non localisée : renseignez la rue, le code postal et la ville pour la placer sur la carte.'
@@ -103,6 +113,55 @@ export function AddressMapDialog({
             ? 'La carte n’a pas pu être chargée.'
             : null;
 
+    if (message) {
+        if (fallback && located) {
+            return (
+                <img
+                    src={fallback}
+                    alt={`Carte de ${place.address ?? place.name}`}
+                    loading="lazy"
+                    className={cn(
+                        'h-40 w-full rounded-lg border object-cover',
+                        className,
+                    )}
+                />
+            );
+        }
+
+        return showMessage ? (
+            <p className="text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm">
+                {message}
+            </p>
+        ) : null;
+    }
+
+    return (
+        <div
+            ref={container}
+            role="application"
+            aria-label={`Carte : ${place.name}`}
+            className={cn(
+                'h-40 w-full overflow-hidden rounded-lg border',
+                className,
+            )}
+        />
+    );
+}
+
+/**
+ * Modale « Voir sur la carte » : la position d'une agence, d'un agent ou d'un
+ * partenaire sur une carte Google, avec un lien d'itinéraire. Sans clé
+ * navigateur ou sans position, la modale l'explique au lieu d'une carte vide.
+ */
+export function AddressMapDialog({
+    place,
+    open,
+    onOpenChange,
+}: {
+    place: MappedPlace;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+}) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-2xl">
@@ -113,18 +172,12 @@ export function AddressMapDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                {message ? (
-                    <p className="text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm">
-                        {message}
-                    </p>
-                ) : (
-                    <div
-                        ref={container}
-                        role="application"
-                        aria-label={`Carte : ${place.name}`}
-                        className="h-80 w-full overflow-hidden rounded-lg border"
-                    />
-                )}
+                <AddressMap
+                    place={place}
+                    active={open}
+                    showMessage
+                    className="h-80"
+                />
 
                 <Button
                     variant="outline"

@@ -7,11 +7,11 @@ vi.mock('@/hooks/use-contact-duplicates', () => ({
     useContactDuplicates: () => [],
 }));
 
-const { post } = vi.hoisted(() => ({ post: vi.fn() }));
+const { post, patch } = vi.hoisted(() => ({ post: vi.fn(), patch: vi.fn() }));
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
-    router: { delete: vi.fn(), post },
+    router: { delete: vi.fn(), post, patch },
     usePage: () => ({
         props: {
             auth: { user: { role: 'member' } },
@@ -104,8 +104,11 @@ describe('Agency detail page', () => {
         ).toBeInTheDocument();
         // Pas un favori : aucune étoile.
         expect(screen.queryByRole('img', { name: 'Favori' })).toBeNull();
+        // L'adresse tient sur une seule ligne modifiable en place : rue,
+        // puis code postal et ville (28 octobre 2026).
+        const contact = within(screen.getByRole('region', { name: 'Contact' }));
         expect(
-            screen.getByText('12 rue de Turenne, 75003 Paris'),
+            contact.getByText('12 rue de Turenne, 75003 Paris'),
         ).toBeInTheDocument();
         const agents = within(screen.getByRole('region', { name: 'Agents' }));
         expect(
@@ -199,5 +202,105 @@ describe('Agency detail page', () => {
         );
         expect(card.getAllByRole('listitem')).toHaveLength(1);
         expect(card.getByText('Zoé Martin')).toBeInTheDocument();
+    });
+
+    it('shows the logo in the header as a tile that changes it, and the removal in the « ⋯ » menu', async () => {
+        const user = userEvent.setup();
+        render(
+            <AgencyShow
+                agency={{
+                    ...agency,
+                    logo: '/storage/agency-logos/marais.png',
+                }}
+            />,
+        );
+
+        const tile = screen.getByRole('button', { name: 'Changer le logo' });
+        expect(tile.querySelector('img')).toHaveAttribute(
+            'src',
+            '/storage/agency-logos/marais.png',
+        );
+
+        await user.click(
+            screen.getByRole('button', {
+                name: /Actions pour Agence du Marais/,
+            }),
+        );
+        expect(
+            screen.getByRole('menuitem', { name: 'Retirer le logo' }),
+        ).toBeInTheDocument();
+    });
+
+    it('follows the agent fiche: two columns, inline contact and a ruled matching profile edited line by line', async () => {
+        const user = userEvent.setup();
+        patch.mockClear();
+        // Avec une carte statique servie par le serveur : elle ne doit pas
+        // s'afficher dans le bloc pour autant.
+        render(
+            <AgencyShow
+                agency={{ ...agency, latitude: 48.86, longitude: 2.36 }}
+                mapUrl="/static-map.png"
+            />,
+        );
+
+        expect(screen.getByTestId('agency-columns')).toHaveClass(
+            'lg:grid-cols-2',
+            'lg:divide-x',
+        );
+        // Plus de bouton « Modifier » : il vit dans le menu « ⋯ ».
+        expect(screen.queryByRole('button', { name: 'Modifier' })).toBeNull();
+
+        // L'adresse est une seule ligne (Google Places), et la carte ne
+        // s'ouvre que par « Voir sur la carte » (28 octobre 2026).
+        expect(
+            screen.getByRole('button', { name: 'Modifier Adresse' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Modifier Rue' }),
+        ).toBeNull();
+        // Ni carte Google (`role="application"`), ni carte statique dans le
+        // bloc : la carte ne s'ouvre que par « Voir sur la carte ».
+        const contactBlock = screen.getByRole('region', { name: 'Contact' });
+        expect(within(contactBlock).queryByRole('application')).toBeNull();
+        expect(contactBlock.querySelector('img')).toBeNull();
+
+        await user.click(
+            screen.getByRole('button', { name: 'Modifier Téléphone' }),
+        );
+        const input = screen.getByRole('textbox', { name: 'Téléphone' });
+        await user.clear(input);
+        await user.type(input, '+33 1 42 00 00 01{Enter}');
+        expect(patch).toHaveBeenCalledWith(
+            `/real-estate/agencies/${agency.uuid}/fields`,
+            { phone: '+33 1 42 00 00 01' },
+            expect.anything(),
+        );
+
+        const profile = within(
+            screen.getByRole('region', { name: 'Profil de matching' }),
+        );
+        for (const label of [
+            'Quartiers',
+            'Spécialités',
+            'Langues',
+            'Mandats',
+            'Loyer minimum',
+            'Frais d’agence',
+            'Garantme',
+            'Dossiers étrangers',
+        ]) {
+            expect(
+                profile.getByRole('button', { name: `Modifier ${label}` }),
+            ).toBeInTheDocument();
+        }
+        expect(
+            profile.queryByRole('button', { name: 'Modifier le profil' }),
+        ).toBeNull();
+        // Les notes se modifient dans la frise « Suivi et notes ».
+        expect(
+            within(
+                screen.getByRole('region', { name: 'Suivi et notes' }),
+            ).getByRole('button', { name: 'Modifier Notes' }),
+        ).toBeInTheDocument();
     });
 });

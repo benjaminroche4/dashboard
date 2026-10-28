@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Partners;
 
+use App\Actions\Directory\ListContactHistory;
 use App\Actions\Directory\SendDirectoryWelcome;
 use App\Actions\Directory\ToggleFavorite;
 use App\Actions\Partners\CreatePartner;
@@ -172,6 +173,8 @@ class PartnerController extends Controller
                 ->get()
                 ->map(fn (Activity $activity): array => ActivityController::summary($activity))
                 ->all(),
+            // Tous les échanges notés, pour la modale « Voir l'historique ».
+            'contacts' => resolve(ListContactHistory::class)->handle($partner),
         ]);
     }
 

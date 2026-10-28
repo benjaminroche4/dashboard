@@ -29,6 +29,7 @@ export function LeadArchiveDialog({
     onConfirm,
     busy = false,
     initial,
+    count = 1,
 }: {
     leadName: string;
     reasons: LabeledOption<LeadLossReason>[];
@@ -38,6 +39,8 @@ export function LeadArchiveDialog({
     busy?: boolean;
     /** Motif et précision proposés à l'ouverture (l'AI check les tire de son avis). */
     initial?: Partial<ArchiveChoice>;
+    /** Nombre de leads archivés d'un coup : au-delà d'un, le motif vaut pour tout le groupe. */
+    count?: number;
 }) {
     const [reason, setReason] = useState<LeadLossReason | ''>('');
     const [note, setNote] = useState('');
@@ -55,8 +58,9 @@ export function LeadArchiveDialog({
             <DialogContent>
                 <DialogTitle>Archiver {leadName}</DialogTitle>
                 <DialogDescription>
-                    Pourquoi ce lead n’a-t-il pas abouti ? Le motif sert à
-                    comprendre le pipeline.
+                    {count > 1
+                        ? 'Pourquoi ces leads n’ont-ils pas abouti ? Le même motif sera posé sur chacun.'
+                        : 'Pourquoi ce lead n’a-t-il pas abouti ? Le motif sert à comprendre le pipeline.'}
                 </DialogDescription>
                 <RadioGroup
                     aria-label="Motif"

@@ -38,6 +38,7 @@ import {
 } from '@/routes/partners';
 import type {
     Activity,
+    ContactHistoryEntry,
     LeadInvoice,
     LeadQuote,
     PartnerAbilities,
@@ -60,6 +61,8 @@ type Props = {
     duplicates?: PartnerDuplicate[];
     /** Journal : les dernières actions du backoffice sur ce partenaire. */
     activities?: Activity[];
+    /** Tous les échanges notés, pour « Voir l'historique ». */
+    contacts?: ContactHistoryEntry[];
 };
 
 export default function PartnerShow({
@@ -71,6 +74,7 @@ export default function PartnerShow({
     mapUrl = null,
     duplicates = [],
     activities = [],
+    contacts = [],
 }: Props) {
     const [editing, setEditing] = useState(false);
     const [welcoming, setWelcoming] = useState(false);
@@ -270,6 +274,8 @@ export default function PartnerShow({
                                 partnerContact({ partner: partner.uuid }).url
                             }
                             notes={partner.notes}
+                            contacts={contacts}
+                            name={partner.name}
                             extraAction={
                                 welcomeTo.length > 0 && (
                                     <Button

@@ -11,7 +11,7 @@ vi.mock('@/hooks/use-contact-duplicates', () => ({
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
-    router: { delete: vi.fn() },
+    router: { delete: vi.fn(), patch },
     usePage: () => ({
         props: {
             auth: { user: { role: 'admin' } },
@@ -53,9 +53,49 @@ function useFormStub(initial: Record<string, string>) {
 }
 
 import AgentShow from '@/pages/real-estate/agent';
-import { agencyOptions, makeAgent } from '@/test/fixtures/real-estate';
+import {
+    agencyOptions,
+    makeAgent,
+    makeContactHistoryEntry,
+} from '@/test/fixtures/real-estate';
 
 describe('Agent detail page', () => {
+    it('makes the header tile the photo button: initials without a photo, the portrait with one', () => {
+        const { rerender } = render(
+            <AgentShow
+                agent={makeAgent({ name: 'Marthe Dupuy' })}
+                agency={null}
+                agencies={agencyOptions}
+            />,
+        );
+
+        const tile = screen.getByRole('button', { name: 'Ajouter une photo' });
+        expect(tile).toHaveTextContent('MD');
+        expect(screen.getByTestId('agent-header')).toContainElement(tile);
+        // Ni carte Google ni carte statique dans le bloc Contact : la carte
+        // ne s'ouvre que par « Voir sur la carte » (28 octobre 2026).
+        const contactBlock = screen.getByRole('region', { name: 'Contact' });
+        expect(within(contactBlock).queryByRole('application')).toBeNull();
+        expect(contactBlock.querySelector('img')).toBeNull();
+        // Même largeur que la fiche lead (max-w-6xl), demandé le 28 octobre 2026.
+        expect(screen.getByTestId('agent-columns').parentElement).toHaveClass(
+            'max-w-6xl',
+        );
+
+        rerender(
+            <AgentShow
+                agent={makeAgent({ photo: '/storage/agent-photos/a.png' })}
+                agency={null}
+                agencies={agencyOptions}
+            />,
+        );
+        expect(
+            screen
+                .getByRole('button', { name: 'Changer la photo' })
+                .querySelector('img'),
+        ).toHaveAttribute('src', '/storage/agent-photos/a.png');
+    });
+
     it('shows contact, agency link, leads and opens the edit dialog', async () => {
         const user = userEvent.setup();
         render(
@@ -108,9 +148,12 @@ describe('Agent detail page', () => {
             agencyCard.getByText('12 rue de Turenne, 75003 Paris'),
         ).toBeInTheDocument();
         expect(agencyCard.getByText('2 agent(s)')).toBeInTheDocument();
+        // Plus de raccourcis téléphone, e-mail et site web : ils se lisent
+        // sur la fiche de l'agence, que le bouton ouvre.
         expect(
-            agencyCard.getByRole('link', { name: '+33 1 42 00 00 00' }),
-        ).toHaveAttribute('href', 'tel:+33142000000');
+            agencyCard.queryByRole('link', { name: '+33 1 42 00 00 00' }),
+        ).toBeNull();
+        expect(agencyCard.queryByRole('link', { name: 'Site web' })).toBeNull();
         expect(
             agencyCard.getByRole('link', { name: 'Voir la fiche de l’agence' }),
         ).toHaveAttribute(
@@ -186,15 +229,20 @@ describe('Agent detail page', () => {
         expect(
             screen.queryByRole('region', { name: 'Agence' }),
         ).not.toBeInTheDocument();
-        expect(screen.getByText('Indépendant')).toBeInTheDocument();
+        // L'en-tête le dit en badge, et la ligne « Agence » du contact aussi.
+        expect(
+            within(screen.getByTestId('agent-header')).getByText('Indépendant'),
+        ).toBeInTheDocument();
         expect(screen.getByText('Aucune note.')).toBeInTheDocument();
         expect(
             screen.getByText(
                 /Aucun lead ni dossier client ne lui est rattaché/,
             ),
         ).toBeInTheDocument();
-        // Adresse, fonction, qualité de la relation et visites : rien de renseigné.
-        expect(screen.getAllByText('Non renseigné')).toHaveLength(4);
+        // Téléphone, e-mail, qualité de la relation, adresse : chaque ligne
+        // vide garde sa place, à compléter en place, plus les trois lignes du
+        // profil de matching.
+        expect(screen.getAllByText('Non renseigné')).toHaveLength(7);
     });
 
     it('follows the lead fiche: two columns split by a rule, contact rows on the left, the follow-up as a timeline', () => {
@@ -203,6 +251,7 @@ describe('Agent detail page', () => {
                 agent={makeAgent()}
                 agency={null}
                 agencies={agencyOptions}
+                contacts={[makeContactHistoryEntry()]}
             />,
         );
 
@@ -222,11 +271,110 @@ describe('Agent detail page', () => {
             screen.getByRole('region', { name: 'Suivi et notes' }),
         );
         expect(followUp.getByText('Dernier échange')).toBeInTheDocument();
+        // À côté du dernier échange, le lien qui ouvre l'historique complet.
+        expect(
+            followUp.getByRole('button', { name: "Voir l'historique" }),
+        ).toBeInTheDocument();
         expect(followUp.getAllByTestId('timeline-dot')).toHaveLength(2);
         expect(
             followUp.getByRole('button', { name: 'Échange noté' }),
         ).toBeInTheDocument();
         // Plus de bouton « Modifier » dans l'en-tête : il est dans le menu « ⋯ ».
         expect(screen.queryByRole('button', { name: 'Modifier' })).toBeNull();
+    });
+
+    it('edits a field in place and posts it alone on agents.fields', async () => {
+        const user = userEvent.setup();
+        patch.mockClear();
+        render(
+            <AgentShow
+                agent={makeAgent({ agency: null })}
+                agency={null}
+                agencies={agencyOptions}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Modifier Téléphone' }),
+        );
+        const input = screen.getByRole('textbox', { name: 'Téléphone' });
+        await user.clear(input);
+        await user.type(input, '+33 6 99 99 99 99{Enter}');
+
+        expect(patch).toHaveBeenCalledWith(
+            '/real-estate/agents/0199a9a0-0000-7000-8000-0000000000b1/fields',
+            { phone: '+33 6 99 99 99 99' },
+            expect.anything(),
+        );
+
+        // Les notes se modifient dans la frise, en zone de texte.
+        await user.click(
+            screen.getByRole('button', { name: 'Modifier Notes' }),
+        );
+        expect(
+            screen.getByRole('textbox', { name: 'Notes' }),
+        ).toBeInTheDocument();
+        // L'agence se choisit dans une liste avec recherche.
+        await user.click(
+            screen.getByRole('button', { name: 'Modifier Agence' }),
+        );
+        await user.click(screen.getByRole('combobox', { name: 'Agence' }));
+        expect(
+            screen.getByPlaceholderText('Rechercher une agence…'),
+        ).toBeInTheDocument();
+        await user.click(
+            await screen.findByRole('option', { name: /Indépendant/ }),
+        );
+        expect(patch).toHaveBeenLastCalledWith(
+            expect.stringMatching(/\/fields$/),
+            { agency_id: null },
+            expect.anything(),
+        );
+        // Un indépendant saisit son adresse en une ligne (Google Places).
+        expect(
+            screen.getByRole('button', { name: 'Modifier Adresse' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Modifier Rue' }),
+        ).toBeNull();
+        // Le profil de matching est une fiche à filets, modifiable ligne à ligne.
+        const profile = within(
+            screen.getByRole('region', { name: 'Profil de matching' }),
+        );
+        expect(profile.getByText('Quartiers')).toBeInTheDocument();
+        expect(
+            profile.getByRole('button', { name: 'Modifier Spécialités' }),
+        ).toBeInTheDocument();
+        expect(
+            profile.queryByRole('button', { name: 'Modifier le profil' }),
+        ).toBeNull();
+    });
+
+    it('shows who noted the last exchange, next to its date and time', () => {
+        render(
+            <AgentShow
+                agent={makeAgent({
+                    agency: null,
+                    last_contacted_at: '2026-10-28T14:44:00+01:00',
+                })}
+                agency={null}
+                agencies={agencyOptions}
+                contacts={[
+                    makeContactHistoryEntry({
+                        by: { id: 2, name: 'Camille Roy', avatar: null },
+                    }),
+                ]}
+            />,
+        );
+
+        const followUp = within(
+            screen.getByRole('region', { name: 'Suivi et notes' }),
+        );
+        expect(
+            followUp.getByText(/28 octobre 2026 à 14:44/),
+        ).toBeInTheDocument();
+        expect(
+            followUp.getByLabelText('Noté par Camille Roy'),
+        ).toHaveTextContent('CR');
     });
 });

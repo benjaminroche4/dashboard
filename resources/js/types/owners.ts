@@ -68,7 +68,7 @@ export type OwnerForm = {
 
 /* ---------- Leads propriétaires : bien proposé (Converting Machine propriétaire) ---------- */
 
-import type { LeadLanguage, LeadSource } from './leads';
+import type { LabeledOption, LeadLanguage, LeadSource } from './leads';
 
 export type OwnerPropertyType =
     | 'studio'
@@ -144,6 +144,9 @@ export type PropertyFurnishing = 'furnished' | 'unfurnished';
 export type LeadProperty = {
     address: string | null;
     place_id: string | null;
+    /** Position géocodée depuis l'adresse, pour « Voir sur la carte ». */
+    latitude: number | null;
+    longitude: number | null;
     property_type: OwnerPropertyType | null;
     property_status: PropertyStatus | null;
     bedrooms: number | null;
@@ -159,6 +162,16 @@ export type LeadProperty = {
     deposit_cents: number | null;
     amenities: PropertyAmenity[];
     note: string | null;
+};
+
+/** Listes du bien proposé, pour le modifier en place sur la fiche lead. */
+export type LeadPropertyOptions = {
+    propertyTypes: LabeledOption[];
+    propertyStatuses: LabeledOption[];
+    leaseTypes: LabeledOption[];
+    orientations: LabeledOption[];
+    amenities: LabeledOption[];
+    furnishingOptions: LabeledOption[];
 };
 
 /** Le bien avec ses libellés, pour la fiche lead. */

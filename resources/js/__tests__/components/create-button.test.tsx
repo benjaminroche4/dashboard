@@ -72,3 +72,19 @@ describe('CreateButton', () => {
         expect(stop).toHaveBeenCalled();
     });
 });
+
+describe('CreateButton as a button', () => {
+    it('opens the creation dialogue by its handler, named by its label, same round plus', () => {
+        const onClick = vi.fn();
+        render(<CreateButton onClick={onClick} label="Nouvel agent" />);
+
+        const button = screen.getByRole('button', { name: 'Nouvel agent' });
+        expect(button).toHaveAttribute('title', 'Nouvel agent');
+        expect(button).toHaveClass('rounded-full');
+        expect(screen.queryByRole('link')).toBeNull();
+        fireEvent.click(button);
+        expect(onClick).toHaveBeenCalledTimes(1);
+        fireEvent.mouseEnter(button);
+        expect(start).toHaveBeenCalled();
+    });
+});

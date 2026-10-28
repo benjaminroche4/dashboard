@@ -1,12 +1,12 @@
 import { Head, usePage } from '@inertiajs/react';
-import { Building2, Plus, UserRound } from 'lucide-react';
+import { Building2, UserRound } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { DataTable } from '@/components/data-table';
+import { CreateButton } from '@/components/create-button';
 import { FilterMenu } from '@/components/filter-menu';
 import { OwnerBulkActions } from '@/components/owners/owner-bulk-actions';
 import { ownerColumnLabels, ownerColumns } from '@/components/owners/columns';
 import { OwnerDialog } from '@/components/owners/owner-dialog';
-import { Button } from '@/components/ui/button';
 import {
     useServerTable,
     type ServerPagination,
@@ -91,10 +91,10 @@ export default function OwnersIndex({
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <Button onClick={add}>
-                            <Plus />
-                            Nouveau propriétaire
-                        </Button>
+                        <CreateButton
+                            onClick={add}
+                            label="Nouveau propriétaire"
+                        />
                     </div>
                 </div>
                 <DataTable

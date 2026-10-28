@@ -4,16 +4,19 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\RealEstate\UpdateAgencyLogo;
 use App\Concerns\Favoritable;
 use App\Enums\AgencySpecialty;
 use App\Enums\MandateType;
 use App\Enums\SpokenLanguage;
 use App\Support\ContactMatch;
+use App\Support\FileUrl;
 use Carbon\CarbonInterface;
 use Database\Factories\AgencyFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\AsEnumCollection;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -39,6 +42,8 @@ use Illuminate\Support\Collection as SupportCollection;
  * @property int|null $created_by
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
+ * @property string|null $logo_path
+ * @property-read string|null $logo
  * @property CarbonInterface|null $last_contacted_at
  * @property float|null $latitude
  * @property float|null $longitude
@@ -58,7 +63,7 @@ use Illuminate\Support\Collection as SupportCollection;
  * @property-read Collection<int, Agent> $agents
  * @property-read Collection<int, Lead> $leads
  */
-#[Fillable(['name', 'street', 'postal_code', 'city', 'phone', 'email', 'website', 'notes', 'latitude', 'longitude', 'last_contacted_at', 'created_by', 'districts', 'specialties', 'languages', 'mandate_types', 'fee_note', 'rent_min_cents', 'rent_max_cents', 'accepts_garantme', 'accepts_foreign_files', 'ai_profile', 'ai_profile_at', 'google_place_id'])]
+#[Fillable(['name', 'street', 'postal_code', 'city', 'phone', 'email', 'website', 'notes', 'logo_path', 'latitude', 'longitude', 'last_contacted_at', 'created_by', 'districts', 'specialties', 'languages', 'mandate_types', 'fee_note', 'rent_min_cents', 'rent_max_cents', 'accepts_garantme', 'accepts_foreign_files', 'ai_profile', 'ai_profile_at', 'google_place_id'])]
 class Agency extends Model
 {
     use Favoritable;
@@ -101,6 +106,16 @@ class Agency extends Model
     public function getRouteKeyName(): string
     {
         return 'uuid';
+    }
+
+    /**
+     * URL du logo (lien signé dans un bucket), ou null sans logo.
+     *
+     * @return Attribute<string|null, null>
+     */
+    protected function logo(): Attribute
+    {
+        return new Attribute(get: fn (): ?string => FileUrl::for(UpdateAgencyLogo::DISK, $this->logo_path));
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Owners;
 
+use App\Actions\Leads\GeocodeLeadProperty;
 use App\Data\LeadPropertyData;
 use App\Data\OwnerLeadData;
 use App\Events\DashboardUpdated;
@@ -16,6 +17,8 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class UpdateOwnerLead
 {
+    public function __construct(private GeocodeLeadProperty $geocode) {}
+
     /** Seuls les champs du formulaire propriétaire sont touchés : le projet locataire et la qualification restent intacts. */
     private const array CONTACT_FIELDS = ['first_name', 'last_name', 'email', 'phone', 'company', 'language', 'source', 'source_note', 'assigned_to'];
 
@@ -27,7 +30,11 @@ final readonly class UpdateOwnerLead
             if (! $data->property instanceof LeadPropertyData) {
                 $lead->property()->delete();
             } else {
-                $lead->property()->updateOrCreate([], $data->property->toArray());
+                $property = $lead->property()->updateOrCreate([], $data->property->toArray());
+
+                if ($this->geocode->shouldGeocode($property)) {
+                    $this->geocode->handle($property);
+                }
             }
 
             event(new DashboardUpdated('leads', ['id' => $lead->id], "a modifié le lead propriétaire {$lead->fullName()}", $by));

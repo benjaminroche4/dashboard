@@ -60,3 +60,21 @@ for (const method of [
 if (typeof document.elementFromPoint !== 'function') {
     document.elementFromPoint = () => null;
 }
+
+// Embla (carrousel des biens visités) observe la visibilité de ses vues :
+// jsdom n'a pas d'IntersectionObserver, un stub inerte suffit.
+class IntersectionObserverStub {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+    takeRecords(): IntersectionObserverEntry[] {
+        return [];
+    }
+}
+
+// Défini directement, comme ResizeObserver : un `vi.unstubAllGlobals()` ne doit pas l'enlever.
+Object.defineProperty(globalThis, 'IntersectionObserver', {
+    value: IntersectionObserverStub,
+    writable: true,
+    configurable: true,
+});

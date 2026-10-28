@@ -505,6 +505,16 @@ describe('First contact countdown on the kanban', () => {
         );
         expect(table.getByText('Camille')).toBeInTheDocument();
         expect(localStorage.getItem('leads.view')).toBe('table');
+        // Une colonne de cases ouvre l'îlot des actions groupées (statut).
+        await user.click(
+            table.getByRole('checkbox', { name: 'Sélectionner Léa Durand' }),
+        );
+        expect(
+            within(screen.getByRole('region', { name: 'Sélection' })).getByRole(
+                'button',
+                { name: /Statut \(1\)/ },
+            ),
+        ).toBeInTheDocument();
         unmount();
 
         render(

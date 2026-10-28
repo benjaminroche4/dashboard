@@ -64,9 +64,11 @@ import {
     leadEditOptions,
     leadStatuses,
     lossReasons,
-    makeLeadDetail,
-    makeLeadPropertyDetail,
     makeInbound,
+    makeLeadDetail,
+    makeLeadPeople,
+    makeLeadPerson,
+    makeLeadPropertyDetail,
     makeVerdict,
 } from '@/test/fixtures/lead';
 import type { LeadInvoice, LeadNote } from '@/types';
@@ -161,14 +163,27 @@ describe('Lead detail page', () => {
             />,
         );
 
-        // Sans bien, l'accordéon est replié : on l'ouvre pour lire la ligne vide.
+        // Sans bien, l'accordéon est replié : on l'ouvre pour lire les champs
+        // vides, chacun à compléter en place (28 octobre 2026).
         await userEvent.click(
             screen.getByRole('button', { name: 'Bien proposé' }),
         );
         const section = within(
             screen.getByRole('region', { name: 'Bien proposé' }),
         );
-        expect(section.getByText('Non renseigné')).toBeInTheDocument();
+        expect(section.getAllByText('Non renseigné')).toHaveLength(16);
+        await userEvent.click(
+            section.getByRole('button', { name: 'Modifier Surface' }),
+        );
+        await userEvent.type(
+            section.getByRole('spinbutton', { name: 'Surface' }),
+            '55{Enter}',
+        );
+        expect(patch).toHaveBeenCalledWith(
+            '/locataires/0199a9a0-0000-7000-8000-000000000001/property',
+            { surface: 55 },
+            expect.anything(),
+        );
     });
 
     it('shows contact links, project facts, message, activity and reference', async () => {
@@ -586,6 +601,107 @@ describe('Inline contact editing on the lead page', () => {
                 screen.getByRole('button', { name: `Modifier ${label}` }),
             ).toBeInTheDocument();
         }
+    });
+});
+
+describe('Company directory shortcut on the lead page', () => {
+    it('adds the company to the directory from the « Société » row, then links to it once attached', async () => {
+        const user = userEvent.setup();
+        const { rerender } = render(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail({ company: 'Nestlé' })}
+                editOptions={leadEditOptions}
+                notes={[]}
+                history={[]}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Ajouter aux entreprises' }),
+        );
+        expect(post).toHaveBeenCalledWith(
+            '/companies/from-lead/0199a9a0-0000-7000-8000-000000000001',
+            {},
+            expect.objectContaining({ preserveScroll: true }),
+        );
+
+        rerender(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail({ company: 'Nestlé' })}
+                editOptions={leadEditOptions}
+                directoryCompany={{ uuid: 'c-1', name: 'Nestlé' }}
+                notes={[]}
+                history={[]}
+            />,
+        );
+        expect(
+            screen.queryByRole('button', { name: 'Ajouter aux entreprises' }),
+        ).toBeNull();
+        expect(
+            screen.getByRole('link', { name: 'Voir l’entreprise' }),
+        ).toHaveAttribute('href', '/companies/c-1');
+
+        // Sans société, rien à ajouter.
+        rerender(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail({ company: null })}
+                editOptions={leadEditOptions}
+                notes={[]}
+                history={[]}
+            />,
+        );
+        expect(
+            screen.queryByRole('button', { name: 'Ajouter aux entreprises' }),
+        ).toBeNull();
+    });
+});
+
+describe('People on the lead page', () => {
+    it('lists the household in a « Personnes » fold and saves a field of the second person on its own route', async () => {
+        const user = userEvent.setup();
+        patch.mockClear();
+        render(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail()}
+                editOptions={leadEditOptions}
+                people={makeLeadPeople({
+                    co: makeLeadPerson({
+                        slot: 'co',
+                        name: 'Marc Durand',
+                        first_name: 'Marc',
+                        last_name: 'Durand',
+                    }),
+                })}
+                notes={[]}
+                history={[]}
+            />,
+        );
+
+        const fold = within(screen.getByRole('region', { name: 'Personnes' }));
+        expect(fold.getByText('Marc Durand')).toBeInTheDocument();
+        const co = within(fold.getByRole('region', { name: 'Marc Durand' }));
+        await user.click(
+            co.getByRole('button', { name: 'Modifier Employeur' }),
+        );
+        await user.type(
+            co.getByRole('textbox', { name: 'Employeur' }),
+            'Axa{Enter}',
+        );
+        expect(patch).toHaveBeenCalledWith(
+            '/locataires/0199a9a0-0000-7000-8000-000000000001/people/co',
+            { employer: 'Axa' },
+            expect.anything(),
+        );
+        // La situation pro a quitté le Projet pour la section Personnes.
+        expect(
+            within(screen.getByRole('region', { name: 'Projet' })).queryByText(
+                'Situation pro',
+            ),
+        ).toBeNull();
     });
 });
 

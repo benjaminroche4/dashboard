@@ -99,24 +99,24 @@ function ActivityGroupSection({
     const hidden = group.items.length - visible.length;
 
     return (
-        <section
-            aria-label={group.label || undefined}
-            className="grid gap-2"
-        >
+        <section aria-label={group.label || undefined} className="grid gap-2">
             {/* Sans libellé, le groupe se fond dans la section qui l'entoure
                 (fiche agent, qui titre elle-même « Dernières actions »). */}
             {group.label !== '' && (
-            <div className="flex items-center gap-3">
-                <h2 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                    {group.label}
-                </h2>
-                <span aria-hidden="true" className="bg-border h-px flex-1" />
-                {collapsible && (
-                    <span className="text-muted-foreground text-xs tabular-nums">
-                        {group.items.length}
-                    </span>
-                )}
-            </div>
+                <div className="flex items-center gap-3">
+                    <h2 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                        {group.label}
+                    </h2>
+                    <span
+                        aria-hidden="true"
+                        className="bg-border h-px flex-1"
+                    />
+                    {collapsible && (
+                        <span className="text-muted-foreground text-xs tabular-nums">
+                            {group.items.length}
+                        </span>
+                    )}
+                </div>
             )}
             <ol
                 role="list"

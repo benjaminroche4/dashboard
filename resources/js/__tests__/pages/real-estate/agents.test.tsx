@@ -160,6 +160,12 @@ describe('Agents page', () => {
             within(dialog).getByRole('button', { name: 'Annuler' }),
         );
 
+        // La pastille devant le nom : ses initiales sans photo, dans la
+        // teinte de la pastille de sa fiche.
+        expect(screen.getByText('ZM')).toHaveClass(
+            'bg-primary/10',
+            'text-primary',
+        );
         expect(
             screen.getByRole('link', { name: 'Zoé Martin' }),
         ).toHaveAttribute(

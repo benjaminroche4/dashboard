@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Partners;
 
+use App\Actions\Directory\ListContactHistory;
 use App\Events\DashboardUpdated;
 use App\Models\Partner;
 use App\Models\User;
@@ -17,10 +18,13 @@ final class TouchPartnerContact
 {
     public function handle(Partner $partner, ?CarbonImmutable $at = null, ?User $by = null): Partner
     {
-        $partner->last_contacted_at = $at ?? CarbonImmutable::now();
+        $at ??= CarbonImmutable::now();
+        $partner->last_contacted_at = $at;
         $partner->save();
 
-        event(new DashboardUpdated('partners', ['id' => $partner->id], "a noté un échange avec {$partner->name}", $by));
+        // Le payload marque l'échange et sa date : la modale « Voir
+        // l'historique » des fiches relit le journal pour les lister.
+        event(new DashboardUpdated('partners', ['id' => $partner->id, 'kind' => ListContactHistory::KIND, 'at' => $at->toIso8601String()], "a noté un échange avec {$partner->name}", $by));
 
         return $partner;
     }

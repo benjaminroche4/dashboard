@@ -6,6 +6,8 @@ export type ResolvedAddress = {
     city: string;
     countryCode: string | null;
     countryName: string;
+    /** Identifiant Google Places de la suggestion choisie (adresses seulement). */
+    placeId?: string | null;
 };
 
 /** Ce qu'on cherche : une adresse précise, ou seulement une ville. */
@@ -98,7 +100,7 @@ export async function fetchPlaceSuggestions(
                           countryName:
                               address.countryName || suggestion.secondary,
                       }
-                    : address;
+                    : { ...address, placeId: suggestion.id };
             } catch (error) {
                 if (kind !== 'cities') {
                     throw error;

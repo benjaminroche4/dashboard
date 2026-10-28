@@ -142,14 +142,13 @@ test('the fiche of an agency and of an agent carries its own activity journal', 
 
     $this->actingAs($member)->get(route('agencies.show', $agency))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
-            ->has('activities', 1)
-            ->where('activities.0.message', 'a noté un échange avec Century 21 Marais')
-            ->where('activities.0.actor.name', 'Camille'));
+            // Plus de journal sur la fiche : l'historique des échanges s'ouvre par « Voir l'historique ».
+            ->missing('activities'));
 
     $this->actingAs($member)->get(route('agents.show', $agent))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
-            ->has('activities', 1)
-            ->where('activities.0.message', 'a noté un échange avec Julie Roux'));
+            // Plus de journal sur la fiche : l'historique des échanges s'ouvre par « Voir l'historique ».
+            ->missing('activities'));
 });
 
 test('an action on an agency or an agent is filed on its own fiche', function (): void {

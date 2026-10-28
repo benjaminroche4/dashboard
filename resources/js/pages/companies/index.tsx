@@ -1,13 +1,12 @@
 import { Head } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
     companyColumnLabels,
     companyColumns,
 } from '@/components/companies/columns';
 import { CompanyDialog } from '@/components/companies/company-dialog';
+import { CreateButton } from '@/components/create-button';
 import { DataTable } from '@/components/data-table';
-import { Button } from '@/components/ui/button';
 import type { CompanyEntry } from '@/types';
 
 type Props = {
@@ -40,10 +39,7 @@ export default function CompaniesIndex({ companies }: Props) {
                             sociétés dont l’équipe reloge les collaborateurs
                         </p>
                     </div>
-                    <Button onClick={add}>
-                        <Plus />
-                        Nouvelle entreprise
-                    </Button>
+                    <CreateButton onClick={add} label="Nouvelle entreprise" />
                 </div>
                 <DataTable
                     storageKey="companies"

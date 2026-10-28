@@ -4,17 +4,20 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\RealEstate\UpdateAgentPhoto;
 use App\Concerns\Favoritable;
 use App\Enums\AgencySpecialty;
 use App\Enums\AgentPosition;
 use App\Enums\RelationshipQuality;
 use App\Enums\SpokenLanguage;
 use App\Support\ContactMatch;
+use App\Support\FileUrl;
 use Carbon\CarbonInterface;
 use Database\Factories\AgentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\AsEnumCollection;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -39,6 +42,8 @@ use Illuminate\Support\Collection as SupportCollection;
  * @property string|null $email
  * @property string|null $phone
  * @property string|null $notes
+ * @property string|null $photo_path
+ * @property-read string|null $photo
  * @property int|null $created_by
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
@@ -56,7 +61,7 @@ use Illuminate\Support\Collection as SupportCollection;
  * @property int|null $visits_count
  * @property string|null $visits_max_scheduled_at
  */
-#[Fillable(['agency_id', 'first_name', 'last_name', 'position', 'relationship_quality', 'is_primary', 'street', 'postal_code', 'city', 'email', 'phone', 'notes', 'latitude', 'longitude', 'last_contacted_at', 'created_by', 'districts', 'specialties', 'languages'])]
+#[Fillable(['agency_id', 'first_name', 'last_name', 'position', 'relationship_quality', 'is_primary', 'street', 'postal_code', 'city', 'email', 'phone', 'notes', 'photo_path', 'latitude', 'longitude', 'last_contacted_at', 'created_by', 'districts', 'specialties', 'languages'])]
 class Agent extends Model
 {
     use Favoritable;
@@ -97,6 +102,16 @@ class Agent extends Model
     public function getRouteKeyName(): string
     {
         return 'uuid';
+    }
+
+    /**
+     * URL de la photo (lien signé dans un bucket), ou null sans photo.
+     *
+     * @return Attribute<string|null, null>
+     */
+    protected function photo(): Attribute
+    {
+        return new Attribute(get: fn (): ?string => FileUrl::for(UpdateAgentPhoto::DISK, $this->photo_path));
     }
 
     public function fullName(): string

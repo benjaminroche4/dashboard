@@ -33,6 +33,7 @@ export function RealEstateRowActions({
     canDelete: canDeleteOverride,
     deleteLabel = 'Supprimer',
     extra,
+    triggerVariant = 'ghost',
 }: {
     name: string;
     deleteUrl: string;
@@ -47,6 +48,8 @@ export function RealEstateRowActions({
     deleteLabel?: string;
     /** Entrées propres à la fiche (Fiche PDF…), posées après « Modifier ». */
     extra?: ReactNode;
+    /** `outline` (fond blanc) dans l'en-tête gris d'une fiche, `ghost` dans un tableau. */
+    triggerVariant?: 'ghost' | 'outline';
 }) {
     const { auth } = usePage().props;
     const canDelete = canDeleteOverride ?? auth.user.role === 'admin';
@@ -69,7 +72,7 @@ export function RealEstateRowActions({
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button
-                        variant="ghost"
+                        variant={triggerVariant}
                         className="size-8 p-0"
                         aria-label={`Actions pour ${name}`}
                     >

@@ -1,7 +1,8 @@
-import { Head, Link, usePage } from '@inertiajs/react';
-import { Home, Plus } from 'lucide-react';
+import { Head, usePage } from '@inertiajs/react';
+import { Home } from 'lucide-react';
 import { useMemo } from 'react';
 import { DataTable } from '@/components/data-table';
+import { CreateButton } from '@/components/create-button';
 import { FilterMenu } from '@/components/filter-menu';
 import {
     propertyColumnLabels,
@@ -9,7 +10,6 @@ import {
 } from '@/components/properties/columns';
 import { PropertyBulkActions } from '@/components/properties/property-bulk-actions';
 import { PropertiesMapButton } from '@/components/properties/properties-map-dialog';
-import { Button } from '@/components/ui/button';
 import {
     useServerTable,
     type ServerPagination,
@@ -72,12 +72,10 @@ export default function PropertiesIndex({
                     <div className="flex flex-wrap items-center gap-2">
                         {/* La carte charge les biens elle-même, à l'ouverture. */}
                         <PropertiesMapButton />
-                        <Button asChild>
-                            <Link href={propertyCreate()}>
-                                <Plus />
-                                Nouveau bien
-                            </Link>
-                        </Button>
+                        <CreateButton
+                            href={propertyCreate()}
+                            label="Nouveau bien"
+                        />
                     </div>
                 </div>
                 {pagination.total === 0 && filters.q === '' ? (

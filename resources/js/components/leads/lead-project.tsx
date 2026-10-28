@@ -1,7 +1,6 @@
 import { ChevronDown, Map } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import type { Fact } from '@/components/leads/lead-show-body';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Collapsible,
@@ -9,7 +8,8 @@ import {
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { ClampedText } from '@/components/clamped-text';
-import { InlineField, type InlineValue } from '@/components/inline-field';
+import { RuledRows } from '@/components/leads/lead-show-body';
+import type { InlineValue } from '@/components/inline-field';
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -29,12 +29,6 @@ type Props = {
     fieldErrors?: Record<string, string>;
     /** Carte des arrondissements (lecture seule). */
     map: ReactNode;
-};
-
-const badgeTones = {
-    default: '',
-    warn: 'bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300',
-    good: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
 };
 
 /**
@@ -96,67 +90,12 @@ export function LeadProject({
     return (
         <>
             {sentence && <p className="text-base/7 font-medium">{sentence}</p>}
-            <dl className="divide-y text-sm">
-                {ordered.map((fact) => (
-                    <div
-                        key={fact.label}
-                        className="grid gap-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[10rem_minmax(0,1fr)] sm:gap-4"
-                    >
-                        <dt className="text-muted-foreground flex items-center gap-1.5">
-                            {fact.icon}
-                            {fact.label}
-                        </dt>
-                        <dd className="flex min-w-0 flex-wrap items-center gap-2 font-medium [overflow-wrap:anywhere]">
-                            {/* Modifiable en place dès que la page sait enregistrer :
-                                la valeur (ou « Non renseigné ») est un bouton qui
-                                ouvre son contrôle à sa place (28 octobre 2026). */}
-                            {onSave && fact.edit ? (
-                                <InlineField
-                                    label={fact.label}
-                                    display={
-                                        fact.empty ? (
-                                            <Badge
-                                                variant="outline"
-                                                className="text-muted-foreground font-normal"
-                                            >
-                                                Non renseigné
-                                            </Badge>
-                                        ) : (
-                                            fact.value
-                                        )
-                                    }
-                                    edit={fact.edit}
-                                    saving={saving === fact.edit.name}
-                                    error={fieldErrors[fact.edit.name]}
-                                    onSave={(value) =>
-                                        onSave(fact.edit!.name, value)
-                                    }
-                                />
-                            ) : fact.empty ? (
-                                <Badge
-                                    variant="outline"
-                                    className="text-muted-foreground font-normal"
-                                >
-                                    Non renseigné
-                                </Badge>
-                            ) : (
-                                fact.value
-                            )}
-                            {fact.badge && (
-                                <Badge
-                                    variant="secondary"
-                                    className={cn(
-                                        'font-medium tabular-nums',
-                                        badgeTones[fact.badgeTone ?? 'default'],
-                                    )}
-                                >
-                                    {fact.badge}
-                                </Badge>
-                            )}
-                        </dd>
-                    </div>
-                ))}
-            </dl>
+            <RuledRows
+                facts={ordered}
+                onSave={onSave}
+                saving={saving}
+                errors={fieldErrors}
+            />
             {message && (
                 <ClampedText
                     as="blockquote"

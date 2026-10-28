@@ -24,7 +24,13 @@ import {
     create as propertyCreate,
     show as propertyShow,
 } from '@/routes/properties';
-import type { Owner, OwnerKindOption, OwnerParcStats, Property } from '@/types';
+import type {
+    ContactHistoryEntry,
+    Owner,
+    OwnerKindOption,
+    OwnerParcStats,
+    Property,
+} from '@/types';
 import { parisFormat } from '@/lib/datetime';
 
 type Props = {
@@ -36,6 +42,8 @@ type Props = {
     /** État du parc en trois chiffres, ce que la liste ne dit pas. */
     stats: OwnerParcStats;
     kinds: OwnerKindOption[];
+    /** Tous les échanges notés, pour « Voir l'historique ». */
+    contacts?: ContactHistoryEntry[];
 };
 
 const visitDate = parisFormat({
@@ -51,6 +59,7 @@ export default function OwnerShow({
     stats,
     kinds,
     mapUrl = null,
+    contacts = [],
 }: Props) {
     const [editing, setEditing] = useState(false);
     const address = formatAddress(owner);
@@ -158,6 +167,8 @@ export default function OwnerShow({
                             lastContactedAt={owner.last_contacted_at}
                             touchUrl={ownerContact({ owner: owner.uuid }).url}
                             notes={owner.notes}
+                            contacts={contacts}
+                            name={owner.name}
                         />
 
                         {owner.lead && (

@@ -1,32 +1,39 @@
-import { AgentLeadLink } from '@/components/real-estate/agent-lead-link';
-import { Head, Link, router } from '@inertiajs/react';
+import { AgentLeadRow } from '@/components/real-estate/agent-lead-link';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     ArrowRight,
     Building2,
     CalendarCheck,
-    Clock,
     Contact,
-    Globe,
-    History,
     Mail,
-    NotebookPen,
+    MapPin,
     Phone,
+    Target,
     Users,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { AddressMapButton } from '@/components/address-map-dialog';
-import { ActivityFeed } from '@/components/activity/activity-feed';
-import { ClampedText } from '@/components/clamped-text';
 import { CreatedBy } from '@/components/created-by';
 import { FavoriteStar } from '@/components/favorite-star';
+import { memberTone } from '@/components/leads/lead-assign-menu';
+import type { InlineValue } from '@/components/inline-field';
 import {
     Rows,
+    RuledRows,
     Section,
-    TimelineDot,
     type Fact,
 } from '@/components/leads/lead-show-body';
+import { districtLabel } from '@/lib/agency-profile';
+import { agencySpecialtyIcons, spokenLanguageFlags } from '@/lib/profile-pills';
+import { CountryFlag } from '@/components/country-flag';
+import { agentPositions } from '@/lib/agent-positions';
+import { notify } from '@/lib/toast';
 import { AgentDialog } from '@/components/real-estate/agent-dialog';
-import { AgencyProfileCard } from '@/components/real-estate/agency-profile-card';
+import { DirectoryFollowUp } from '@/components/real-estate/directory-follow-up';
+import {
+    AgentPhotoMenuItem,
+    AgentPhotoTile,
+} from '@/components/real-estate/agent-photo-upload';
 import { formatAddress } from '@/components/real-estate/columns';
 import { missingValue } from '@/components/real-estate/detail-header';
 import { RealEstateRowActions } from '@/components/real-estate/real-estate-row-actions';
@@ -34,6 +41,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { parisFormat } from '@/lib/datetime';
 import {
+    relationshipQualities,
     relationshipQualityTones,
     type RelationshipQualityValue,
 } from '@/lib/relationship-quality';
@@ -42,15 +50,15 @@ import { show as agencyShow } from '@/routes/agencies';
 import {
     destroy as agentDestroy,
     favorite as agentFavorite,
+    fields as agentFields,
     index as agentsIndex,
-    profile as agentProfile,
     touch as agentTouch,
 } from '@/routes/agents';
 import type {
-    Activity,
     AgencyOption,
     Agent,
     AgentAgencyCard,
+    ContactHistoryEntry,
     ProfileOptions,
 } from '@/types';
 
@@ -59,8 +67,10 @@ type Props = {
     /** Fiche de son agence, null pour un indépendant. */
     agency: AgentAgencyCard | null;
     agencies: AgencyOption[];
-    /** Dix dernières actions du backoffice sur cette fiche. */
-    activities?: Activity[];
+    /** Carte statique de l'adresse, repli sans clé navigateur. */
+    mapUrl?: string | null;
+    /** Tous les échanges notés, pour « Voir l'historique ». */
+    contacts?: ContactHistoryEntry[];
     profileOptions?: ProfileOptions;
 };
 
@@ -75,22 +85,6 @@ const visitDate = parisFormat({
     month: 'short',
     year: 'numeric',
 });
-
-const contactDate = parisFormat({
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-});
-
-/** Initiales d'un nom (deux lettres au plus). */
-function initials(name: string): string {
-    return name
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((word) => word[0]?.toUpperCase() ?? '')
-        .join('');
-}
 
 /** Valeur d'une ligne de contact : lien cliquable, texte, ou « Non renseigné ». */
 function contactValue(value: string | null, href: string | null) {
@@ -111,34 +105,62 @@ function contactValue(value: string | null, href: string | null) {
  * Fiche d'un agent immobilier, **sur le moule de la fiche lead** (demandé le
  * 28 octobre 2026 : les cartes grises en deux colonnes inégales se lisaient
  * mal) : deux moitiés égales séparées d'un filet. À gauche, la personne et
- * son suivi — l'en-tête sur fond gris (pastille, nom, favori, fonction,
+ * son suivi — l'en-tête sur fond gris (pastille-photo cliquable, nom, favori, fonction,
  * agence, qualité de la relation, menu « ⋯ » qui porte Modifier), le contact
  * en lignes deux par deux, puis la frise « Suivi et notes » (dernier
  * échange, « Échange noté », notes repliables). À droite, son agence, son
  * profil de matching, ses leads et clients, puis les dernières actions.
+ * **Tout ce qui se lit se modifie en place** (`InlineField`, route
+ * `agents.fields`) : téléphone, e-mail, fonction, qualité de la relation,
+ * agence, adresse d'un indépendant, notes, et le profil de matching
+ * (quartiers, spécialités, langues) en fiche à filets ; le dialogue
+ * « Modifier » reste pour le nom.
  */
 export default function AgentShow({
     agent,
     agency,
     agencies,
-    activities = [],
+    contacts = [],
     profileOptions = emptyOptions,
 }: Props) {
+    const { features } = usePage().props;
+    const addressAutocomplete = features.addressAutocomplete;
     const [editing, setEditing] = useState(false);
-    const [touching, setTouching] = useState(false);
+    const [savingField, setSavingField] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+    const saveField = (name: string, value: InlineValue) => {
+        setSavingField(name);
+        setFieldErrors({});
+        router.patch(
+            agentFields({ agent: agent.uuid }).url,
+            // Un champ composé (l'adresse) envoie ses trois colonnes.
+            value !== null && typeof value === 'object' && !Array.isArray(value)
+                ? value
+                : {
+                      [name]:
+                          // L'agence part en entier, comme le dialogue l'envoie.
+                          name === 'agency_id' && typeof value === 'string'
+                              ? Number(value)
+                              : value,
+                  },
+            {
+                preserveScroll: true,
+                onError: (errors) => {
+                    const message =
+                        Object.values(errors)[0] ??
+                        'Le champ n’a pas pu être enregistré.';
+                    setFieldErrors({ [name]: message });
+                    notify.error('Modification refusée', message);
+                },
+                onFinish: () => setSavingField(null),
+            },
+        );
+    };
     const agencyAddress = agency ? formatAddress(agency) : null;
     // Un agent rattaché travaille à l'adresse de son agence : c'est celle-là
     // qu'on montre, la sienne n'étant renseignée que pour un indépendant.
     const address = agency ? agencyAddress : formatAddress(agent);
     const place = agency ?? agent;
-    const touch = () => {
-        setTouching(true);
-        router.post(
-            agentTouch({ agent: agent.uuid }).url,
-            {},
-            { preserveScroll: true, onFinish: () => setTouching(false) },
-        );
-    };
 
     const contact: Fact[] = [
         {
@@ -148,6 +170,7 @@ export default function AgentShow({
                 agent.phone,
                 agent.phone ? `tel:${agent.phone.replace(/\s+/g, '')}` : null,
             ),
+            edit: { name: 'phone', kind: 'text', value: agent.phone },
         },
         {
             label: 'E-mail',
@@ -156,12 +179,77 @@ export default function AgentShow({
                 agent.email,
                 agent.email ? `mailto:${agent.email}` : null,
             ),
+            edit: { name: 'email', kind: 'text', value: agent.email },
         },
         {
-            label: agency ? 'Adresse de l’agence' : 'Adresse',
-            icon: <Building2 className="size-3.5" aria-hidden />,
-            value: address ?? missingValue,
+            label: 'Fonction',
+            value: agent.position ?? missingValue,
+            edit: {
+                name: 'position',
+                kind: 'select',
+                value: agent.position_value,
+                options: agentPositions.map((position) => ({ ...position })),
+            },
         },
+        {
+            label: 'Qualité de la relation',
+            value: agent.relationship_quality_label ?? missingValue,
+            edit: {
+                name: 'relationship_quality',
+                kind: 'select',
+                value: agent.relationship_quality,
+                options: relationshipQualities.map((quality) => ({
+                    ...quality,
+                })),
+            },
+        },
+        {
+            label: 'Agence',
+            icon: <Building2 className="size-3.5" aria-hidden />,
+            value: agent.agency?.name ?? 'Indépendant',
+            // Une liste avec recherche : l'annuaire des agences se compte en
+            // centaines (demandé le 28 octobre 2026) ; l'adresse aide à
+            // distinguer deux agences du même réseau.
+            edit: {
+                name: 'agency_id',
+                kind: 'search',
+                value: agent.agency ? String(agent.agency.id) : null,
+                options: agencies.map((option) => ({
+                    value: String(option.id),
+                    label: option.name,
+                    hint: option.address ?? null,
+                })),
+                emptyLabel: 'Indépendant',
+                searchPlaceholder: 'Rechercher une agence…',
+            },
+        },
+        // Un agent rattaché travaille à l'adresse de son agence (lecture) ;
+        // seul un indépendant saisit la sienne, en une ligne.
+        ...(agency
+            ? [
+                  {
+                      label: 'Adresse de l’agence',
+                      value: address ?? missingValue,
+                  },
+              ]
+            : [
+                  {
+                      label: 'Adresse',
+                      icon: <MapPin className="size-3.5" aria-hidden />,
+                      value: address ?? missingValue,
+                      // Une seule ligne cherchée dans Google Places : la
+                      // suggestion remplit rue, code postal et ville
+                      // (28 octobre 2026, à la place de trois lignes).
+                      edit: {
+                          name: 'address',
+                          kind: 'postal_address' as const,
+                          street: agent.street,
+                          postalCode: agent.postal_code,
+                          city: agent.city,
+                          enabled: addressAutocomplete,
+                      },
+                  },
+              ]),
         {
             label: 'Visites avec cet agent',
             icon: <CalendarCheck className="size-3.5" aria-hidden />,
@@ -176,18 +264,88 @@ export default function AgentShow({
         },
     ];
 
+    // Pastilles du profil : un drapeau devant chaque langue, un pictogramme
+    // devant chaque spécialité (demandé le 28 octobre 2026), le libellé venant
+    // des options du serveur.
+    const pills = (
+        values: string[],
+        options: { value: string; label: string }[] = [],
+        leading?: (value: string) => ReactNode,
+    ) => (
+        <span className="flex flex-wrap gap-1">
+            {values.map((value) => (
+                <Badge key={value} variant="secondary" className="font-normal">
+                    {leading?.(value)}
+                    {options.find((option) => option.value === value)?.label ??
+                        value}
+                </Badge>
+            ))}
+        </span>
+    );
+    const districts = agent.districts ?? [];
+    const specialties = agent.specialties ?? [];
+    const languages = agent.languages ?? [];
+    const hasProfile = [districts, specialties, languages].some(
+        (list) => list.length > 0,
+    );
+    const profile: Fact[] = [
+        {
+            label: 'Quartiers',
+            value: pills(
+                districts.map(String),
+                districts.map((district) => ({
+                    value: String(district),
+                    label: districtLabel(district),
+                })),
+            ),
+            empty: districts.length === 0,
+            edit: { name: 'districts', kind: 'districts', value: districts },
+        },
+        {
+            label: 'Spécialités',
+            value: pills(specialties, profileOptions.specialties, (value) => {
+                const Icon = agencySpecialtyIcons[value];
+
+                return Icon ? <Icon className="size-3" aria-hidden /> : null;
+            }),
+            empty: specialties.length === 0,
+            edit: {
+                name: 'specialties',
+                kind: 'multi',
+                value: specialties,
+                options: profileOptions.specialties,
+            },
+        },
+        {
+            label: 'Langues',
+            value: pills(languages, profileOptions.languages, (value) => (
+                <CountryFlag
+                    code={spokenLanguageFlags[value]}
+                    className="size-3.5"
+                />
+            )),
+            empty: languages.length === 0,
+            edit: {
+                name: 'languages',
+                kind: 'multi',
+                value: languages,
+                options: profileOptions.languages,
+            },
+        },
+    ];
+
     const header = (
         <div
             className="bg-sidebar flex items-start justify-between gap-4 rounded-xl border p-4"
             data-testid="agent-header"
         >
             <div className="flex min-w-0 items-center gap-4">
-                <span
-                    aria-hidden
-                    className="bg-primary/10 text-primary flex size-12 shrink-0 items-center justify-center rounded-lg text-sm font-semibold"
-                >
-                    {initials(agent.name)}
-                </span>
+                {/* La pastille est le bouton : au survol, un appareil photo
+                    dit qu'on peut poser une photo (28 octobre 2026). */}
+                <AgentPhotoTile
+                    agent={agent}
+                    className={memberTone(agent.id)}
+                />
                 <div className="min-w-0">
                     {/* L'étoile reste hors du titre : le nom accessible du <h1>
                         ne doit pas se terminer par « Favori ». */}
@@ -239,6 +397,7 @@ export default function AgentShow({
             </div>
             {/* Toutes les actions dans le menu « ⋯ », comme sur la fiche lead. */}
             <RealEstateRowActions
+                triggerVariant="outline"
                 favorite={{
                     active: agent.is_favorite,
                     url: agentFavorite({ agent: agent.uuid }).url,
@@ -248,6 +407,7 @@ export default function AgentShow({
                 deleteTitle={`Supprimer l’agent ${agent.name} ?`}
                 deleteDescription="Sa fiche sera effacée et les leads qu'il suivait n'auront plus d'agent. Cette action est irréversible."
                 onEdit={() => setEditing(true)}
+                extra={<AgentPhotoMenuItem agent={agent} />}
             />
         </div>
     );
@@ -255,103 +415,60 @@ export default function AgentShow({
     return (
         <>
             <Head title={`Agent ${agent.name}`} />
-            <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pt-8">
+            <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pt-8 pb-10 lg:pb-0">
                 <div
                     className="grid gap-8 lg:flex-1 lg:grid-cols-2 lg:gap-0 lg:divide-x"
                     data-testid="agent-columns"
                 >
                     {/* Qui il est et le suivi de la relation. */}
-                    <div className="grid content-start gap-6 lg:sticky lg:top-20 lg:-ml-3 lg:max-h-[calc(100dvh-5rem)] lg:self-start lg:overflow-y-auto lg:pr-8 lg:pb-8 lg:pl-3">
+                    <div className="grid min-w-0 content-start gap-6 lg:sticky lg:top-20 lg:-ml-3 lg:max-h-[calc(100dvh-5rem)] lg:self-start lg:overflow-y-auto lg:pr-8 lg:pb-8 lg:pl-3">
                         {header}
-                        <div className="divide-y">
-                        <Section
-                            title="Contact"
-                            icon={Contact}
-                            action={
-                                <AddressMapButton
-                                    place={{
-                                        name: agent.name,
-                                        address,
-                                        street: place.street,
-                                        latitude: place.latitude,
-                                        longitude: place.longitude,
-                                    }}
+                        <div>
+                            <Section
+                                title="Contact"
+                                className="border-b pb-6 last:pb-6"
+                                icon={Contact}
+                                action={
+                                    <AddressMapButton
+                                        place={{
+                                            name: agent.name,
+                                            address,
+                                            street: place.street,
+                                            latitude: place.latitude,
+                                            longitude: place.longitude,
+                                        }}
+                                    />
+                                }
+                            >
+                                {/* Pas de carte dans le bloc : elle s'ouvre
+                                    par « Voir sur la carte » (28 octobre 2026). */}
+                                <Rows
+                                    facts={contact}
+                                    columns={2}
+                                    onSave={saveField}
+                                    saving={savingField}
+                                    errors={fieldErrors}
                                 />
-                            }
-                        >
-                            <Rows facts={contact} columns={2} />
-                        </Section>
-                        {/* Le suivi en frise, comme « Suivi par » d'un lead :
+                            </Section>
+                            {/* Le suivi en frise, comme « Suivi par » d'un lead :
                             le dernier échange sur le rail, le bouton qui note
                             celui du jour, et les notes libres dessous. */}
-                        <Section
-                            title="Suivi et notes"
-                            icon={NotebookPen}
-                            action={
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={touching}
-                                    onClick={touch}
-                                >
-                                    <CalendarCheck aria-hidden />
-                                    Échange noté
-                                </Button>
-                            }
-                        >
-                            <ol className="relative grid gap-4 border-l pl-5 text-sm">
-                                <li className="relative">
-                                    <TimelineDot
-                                        tone="past"
-                                        step={0}
-                                        replayKey={
-                                            agent.last_contacted_at ?? ''
-                                        }
-                                    />
-                                    <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                                        <Clock
-                                            className="size-3.5"
-                                            aria-hidden
-                                        />
-                                        Dernier échange
-                                    </div>
-                                    <div className="font-medium">
-                                        {agent.last_contacted_at
-                                            ? contactDate.format(
-                                                  new Date(
-                                                      agent.last_contacted_at,
-                                                  ),
-                                              )
-                                            : 'Aucun échange noté pour le moment.'}
-                                    </div>
-                                </li>
-                                <li className="relative">
-                                    <TimelineDot tone="next" step={1} />
-                                    <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                                        <NotebookPen
-                                            className="size-3.5"
-                                            aria-hidden
-                                        />
-                                        Notes
-                                    </div>
-                                    {agent.notes ? (
-                                        <ClampedText
-                                            text={agent.notes}
-                                            className="text-sm/6"
-                                        />
-                                    ) : (
-                                        <p className="text-muted-foreground">
-                                            Aucune note.
-                                        </p>
-                                    )}
-                                </li>
-                            </ol>
-                        </Section>
+                            <DirectoryFollowUp
+                                name={agent.name}
+                                lastContactedAt={agent.last_contacted_at}
+                                touchUrl={agentTouch({ agent: agent.uuid }).url}
+                                contacts={contacts}
+                                notes={agent.notes}
+                                saving={savingField === 'notes'}
+                                error={fieldErrors.notes}
+                                onSaveNotes={(value) =>
+                                    saveField('notes', value)
+                                }
+                            />
                         </div>
                     </div>
                     {/* Son agence, son profil, ses leads, ce qui s'est passé. */}
-                    <div className="grid content-start lg:pb-10 lg:pl-8">
+                    <div className="grid min-w-0 content-start lg:pb-10 lg:pl-8">
                         <div className="divide-y">
                             {agency && (
                                 <Section title="Agence" icon={Building2}>
@@ -373,51 +490,9 @@ export default function AgentShow({
                                             {agency.agents_count} agent(s)
                                         </span>
                                     </div>
+                                    {/* Plus de raccourcis téléphone, e-mail, site : ils
+                                        se lisent sur la fiche de l'agence (28 octobre 2026). */}
                                     <div className="flex flex-wrap gap-2">
-                                        {agency.phone && (
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                asChild
-                                            >
-                                                <a
-                                                    href={`tel:${agency.phone.replace(/\s+/g, '')}`}
-                                                >
-                                                    <Phone aria-hidden />
-                                                    {agency.phone}
-                                                </a>
-                                            </Button>
-                                        )}
-                                        {agency.email && (
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                asChild
-                                            >
-                                                <a
-                                                    href={`mailto:${agency.email}`}
-                                                >
-                                                    <Mail aria-hidden />
-                                                    {agency.email}
-                                                </a>
-                                            </Button>
-                                        )}
-                                        {agency.website && (
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                asChild
-                                            >
-                                                <a
-                                                    href={agency.website}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                >
-                                                    <Globe aria-hidden />
-                                                    Site web
-                                                </a>
-                                            </Button>
-                                        )}
                                         <Button
                                             variant="secondary"
                                             size="sm"
@@ -435,17 +510,23 @@ export default function AgentShow({
                                     </div>
                                 </Section>
                             )}
-                            <AgencyProfileCard
-                                scope="agent"
-                                variant="plain"
-                                agent={agent}
-                                options={profileOptions}
-                                urls={{
-                                    profile: agentProfile({
-                                        agent: agent.uuid,
-                                    }).url,
-                                }}
-                            />
+                            {/* Le profil de matching en fiche à filets, chaque
+                                ligne modifiable en place, comme le Projet d'un
+                                lead ; vide, « Non renseigné » invite à compléter. */}
+                            <Section title="Profil de matching" icon={Target}>
+                                <RuledRows
+                                    facts={profile}
+                                    onSave={saveField}
+                                    saving={savingField}
+                                    errors={fieldErrors}
+                                />
+                                {!hasProfile && (
+                                    <p className="text-muted-foreground text-sm">
+                                        Rien de propre à cet agent : le profil
+                                        de son agence sert au matching.
+                                    </p>
+                                )}
+                            </Section>
                             <Section
                                 title="Leads et clients"
                                 icon={Users}
@@ -467,30 +548,20 @@ export default function AgentShow({
                                         Agent en contact » d’une fiche lead.
                                     </p>
                                 ) : (
-                                    <ul role="list" className="grid divide-y">
+                                    /* Chaque lead en carte grise (le sous-bloc
+                                       du backoffice), demandé le 28 octobre 2026. */
+                                    <ul role="list" className="grid gap-2">
                                         {agent.leads.map((lead) => (
                                             <li
                                                 key={lead.uuid}
-                                                className="flex items-baseline justify-between gap-2 py-2 text-sm first:pt-0 last:pb-0"
+                                                className="bg-sidebar rounded-lg border p-3 text-sm"
                                             >
-                                                <AgentLeadLink lead={lead} />
+                                                <AgentLeadRow lead={lead} />
                                             </li>
                                         ))}
                                     </ul>
                                 )}
                             </Section>
-                            {activities.length > 0 && (
-                                <Section
-                                    title="Dernières actions"
-                                    icon={History}
-                                >
-                                    <ActivityFeed
-                                        // La section titre déjà : le fil ne répète pas l'intitulé.
-                                        groups={[{ label: '', items: activities }]}
-                                        collapseAfter={5}
-                                    />
-                                </Section>
-                            )}
                         </div>
                     </div>
                 </div>

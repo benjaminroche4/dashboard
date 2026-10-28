@@ -1,8 +1,12 @@
+import type { OfferValue } from '@/types/invoices';
+import type { LeadStatus } from '@/types/leads';
 /** Agence immobilière partenaire, telle que listée sur la page Agences. */
 export type Agency = {
     id: number;
     uuid: string;
     name: string;
+    /** Logo de l'agence (URL, lien signé dans un bucket), null sans logo. */
+    logo: string | null;
     street: string | null;
     postal_code: string | null;
     city: string | null;
@@ -45,6 +49,15 @@ export type AgentLead = {
     status_label: string;
     /** Lead converti : le lien mène au dossier client, pas à la fiche lead. */
     is_client: boolean;
+    /** Contexte servi sur la fiche d'un agent seulement (ligne détaillée). */
+    status?: LeadStatus;
+    reference?: string | null;
+    offer?: OfferValue | null;
+    offer_label?: string | null;
+    budget_cents?: number | null;
+    currency?: string | null;
+    arrival_at?: string | null;
+    assignee?: { name: string; avatar: string | null } | null;
 };
 
 /** Agence d'un agent, telle qu'affichée en carte sur sa fiche. */
@@ -149,6 +162,8 @@ export type Agent = {
     email: string | null;
     phone: string | null;
     notes: string | null;
+    /** Photo de l'agent (URL, lien signé dans un bucket), null sans photo. */
+    photo: string | null;
     /** Visites faites avec cet agent, et la plus récente. */
     visits_count: number;
     last_visit_at: string | null;
@@ -249,4 +264,17 @@ export type AgencyProfileForm = {
     /** '' = inconnu, '1' = oui, '0' = non. */
     accepts_garantme: '' | '1' | '0';
     accepts_foreign_files: '' | '1' | '0';
+};
+
+/**
+ * Un échange noté avec une entrée de l'annuaire (miroir de
+ * `ListContactHistory`) : la date de l'échange, qui l'a noté et quand.
+ */
+export type ContactHistoryEntry = {
+    id: number;
+    /** Date de l'échange lui-même. */
+    at: string;
+    /** Date de la saisie, qui peut différer quand l'échange est daté après coup. */
+    noted_at: string;
+    by: { id: number; name: string; avatar: string | null } | null;
 };

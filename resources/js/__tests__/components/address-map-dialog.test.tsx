@@ -7,8 +7,13 @@ const { pageProps } = vi.hoisted(() => ({
 }));
 
 vi.mock('@inertiajs/react', () => ({ usePage: () => ({ props: pageProps }) }));
+// Pas de Google en test : le chargeur reste en attente, le conteneur suffit.
+vi.mock('@/lib/google-maps', () => ({
+    loadGoogleMaps: () => new Promise(() => undefined),
+}));
 
 import {
+    AddressMap,
     AddressMapButton,
     directionsUrl,
 } from '@/components/address-map-dialog';
@@ -78,5 +83,35 @@ describe('AddressMapButton', () => {
         );
 
         expect(container).toBeEmptyDOMElement();
+    });
+});
+
+describe('AddressMap', () => {
+    it('shows the static fallback without a browser key, and nothing without position nor fallback', () => {
+        pageProps.features.googleMapsKey = null;
+        const { rerender, container } = render(
+            <AddressMap place={place} fallback="/static/map.png" />,
+        );
+        expect(
+            screen.getByRole('img', { name: /Carte de 12 rue Oberkampf/ }),
+        ).toHaveAttribute('src', '/static/map.png');
+
+        rerender(
+            <AddressMap
+                place={{ ...place, latitude: null, longitude: null }}
+            />,
+        );
+        expect(container).toBeEmptyDOMElement();
+    });
+
+    it('mounts the live map container as soon as a key and a position exist', () => {
+        pageProps.features.googleMapsKey = 'browser-key';
+        render(<AddressMap place={place} />);
+        expect(
+            screen.getByRole('application', {
+                name: 'Carte : Paris Ouest Immobilier',
+            }),
+        ).toBeInTheDocument();
+        pageProps.features.googleMapsKey = null;
     });
 });

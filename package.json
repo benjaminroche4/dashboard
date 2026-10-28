@@ -48,6 +48,8 @@
         "cn": "^0.2.5",
         "concurrently": "^10.0.3",
         "date-fns": "^4.4.0",
+        "embla-carousel-react": "^8.6.0",
+        "embla-carousel-wheel-gestures": "^8.1.0",
         "flag-icons": "^7.5.0",
         "input-otp": "^1.4.2",
         "laravel-echo": "^2.4.0",

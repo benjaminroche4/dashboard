@@ -5,26 +5,30 @@ declare(strict_types=1);
 namespace App\Http\Controllers\RealEstate;
 
 use App\Actions\Agencies\UpdateAgentProfile;
+use App\Actions\Directory\ListContactHistory;
 use App\Actions\Directory\ToggleFavorite;
 use App\Actions\Directory\TouchDirectoryContact;
 use App\Actions\RealEstate\CreateAgent;
 use App\Actions\RealEstate\DeleteAgent;
 use App\Actions\RealEstate\DeleteAgents;
+use App\Actions\RealEstate\RemoveAgentPhoto;
 use App\Actions\RealEstate\UpdateAgent;
+use App\Actions\RealEstate\UpdateAgentFields;
+use App\Actions\RealEstate\UpdateAgentPhoto;
 use App\Data\AgencyProfileData;
 use App\Data\AgentData;
 use App\Enums\AgencySpecialty;
 use App\Enums\LeadStatus;
 use App\Enums\SpokenLanguage;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Tools\ActivityController;
 use App\Http\Requests\Agencies\UpdateAgentProfileRequest;
 use App\Http\Requests\RealEstate\BulkAgentsRequest;
 use App\Http\Requests\RealEstate\IndexAgentsRequest;
 use App\Http\Requests\RealEstate\StoreAgentRequest;
 use App\Http\Requests\RealEstate\TouchDirectoryRequest;
+use App\Http\Requests\RealEstate\UpdateAgentFieldsRequest;
+use App\Http\Requests\RealEstate\UpdateAgentPhotoRequest;
 use App\Http\Requests\RealEstate\UpdateAgentRequest;
-use App\Models\Activity;
 use App\Models\Agency;
 use App\Models\Agent;
 use App\Models\Lead;
@@ -36,6 +40,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -121,7 +126,7 @@ class AgentController extends Controller
     {
         $this->authorize('view', $agent);
 
-        $agent->load(['agency.agents', 'creator', 'leads'])
+        $agent->load(['agency.agents', 'creator', 'leads.assignee'])
             ->loadCount('visits')
             ->loadMax('visits', 'scheduled_at')
             ->loadFavoriteOf($request->user());
@@ -146,6 +151,23 @@ class AgentController extends Controller
                 'specialty_labels' => $agent->specialties?->map(fn (AgencySpecialty $s): string => $s->label())->values()->all() ?? [],
                 'languages' => $agent->languages?->map(fn (SpokenLanguage $l): string => $l->value)->values()->all() ?? [],
                 'language_labels' => $agent->languages?->map(fn (SpokenLanguage $l): string => $l->label())->values()->all() ?? [],
+                // Sur la fiche, chaque lead donne son contexte : référence,
+                // statut, formule, budget, arrivée, suivi
+                // (demandé le 28 octobre 2026 ; la liste garde la ligne courte).
+                'leads' => $agent->leads->map(fn (Lead $lead): array => [
+                    'uuid' => $lead->uuid,
+                    'name' => $lead->status === LeadStatus::Converted ? $lead->householdName() : $lead->fullName(),
+                    'status' => $lead->status->value,
+                    'status_label' => $lead->status->label(),
+                    'is_client' => $lead->status === LeadStatus::Converted,
+                    'reference' => $lead->reference,
+                    'offer' => $lead->offer?->value,
+                    'offer_label' => $lead->offer?->label(),
+                    'budget_cents' => $lead->budget_cents,
+                    'currency' => $lead->currency->value,
+                    'arrival_at' => $lead->arrival_at?->toDateString(),
+                    'assignee' => $lead->assignee === null ? null : ['name' => $lead->assignee->name, 'avatar' => $lead->assignee->avatar],
+                ])->all(),
             ],
             'profileOptions' => AgencyController::profileOptions(),
             // Fiche de son agence, pour la carte « Agence » de la page.
@@ -166,17 +188,19 @@ class AgentController extends Controller
                 'agents_count' => $agent->agency->agents->count(),
             ],
             'agencies' => $this->agencyOptions(),
-            // Journal : les dernières actions du backoffice sur cette fiche.
-            'activities' => Activity::query()
-                ->with(['actor', 'lead', 'partner'])
-                ->where('agent_id', $agent->id)
-                ->latest('created_at')
-                ->latest('id')
-                ->limit(10)
-                ->get()
-                ->map(fn (Activity $activity): array => ActivityController::summary($activity))
-                ->all(),
+            // Tous les échanges notés, pour la modale « Voir l'historique ».
+            'contacts' => resolve(ListContactHistory::class)->handle($agent),
         ]);
+    }
+
+    /** Un ou plusieurs champs de l'agent, modifiés en place depuis sa fiche. */
+    public function fields(UpdateAgentFieldsRequest $request, Agent $agent, UpdateAgentFields $updateAgentFields): RedirectResponse
+    {
+        $updateAgentFields->handle($agent, $request->fields());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Agent :name mis à jour.', ['name' => $agent->fullName()])]);
+
+        return back();
     }
 
     /** Profil de matching propre à l'agent (quartiers, spécialités, langues). */
@@ -221,6 +245,34 @@ class AgentController extends Controller
         ];
     }
 
+    /** Remplace la photo (image de profil) de l'agent. */
+    public function updatePhoto(UpdateAgentPhotoRequest $request, Agent $agent, UpdateAgentPhoto $update): RedirectResponse
+    {
+        $this->authorize('update', $agent);
+
+        $photo = $request->file('photo');
+
+        if ($photo instanceof UploadedFile) {
+            $update->handle($agent, $photo, $request->user());
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Photo de :name mise à jour.', ['name' => $agent->fullName()])]);
+
+        return back();
+    }
+
+    /** Retire la photo de l'agent. */
+    public function destroyPhoto(Request $request, Agent $agent, RemoveAgentPhoto $remove): RedirectResponse
+    {
+        $this->authorize('update', $agent);
+
+        $remove->handle($agent, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Photo de :name retirée.', ['name' => $agent->fullName()])]);
+
+        return back();
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -251,6 +303,7 @@ class AgentController extends Controller
             'email' => $agent->email,
             'phone' => $agent->phone,
             'notes' => $agent->notes,
+            'photo' => $agent->photo,
             'is_favorite' => (bool) $agent->is_favorite,
             // L'agence porte son adresse : c'est celle d'un agent rattaché,
             // que la liste et la fiche affichent à la place de la sienne.

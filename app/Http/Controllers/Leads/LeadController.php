@@ -7,12 +7,14 @@ namespace App\Http\Controllers\Leads;
 use App\Actions\Clients\SuggestClientProperties;
 use App\Actions\Leads\AddLeadNote;
 use App\Actions\Leads\AssignLead;
+use App\Actions\Leads\BulkUpdateLeadStatus;
 use App\Actions\Leads\ConvertLeadToClient;
 use App\Actions\Leads\CreateLead;
 use App\Actions\Leads\DeleteLead;
 use App\Actions\Leads\DeleteLeadNote;
 use App\Actions\Leads\MoveLeadSegment;
 use App\Actions\Leads\QualifyLead;
+use App\Actions\Leads\RemoveLeadCoTenant;
 use App\Actions\Leads\ScheduleLeadRecontact;
 use App\Actions\Leads\ScheduleLeadVisio;
 use App\Actions\Leads\SendLeadDossier;
@@ -24,6 +26,8 @@ use App\Actions\Leads\TouchLeadContact;
 use App\Actions\Leads\UpdateLead;
 use App\Actions\Leads\UpdateLeadFields;
 use App\Actions\Leads\UpdateLeadNote;
+use App\Actions\Leads\UpdateLeadPerson;
+use App\Actions\Leads\UpdateLeadPropertyFields;
 use App\Actions\Leads\UpdateLeadStatus;
 use App\Data\LeadData;
 use App\Data\LeadInboundMessageData;
@@ -43,11 +47,13 @@ use App\Enums\PartnerRole;
 use App\Enums\PaymentPlan;
 use App\Enums\PropertyType;
 use App\Enums\RecontactChannel;
+use App\Enums\TenantSlot;
 use App\Enums\WebsiteHelpType;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Owners\OwnerLeadController;
 use App\Http\Controllers\RealEstate\AgentController;
 use App\Http\Requests\Leads\AssignLeadRequest;
+use App\Http\Requests\Leads\BulkUpdateLeadStatusRequest;
 use App\Http\Requests\Leads\MoveLeadSegmentRequest;
 use App\Http\Requests\Leads\QualifyLeadRequest;
 use App\Http\Requests\Leads\ScheduleLeadRecontactRequest;
@@ -60,6 +66,8 @@ use App\Http\Requests\Leads\StoreLeadRequest;
 use App\Http\Requests\Leads\StoreLeadVisioReportRequest;
 use App\Http\Requests\Leads\UpdateLeadFieldsRequest;
 use App\Http\Requests\Leads\UpdateLeadNoteRequest;
+use App\Http\Requests\Leads\UpdateLeadPersonRequest;
+use App\Http\Requests\Leads\UpdateLeadPropertyFieldsRequest;
 use App\Http\Requests\Leads\UpdateLeadRequest;
 use App\Http\Requests\Leads\UpdateLeadStatusRequest;
 use App\Models\Agent;
@@ -68,6 +76,7 @@ use App\Models\Invoice;
 use App\Models\Lead;
 use App\Models\LeadNote;
 use App\Models\LeadPartner;
+use App\Models\LeadProperty;
 use App\Models\LeadStatusChange;
 use App\Models\Partner;
 use App\Models\PartnerContact;
@@ -368,6 +377,9 @@ class LeadController extends Controller
             // Fiche de l'annuaire des propriétaires créée depuis ce lead : le
             // menu propose de l'y ajouter, ou d'ouvrir celle qui existe déjà.
             'directoryOwner' => $this->directoryOwner($lead),
+            // Entreprise de l'annuaire à laquelle le lead est rattaché : la ligne
+            // « Société » propose d'y ajouter la sienne, ou d'ouvrir celle qui existe.
+            'directoryCompany' => $this->directoryCompany($lead),
             // Ce qu'on peut envoyer au lead depuis la fiche, selon les services configurés.
             'sending' => [
                 'email' => $lead->email !== null && $lead->email !== '',
@@ -508,6 +520,39 @@ class LeadController extends Controller
         return back();
     }
 
+    /** Un champ du bien proposé par un lead propriétaire, modifié en place depuis la fiche. */
+    public function propertyFields(UpdateLeadPropertyFieldsRequest $request, Lead $lead, UpdateLeadPropertyFields $updateLeadPropertyFields): RedirectResponse
+    {
+        $updateLeadPropertyFields->handle($lead, $request->fields());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Bien proposé mis à jour.')]);
+
+        return back();
+    }
+
+    /** Une personne du lead (lui-même ou la seconde personne du foyer), modifiée en place. */
+    public function person(UpdateLeadPersonRequest $request, Lead $lead, string $slot, UpdateLeadPerson $updateLeadPerson): RedirectResponse
+    {
+        $updateLeadPerson->handle($lead, $request->slot(), $request->fields(), $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Personnes du lead mises à jour.')]);
+
+        return back();
+    }
+
+    /** Retire la seconde personne du foyer du lead. */
+    public function removeCoTenant(Request $request, Lead $lead, RemoveLeadCoTenant $removeLeadCoTenant): RedirectResponse
+    {
+        $this->authorize('update', $lead);
+        abort_unless(LeadSegment::fromLead($lead) === LeadSegment::Tenant, 404);
+
+        $removeLeadCoTenant->handle($lead, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Seconde personne retirée du lead.')]);
+
+        return back();
+    }
+
     /** Qualité du lead et note de qualification, posées en place depuis la fiche. */
     public function setQualification(QualifyLeadRequest $request, Lead $lead, SetLeadQualification $setLeadQualification): RedirectResponse
     {
@@ -524,15 +569,62 @@ class LeadController extends Controller
     }
 
     /**
+     * Les personnes du foyer d'un lead locataire, par emplacement : le lead
+     * (identité de son contact) et la seconde personne quand elle est nommée,
+     * chacune avec sa situation professionnelle, son employeur et son revenu
+     * (`tenant_profiles`, les mêmes que le dossier client).
+     *
+     * @return array{primary: array<string, mixed>, co: array<string, mixed>|null}
+     */
+    public static function people(Lead $lead): array
+    {
+        $person = function (TenantSlot $slot) use ($lead): array {
+            $profile = $lead->tenant_profiles[$slot->value] ?? [];
+            // La situation du lead lui-même vit aussi sur la colonne du lead.
+            $status = EmploymentStatus::tryFrom((string) ($profile['employment_status'] ?? ''))
+                ?? ($slot === TenantSlot::Primary ? $lead->employment_status : null);
+            $income = $profile['income_cents'] ?? null;
+
+            return [
+                'slot' => $slot->value,
+                'first_name' => $slot === TenantSlot::Primary ? $lead->first_name : $lead->co_first_name,
+                'last_name' => $slot === TenantSlot::Primary ? $lead->last_name : $lead->co_last_name,
+                'name' => $slot->name($lead),
+                'email' => $slot === TenantSlot::Primary ? $lead->email : $lead->co_email,
+                'phone' => $slot === TenantSlot::Primary ? $lead->phone : $lead->co_phone,
+                'employment_status' => $status?->value,
+                'employment_status_label' => $status?->label(),
+                'employer' => $profile['employer'] ?? null,
+                'income_cents' => $income === null ? null : (int) $income,
+            ];
+        };
+
+        return [
+            'primary' => $person(TenantSlot::Primary),
+            'co' => $lead->coFullName() === null ? null : $person(TenantSlot::Co),
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function detail(Lead $lead): array
     {
         $lead->load(['author', 'assignee', 'agent.agency', 'partnerLinks.partner.contacts', 'notes.author', 'statusChanges.author', 'invoices', 'quotes', 'documentRequests', 'property']);
+        $isOwner = LeadSegment::fromLead($lead) === LeadSegment::Owner;
 
         return [
-            // Bien proposé à la location (lead propriétaire), avec ses libellés.
-            'property' => OwnerLeadController::propertyDetail($lead->property),
+            // Bien proposé à la location (lead propriétaire), avec ses libellés : toujours
+            // présent sur un lead propriétaire, même vide, pour que chaque champ se
+            // complète en place (28 octobre 2026).
+            'property' => $isOwner
+                ? OwnerLeadController::propertyDetail($lead->property ?? new LeadProperty)
+                : null,
+            'propertyOptions' => $isOwner ? OwnerLeadController::propertyOptions() : null,
+            // Les personnes du foyer (le lead, et la seconde personne d'un
+            // couple) avec leur situation professionnelle : un lead locataire
+            // seulement, un propriétaire montre son bien.
+            'people' => $isOwner ? null : self::people($lead),
             'lead' => [
                 ...self::summary($lead),
                 'first_name' => $lead->first_name,
@@ -640,6 +732,23 @@ class LeadController extends Controller
      *
      * @return array{uuid: string, name: string}|null
      */
+    /**
+     * Entreprise de l'annuaire rattachée à ce lead, s'il y en a une.
+     *
+     * @return array{uuid: string, name: string}|null
+     */
+    private function directoryCompany(Lead $lead): ?array
+    {
+        $company = $lead->companyEntry()->first();
+
+        return $company === null ? null : ['uuid' => $company->uuid, 'name' => $company->name];
+    }
+
+    /**
+     * Fiche de l'annuaire des propriétaires liée au lead, pour le menu « ⋯ ».
+     *
+     * @return array{uuid: string, name: string}|null
+     */
     private function directoryOwner(Lead $lead): ?array
     {
         $owner = $lead->owner()->first();
@@ -673,6 +782,29 @@ class LeadController extends Controller
             'name' => $lead->fullName(),
             'status' => $lead->status->label(),
         ])]);
+
+        return back();
+    }
+
+    /**
+     * Même statut pour tous les leads cochés dans le tableau, un seul motif
+     * de perte pour le groupe à l'archivage.
+     */
+    public function bulkStatus(BulkUpdateLeadStatusRequest $request, BulkUpdateLeadStatus $bulkUpdateLeadStatus): RedirectResponse
+    {
+        $status = $request->status();
+        $result = $bulkUpdateLeadStatus->handle($request->leads(), $status, $request->user(), $request->lossReason(), $request->validated('loss_note'));
+
+        $moved = count($result['moved']);
+        $message = $moved === 0
+            ? __('Aucun lead déplacé : ils sont déjà en « :status » ou ne peuvent pas y passer.', ['status' => $status->label()])
+            : __(':count lead(s) passé(s) en « :status ».', ['count' => $moved, 'status' => $status->label()]);
+
+        if ($result['skipped'] !== []) {
+            $message .= ' '.__('Ignoré(s), sans formule : :names.', ['names' => implode(', ', $result['skipped'])]);
+        }
+
+        Inertia::flash('toast', ['type' => $moved === 0 || $result['skipped'] !== [] ? 'warning' : 'success', 'message' => $message]);
 
         return back();
     }

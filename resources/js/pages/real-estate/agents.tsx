@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { DataTable } from '@/components/data-table';
+import { CreateButton } from '@/components/create-button';
 import { DirectoryBulkActions } from '@/components/real-estate/directory-bulk-actions';
 import { FavoritesFilter } from '@/components/favorites-filter';
 import { AgentDialog } from '@/components/real-estate/agent-dialog';
@@ -9,7 +9,6 @@ import {
     agentColumnLabels,
     agentColumns,
 } from '@/components/real-estate/columns';
-import { Button } from '@/components/ui/button';
 import {
     useServerTable,
     type ServerPagination,
@@ -67,10 +66,7 @@ export default function Agents({
                             {pagination.total} agent(s) immobilier(s)
                         </p>
                     </div>
-                    <Button onClick={add}>
-                        <Plus />
-                        Nouvel agent
-                    </Button>
+                    <CreateButton onClick={add} label="Nouvel agent" />
                 </div>
                 <DataTable
                     storageKey="agents"

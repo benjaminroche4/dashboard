@@ -8,26 +8,30 @@ use App\Actions\Agencies\ApplyAgencyEnrichment;
 use App\Actions\Agencies\DismissAgencyEnrichment;
 use App\Actions\Agencies\EnrichAgency;
 use App\Actions\Agencies\UpdateAgencyProfile;
+use App\Actions\Directory\ListContactHistory;
 use App\Actions\Directory\ToggleFavorite;
 use App\Actions\Directory\TouchDirectoryContact;
 use App\Actions\RealEstate\CreateAgency;
 use App\Actions\RealEstate\DeleteAgencies;
 use App\Actions\RealEstate\DeleteAgency;
+use App\Actions\RealEstate\RemoveAgencyLogo;
 use App\Actions\RealEstate\UpdateAgency;
+use App\Actions\RealEstate\UpdateAgencyFields;
+use App\Actions\RealEstate\UpdateAgencyLogo;
 use App\Data\AgencyData;
 use App\Data\AgencyProfileData;
 use App\Enums\AgencySpecialty;
 use App\Enums\MandateType;
 use App\Enums\SpokenLanguage;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Tools\ActivityController;
 use App\Http\Requests\Agencies\UpdateAgencyProfileRequest;
 use App\Http\Requests\RealEstate\BulkAgenciesRequest;
 use App\Http\Requests\RealEstate\IndexAgenciesRequest;
 use App\Http\Requests\RealEstate\StoreAgencyRequest;
 use App\Http\Requests\RealEstate\TouchDirectoryRequest;
+use App\Http\Requests\RealEstate\UpdateAgencyFieldsRequest;
+use App\Http\Requests\RealEstate\UpdateAgencyLogoRequest;
 use App\Http\Requests\RealEstate\UpdateAgencyRequest;
-use App\Models\Activity;
 use App\Models\Agency;
 use App\Models\Agent;
 use App\Models\Visit;
@@ -38,6 +42,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
@@ -103,6 +108,16 @@ class AgencyController extends Controller
         $query->orderBy('id');
     }
 
+    /** Un ou plusieurs champs de l'agence, modifiés en place depuis sa fiche. */
+    public function fields(UpdateAgencyFieldsRequest $request, Agency $agency, UpdateAgencyFields $updateAgencyFields): RedirectResponse
+    {
+        $updateAgencyFields->handle($agency, $request->fields());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Agence :name mise à jour.', ['name' => $agency->name])]);
+
+        return back();
+    }
+
     public function show(Request $request, Agency $agency): Response
     {
         $this->authorize('view', $agency);
@@ -136,16 +151,8 @@ class AgencyController extends Controller
                 'ai_profile_at' => $agency->ai_profile_at?->toIso8601String(),
             ],
             'profileOptions' => self::profileOptions(),
-            // Journal : les dernières actions du backoffice sur cette fiche.
-            'activities' => Activity::query()
-                ->with(['actor', 'lead', 'partner'])
-                ->where('agency_id', $agency->id)
-                ->latest('created_at')
-                ->latest('id')
-                ->limit(10)
-                ->get()
-                ->map(fn (Activity $activity): array => ActivityController::summary($activity))
-                ->all(),
+            // Tous les échanges notés, pour la modale « Voir l'historique ».
+            'contacts' => resolve(ListContactHistory::class)->handle($agency),
         ]);
     }
 
@@ -270,6 +277,34 @@ class AgencyController extends Controller
                 'url' => route('agencies.show', $agency),
             ])
             ->all());
+    }
+
+    /** Remplace le logo (image de profil) de l'agence. */
+    public function updateLogo(UpdateAgencyLogoRequest $request, Agency $agency, UpdateAgencyLogo $update): RedirectResponse
+    {
+        $this->authorize('update', $agency);
+
+        $logo = $request->file('logo');
+
+        if ($logo instanceof UploadedFile) {
+            $update->handle($agency, $logo, $request->user());
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Logo de :name mis à jour.', ['name' => $agency->name])]);
+
+        return back();
+    }
+
+    /** Retire le logo de l'agence. */
+    public function destroyLogo(Request $request, Agency $agency, RemoveAgencyLogo $remove): RedirectResponse
+    {
+        $this->authorize('update', $agency);
+
+        $remove->handle($agency, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Logo de :name retiré.', ['name' => $agency->name])]);
+
+        return back();
     }
 
     /** Pose ou retire l'étoile du membre connecté sur cette agence (favori personnel). */
@@ -456,6 +491,7 @@ class AgencyController extends Controller
             'id' => $agency->id,
             'uuid' => $agency->uuid,
             'name' => $agency->name,
+            'logo' => $agency->logo,
             'street' => $agency->street,
             'postal_code' => $agency->postal_code,
             'city' => $agency->city,

@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@inertiajs/react', () => ({
     Link: ({ href, children }: { href: string; children: React.ReactNode }) => (
@@ -71,10 +72,81 @@ describe('LeadShowBody qualification', () => {
     });
 });
 
+describe('LeadShowBody folds', () => {
+    afterEach(() => {
+        localStorage.clear();
+    });
+
+    function renderFolds() {
+        return render(
+            <LeadShowBody
+                storageKey="lead.abc"
+                header={<div>En-tête</div>}
+                facts={[]}
+                message={null}
+                qualification={[]}
+                qualificationEditor={<div>Étoiles et note</div>}
+                assign={<div>Admin</div>}
+                lastContact="Jamais"
+                activity={<div>Fil</div>}
+            />,
+        );
+    }
+
+    it('remembers whether Projet and Qualification are open across a reload, per lead', async () => {
+        const user = userEvent.setup();
+        const { unmount } = renderFolds();
+
+        const projet = screen.getByRole('button', { name: /Projet/ });
+        const qualification = screen.getByRole('button', {
+            name: /Qualification/,
+        });
+        expect(projet).toHaveAttribute('aria-expanded', 'false');
+        expect(qualification).toHaveAttribute('aria-expanded', 'true');
+
+        await user.click(projet);
+        await user.click(qualification);
+        expect(localStorage.getItem('dashboard.lead.abc.fold.project')).toBe(
+            'true',
+        );
+        expect(
+            localStorage.getItem('dashboard.lead.abc.fold.qualification'),
+        ).toBe('false');
+
+        // Un nouveau montage (rechargement) retrouve l'état laissé.
+        unmount();
+        renderFolds();
+        expect(screen.getByRole('button', { name: /Projet/ })).toHaveAttribute(
+            'aria-expanded',
+            'true',
+        );
+        expect(
+            screen.getByRole('button', { name: /Qualification/ }),
+        ).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('starts from the defaults without a storage key', async () => {
+        const user = userEvent.setup();
+        const { unmount } = renderBody();
+
+        await user.click(screen.getByRole('button', { name: /Projet/ }));
+        expect(localStorage.length).toBe(0);
+        unmount();
+        renderBody();
+        expect(screen.getByRole('button', { name: /Projet/ })).toHaveAttribute(
+            'aria-expanded',
+            'false',
+        );
+    });
+});
+
 describe('LeadShowBody follow-up timeline', () => {
     it('settles each dot on the rail in a cascade, and skips it with reduced motion', () => {
         renderBody({ visio: true });
 
+        // Le rail est décalé sur l'axe de la pastille du titre, pour que les
+        // points restent dans la colonne.
+        expect(screen.getByTestId('follow-up-rail')).toHaveClass('ml-3.5');
         const dots = screen.getAllByTestId('timeline-dot');
         expect(dots.map((dot) => dot.dataset.tone)).toEqual([
             'past',

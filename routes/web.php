@@ -153,8 +153,11 @@ Route::middleware(['auth'])->group(function (): void {
     Route::delete('real-estate/agencies/{agency}', [AgencyController::class, 'destroy'])->name('agencies.destroy');
     Route::post('real-estate/agencies/{agency}/favorite', [AgencyController::class, 'favorite'])->name('agencies.favorite');
     Route::post('real-estate/agencies/{agency}/touch', [AgencyController::class, 'touch'])->name('agencies.touch');
+    Route::post('real-estate/agencies/{agency}/logo', [AgencyController::class, 'updateLogo'])->name('agencies.logo.update');
+    Route::delete('real-estate/agencies/{agency}/logo', [AgencyController::class, 'destroyLogo'])->name('agencies.logo.destroy');
     // Profil de matching : saisi à la main, ou proposé par l'assistant puis relu.
     Route::patch('real-estate/agencies/{agency}/profile', [AgencyController::class, 'profile'])->name('agencies.profile');
+    Route::patch('real-estate/agencies/{agency}/fields', [AgencyController::class, 'fields'])->name('agencies.fields');
     Route::post('real-estate/agencies/{agency}/enrich', [AgencyController::class, 'enrich'])->middleware('throttle:10,1')->name('agencies.enrich');
     Route::post('real-estate/agencies/{agency}/enrich/apply', [AgencyController::class, 'applyEnrichment'])->name('agencies.enrich.apply');
     Route::delete('real-estate/agencies/{agency}/enrich', [AgencyController::class, 'dismissEnrichment'])->name('agencies.enrich.dismiss');
@@ -169,6 +172,9 @@ Route::middleware(['auth'])->group(function (): void {
     Route::post('real-estate/agents/{agent}/favorite', [AgentController::class, 'favorite'])->name('agents.favorite');
     Route::post('real-estate/agents/{agent}/touch', [AgentController::class, 'touch'])->name('agents.touch');
     Route::patch('real-estate/agents/{agent}/profile', [AgentController::class, 'profile'])->name('agents.profile');
+    Route::patch('real-estate/agents/{agent}/fields', [AgentController::class, 'fields'])->name('agents.fields');
+    Route::post('real-estate/agents/{agent}/photo', [AgentController::class, 'updatePhoto'])->name('agents.photo.update');
+    Route::delete('real-estate/agents/{agent}/photo', [AgentController::class, 'destroyPhoto'])->name('agents.photo.destroy');
     // Propriétaires : prospection pour la gestion locative, et leads propriétaires.
     Route::get('owners', [OwnerController::class, 'index'])->name('owners.index');
     Route::get('owners/leads', [OwnerController::class, 'leads'])->name('owners.leads');
@@ -206,6 +212,7 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('companies/duplicates', [CompanyController::class, 'duplicates'])->middleware('throttle:60,1')->name('companies.duplicates');
     Route::get('companies/search', [CompanyController::class, 'search'])->middleware('throttle:60,1')->name('companies.search');
     Route::post('companies', [CompanyController::class, 'store'])->name('companies.store');
+    Route::post('companies/from-lead/{lead}', [CompanyController::class, 'fromLead'])->name('companies.from-lead');
     Route::get('companies/{company}', [CompanyController::class, 'show'])->name('companies.show');
     Route::patch('companies/{company}', [CompanyController::class, 'update'])->name('companies.update');
     Route::delete('companies/{company}', [CompanyController::class, 'destroy'])->name('companies.destroy');
@@ -282,6 +289,9 @@ Route::middleware(['auth'])->group(function (): void {
     Route::put('locataires/{lead}', [LeadController::class, 'update'])->name('leads.update');
     Route::patch('locataires/{lead}/assign', [LeadController::class, 'assign'])->name('leads.assign');
     Route::patch('locataires/{lead}/fields', [LeadController::class, 'fields'])->name('leads.fields');
+    Route::patch('locataires/{lead}/property', [LeadController::class, 'propertyFields'])->name('leads.property.fields');
+    Route::patch('locataires/{lead}/people/{slot}', [LeadController::class, 'person'])->name('leads.people.update');
+    Route::delete('locataires/{lead}/people/co', [LeadController::class, 'removeCoTenant'])->name('leads.people.remove');
     Route::patch('locataires/{lead}/agent', [LeadController::class, 'agent'])->name('leads.agent');
     Route::patch('locataires/{lead}/segment', [LeadController::class, 'segment'])->name('leads.segment');
     Route::post('locataires/{lead}/qualify', [LeadController::class, 'qualify'])->middleware('throttle:20,1')->name('leads.qualify');
@@ -291,6 +301,7 @@ Route::middleware(['auth'])->group(function (): void {
     Route::post('locataires/{lead}/partners/{partnerLink}/forward', [LeadPartnerController::class, 'forward'])->name('leads.partners.forward');
     Route::post('locataires/{lead}/partners/{partnerLink}/forward/draft', [LeadPartnerController::class, 'draftForward'])->middleware('throttle:20,1')->name('leads.partners.forward.draft');
     Route::patch('locataires/{lead}/contact', [LeadController::class, 'contact'])->name('leads.contact');
+    Route::patch('locataires/bulk-status', [LeadController::class, 'bulkStatus'])->name('leads.bulk-status');
     Route::patch('locataires/{lead}/status', [LeadController::class, 'updateStatus'])->name('leads.status');
     Route::post('locataires/{lead}/notes', [LeadController::class, 'storeNote'])->name('leads.notes.store');
     Route::patch('locataires/{lead}/notes/{note}', [LeadController::class, 'updateNote'])->scopeBindings()->name('leads.notes.update');

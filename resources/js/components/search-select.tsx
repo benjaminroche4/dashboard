@@ -42,8 +42,11 @@ export function SearchSelect({
     noResults = 'Aucun résultat.',
     disabled = false,
     className,
+    'aria-label': ariaLabel,
 }: {
     id?: string;
+    /** Nom accessible du bouton, quand aucun `<Label>` ne le porte. */
+    'aria-label'?: string;
     value: string;
     onChange: (value: string) => void;
     options: SearchSelectOption[];
@@ -66,6 +69,7 @@ export function SearchSelect({
                     type="button"
                     variant="outline"
                     role="combobox"
+                    aria-label={ariaLabel}
                     aria-expanded={open}
                     disabled={disabled}
                     className={cn(

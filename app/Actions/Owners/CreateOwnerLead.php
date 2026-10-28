@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Owners;
 
 use App\Actions\Leads\CreateLead;
+use App\Actions\Leads\GeocodeLeadProperty;
 use App\Data\LeadPropertyData;
 use App\Data\OwnerLeadData;
 use App\Models\Lead;
@@ -16,7 +17,7 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class CreateOwnerLead
 {
-    public function __construct(private CreateLead $createLead) {}
+    public function __construct(private CreateLead $createLead, private GeocodeLeadProperty $geocode) {}
 
     public function handle(OwnerLeadData $data, ?User $by = null): Lead
     {
@@ -24,7 +25,9 @@ final readonly class CreateOwnerLead
             $lead = $this->createLead->handle($data->lead, $by);
 
             if ($data->property instanceof LeadPropertyData) {
-                $lead->property()->create($data->property->toArray());
+                $property = $lead->property()->create($data->property->toArray());
+                // Position du bien pour « Voir sur la carte » ; jamais bloquant.
+                $this->geocode->handle($property);
             }
 
             return $lead;

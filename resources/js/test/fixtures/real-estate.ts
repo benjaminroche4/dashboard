@@ -1,4 +1,4 @@
-import type { Agency, AgencyOption, Agent } from '@/types';
+import type { Agency, AgencyOption, Agent, ContactHistoryEntry } from '@/types';
 
 /** Miroir de RealEstateSeeder : agences parisiennes et agents rattachés ou indépendants. */
 export function makeAgency(overrides: Partial<Agency> = {}): Agency {
@@ -6,6 +6,7 @@ export function makeAgency(overrides: Partial<Agency> = {}): Agency {
         id: 1,
         uuid: '0199a9a0-0000-7000-8000-0000000000a1',
         name: 'Agence du Marais',
+        logo: null,
         street: '12 rue de Turenne',
         postal_code: '75003',
         city: 'Paris',
@@ -79,6 +80,7 @@ export function makeAgent(overrides: Partial<Agent> = {}): Agent {
         email: 'zoe@marais.example',
         phone: '+33 6 12 34 56 78',
         notes: null,
+        photo: null,
         visits_count: 0,
         last_visit_at: null,
         is_primary: false,
@@ -95,6 +97,18 @@ export function makeAgent(overrides: Partial<Agent> = {}): Agent {
         creator: 'Admin',
         creator_avatar: null,
         created_at: '2026-09-06T10:00:00+00:00',
+        ...overrides,
+    };
+}
+
+export function makeContactHistoryEntry(
+    overrides: Partial<ContactHistoryEntry> = {},
+): ContactHistoryEntry {
+    return {
+        id: 1,
+        at: '2026-10-28T17:03:00+01:00',
+        noted_at: '2026-10-28T17:03:00+01:00',
+        by: { id: 1, name: 'Admin', avatar: null },
         ...overrides,
     };
 }

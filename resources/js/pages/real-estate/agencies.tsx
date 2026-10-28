@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { DataTable } from '@/components/data-table';
+import { CreateButton } from '@/components/create-button';
 import { DirectoryBulkActions } from '@/components/real-estate/directory-bulk-actions';
 import { FavoritesFilter } from '@/components/favorites-filter';
 import { AgenciesMapButton } from '@/components/real-estate/agencies-map-dialog';
@@ -11,7 +11,6 @@ import {
     agencyColumnLabels,
     agencyColumns,
 } from '@/components/real-estate/columns';
-import { Button } from '@/components/ui/button';
 import {
     useServerTable,
     type ServerPagination,
@@ -90,10 +89,7 @@ export default function Agencies({
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <AgenciesMapButton />
-                        <Button onClick={add}>
-                            <Plus />
-                            Nouvelle agence
-                        </Button>
+                        <CreateButton onClick={add} label="Nouvelle agence" />
                     </div>
                 </div>
                 <DataTable

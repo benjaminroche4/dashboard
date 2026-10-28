@@ -171,6 +171,11 @@ describe('Agencies page', () => {
             within(dialog).getByRole('button', { name: 'Annuler' }),
         );
 
+        // La pastille devant le nom : un carré arrondi aux initiales sans logo.
+        expect(screen.getByText('AD')).toHaveClass(
+            'rounded-md',
+            'bg-primary/10',
+        );
         expect(
             screen.getByRole('link', { name: 'Agence du Marais' }),
         ).toHaveAttribute(

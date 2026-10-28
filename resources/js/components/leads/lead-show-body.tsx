@@ -14,8 +14,10 @@ import {
     Pencil,
     Receipt,
     RefreshCw,
+    UsersRound,
 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import { useStoredState } from '@/hooks/use-stored-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -39,6 +41,8 @@ export type Fact = {
     empty?: boolean;
     /** Modifiable en place : nom du champ côté serveur et son contrôle. */
     edit?: { name: string } & InlineEdit;
+    /** Geste posé après la valeur (« Ajouter aux entreprises » à côté de la société). */
+    after?: ReactNode;
 };
 
 type Props = {
@@ -63,6 +67,9 @@ type Props = {
     message: string | null;
     /** Vrai quand `project` affiche déjà la note : pas de section « Note sur le projet » en plus. */
     projectHasMessage?: boolean;
+    /** Les personnes du foyer (lead et seconde personne), avec leur nombre pour l'accordéon. */
+    people?: ReactNode;
+    peopleCount?: number;
     qualification: Fact[];
     /** Qualification modifiable en place (étoiles et note) ; remplace les lignes `qualification`. */
     qualificationEditor?: ReactNode;
@@ -92,6 +99,12 @@ type Props = {
     /** Devis rattachés au lead, avec leur nombre pour l'accordéon. */
     quotes?: ReactNode;
     quoteCount?: number;
+    /**
+     * Préfixe `localStorage` (« lead.<uuid> ») sous lequel l'état plié ou
+     * déplié de chaque accordéon survit au rechargement ; sans lui, l'état
+     * repart du défaut à chaque montage.
+     */
+    storageKey?: string;
 };
 
 const badgeTones = {
@@ -128,7 +141,7 @@ export function Rows({
             )}
         >
             {facts.map((fact) => (
-                <div key={fact.label} className="grid min-w-0 gap-0.5 text-sm">
+                <div key={fact.label} className="grid min-w-0 gap-1.5 text-sm">
                     <dt className="text-muted-foreground flex items-center gap-1.5 text-xs">
                         {fact.icon}
                         {fact.label}
@@ -160,7 +173,77 @@ export function Rows({
                             <Badge
                                 variant="secondary"
                                 className={cn(
-                                    'align-middle font-medium tabular-nums',
+                                    'align-middle font-medium whitespace-normal tabular-nums',
+                                    badgeTones[fact.badgeTone ?? 'default'],
+                                )}
+                            >
+                                {fact.badge}
+                            </Badge>
+                        )}
+                        {fact.after}
+                    </dd>
+                </div>
+            ))}
+        </dl>
+    );
+}
+
+/**
+ * Fiche à filets : libellé à gauche sur 10 rem, valeur à droite, un filet
+ * entre les lignes (le Projet d'un lead, le profil de matching d'un agent).
+ * Une ligne vide garde sa place avec « Non renseigné », modifiable en place
+ * dès que `onSave` est fourni.
+ */
+export function RuledRows({
+    facts,
+    onSave,
+    saving = null,
+    errors = {},
+}: {
+    facts: Fact[];
+    onSave?: (name: string, value: InlineValue) => void;
+    saving?: string | null;
+    errors?: Record<string, string>;
+}) {
+    const missing = (
+        <Badge variant="outline" className="text-muted-foreground font-normal">
+            Non renseigné
+        </Badge>
+    );
+
+    return (
+        <dl className="divide-y text-sm">
+            {facts.map((fact) => (
+                <div
+                    key={fact.label}
+                    className="grid gap-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[10rem_minmax(0,1fr)] sm:gap-4"
+                >
+                    <dt className="text-muted-foreground flex min-w-0 items-center gap-1.5 [overflow-wrap:anywhere]">
+                        {fact.icon}
+                        {fact.label}
+                    </dt>
+                    <dd className="flex min-w-0 flex-wrap items-center gap-2 font-medium [overflow-wrap:anywhere]">
+                        {onSave && fact.edit ? (
+                            <InlineField
+                                label={fact.label}
+                                display={fact.empty ? missing : fact.value}
+                                edit={fact.edit}
+                                saving={saving === fact.edit.name}
+                                error={errors[fact.edit.name]}
+                                onSave={(value) =>
+                                    onSave(fact.edit!.name, value)
+                                }
+                            />
+                        ) : fact.empty ? (
+                            missing
+                        ) : (
+                            fact.value
+                        )}
+                        {fact.badge && (
+                            <Badge
+                                variant="secondary"
+                                className={cn(
+                                    'font-medium whitespace-normal tabular-nums',
                                     badgeTones[fact.badgeTone ?? 'default'],
                                 )}
                             >
@@ -191,18 +274,21 @@ export function Section({
     title,
     icon,
     action,
+    className,
     children,
 }: {
     title: string;
     /** Pictogramme en pastille grise devant le titre. */
     icon?: typeof Home;
     action?: ReactNode;
+    /** Filet sous la section (`border-b`) là où la colonne n'est pas en `divide-y`. */
+    className?: string;
     children: ReactNode;
 }) {
     return (
         <section
             aria-label={title}
-            className="grid gap-4 py-6 first:pt-0 last:pb-0"
+            className={cn('grid gap-4 py-6 first:pt-0 last:pb-0', className)}
         >
             <header className="flex items-center justify-between gap-2">
                 <h2 className="flex items-center gap-2 text-base font-medium">
@@ -216,12 +302,18 @@ export function Section({
     );
 }
 
+/** Clé `localStorage` d'un accordéon de la fiche, ou rien sans préfixe. */
+function foldKey(prefix: string | undefined, name: string): string | undefined {
+    return prefix === undefined ? undefined : `${prefix}.fold.${name}`;
+}
+
 /** Groupe repliable à filet : intitulé, compte, chevron. */
 function Fold({
     title,
     icon,
     count,
     defaultOpen = false,
+    storageKey,
     children,
 }: {
     title: string;
@@ -229,9 +321,13 @@ function Fold({
     icon?: typeof Home;
     count?: number;
     defaultOpen?: boolean;
+    /** Clé `localStorage` qui mémorise l'état plié ou déplié (28 octobre 2026). */
+    storageKey?: string;
     children: ReactNode;
 }) {
-    const [open, setOpen] = useState(defaultOpen);
+    // Plié ou déplié à la main, l'accordéon le reste après un rechargement :
+    // le défaut ne sert qu'à la première visite de la fiche.
+    const [open, setOpen] = useStoredState(storageKey, defaultOpen);
 
     return (
         <section aria-label={title} className="py-6 first:pt-0 last:pb-0">
@@ -332,6 +428,8 @@ export function LeadShowBody({
     projectHasMessage = false,
     qualification,
     qualificationEditor,
+    people,
+    peopleCount = 0,
     assign,
     recontact,
     visio,
@@ -343,6 +441,7 @@ export function LeadShowBody({
     completeUrl,
     invoices,
     quotes,
+    storageKey,
     quoteCount = 0,
     invoiceCount = 0,
 }: Props) {
@@ -431,7 +530,12 @@ export function LeadShowBody({
                         {assign}
                         {touchButton}
                     </div>
-                    <ol className="relative grid gap-4 border-l pl-5 text-sm">
+                    {/* Rail aligné sur l'axe de la pastille du titre (14 px) :
+                        les points ne débordent plus de la colonne. */}
+                    <ol
+                        className="relative ml-3.5 grid gap-4 border-l pl-5 text-sm"
+                        data-testid="follow-up-rail"
+                    >
                         <li className="relative">
                             <TimelineDot
                                 tone="past"
@@ -482,10 +586,16 @@ export function LeadShowBody({
                         title={projectTitle}
                         icon={projectFilled ? Home : ClipboardList}
                         defaultOpen={facts.length > 0 || projectFilled}
+                        storageKey={foldKey(storageKey, 'project')}
                     >
-                        {facts.length === 0 && !projectFilled
-                            ? placeholder
-                            : (project ?? <Rows facts={facts} />)}
+                        {/* Un rendu dédié (bien proposé) montre ses champs à
+                            compléter même vides ; sans lui, une seule ligne. */}
+                        {project ??
+                            (facts.length === 0 && !projectFilled ? (
+                                placeholder
+                            ) : (
+                                <Rows facts={facts} />
+                            ))}
                     </Fold>
                     {message !== null && !projectHasMessage && (
                         <Section title="Note sur le projet">
@@ -494,6 +604,17 @@ export function LeadShowBody({
                             </p>
                         </Section>
                     )}
+                    {people && (
+                        <Fold
+                            title="Personnes"
+                            icon={UsersRound}
+                            count={peopleCount}
+                            defaultOpen={peopleCount > 1}
+                            storageKey={foldKey(storageKey, 'people')}
+                        >
+                            {people}
+                        </Fold>
+                    )}
                     <Fold
                         title="Qualification"
                         icon={BadgeCheck}
@@ -501,6 +622,7 @@ export function LeadShowBody({
                             qualificationEditor !== undefined ||
                             qualification.length > 0
                         }
+                        storageKey={foldKey(storageKey, 'qualification')}
                     >
                         {qualificationEditor ??
                             (qualification.length === 0 ? (
@@ -515,6 +637,7 @@ export function LeadShowBody({
                             icon={FileSignature}
                             count={quoteCount}
                             defaultOpen={quoteCount > 0}
+                            storageKey={foldKey(storageKey, 'quotes')}
                         >
                             {quotes}
                         </Fold>
@@ -525,6 +648,7 @@ export function LeadShowBody({
                             icon={Receipt}
                             count={invoiceCount}
                             defaultOpen={invoiceCount > 0}
+                            storageKey={foldKey(storageKey, 'invoices')}
                         >
                             {invoices}
                         </Fold>

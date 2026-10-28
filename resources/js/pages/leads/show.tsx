@@ -10,7 +10,6 @@ import {
     Hourglass,
     MapPin,
     Plane,
-    BriefcaseBusiness,
     NotebookPen,
     Radio,
     ShieldCheck,
@@ -44,6 +43,11 @@ import {
 } from '@/components/leads/lead-activity';
 import { LeadProject } from '@/components/leads/lead-project';
 import type { InlineValue } from '@/components/inline-field';
+import {
+    LeadPeopleCard,
+    personFieldKey,
+    type PersonSlot,
+} from '@/components/leads/lead-people-card';
 import { LeadPropertyCard } from '@/components/leads/lead-property-card';
 import { LeadActivitySheet } from '@/components/leads/lead-activity-sheet';
 import { LeadNoteComposer } from '@/components/leads/lead-note-composer';
@@ -81,13 +85,21 @@ import {
     status as leadStatusRoute,
 } from '@/routes/leads';
 import { store as storeNote } from '@/routes/leads/notes';
+import { fields as leadPropertyFields } from '@/routes/leads/property';
+import {
+    remove as leadPersonRemove,
+    update as leadPersonUpdate,
+} from '@/routes/leads/people';
 import { edit as ownerLeadEdit } from '@/routes/owners/leads';
+import { LeadCompanyDirectoryButton } from '@/components/leads/lead-company-directory-button';
 import type {
     LabeledOption,
     LeadDetail,
     LeadEditOptions,
+    LeadDirectoryCompany,
     LeadDirectoryOwner,
     LeadPropertyDetail,
+    LeadPropertyOptions,
     LeadDuplicate,
     LeadInboundMessage,
     LeadVerdictInfo,
@@ -99,12 +111,46 @@ import type {
     LeadStatusOption,
     LeadSending,
     RecontactChannel,
+    LeadPeople,
 } from '@/types';
+
+/** Bien proposé sans aucun champ : la carte « Bien proposé » le montre à compléter. */
+const emptyProperty: LeadPropertyDetail = {
+    address: null,
+    place_id: null,
+    latitude: null,
+    longitude: null,
+    property_type: null,
+    property_status: null,
+    bedrooms: null,
+    bathrooms: null,
+    surface: null,
+    floor: null,
+    building_floors: null,
+    furnishing: null,
+    orientations: [],
+    lease_types: [],
+    rent_cents: null,
+    charges_cents: null,
+    deposit_cents: null,
+    amenities: [],
+    note: null,
+    property_type_label: null,
+    property_status_label: null,
+    furnishing_label: null,
+    orientation_labels: [],
+    lease_type_labels: [],
+    amenity_labels: [],
+};
 
 type Props = {
     lead: LeadDetail;
-    /** Bien proposé, pour un lead propriétaire. */
+    /** Bien proposé, pour un lead propriétaire (toujours présent, même vide). */
     property?: LeadPropertyDetail | null;
+    /** Listes du bien proposé, pour le modifier en place. */
+    propertyOptions?: LeadPropertyOptions | null;
+    /** Les personnes du foyer (lead locataire seulement), null pour un propriétaire. */
+    people?: LeadPeople | null;
     invoices: LeadInvoice[];
     quotes: LeadQuote[];
     notes: LeadNote[];
@@ -127,6 +173,8 @@ type Props = {
     lossReasons: LabeledOption<LeadLossReason>[];
     /** Fiche de l'annuaire des propriétaires créée depuis ce lead, s'il y en a une. */
     directoryOwner?: LeadDirectoryOwner | null;
+    /** Entreprise de l'annuaire rattachée au lead, pour la ligne « Société ». */
+    directoryCompany?: LeadDirectoryCompany | null;
 };
 
 /** Pictogramme discret devant le libellé d'un critère du projet. */
@@ -150,6 +198,8 @@ const dateTime = parisFormat({
 export default function LeadsShow({
     lead,
     property = null,
+    propertyOptions = null,
+    people = null,
     invoices,
     quotes,
     notes,
@@ -165,17 +215,41 @@ export default function LeadsShow({
     can,
     lossReasons,
     directoryOwner = null,
+    directoryCompany = null,
     editOptions,
 }: Props) {
     const { staff, auth, features } = usePage().props;
     // Champ du projet en cours d'enregistrement en place (nom côté serveur).
     const [savingField, setSavingField] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-    const saveField = (name: string, value: InlineValue) => {
-        setSavingField(name);
+    const saveField = (name: string, value: InlineValue) =>
+        saveInline(leadFields({ lead: lead.uuid }).url, name, value);
+    // Le bien proposé d'un lead propriétaire a sa propre route, même mécanique.
+    const savePropertyField = (name: string, value: InlineValue) =>
+        saveInline(leadPropertyFields({ lead: lead.uuid }).url, name, value);
+    // Une personne du foyer : la route porte l'emplacement, la clé du champ
+    // en cours le préfixe (« co.employer »), les deux personnes ayant les mêmes champs.
+    const savePersonField = (
+        slot: PersonSlot,
+        name: string,
+        value: InlineValue,
+    ) =>
+        saveInline(
+            leadPersonUpdate({ lead: lead.uuid, slot }).url,
+            name,
+            value,
+            personFieldKey(slot, name),
+        );
+    const saveInline = (
+        url: string,
+        name: string,
+        value: InlineValue,
+        key: string = name,
+    ) => {
+        setSavingField(key);
         setFieldErrors({});
         router.patch(
-            leadFields({ lead: lead.uuid }).url,
+            url,
             // Un champ composé (ville et pays) envoie ses deux colonnes.
             value !== null && typeof value === 'object' && !Array.isArray(value)
                 ? value
@@ -189,7 +263,7 @@ export default function LeadsShow({
                     const message =
                         Object.values(errors)[0] ??
                         'Le champ n’a pas pu être enregistré.';
-                    setFieldErrors({ [name]: message });
+                    setFieldErrors({ [key]: message });
                     notify.error('Modification refusée', message);
                 },
                 onFinish: () => setSavingField(null),
@@ -410,19 +484,9 @@ export default function LeadsShow({
         ...(lead.segment === 'owner'
             ? []
             : ([
-                  {
-                      // Situation professionnelle : ce qu'une agence regarde avant le budget.
-                      label: 'Situation pro',
-                      icon: factIcon(BriefcaseBusiness),
-                      value: lead.employment_status_label ?? missing(),
-                      empty: lead.employment_status === null,
-                      edit: editOptions && {
-                          name: 'employment_status',
-                          kind: 'select',
-                          value: lead.employment_status,
-                          options: editOptions.employmentStatuses,
-                      },
-                  },
+                  // La situation professionnelle vit dans la section
+                  // « Personnes » depuis le 28 octobre 2026, avec celle de
+                  // la seconde personne du foyer.
                   {
                       // Notes libres de l'équipe sur le projet de relocation, modifiables là où elles se lisent.
                       label: 'Notes libres',
@@ -518,6 +582,15 @@ export default function LeadsShow({
                 kind: 'text',
                 value: lead.company,
             },
+            // La société d'un lead entre dans l'annuaire des entreprises d'un
+            // clic, ou ouvre sa fiche si elle y est déjà (28 octobre 2026).
+            after: (
+                <LeadCompanyDirectoryButton
+                    leadUuid={lead.uuid}
+                    company={lead.company}
+                    directoryCompany={directoryCompany}
+                />
+            ),
         },
         {
             label: 'Langue',
@@ -556,6 +629,13 @@ export default function LeadsShow({
     const condensed = inbound !== null && lead.status === 'todo';
     // Lead propriétaire : la fiche montre le bien proposé et se modifie dans la Converting Machine propriétaire.
     const isOwner = lead.segment === 'owner';
+    // Sans bien enregistré, la carte montre tous les champs vides à compléter.
+    const propertyFilled =
+        property !== null &&
+        Object.values(property).some(
+            (value) =>
+                value !== null && (!Array.isArray(value) || value.length > 0),
+        );
     const editHref = isOwner
         ? ownerLeadEdit({ lead: lead.uuid })
         : leadEdit({ lead: lead.uuid });
@@ -875,6 +955,7 @@ export default function LeadsShow({
             <Head title={`Lead ${lead.name}`} />
             <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pt-8 pb-10 lg:pb-0">
                 <LeadShowBody
+                    storageKey={`lead.${lead.uuid}`}
                     header={
                         <>
                             {/* Le prochain geste, avant tout le reste. */}
@@ -912,9 +993,16 @@ export default function LeadsShow({
                     facts={isOwner ? [] : visibleFacts}
                     project={
                         isOwner ? (
-                            property ? (
-                                <LeadPropertyCard property={property} />
-                            ) : undefined
+                            <LeadPropertyCard
+                                property={property ?? emptyProperty}
+                                options={propertyOptions}
+                                onSave={savePropertyField}
+                                saving={savingField}
+                                fieldErrors={fieldErrors}
+                                addressAutocomplete={
+                                    features?.addressAutocomplete ?? false
+                                }
+                            />
                         ) : (
                             <LeadProject
                                 sentence={sentence}
@@ -930,8 +1018,31 @@ export default function LeadsShow({
                     }
                     projectHasMessage={!isOwner}
                     projectTitle={isOwner ? 'Bien proposé' : 'Projet'}
-                    projectFilled={isOwner && property !== null}
+                    projectFilled={isOwner && propertyFilled}
                     message={projectMessage}
+                    people={
+                        people && editOptions ? (
+                            <LeadPeopleCard
+                                people={people}
+                                employmentStatuses={
+                                    editOptions.employmentStatuses
+                                }
+                                onSave={savePersonField}
+                                saving={savingField}
+                                fieldErrors={fieldErrors}
+                                addUrl={
+                                    leadPersonUpdate({
+                                        lead: lead.uuid,
+                                        slot: 'co',
+                                    }).url
+                                }
+                                removeUrl={
+                                    leadPersonRemove({ lead: lead.uuid }).url
+                                }
+                            />
+                        ) : undefined
+                    }
+                    peopleCount={people ? (people.co ? 2 : 1) : 0}
                     qualification={onlyFilled(qualification)}
                     qualificationEditor={
                         <LeadQualificationEditor lead={lead} />

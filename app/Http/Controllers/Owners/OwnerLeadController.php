@@ -104,6 +104,8 @@ class OwnerLeadController extends Controller
         return [
             'address' => $property->address,
             'place_id' => $property->place_id,
+            'latitude' => $property->latitude,
+            'longitude' => $property->longitude,
             'property_type' => $property->property_type?->value,
             'property_status' => $property->property_status?->value,
             'bedrooms' => $property->bedrooms,
@@ -157,6 +159,18 @@ class OwnerLeadController extends Controller
                 fn (LeadSource $source): array => ['value' => $source->value, 'label' => $source->label()],
                 LeadSource::cases(),
             ),
+            ...self::propertyOptions(),
+        ];
+    }
+
+    /**
+     * Listes du bien proposé, partagées avec la modification en place sur la fiche lead.
+     *
+     * @return array<string, mixed>
+     */
+    public static function propertyOptions(): array
+    {
+        return [
             'propertyTypes' => OwnerPropertyType::options(),
             'propertyStatuses' => PropertyStatus::options(),
             'leaseTypes' => LeaseType::options(),
