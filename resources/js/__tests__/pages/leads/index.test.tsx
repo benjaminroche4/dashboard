@@ -65,6 +65,7 @@ const leads = [
         status: 'converted',
         status_label: 'Converti',
         score: 2,
+        arrival_at: '2027-01-15',
     }),
     makeLead({
         id: 3,
@@ -200,6 +201,34 @@ describe('Leads kanban page', () => {
 
         expect(screen.getByText('Léa Durand')).toBeInTheDocument();
         expect(screen.queryByText('Marc Petit')).not.toBeInTheDocument();
+    });
+
+    it('filters the leads by move-in month from the Filtres popover', async () => {
+        const user = userEvent.setup();
+        render(
+            <LeadsIndex
+                leads={leads}
+                archived={{ loaded: true, count: 0 }}
+                statuses={leadStatuses}
+                offers={offers}
+                lossReasons={lossReasons}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: /Filtres/ }));
+        await user.click(
+            await screen.findByRole('combobox', {
+                name: "Mois d'emménagement",
+            }),
+        );
+        // Les mois présents dans la liste, avec le nombre de leads.
+        expect(
+            await screen.findByRole('option', { name: /Novembre 2026/ }),
+        ).toHaveTextContent('2');
+        await user.click(screen.getByRole('option', { name: /Janvier 2027/ }));
+
+        expect(screen.getByText('Marc Petit')).toBeInTheDocument();
+        expect(screen.queryByText('Léa Durand')).not.toBeInTheDocument();
     });
 
     it('remembers the chosen filters after a reload, but not the searched text', async () => {

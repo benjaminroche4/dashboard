@@ -89,6 +89,7 @@ type Props = {
     durations: LabeledOption<LeadDuration>[];
     guarantors: LabeledOption<GuarantorType>[];
     furnishedOptions: LabeledOption<Furnished>[];
+    employmentStatuses: LabeledOption[];
     recontactChannels: LabeledOption<RecontactChannel>[];
     /** Présent en mode modification. */
     lead?: LeadEditable;
@@ -205,6 +206,7 @@ export default function LeadsCreate({
     durations,
     guarantors,
     furnishedOptions,
+    employmentStatuses,
     recontactChannels,
     lead,
     segment = 'tenant',
@@ -232,12 +234,15 @@ export default function LeadsCreate({
                   currency: defaultCurrency,
                   arrival_at: '',
                   origin_city: '',
+                  origin_country: '',
+                  employment_status: '',
                   districts: [],
                   property_types: [],
                   duration: '',
                   guarantors: [],
                   furnished: '',
                   message: '',
+                  project_notes: '',
                   score: null,
                   recontact_channel: '',
                   recontact_at: '',
@@ -425,6 +430,12 @@ export default function LeadsCreate({
         form.transform((data) => ({
             ...data,
             offer: data.offer === '' ? null : data.offer,
+            origin_country:
+                data.origin_country === '' ? null : data.origin_country,
+            employment_status:
+                data.employment_status === '' ? null : data.employment_status,
+            project_notes:
+                data.project_notes === '' ? null : data.project_notes,
             arrival_at: data.arrival_at === '' ? null : data.arrival_at,
             // La date et l'heure partent ensemble, « AAAA-MM-JJTHH:MM ».
             recontact_at:
@@ -963,11 +974,53 @@ export default function LeadsCreate({
                                                 value={form.data.origin_city}
                                                 onChange={set('origin_city')}
                                                 onSelect={(place) =>
-                                                    set('origin_city')(
-                                                        place.city,
-                                                    )
+                                                    form.setData((data) => ({
+                                                        ...data,
+                                                        origin_city: place.city,
+                                                        origin_country:
+                                                            place.countryCode ??
+                                                            '',
+                                                    }))
                                                 }
                                             />
+                                        </Field>
+                                        <Field
+                                            label="Situation professionnelle"
+                                            htmlFor="employment_status"
+                                            error={errors.employment_status}
+                                        >
+                                            <Select
+                                                value={
+                                                    form.data.employment_status
+                                                }
+                                                onValueChange={set(
+                                                    'employment_status',
+                                                )}
+                                            >
+                                                <SelectTrigger
+                                                    id="employment_status"
+                                                    aria-label="Situation professionnelle"
+                                                    className="w-full"
+                                                >
+                                                    <SelectValue placeholder="Choisir" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {employmentStatuses.map(
+                                                        (option) => (
+                                                            <SelectItem
+                                                                key={
+                                                                    option.value
+                                                                }
+                                                                value={
+                                                                    option.value
+                                                                }
+                                                            >
+                                                                {option.label}
+                                                            </SelectItem>
+                                                        ),
+                                                    )}
+                                                </SelectContent>
+                                            </Select>
                                         </Field>
                                     </div>
                                     <Field
@@ -984,6 +1037,25 @@ export default function LeadsCreate({
                                             value={form.data.message}
                                             onChange={(e) =>
                                                 set('message')(e.target.value)
+                                            }
+                                        />
+                                    </Field>
+                                    <Field
+                                        label="Notes libres"
+                                        htmlFor="project_notes"
+                                        error={errors.project_notes}
+                                    >
+                                        <Textarea
+                                            id="project_notes"
+                                            name="project_notes"
+                                            rows={3}
+                                            className="bg-background"
+                                            placeholder="Pour l’équipe : ce qu’on sait du projet, les réserves, les points à creuser…"
+                                            value={form.data.project_notes}
+                                            onChange={(e) =>
+                                                set('project_notes')(
+                                                    e.target.value,
+                                                )
                                             }
                                         />
                                     </Field>

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\EmploymentStatus;
 use App\Enums\Furnished;
 use App\Enums\GuarantorType;
 use App\Enums\LeadDuration;
@@ -85,6 +86,9 @@ test('any staff member can add a lead, which starts as new and is broadcast', fu
             'budget_cents' => 250_000,
             'currency' => 'EUR',
             'origin_city' => 'Genève',
+            'origin_country' => 'ch',
+            'employment_status' => EmploymentStatus::cases()[0]->value,
+            'project_notes' => 'Mutation interne, budget pris en charge.',
             'source' => 'referral',
             'message' => 'Arrive avec sa famille.',
             'score' => 4,

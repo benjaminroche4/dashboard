@@ -126,6 +126,8 @@ export type LeadEditOptions = {
     guarantors: LabeledOption<GuarantorType>[];
     furnishedOptions: LabeledOption<Furnished>[];
     employmentStatuses: LabeledOption[];
+    languages: LabeledOption<LeadLanguage>[];
+    sources: LabeledOption<LeadSource>[];
 };
 
 export type LeadStatusOption = { value: LeadStatus; label: string };
@@ -160,12 +162,18 @@ export type LeadForm = {
     currency: Currency;
     arrival_at: string;
     origin_city: string;
+    /** Code pays ISO à deux lettres, posé par la ville choisie dans Google Places. */
+    origin_country: string;
+    /** Situation professionnelle (`App\Enums\EmploymentStatus`), '' sans. */
+    employment_status: string;
     districts: number[];
     property_types: PropertyType[];
     duration: LeadDuration | '';
     guarantors: GuarantorType[];
     furnished: Furnished | '';
     message: string;
+    /** Notes libres de l'équipe sur le projet. */
+    project_notes: string;
     score: number | null;
     recontact_channel: RecontactChannel | '';
     /** Date « AAAA-MM-JJ » et heure « HH:MM », assemblées à l'envoi. */

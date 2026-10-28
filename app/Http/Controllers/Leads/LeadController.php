@@ -326,6 +326,11 @@ class LeadController extends Controller
                 'guarantors' => GuarantorType::options(),
                 'furnishedOptions' => Furnished::options(),
                 'employmentStatuses' => EmploymentStatus::options(),
+                'languages' => LeadLanguage::options(),
+                'sources' => array_map(
+                    fn (LeadSource $source): array => ['value' => $source->value, 'label' => $source->label()],
+                    LeadSource::cases(),
+                ),
             ],
             // Annuaire des agents immobiliers pour la carte « Agent en contact ».
             'agents' => Agent::query()->with('agency')->withFavoriteOf($request->user())->orderBy('last_name')->orderBy('first_name')->get()
@@ -610,12 +615,15 @@ class LeadController extends Controller
                 'budget' => $lead->budget_cents === null ? '' : (string) ($lead->budget_cents / 100),
                 'currency' => $lead->currency->value,
                 'origin_city' => $lead->origin_city ?? '',
+                'origin_country' => $lead->origin_country ?? '',
+                'employment_status' => $lead->employment_status === null ? '' : $lead->employment_status->value,
                 'districts' => $lead->districts ?? [],
                 'property_types' => $lead->property_types?->map(fn (PropertyType $type): string => $type->value)->all() ?? [],
                 'duration' => $lead->duration === null ? '' : $lead->duration->value,
                 'guarantors' => $lead->guarantors?->map(fn (GuarantorType $type): string => $type->value)->all() ?? [],
                 'furnished' => $lead->furnished === null ? '' : $lead->furnished->value,
                 'message' => $lead->message ?? '',
+                'project_notes' => $lead->project_notes ?? '',
                 'score' => $lead->score,
                 'recontact_channel' => $lead->recontact_channel === null ? '' : $lead->recontact_channel->value,
                 'recontact_at' => $lead->recontact_at?->format('Y-m-d') ?? '',
@@ -845,6 +853,7 @@ class LeadController extends Controller
             'durations' => LeadDuration::options(),
             'guarantors' => GuarantorType::options(),
             'furnishedOptions' => Furnished::options(),
+            'employmentStatuses' => EmploymentStatus::options(),
             'recontactChannels' => RecontactChannel::options(),
             'lossReasons' => LeadLossReason::options(),
         ];

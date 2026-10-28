@@ -61,6 +61,7 @@ vi.mock('@/lib/toast', () => ({
 
 import LeadsShow from '@/pages/leads/show';
 import {
+    leadEditOptions,
     leadStatuses,
     lossReasons,
     makeLeadDetail,
@@ -149,7 +150,7 @@ describe('Lead detail page', () => {
         );
     });
 
-    it('offers to complete an owner lead without a property yet', () => {
+    it('offers to complete an owner lead without a property yet', async () => {
         render(
             <LeadsShow
                 {...base}
@@ -160,6 +161,10 @@ describe('Lead detail page', () => {
             />,
         );
 
+        // Sans bien, l'accordéon est replié : on l'ouvre pour lire la ligne vide.
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Bien proposé' }),
+        );
         const section = within(
             screen.getByRole('region', { name: 'Bien proposé' }),
         );
@@ -548,6 +553,42 @@ describe('Next step banner on the lead page', () => {
     });
 });
 
+describe('Inline contact editing on the lead page', () => {
+    it('edits the e-mail in place and saves it through the fields route', async () => {
+        patch.mockClear();
+        const user = userEvent.setup();
+        render(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail()}
+                editOptions={leadEditOptions}
+                notes={[]}
+                history={[]}
+                invoices={[]}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Modifier E-mail' }),
+        );
+        const input = screen.getByRole('textbox', { name: 'E-mail' });
+        await user.clear(input);
+        await user.type(input, 'lea.durand@example.com{Enter}');
+
+        expect(patch).toHaveBeenCalledWith(
+            '/locataires/0199a9a0-0000-7000-8000-000000000001/fields',
+            { email: 'lea.durand@example.com' },
+            expect.objectContaining({ preserveScroll: true }),
+        );
+        // La langue se choisit dans une liste, la société et le téléphone en texte.
+        for (const label of ['Langue', 'Société', 'Téléphone']) {
+            expect(
+                screen.getByRole('button', { name: `Modifier ${label}` }),
+            ).toBeInTheDocument();
+        }
+    });
+});
+
 describe('AI check shortcuts on the lead page', () => {
     it('archives with the assistant’s reason prefilled from a red verdict', async () => {
         const user = userEvent.setup();
@@ -666,8 +707,7 @@ describe('First contact countdown on the lead page', () => {
         expect(timer).toHaveTextContent(/^En retard · \+15:0\d$/);
         expect(timer).toHaveAttribute('data-late', 'true');
     });
-    it('puts the inbound message first and condenses empty sections for a fresh website lead', async () => {
-        const user = userEvent.setup();
+    it('puts the inbound message first and condenses empty sections for a fresh website lead', () => {
         render(
             <LeadsShow
                 {...base}
@@ -722,15 +762,15 @@ describe('First contact countdown on the lead page', () => {
         expect(
             screen.queryByRole('region', { name: 'Note sur le projet' }),
         ).not.toBeInTheDocument();
-        // Projet et Qualification sont vides : deux accordéons repliés,
-        // chacun ne montrant qu'une ligne et un bouton une fois ouvert,
-        // pas de grille de champs vides.
-        expect(screen.queryByText('Non renseigné')).toBeNull();
-        await user.click(screen.getByRole('button', { name: 'Projet' }));
-        expect(screen.getAllByText('Non renseigné')).toHaveLength(1);
-        expect(screen.getAllByRole('link', { name: 'Compléter' })).toHaveLength(
-            1,
-        );
+        // Le Projet est replié, puis montre chaque champ même vide : on les
+        // complète en place, il n'y a plus de page « Compléter » à ouvrir.
+        // Le Projet s'ouvre d'emblée et montre chaque champ même vide : on les
+        // complète en place, il n'y a plus de page « Compléter » à ouvrir.
+        const project = within(screen.getByRole('region', { name: 'Projet' }));
+        expect(project.getAllByText('Non renseigné').length).toBeGreaterThan(1);
+        expect(
+            screen.queryByRole('link', { name: 'Compléter' }),
+        ).not.toBeInTheDocument();
         // Qualification porte son éditeur en place (note, qualité), pas une
         // ligne « Non renseigné ».
         expect(

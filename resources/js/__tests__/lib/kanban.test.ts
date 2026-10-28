@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
     applyMove,
+    arrivalMonthLabel,
+    arrivalMonths,
     columnOf,
     columnStats,
     defaultFilters,
@@ -146,5 +148,39 @@ describe('hasActiveFilters', () => {
         expect(hasActiveFilters({ ...defaultFilters, status: 'todo' })).toBe(
             true,
         );
+        expect(
+            hasActiveFilters({ ...defaultFilters, arrivalMonth: '2026-11' }),
+        ).toBe(true);
+    });
+});
+
+describe('arrival month filter', () => {
+    const sample = [
+        makeLead({ id: 1, name: 'Nov', arrival_at: '2026-11-03' }),
+        makeLead({ id: 2, name: 'Nov bis', arrival_at: '2026-11-28' }),
+        makeLead({ id: 3, name: 'Jan', arrival_at: '2027-01-10' }),
+        makeLead({ id: 4, name: 'Sans date', arrival_at: null }),
+    ];
+
+    it('lists the months present, in order, with their counts and a readable label', () => {
+        expect(arrivalMonths(sample)).toEqual([
+            { value: '2026-11', label: 'Novembre 2026', count: 2 },
+            { value: '2027-01', label: 'Janvier 2027', count: 1 },
+        ]);
+        expect(arrivalMonthLabel('2026-03')).toBe('Mars 2026');
+    });
+
+    it('keeps only the leads moving in that month, and everyone when the stored filters predate the key', () => {
+        expect(
+            filterLeads(sample, {
+                ...defaultFilters,
+                arrivalMonth: '2026-11',
+            }).map((lead) => lead.name),
+        ).toEqual(['Nov', 'Nov bis']);
+        const legacy = { ...defaultFilters } as Partial<typeof defaultFilters>;
+        delete legacy.arrivalMonth;
+        expect(
+            filterLeads(sample, legacy as typeof defaultFilters),
+        ).toHaveLength(4);
     });
 });

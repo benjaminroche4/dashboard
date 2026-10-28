@@ -1,4 +1,8 @@
-import type { InlineEdit } from '@/components/inline-field';
+import {
+    InlineField,
+    type InlineEdit,
+    type InlineValue,
+} from '@/components/inline-field';
 import { Link } from '@inertiajs/react';
 import {
     BadgeCheck,
@@ -44,6 +48,9 @@ type Props = {
     before?: ReactNode;
     /** Coordonnées en section à part ; absentes quand l'en-tête les porte déjà. */
     contact?: Fact[];
+    /** Enregistre un champ du contact modifié en place (`name` côté serveur). */
+    onSaveField?: (name: string, value: InlineValue) => void;
+    savingField?: string | null;
     facts: Fact[];
     /** Rendu personnalisé de la section Projet (remplace les lignes et la carte). */
     project?: ReactNode;
@@ -95,7 +102,18 @@ const badgeTones = {
  * Lignes libellé au-dessus de la valeur : la colonne de gauche de la fiche
  * est étroite, un libellé à côté de la valeur tronquerait l'e-mail.
  */
-function Rows({ facts, columns = 1 }: { facts: Fact[]; columns?: 1 | 2 }) {
+function Rows({
+    facts,
+    columns = 1,
+    onSave,
+    saving,
+}: {
+    facts: Fact[];
+    columns?: 1 | 2;
+    /** Enregistre un champ modifié en place ; sans lui, lecture seule. */
+    onSave?: (name: string, value: InlineValue) => void;
+    saving?: string | null;
+}) {
     return (
         <dl
             className={cn(
@@ -111,18 +129,31 @@ function Rows({ facts, columns = 1 }: { facts: Fact[]; columns?: 1 | 2 }) {
                     </dt>
                     <dd
                         className={cn(
-                            'min-w-0 font-medium',
+                            'flex min-w-0 flex-wrap items-center gap-2 font-medium',
                             fact.multiline
                                 ? 'whitespace-pre-line'
                                 : '[overflow-wrap:anywhere]',
                         )}
                     >
-                        {fact.value}
+                        {onSave && fact.edit ? (
+                            /* La valeur est un bouton qui ouvre son contrôle à sa place. */
+                            <InlineField
+                                label={fact.label}
+                                display={fact.value}
+                                edit={fact.edit}
+                                saving={saving === fact.edit.name}
+                                onSave={(value) =>
+                                    onSave(fact.edit!.name, value)
+                                }
+                            />
+                        ) : (
+                            fact.value
+                        )}
                         {fact.badge && (
                             <Badge
                                 variant="secondary"
                                 className={cn(
-                                    'ml-2 align-middle font-medium tabular-nums',
+                                    'align-middle font-medium tabular-nums',
                                     badgeTones[fact.badgeTone ?? 'default'],
                                 )}
                             >
@@ -136,10 +167,7 @@ function Rows({ facts, columns = 1 }: { facts: Fact[]; columns?: 1 | 2 }) {
     );
 }
 
-/**
- * Pictogramme d'un intitulé de section, dans une pastille grise (la même
- * que les blocs de formulaire `FormSection`).
- */
+/** Pictogramme d'un titre de section, dans une pastille grise discrète. */
 function TitleIcon({ icon: Icon }: { icon: typeof Home }) {
     return (
         <span
@@ -286,6 +314,8 @@ export function LeadShowBody({
     header,
     before,
     contact,
+    onSaveField,
+    savingField = null,
     facts,
     project,
     projectTitle = 'Projet',
@@ -368,7 +398,12 @@ export function LeadShowBody({
                         {contact.length === 0 ? (
                             placeholder
                         ) : (
-                            <Rows facts={contact} columns={2} />
+                            <Rows
+                                facts={contact}
+                                columns={2}
+                                onSave={onSaveField}
+                                saving={savingField}
+                            />
                         )}
                     </section>
                 )}

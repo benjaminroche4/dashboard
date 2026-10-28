@@ -6,6 +6,7 @@ import type {
     LeadStatusOption,
     OfferValue,
 } from '@/types';
+import { parisFormat } from '@/lib/datetime';
 
 /**
  * Déplace un lead vers une colonne et une position, puis renumérote chaque
@@ -104,6 +105,8 @@ export type LeadFilters = {
     minScore: number;
     sort: LeadSortKey;
     assignee: LeadAssigneeFilter;
+    /** Mois d'emménagement « AAAA-MM », ou « all » pour tous. */
+    arrivalMonth: string;
 };
 
 export const defaultFilters: LeadFilters = {
@@ -113,7 +116,48 @@ export const defaultFilters: LeadFilters = {
     minScore: 0,
     sort: 'manual',
     assignee: 'all',
+    arrivalMonth: 'all',
 };
+
+/** « AAAA-MM » d'une date d'arrivée, null sans date. */
+export function arrivalMonthOf(lead: Pick<Lead, 'arrival_at'>): string | null {
+    return lead.arrival_at ? lead.arrival_at.slice(0, 7) : null;
+}
+
+/**
+ * Les mois d'emménagement présents dans la liste, du plus proche au plus
+ * lointain, avec le nombre de leads qui emménagent chacun.
+ */
+export function arrivalMonths(
+    leads: Pick<Lead, 'arrival_at'>[],
+): { value: string; label: string; count: number }[] {
+    const counts = new Map<string, number>();
+
+    for (const lead of leads) {
+        const month = arrivalMonthOf(lead);
+
+        if (month !== null) {
+            counts.set(month, (counts.get(month) ?? 0) + 1);
+        }
+    }
+
+    return [...counts.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([value, count]) => ({
+            value,
+            label: arrivalMonthLabel(value),
+            count,
+        }));
+}
+
+const monthFormat = parisFormat({ month: 'long', year: 'numeric' });
+
+/** « Novembre 2026 » pour « 2026-11 ». */
+export function arrivalMonthLabel(month: string): string {
+    const label = monthFormat.format(new Date(`${month}-15T12:00:00Z`));
+
+    return label.charAt(0).toUpperCase() + label.slice(1);
+}
 
 /**
  * Vrai dès qu'un filtre restreint la liste (le tri n'en est pas un) : la
@@ -125,7 +169,8 @@ export function hasActiveFilters(filters: LeadFilters): boolean {
         filters.status !== 'all' ||
         filters.offer !== 'all' ||
         filters.minScore > 0 ||
-        filters.assignee !== defaultFilters.assignee
+        filters.assignee !== defaultFilters.assignee ||
+        (filters.arrivalMonth ?? 'all') !== 'all'
     );
 }
 
@@ -168,6 +213,12 @@ export function filterLeads(leads: Lead[], filters: LeadFilters): Lead[] {
         }
 
         if (filters.offer !== 'all' && lead.offer !== filters.offer) {
+            return false;
+        }
+
+        // Des filtres mémorisés avant l'ajout du mois n'ont pas la clé : « tous ».
+        const month = filters.arrivalMonth ?? 'all';
+        if (month !== 'all' && arrivalMonthOf(lead) !== month) {
             return false;
         }
 

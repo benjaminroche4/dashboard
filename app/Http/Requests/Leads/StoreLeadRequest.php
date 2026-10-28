@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Leads;
 
 use App\Enums\Currency;
+use App\Enums\EmploymentStatus;
 use App\Enums\Furnished;
 use App\Enums\GuarantorType;
 use App\Enums\LeadDuration;
@@ -53,7 +54,10 @@ class StoreLeadRequest extends FormRequest
             'guarantors.*' => [Rule::enum(GuarantorType::class), 'distinct'],
             'furnished' => ['nullable', Rule::enum(Furnished::class)],
             'origin_city' => ['nullable', 'string', 'max:120'],
+            'origin_country' => ['nullable', 'string', 'size:2', 'alpha'],
+            'employment_status' => ['nullable', Rule::enum(EmploymentStatus::class)],
             'message' => ['nullable', 'string', 'max:5000'],
+            'project_notes' => ['nullable', 'string', 'max:5000'],
             'score' => ['nullable', 'integer', 'between:1,5'],
             'recontact_channel' => ['nullable', Rule::enum(RecontactChannel::class)],
             'recontact_at' => ['nullable', 'date'],
@@ -93,6 +97,9 @@ class StoreLeadRequest extends FormRequest
             'recontact_at' => 'date de recontact',
             'qualification_note' => 'note de qualification',
             'assigned_to' => 'responsable',
+            'origin_country' => "pays d'origine",
+            'employment_status' => 'situation professionnelle',
+            'project_notes' => 'notes libres',
         ];
     }
 

@@ -5,6 +5,8 @@ declare(strict_types=1);
 use App\Enums\EmploymentStatus;
 use App\Enums\Furnished;
 use App\Enums\LeadDuration;
+use App\Enums\LeadLanguage;
+use App\Enums\LeadSource;
 use App\Enums\PropertyType;
 use App\Events\DashboardUpdated;
 use App\Models\Lead;
@@ -132,4 +134,46 @@ test('the detail page exposes the raw values and the option lists the in-place e
             ->has('editOptions.guarantors')
             ->has('editOptions.furnishedOptions')
             ->has('editOptions.currencies'));
+});
+
+test('the contact (e-mail, phone, company, language) is edited in place, and the lead stays reachable', function (): void {
+    $lead = Lead::factory()->create(['first_name' => 'Léa', 'last_name' => 'Durand', 'email' => 'lea@example.com', 'phone' => null, 'company' => null, 'language' => LeadLanguage::French]);
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->patch(route('leads.fields', $lead), ['company' => '  Nestlé ', 'language' => 'en', 'phone' => '+41 79 000 00 00'])
+        ->assertRedirect();
+
+    $fresh = $lead->fresh();
+    expect($fresh?->company)->toBe('Nestlé')
+        ->and($fresh?->language)->toBe(LeadLanguage::English)
+        ->and($fresh?->phone)->toBe('+41 79 000 00 00');
+    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => str_contains($event->message, 'la société') && str_contains($event->message, 'la langue'));
+
+    // L'e-mail s'efface, le téléphone reste : accepté.
+    $this->actingAs($user)->patch(route('leads.fields', $lead), ['email' => ''])->assertRedirect();
+    expect($lead->fresh()?->email)->toBeNull();
+
+    // Effacer le téléphone aussi laisserait le lead injoignable : refusé.
+    $this->actingAs($user)
+        ->from(route('leads.show', $lead))
+        ->patch(route('leads.fields', $lead), ['phone' => ''])
+        ->assertSessionHasErrors(['phone' => 'Le lead doit garder un e-mail ou un téléphone.']);
+
+    $this->actingAs($user)
+        ->from(route('leads.show', $lead))
+        ->patch(route('leads.fields', $lead), ['email' => 'pas-un-email'])
+        ->assertSessionHasErrors('email');
+});
+
+test('the source and its note are edited in place too', function (): void {
+    $lead = Lead::factory()->create(['first_name' => 'Léa', 'last_name' => 'Durand', 'source' => LeadSource::Website, 'source_note' => null]);
+
+    $this->actingAs(User::factory()->create())
+        ->patch(route('leads.fields', $lead), ['source' => 'referral', 'source_note' => 'Par un ancien client'])
+        ->assertRedirect();
+
+    expect($lead->fresh()?->source)->toBe(LeadSource::Referral)
+        ->and($lead->fresh()?->source_note)->toBe('Par un ancien client');
+    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => str_contains($event->message, 'la source'));
 });

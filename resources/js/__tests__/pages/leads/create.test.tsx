@@ -117,6 +117,10 @@ const props = {
         { value: 'bancaire' as const, label: 'Garantie bancaire' },
     ],
     furnishedOptions: [{ value: 'furnished' as const, label: 'Meublé' }],
+    employmentStatuses: [
+        { value: 'cdi', label: 'CDI' },
+        { value: 'student', label: 'Étudiant' },
+    ],
     recontactChannels: [{ value: 'phone' as const, label: 'Téléphone' }],
 };
 
@@ -137,12 +141,15 @@ const lead = {
     budget: '2500',
     currency: 'EUR' as const,
     origin_city: 'Genève',
+    origin_country: 'CH',
+    employment_status: '',
     districts: [3, 4],
     property_types: ['t2' as const],
     duration: 'long' as const,
     guarantors: [],
     furnished: 'furnished' as const,
     message: '',
+    project_notes: '',
     score: 4,
     recontact_channel: '' as const,
     recontact_at: '',

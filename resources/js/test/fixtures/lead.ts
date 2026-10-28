@@ -122,6 +122,14 @@ export const leadEditOptions: LeadEditOptions = {
         { value: 'cdi', label: 'CDI' },
         { value: 'etudiant', label: 'Étudiant' },
     ],
+    languages: [
+        { value: 'fr', label: 'Français' },
+        { value: 'en', label: 'Anglais' },
+    ],
+    sources: [
+        { value: 'website', label: 'Site web' },
+        { value: 'referral', label: 'Recommandation' },
+    ],
 };
 
 export function makeInbound(

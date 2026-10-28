@@ -425,9 +425,25 @@ export default function LeadsShow({
         {
             label: 'Source',
             icon: factIcon(Radio),
-            value: lead.source_note
-                ? `${lead.source_label} · ${lead.source_note}`
-                : lead.source_label,
+            value: lead.source_label,
+            edit: editOptions && {
+                name: 'source',
+                kind: 'select',
+                value: lead.source,
+                options: editOptions.sources,
+            },
+        },
+        {
+            label: 'Précision sur la source',
+            icon: factIcon(Radio),
+            value: lead.source_note ?? missing(),
+            empty: lead.source_note === null,
+            edit: editOptions && {
+                name: 'source_note',
+                kind: 'text',
+                value: lead.source_note,
+                placeholder: 'Par qui, quel site, quel salon…',
+            },
         },
     ];
 
@@ -445,6 +461,12 @@ export default function LeadsShow({
             ) : (
                 missing()
             ),
+            edit: editOptions && {
+                name: 'email',
+                kind: 'text',
+                value: lead.email,
+                placeholder: 'prenom@exemple.com',
+            },
         },
         {
             label: 'Téléphone',
@@ -459,11 +481,22 @@ export default function LeadsShow({
             ) : (
                 missing()
             ),
+            edit: editOptions && {
+                name: 'phone',
+                kind: 'text',
+                value: lead.phone,
+                placeholder: '+33 6 12 34 56 78',
+            },
         },
         {
             label: 'Société',
             value: lead.company ?? missing(),
             empty: lead.company === null,
+            edit: editOptions && {
+                name: 'company',
+                kind: 'text',
+                value: lead.company,
+            },
         },
         {
             label: 'Langue',
@@ -476,6 +509,12 @@ export default function LeadsShow({
                     {lead.language_label}
                 </span>
             ),
+            edit: editOptions && {
+                name: 'language',
+                kind: 'select',
+                value: lead.language,
+                options: editOptions.languages,
+            },
         },
     ];
     const qualification: Fact[] = [
@@ -499,11 +538,11 @@ export default function LeadsShow({
     const editHref = isOwner
         ? ownerLeadEdit({ lead: lead.uuid })
         : leadEdit({ lead: lead.uuid });
+    // Les champs restent visibles même vides : modifiables en place, c'est là
+    // qu'on les complète (28 octobre 2026). Seule la qualification se condense.
     const onlyFilled = (list: Fact[]): Fact[] =>
         condensed ? list.filter((fact) => !fact.empty) : list;
-    const visibleFacts = onlyFilled(
-        condensed ? facts.filter((fact) => fact.label !== 'Source') : facts,
-    );
+    const visibleFacts = facts;
     // Le Projet se lit du plus parlant au plus détaillé : une phrase, puis les
     // quatre faits qu'on regarde d'abord, puis le reste en pastilles.
     const highlightLabels = [
@@ -845,8 +884,11 @@ export default function LeadsShow({
                             canEdit={auth.user.role !== 'member'}
                         />
                     }
-                    contact={onlyFilled(contact)}
-                    facts={visibleFacts}
+                    contact={contact}
+                    onSaveField={editOptions ? saveField : undefined}
+                    savingField={savingField}
+                    // Un lead propriétaire décrit un bien, pas un projet de locataire.
+                    facts={isOwner ? [] : visibleFacts}
                     project={
                         isOwner ? (
                             property ? (

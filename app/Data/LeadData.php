@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Data;
 
 use App\Enums\Currency;
+use App\Enums\EmploymentStatus;
 use App\Enums\Furnished;
 use App\Enums\GuarantorType;
 use App\Enums\LeadDuration;
@@ -54,6 +55,9 @@ final readonly class LeadData
         public ?string $qualificationNote,
         public ?int $assignedTo = null,
         public ?string $externalReference = null,
+        public ?string $originCountry = null,
+        public ?EmploymentStatus $employmentStatus = null,
+        public ?string $projectNotes = null,
         /** Liste de destination à la création (« Leads locataires » ou « Leads propriétaires »), ignorée à la modification. */
         public LeadSegment $segment = LeadSegment::Tenant,
     ) {}
@@ -88,6 +92,9 @@ final readonly class LeadData
             recontactAt: isset($data['recontact_at']) ? Date::parse($data['recontact_at']) : null,
             qualificationNote: self::blankToNull($data['qualification_note'] ?? null),
             assignedTo: isset($data['assigned_to']) ? (int) $data['assigned_to'] : null,
+            originCountry: isset($data['origin_country']) && trim((string) $data['origin_country']) !== '' ? strtoupper(trim((string) $data['origin_country'])) : null,
+            employmentStatus: self::enum(EmploymentStatus::class, $data['employment_status'] ?? null),
+            projectNotes: self::blankToNull($data['project_notes'] ?? null),
             segment: LeadSegment::from($data['segment'] ?? LeadSegment::Tenant->value),
         );
     }
@@ -116,7 +123,10 @@ final readonly class LeadData
             'guarantors' => $this->guarantors,
             'furnished' => $this->furnished,
             'origin_city' => $this->originCity,
+            'origin_country' => $this->originCountry,
+            'employment_status' => $this->employmentStatus,
             'message' => $this->message,
+            'project_notes' => $this->projectNotes,
             'score' => $this->score,
             'recontact_channel' => $this->recontactChannel,
             'recontact_at' => $this->recontactAt,

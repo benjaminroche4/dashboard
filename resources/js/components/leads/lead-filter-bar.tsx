@@ -33,7 +33,12 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { defaultFilters, type LeadFilters } from '@/lib/kanban';
+import {
+    arrivalMonthLabel,
+    arrivalMonths,
+    defaultFilters,
+    type LeadFilters,
+} from '@/lib/kanban';
 import { cn } from '@/lib/utils';
 import { leadStatusDot } from '@/components/leads/lead-status-menu';
 import type {
@@ -244,18 +249,22 @@ export function LeadFilterBar({
         { value: 'all', label: 'Toutes les offres' },
         ...offers.map((offer) => ({ value: offer.value, label: offer.label })),
     ];
+    const arrivalMonth = filters.arrivalMonth ?? 'all';
+    const months = arrivalMonths(leads);
     const dirty =
         filters.query !== '' ||
         filters.status !== defaultFilters.status ||
         filters.offer !== defaultFilters.offer ||
         filters.minScore !== defaultFilters.minScore ||
         filters.assignee !== defaultFilters.assignee ||
+        arrivalMonth !== 'all' ||
         filters.sort !== defaultFilters.sort;
     const activeCount =
         Number(filters.status !== 'all') +
         Number(filters.offer !== 'all') +
         Number(filters.minScore > 0) +
-        Number(filters.assignee !== 'all');
+        Number(filters.assignee !== 'all') +
+        Number(arrivalMonth !== 'all');
 
     const search = (className = 'w-full sm:max-w-xs') => (
         <div className={cn('relative', className)}>
@@ -374,6 +383,39 @@ export function LeadFilterBar({
             </SelectContent>
         </Select>
     );
+    // Mois d'emménagement : les mois présents dans la liste, avec leur compte,
+    // pour voir d'un coup qui arrive en novembre.
+    const arrivalSelect = (
+        <Select
+            value={arrivalMonth}
+            onValueChange={(value) => onChange({ arrivalMonth: value })}
+        >
+            <SelectTrigger
+                aria-label="Mois d'emménagement"
+                size="sm"
+                className="bg-background w-40"
+            >
+                <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value="all">Tous les mois</SelectItem>
+                {months.map((month) => (
+                    <SelectItem key={month.value} value={month.value}>
+                        {month.label}
+                        <span className="text-muted-foreground ml-auto text-xs tabular-nums">
+                            {month.count}
+                        </span>
+                    </SelectItem>
+                ))}
+                {arrivalMonth !== 'all' &&
+                    !months.some((month) => month.value === arrivalMonth) && (
+                        <SelectItem value={arrivalMonth}>
+                            {arrivalMonthLabel(arrivalMonth)}
+                        </SelectItem>
+                    )}
+            </SelectContent>
+        </Select>
+    );
     const sortSelect = (
         <Select
             value={filters.sort}
@@ -451,6 +493,12 @@ export function LeadFilterBar({
                     <div className="grid gap-1.5">
                         <Label htmlFor="filter-score">Note minimale</Label>
                         {scoreSelect}
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="filter-arrival">
+                            Mois d'emménagement
+                        </Label>
+                        {arrivalSelect}
                     </div>
                     <div className="grid gap-1.5">
                         <Label htmlFor="filter-sort">Tri</Label>
