@@ -3,6 +3,7 @@ import { Pencil, Sparkles, Target } from 'lucide-react';
 import { useState } from 'react';
 import { AiBadge } from '@/components/ai-badge';
 import { AgencyProfileDialog } from '@/components/real-estate/agency-profile-dialog';
+import { Section } from '@/components/leads/lead-show-body';
 import {
     DetailSection,
     missingValue,
@@ -31,6 +32,11 @@ type AgentProps = {
     agent: Agent;
     options: ProfileOptions;
     urls: { profile: string };
+    /**
+     * `plain` : section à filet sans carte, pour la fiche agent qui suit le
+     * moule de la fiche lead (28 octobre 2026). `card` par défaut.
+     */
+    variant?: 'card' | 'plain';
 };
 
 function Pills({ values }: { values: string[] }) {
@@ -124,9 +130,12 @@ export function AgencyProfileCard(props: AgencyProps | AgentProps) {
         );
     };
 
+    const plain = props.scope === 'agent' && props.variant === 'plain';
+    const Shell = plain ? Section : DetailSection;
+
     return (
         <>
-            <DetailSection
+            <Shell
                 title="Profil de matching"
                 icon={Target}
                 action={
@@ -242,7 +251,7 @@ export function AgencyProfileCard(props: AgencyProps | AgentProps) {
                         ))}
                     </dl>
                 )}
-            </DetailSection>
+            </Shell>
             <AgencyProfileDialog
                 open={editing}
                 onOpenChange={setEditing}

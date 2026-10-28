@@ -103,8 +103,10 @@ const badgeTones = {
 /**
  * Lignes libellé au-dessus de la valeur : la colonne de gauche de la fiche
  * est étroite, un libellé à côté de la valeur tronquerait l'e-mail.
+ * Exportée avec `Section`, `TitleIcon` et `TimelineDot` : la fiche d'un
+ * agent (28 octobre 2026) suit le même moule que la fiche lead.
  */
-function Rows({
+export function Rows({
     facts,
     columns = 1,
     onSave,
@@ -173,7 +175,7 @@ function Rows({
 }
 
 /** Pictogramme d'un titre de section, dans une pastille grise discrète. */
-function TitleIcon({ icon: Icon }: { icon: typeof Home }) {
+export function TitleIcon({ icon: Icon }: { icon: typeof Home }) {
     return (
         <span
             aria-hidden
@@ -185,7 +187,7 @@ function TitleIcon({ icon: Icon }: { icon: typeof Home }) {
 }
 
 /** Section sans cadre, séparée de la suivante par un filet. */
-function Section({
+export function Section({
     title,
     icon,
     action,
@@ -288,7 +290,7 @@ function Fold({
  * exemple après « Mettre à jour » sur le dernier contact. La couleur du halo
  * suit celle du point (`currentColor`).
  */
-function TimelineDot({
+export function TimelineDot({
     tone,
     step,
     replayKey,

@@ -125,9 +125,7 @@ describe('Agent detail page', () => {
         );
         // Un agent rattaché n'a pas d'adresse propre : la carte « Coordonnées »
         // montre celle de son agence, et le dit.
-        const contact = within(
-            screen.getByRole('region', { name: 'Coordonnées' }),
-        );
+        const contact = within(screen.getByRole('region', { name: 'Contact' }));
         expect(contact.getByText('Adresse de l’agence')).toBeInTheDocument();
         expect(
             contact.getByText('12 rue de Turenne, 75003 Paris'),
@@ -152,7 +150,13 @@ describe('Agent detail page', () => {
             screen.queryByRole('link', { name: 'Tous les agents' }),
         ).toBeNull();
 
-        await user.click(screen.getByRole('button', { name: 'Modifier' }));
+        // « Modifier » vit dans le menu « ⋯ », comme sur la fiche lead.
+        await user.click(
+            screen.getByRole('button', { name: 'Actions pour Zoé Martin' }),
+        );
+        await user.click(
+            await screen.findByRole('menuitem', { name: 'Modifier' }),
+        );
         const dialog = screen.getByRole('dialog', {
             name: 'Modifier Zoé Martin',
         });
@@ -193,7 +197,7 @@ describe('Agent detail page', () => {
         expect(screen.getAllByText('Non renseigné')).toHaveLength(4);
     });
 
-    it('puts the contact details in their own card, like the other directory pages', () => {
+    it('follows the lead fiche: two columns split by a rule, contact rows on the left, the follow-up as a timeline', () => {
         render(
             <AgentShow
                 agent={makeAgent()}
@@ -202,14 +206,27 @@ describe('Agent detail page', () => {
             />,
         );
 
-        const card = within(
-            screen.getByRole('region', { name: 'Coordonnées' }),
+        expect(screen.getByTestId('agent-columns')).toHaveClass(
+            'lg:grid-cols-2',
+            'lg:divide-x',
         );
+        // L'en-tête sur fond gris porte la qualité de la relation en badge.
+        expect(screen.getByTestId('agent-header')).toHaveClass('bg-sidebar');
+        const card = within(screen.getByRole('region', { name: 'Contact' }));
         expect(card.getByText('Téléphone')).toBeInTheDocument();
         expect(
             card.getByRole('link', { name: '+33 6 12 34 56 78' }),
         ).toHaveAttribute('href', 'tel:+33612345678');
-        expect(card.getByText('Qualité de la relation')).toBeInTheDocument();
         expect(card.getByText('Visites avec cet agent')).toBeInTheDocument();
+        const followUp = within(
+            screen.getByRole('region', { name: 'Suivi et notes' }),
+        );
+        expect(followUp.getByText('Dernier échange')).toBeInTheDocument();
+        expect(followUp.getAllByTestId('timeline-dot')).toHaveLength(2);
+        expect(
+            followUp.getByRole('button', { name: 'Échange noté' }),
+        ).toBeInTheDocument();
+        // Plus de bouton « Modifier » dans l'en-tête : il est dans le menu « ⋯ ».
+        expect(screen.queryByRole('button', { name: 'Modifier' })).toBeNull();
     });
 });
