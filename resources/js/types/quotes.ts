@@ -79,6 +79,18 @@ export type QuoteStatusChange = {
 };
 
 /** Devis vu depuis une fiche lead. */
+/** Un devis trouvé par `tools.quotes.search`, pour « Lier un devis existant ». */
+export type QuoteSearchHit = {
+    id: number;
+    uuid: string;
+    number: string;
+    client_name: string;
+    amount_cents: number;
+    currency: Currency;
+    status_label: string;
+    lead: LinkedLead | null;
+};
+
 export type LeadQuote = {
     id: number;
     uuid: string;

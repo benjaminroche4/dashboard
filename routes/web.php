@@ -281,11 +281,11 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('locataires/{lead}/edit', [LeadController::class, 'edit'])->name('leads.edit');
     Route::put('locataires/{lead}', [LeadController::class, 'update'])->name('leads.update');
     Route::patch('locataires/{lead}/assign', [LeadController::class, 'assign'])->name('leads.assign');
+    Route::patch('locataires/{lead}/fields', [LeadController::class, 'fields'])->name('leads.fields');
     Route::patch('locataires/{lead}/agent', [LeadController::class, 'agent'])->name('leads.agent');
     Route::patch('locataires/{lead}/segment', [LeadController::class, 'segment'])->name('leads.segment');
     Route::post('locataires/{lead}/qualify', [LeadController::class, 'qualify'])->middleware('throttle:20,1')->name('leads.qualify');
-    Route::post('locataires/{lead}/qualification', [LeadController::class, 'applyQualification'])->name('leads.qualification.apply');
-    Route::delete('locataires/{lead}/qualification', [LeadController::class, 'dismissQualification'])->name('leads.qualification.dismiss');
+    Route::patch('locataires/{lead}/qualification', [LeadController::class, 'setQualification'])->name('leads.qualification.update');
     Route::post('locataires/{lead}/partners', [LeadPartnerController::class, 'store'])->name('leads.partners.store');
     Route::delete('locataires/{lead}/partners/{partnerLink}', [LeadPartnerController::class, 'destroy'])->name('leads.partners.destroy');
     Route::post('locataires/{lead}/partners/{partnerLink}/forward', [LeadPartnerController::class, 'forward'])->name('leads.partners.forward');
@@ -299,6 +299,7 @@ Route::middleware(['auth'])->group(function (): void {
     Route::post('locataires/{lead}/convert', [LeadController::class, 'convert'])->name('leads.convert');
     Route::delete('locataires/{lead}', [LeadController::class, 'destroy'])->name('leads.destroy');
     Route::post('locataires/{lead}/send', [LeadController::class, 'send'])->name('leads.send');
+    Route::post('locataires/{lead}/property-match', [LeadController::class, 'propertyMatch'])->name('leads.property-match');
     Route::post('locataires/{lead}/visio', [LeadController::class, 'visio'])->name('leads.visio');
     Route::post('locataires/{lead}/visio/report', [LeadController::class, 'visioReport'])->name('leads.visio.report');
 

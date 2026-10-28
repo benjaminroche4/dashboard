@@ -146,6 +146,7 @@ const lead = {
     score: 4,
     recontact_channel: '' as const,
     recontact_at: '',
+    recontact_time: '10:00',
     qualification_note: '',
     assigned_to: 2,
     segment: 'tenant' as const,

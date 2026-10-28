@@ -28,6 +28,7 @@ export function LeadArchiveDialog({
     onOpenChange,
     onConfirm,
     busy = false,
+    initial,
 }: {
     leadName: string;
     reasons: LabeledOption<LeadLossReason>[];
@@ -35,17 +36,19 @@ export function LeadArchiveDialog({
     onOpenChange: (open: boolean) => void;
     onConfirm: (choice: ArchiveChoice) => void;
     busy?: boolean;
+    /** Motif et précision proposés à l'ouverture (l'AI check les tire de son avis). */
+    initial?: Partial<ArchiveChoice>;
 }) {
     const [reason, setReason] = useState<LeadLossReason | ''>('');
     const [note, setNote] = useState('');
 
-    // Chaque ouverture repart à blanc.
+    // Chaque ouverture repart des valeurs proposées, à blanc sinon.
     useEffect(() => {
         if (open) {
-            setReason('');
-            setNote('');
+            setReason(initial?.reason ?? '');
+            setNote(initial?.note ?? '');
         }
-    }, [open]);
+    }, [open, initial?.reason, initial?.note]);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>

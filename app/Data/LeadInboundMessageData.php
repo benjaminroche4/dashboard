@@ -22,7 +22,8 @@ final readonly class LeadInboundMessageData
 
     /**
      * @param  'website'|'call'|'sms'  $kind
-     * @param  string  $meta  Contexte court affiché au-dessus du message (formulaire, durée d'appel…).
+     * @param  string  $meta  Contexte court (formulaire et référence, durée d'appel…) ; la fiche ne l'affiche plus pour un message du site.
+     * @param  ?string  $topic  Type de demande du formulaire du site (« Gestion locative »), écrit en tête du message.
      */
     private function __construct(
         public string $kind,
@@ -31,6 +32,7 @@ final readonly class LeadInboundMessageData
         public ?CarbonInterface $at,
         /** Note d'où vient un résumé d'appel ou de SMS : deux cartes ne montrent jamais la même. */
         public ?int $noteId = null,
+        public ?string $topic = null,
     ) {}
 
     public static function fromLead(Lead $lead): ?self
@@ -43,7 +45,7 @@ final readonly class LeadInboundMessageData
     }
 
     /**
-     * @param  array{kind: 'website'|'call'|'sms', body: string, meta: string, at: ?string, note_id?: int|null}  $data
+     * @param  array{kind: 'website'|'call'|'sms', body: string, meta: string, at: ?string, note_id?: int|null, topic?: string|null}  $data
      */
     public static function from(array $data): self
     {
@@ -53,11 +55,12 @@ final readonly class LeadInboundMessageData
             meta: $data['meta'],
             at: $data['at'] === null ? null : Date::parse($data['at']),
             noteId: $data['note_id'] ?? null,
+            topic: $data['topic'] ?? null,
         );
     }
 
     /**
-     * @return array{kind: string, body: string, meta: string, at: ?string, note_id: int|null}
+     * @return array{kind: string, body: string, meta: string, at: ?string, note_id: int|null, topic: string|null}
      */
     public function toArray(): array
     {
@@ -67,6 +70,7 @@ final readonly class LeadInboundMessageData
             'meta' => $this->meta,
             'at' => $this->at?->toIso8601String(),
             'note_id' => $this->noteId,
+            'topic' => $this->topic,
         ];
     }
 
@@ -95,7 +99,29 @@ final readonly class LeadInboundMessageData
             return null;
         }
 
-        return new self('website', $body, $lead->source_note ?? $lead->source->label(), $lead->created_at);
+        return new self(
+            'website',
+            $body,
+            $lead->source_note ?? $lead->source->label(),
+            $lead->created_at,
+            topic: self::websiteTopic($lead),
+        );
+    }
+
+    /**
+     * Sujet de la demande du site : le type de demande du lead, à défaut le
+     * deuxième segment de la note de source (« Formulaire de contact · Gestion
+     * locative · CT-… ») pour les leads importés avant que `help_type` existe.
+     */
+    private static function websiteTopic(Lead $lead): ?string
+    {
+        if ($lead->help_type !== null) {
+            return $lead->help_type->label();
+        }
+
+        $segments = array_map(trim(...), explode('·', (string) $lead->source_note));
+
+        return count($segments) >= 3 && $segments[1] !== '' ? $segments[1] : null;
     }
 
     /**

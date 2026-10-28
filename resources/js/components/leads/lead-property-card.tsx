@@ -11,8 +11,8 @@ import {
     Wallet,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { formatMoney } from '@/lib/format';
+import { propertyAmenityIcons } from '@/lib/property-amenity-icons';
 import type { LeadPropertyDetail } from '@/types';
 
 type Fact = { label: string; value: ReactNode; icon: ReactNode };
@@ -72,7 +72,9 @@ function describeRooms(
 
 /**
  * Bloc « Bien proposé » de la fiche d'un lead propriétaire : les réponses du
- * formulaire « Proposer un bien », sur deux colonnes, puis les équipements et la note.
+ * formulaire « Proposer un bien » en lignes à filets, libellé à gauche et
+ * valeur à droite, puis les équipements avec leur icône et la note
+ * (disposition retenue le 28 octobre 2026 parmi quatre variantes).
  */
 export function LeadPropertyCard({
     property,
@@ -176,45 +178,59 @@ export function LeadPropertyCard({
         return <p className="text-muted-foreground text-sm">Non renseigné</p>;
     }
 
+    const amenities = property.amenity_labels.map((label, index) => {
+        const key = property.amenities[index];
+        const Icon = key ? propertyAmenityIcons[key] : null;
+
+        return { label, Icon };
+    });
+    const row =
+        'grid gap-x-4 gap-y-0.5 py-2 first:pt-0 last:pb-0 sm:grid-cols-[10rem_minmax(0,1fr)]';
+
     return (
-        <div className="grid gap-5" data-testid="lead-property">
-            {filled.length > 0 && (
-                <dl className="grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
-                    {filled.map((fact) => (
-                        <div key={fact.label} className="grid min-w-0 gap-0.5">
-                            <dt className="text-muted-foreground flex items-center gap-1.5">
-                                {fact.icon}
-                                {fact.label}
-                            </dt>
-                            <dd className="min-w-0 truncate font-medium tabular-nums">
-                                {fact.value}
-                            </dd>
-                        </div>
-                    ))}
-                </dl>
-            )}
-            {property.amenity_labels.length > 0 && (
-                <div className="grid gap-2">
-                    <p className="text-muted-foreground text-sm">Équipements</p>
-                    <ul role="list" className="flex flex-wrap gap-1.5">
-                        {property.amenity_labels.map((label) => (
-                            <li key={label}>
-                                <Badge variant="secondary">{label}</Badge>
-                            </li>
+        <dl className="divide-y text-sm" data-testid="lead-property">
+            {filled.map((fact) => (
+                <div key={fact.label} className={row}>
+                    <dt className="text-muted-foreground flex items-center gap-1.5">
+                        {fact.icon}
+                        {fact.label}
+                    </dt>
+                    <dd className="min-w-0 font-medium [overflow-wrap:anywhere] tabular-nums">
+                        {fact.value}
+                    </dd>
+                </div>
+            ))}
+            {amenities.length > 0 && (
+                <div className={row}>
+                    <dt className="text-muted-foreground">Équipements</dt>
+                    <dd className="flex flex-wrap gap-x-3 gap-y-1">
+                        {amenities.map(({ label, Icon }) => (
+                            <span
+                                key={label}
+                                className="inline-flex items-center gap-1 font-medium"
+                            >
+                                {Icon && (
+                                    <Icon
+                                        className="text-muted-foreground size-3.5"
+                                        aria-hidden
+                                    />
+                                )}
+                                {label}
+                            </span>
                         ))}
-                    </ul>
+                    </dd>
                 </div>
             )}
             {property.note && (
-                <div className="grid gap-1">
-                    <p className="text-muted-foreground text-sm">
+                <div className={row}>
+                    <dt className="text-muted-foreground">
                         Note du propriétaire
-                    </p>
-                    <p className="text-sm/6 whitespace-pre-line">
+                    </dt>
+                    <dd className="text-sm/6 whitespace-pre-line">
                         {property.note}
-                    </p>
+                    </dd>
                 </div>
             )}
-        </div>
+        </dl>
     );
 }

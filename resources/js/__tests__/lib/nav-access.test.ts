@@ -42,11 +42,6 @@ const groups: NavGroup[] = [
                 title: 'Partenaires',
                 href: '/partners',
                 section: 'partners',
-                create: {
-                    href: '/partners/create',
-                    label: 'Nouveau partenaire',
-                    section: 'quotes',
-                },
             },
         ],
     },
@@ -115,14 +110,5 @@ describe('nav access', () => {
         expect(filtered[1]?.items.map((item) => item.title)).toEqual([
             'Rapports',
         ]);
-    });
-
-    it('drops the create button when its own section is closed, keeps the link', () => {
-        const open = filterNavGroups(groups, only('partners', 'quotes'));
-        expect(open[1]?.items[0]?.create?.label).toBe('Nouveau partenaire');
-
-        const closed = filterNavGroups(groups, only('partners'));
-        expect(closed[1]?.items[0]?.title).toBe('Partenaires');
-        expect(closed[1]?.items[0]?.create).toBeUndefined();
     });
 });

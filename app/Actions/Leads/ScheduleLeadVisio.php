@@ -57,7 +57,7 @@ final readonly class ScheduleLeadVisio
             'visio_event_id' => $event['eventId'] ?? $lead->visio_event_id,
             'visio_meet_link' => $meetLink,
             'recontact_channel' => RecontactChannel::Visio,
-            'recontact_at' => $start->toDateString(),
+            'recontact_at' => $start,
             'last_contacted_at' => now(),
             // Nouveau créneau : le rappel du compte rendu repartira après celui-ci.
             'visio_report_reminded_at' => null,

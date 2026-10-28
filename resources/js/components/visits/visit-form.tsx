@@ -14,10 +14,7 @@ import { SearchSelect } from '@/components/search-select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useInitials } from '@/hooks/use-initials';
 import { DatePicker } from '@/components/date-picker';
-import {
-    VISIO_TIME_SLOTS,
-    defaultSlot,
-} from '@/components/leads/lead-visio-dialog';
+import { VISIO_TIME_SLOTS, defaultSlot } from '@/lib/time-slots';
 import { FormSection } from '@/components/form-section';
 import { PropertyFields } from '@/components/properties/property-fields';
 import { PropertyPhotos } from '@/components/properties/property-photos';

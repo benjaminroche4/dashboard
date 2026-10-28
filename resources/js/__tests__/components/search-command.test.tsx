@@ -258,7 +258,9 @@ describe('SearchCommand', () => {
             .flatMap((item) => [item, ...(item.items ?? [])])
             .map((item) =>
                 typeof item.href === 'string' ? item.href : item.href.url,
-            );
+            )
+            // Un menu qui n'est pas une page (« Annuaire », `href: '#'`) n'a rien à offrir à ⌘K.
+            .filter((url) => url !== '#');
         const missing = navUrls.filter(
             (url) => !destinations.some((d) => d.url === url),
         );

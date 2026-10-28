@@ -606,6 +606,7 @@ export default function ClientShow({
                     <TabsContent value="commercial" className="grid gap-4">
                         <DetailSection title="Devis">
                             <LeadQuotes
+                                leadId={client.id}
                                 leadUuid={client.uuid}
                                 quotes={quotes}
                                 canEdit

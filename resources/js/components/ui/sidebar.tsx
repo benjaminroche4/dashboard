@@ -28,7 +28,22 @@ const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "3rem"
-const SIDEBAR_KEYBOARD_SHORTCUT = "b"
+// Retouche : ⌘C au lieu du ⌘B de shadcn (demande de l'équipe). ⌘C reste la
+// copie dès qu'un texte est sélectionné ou qu'on écrit dans un champ.
+const SIDEBAR_KEYBOARD_SHORTCUT = "c"
+
+function copyIntended(): boolean {
+  const active = document.activeElement
+  if (
+    active instanceof HTMLInputElement ||
+    active instanceof HTMLTextAreaElement ||
+    (active instanceof HTMLElement && active.isContentEditable)
+  ) {
+    return true
+  }
+  const selection = window.getSelection()
+  return !!selection && !selection.isCollapsed
+}
 
 type SidebarContext = {
   state: "expanded" | "collapsed"
@@ -96,7 +111,10 @@ function SidebarProvider({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
         event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
-        (event.metaKey || event.ctrlKey)
+        (event.metaKey || event.ctrlKey) &&
+        !event.shiftKey &&
+        !event.altKey &&
+        !copyIntended()
       ) {
         event.preventDefault()
         toggleSidebar()

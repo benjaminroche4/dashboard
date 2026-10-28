@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Data\LeadInboundMessageData;
 use App\Enums\LeadSource;
+use App\Enums\WebsiteHelpType;
 use App\Models\Lead;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -14,6 +15,7 @@ test('a website lead exposes its form message with the source note', function ()
     $lead = Lead::factory()->create([
         'source' => LeadSource::Website,
         'source_note' => 'Formulaire de contact · Recherche de logement · CT-4F2A11',
+        'help_type' => WebsiteHelpType::HousingSearch,
         'message' => "  Bonjour, j'arrive en octobre.  ",
     ]);
 
@@ -24,8 +26,25 @@ test('a website lead exposes its form message with the source note', function ()
             'kind' => 'website',
             'body' => "Bonjour, j'arrive en octobre.",
             'meta' => 'Formulaire de contact · Recherche de logement · CT-4F2A11',
+            // Le type de demande du site, écrit en tête du message sur la fiche.
+            'topic' => 'Recherche de logement',
         ])
         ->and($inbound?->at?->toIso8601String())->toBe($lead->created_at?->toIso8601String());
+});
+
+test('a website lead without help type reads its topic from the source note', function (): void {
+    $lead = Lead::factory()->create([
+        'source' => LeadSource::Website,
+        'source_note' => 'Formulaire de contact · Gestion locative · CT-467498',
+        'help_type' => null,
+        'message' => 'Propriétaire d’un T3 dans le 15e.',
+    ]);
+
+    expect(LeadInboundMessageData::fromLead($lead->load('notes'))?->topic)->toBe('Gestion locative');
+
+    $lead->update(['source_note' => 'Site web']);
+
+    expect(LeadInboundMessageData::fromLead($lead->fresh()?->load('notes'))?->topic)->toBeNull();
 });
 
 test('a website lead without message has no inbound message', function (): void {
@@ -95,7 +114,7 @@ test('the last phone exchange is read whatever the source of the lead', function
 });
 
 test('the DTO round-trips through from() and toArray()', function (): void {
-    $data = ['kind' => 'sms', 'body' => 'Bonjour', 'meta' => 'SMS reçu', 'at' => '2026-09-06T17:03:00+02:00', 'note_id' => 12];
+    $data = ['kind' => 'sms', 'body' => 'Bonjour', 'meta' => 'SMS reçu', 'at' => '2026-09-06T17:03:00+02:00', 'note_id' => 12, 'topic' => null];
 
     expect(LeadInboundMessageData::from($data)->toArray())->toBe($data);
 });

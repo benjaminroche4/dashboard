@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -70,12 +71,13 @@ describe('AppSidebar', () => {
                 ?.closest('li')
                 ?.querySelector('[data-sidebar="menu-badge"]')?.textContent;
 
-        expect(byLink('/locataires')).toBe('7');
-        expect(byLink('/owners/leads')).toBe('2');
+        expect(byLink('/locataires')).toBe('7 en attente');
+        expect(byLink('/owners/leads')).toBe('2 en attente');
         localStorage.clear();
     });
 
-    it('names both lead segments in full and lists the directory flat under « Annuaire »', () => {
+    it('names both lead segments in full and folds the directory into one « Annuaire » tree menu', async () => {
+        const user = userEvent.setup();
         render(
             <TooltipProvider>
                 <SidebarProvider>
@@ -87,21 +89,12 @@ describe('AppSidebar', () => {
         const hrefs = screen
             .getAllByRole('link')
             .map((link) => link.getAttribute('href'));
-        // Pas de sous-menu sous Leads : la création est un « + » révélé au
-        // survol de la ligne, pas une entrée du menu.
+        // Pas de sous-menu ni de « + » sous Leads : chaque liste porte son
+        // bouton de création, le menu ne mène qu'aux listes.
         expect(hrefs).not.toContain('/owners/leads/create');
-        expect(
-            screen.getByRole('link', { name: 'Nouveau lead locataire' }),
-        ).toHaveAttribute('href', '/locataires/create');
-        expect(
-            screen.getByRole('link', { name: 'Nouveau lead propriétaire' }),
-        ).toHaveAttribute('href', '/locataires/create?segment=owner');
-        expect(
-            screen.getByRole('link', { name: 'Planifier une visite' }),
-        ).toHaveAttribute('href', '/clients/visits/create');
-        expect(
-            screen.getByRole('link', { name: 'Nouvelle liste de pièces' }),
-        ).toHaveAttribute('href', '/tools/documents/create');
+        expect(hrefs).not.toContain('/locataires/create');
+        expect(hrefs).not.toContain('/clients/visits/create');
+        expect(hrefs).not.toContain('/tools/documents/create');
         // Le libellé dit le segment entier : en mode icône comme dans ⌘K,
         // « Propriétaires » seul se confondrait avec l'annuaire.
         expect(
@@ -110,29 +103,25 @@ describe('AppSidebar', () => {
         expect(
             screen.getByRole('link', { name: 'Leads propriétaires' }),
         ).toHaveAttribute('href', '/owners/leads');
-        expect(
-            screen.getByRole('link', { name: 'Propriétaires' }),
-        ).toHaveAttribute('href', '/owners');
-        // L'annuaire est à plat : plus de menus dépliables à deux entrées.
+        // L'annuaire est un seul menu déroulant, fermé au départ : ses six
+        // liens n'existent qu'une fois ouvert, en arbre.
+        expect(screen.queryByRole('link', { name: 'Agents' })).toBeNull();
+        const directory = screen.getByRole('button', { name: 'Annuaire' });
+        expect(directory).toHaveAttribute('aria-expanded', 'false');
+        await user.click(directory);
         for (const [name, href] of [
             ['Agents', '/real-estate/agents'],
             ['Agences', '/real-estate/agencies'],
             ['Partenaires', '/partners'],
             ['Entreprises', '/companies'],
+            ['Propriétaires', '/owners'],
             ['Biens', '/properties'],
         ]) {
-            expect(screen.getByRole('link', { name })).toHaveAttribute(
-                'href',
-                href,
-            );
+            const link = screen.getByRole('link', { name });
+            expect(link).toHaveAttribute('href', href);
+            expect(link.closest('li')).toHaveAttribute('data-tree-branch');
         }
         expect(screen.queryByRole('link', { name: 'Logements' })).toBeNull();
-        expect(
-            screen.queryByRole('button', {
-                name: /(Déplier|Replier) (Agents et agences|Logements)/,
-            }),
-        ).toBeNull();
-        expect(screen.getByText('Annuaire')).toBeInTheDocument();
         expect(screen.queryByText('Réseau')).toBeNull();
     });
 
@@ -168,16 +157,16 @@ describe('AppSidebar', () => {
         ].map((group) => ({
             label: group.querySelector('[data-sidebar="group-label"]')
                 ?.textContent,
-            // Les liens du menu seuls : les « + » de création ont un aria-label.
-            links: [...group.querySelectorAll('a:not([aria-label])')].map(
-                (link) => link.textContent?.trim(),
+            // Les liens du groupe ; le menu « Annuaire » (fermé) est un bouton,
+            // ses sous-liens ne comptent pas ici.
+            links: [...group.querySelectorAll('a')].map((link) =>
+                link.textContent?.trim(),
             ),
         }));
         expect(groups.map((group) => group.label)).toEqual([
             undefined,
             'Leads',
             'Clients',
-            'Annuaire',
             'Outils',
         ]);
         expect(groups[2].links).toEqual([
@@ -185,7 +174,13 @@ describe('AppSidebar', () => {
             'Visites',
             'Listes de pièces',
         ]);
-        expect(groups[4].links).toEqual([
+        // « Annuaire » ouvre le groupe Outils, en bouton de menu fermé.
+        expect(
+            screen
+                .getByRole('button', { name: 'Annuaire' })
+                .closest('[data-sidebar="group"]'),
+        ).toBe(document.querySelectorAll('[data-sidebar="group"]')[3]);
+        expect(groups[3].links).toEqual([
             'Devis',
             'Factures',
             'Rapports',
@@ -242,7 +237,8 @@ describe('AppSidebar', () => {
             expect(names).not.toContain('Dossiers');
             expect(names).not.toContain('Partenaires');
             expect(names).not.toContain('Rapports');
-            // Les groupes vidés disparaissent avec leur libellé.
+            // Les groupes vidés disparaissent avec leur libellé, et le menu
+            // « Annuaire » avec ses sous-liens.
             expect(screen.queryByText('Annuaire')).toBeNull();
             expect(screen.queryByText('Leads')).toBeNull();
             expect(screen.getByText('Clients')).toBeInTheDocument();
@@ -286,11 +282,16 @@ describe('AppSidebar', () => {
                 .closest('li')
                 ?.querySelector('[data-sidebar="menu-badge"]');
 
-        // Un total, en gris : il n'appelle rien.
+        // Un total, en gris sur une pastille blanche : il n'appelle rien.
         expect(badgeOf('Dossiers')).toHaveTextContent('5');
         expect(badgeOf('Dossiers')).toHaveAttribute('data-tone', 'total');
-        // Ce qui attend une action, en couleur.
-        expect(badgeOf('Leads locataires')).toHaveTextContent('7');
+        expect(badgeOf('Dossiers')).toHaveClass(
+            'bg-background',
+            'rounded-full',
+        );
+        // Ce qui attend une action : un point rouge, le compte en texte lu seulement.
+        expect(badgeOf('Leads locataires')).toHaveTextContent('7 en attente');
+        expect(badgeOf('Leads locataires')).toHaveClass('bg-destructive');
         expect(badgeOf('Leads locataires')).toHaveAttribute(
             'data-tone',
             'alert',
@@ -300,30 +301,5 @@ describe('AppSidebar', () => {
         expect(badgeOf('Factures')).toBeNull();
         // Zéro : pas de pastille.
         expect(badgeOf('Listes de pièces')).toBeNull();
-    });
-
-    it('hides the create button of a segment the member cannot create', () => {
-        access = { ...memberAccess, leads_create: 'none' };
-        try {
-            render(
-                <TooltipProvider>
-                    <SidebarProvider>
-                        <AppSidebar />
-                    </SidebarProvider>
-                </TooltipProvider>,
-            );
-
-            expect(
-                screen.getByRole('link', { name: 'Leads locataires' }),
-            ).toBeInTheDocument();
-            expect(
-                screen.queryByRole('link', { name: 'Nouveau lead locataire' }),
-            ).toBeNull();
-            expect(
-                screen.getByRole('link', { name: 'Nouveau lead propriétaire' }),
-            ).toBeInTheDocument();
-        } finally {
-            access = null;
-        }
     });
 });

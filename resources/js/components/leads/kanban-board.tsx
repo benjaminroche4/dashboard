@@ -27,6 +27,7 @@ import {
     Clock,
     PlaneLanding,
     Star,
+    Sparkles,
 } from 'lucide-react';
 import {
     createContext,
@@ -51,7 +52,6 @@ import { formatDate, formatMoney } from '@/lib/format';
 import { applyMove, columnOf, columnStats } from '@/lib/kanban';
 import { firstContactTimer, leadUrgency } from '@/lib/lead-urgency';
 import { useNow } from '@/hooks/use-now';
-import { AiBadge } from '@/components/ai-badge';
 import { FirstContactBadge } from '@/components/leads/first-contact-badge';
 import { describeDistricts } from '@/lib/paris-districts';
 import { cn } from '@/lib/utils';
@@ -928,12 +928,29 @@ export function LeadCard({
                 </div>
             </div>
             {(firstContact !== null ||
-                lead.ai_pending ||
+                lead.ai_verdict !== null ||
                 urgency.contact === 'warn' ||
                 urgency.contact === 'late' ||
                 urgency.arrivalInDays !== null) && (
                 <div className="flex min-w-0 flex-wrap gap-1.5">
-                    {lead.ai_pending && <AiBadge label="IA à relire" />}
+                    {lead.ai_verdict && (
+                        <Badge
+                            variant="secondary"
+                            data-verdict={lead.ai_verdict}
+                            className={cn(
+                                'gap-1 py-0.5 pr-2 pl-1.5',
+                                lead.ai_verdict === 'qualified' &&
+                                    'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+                                lead.ai_verdict === 'not_qualified' &&
+                                    'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300',
+                                lead.ai_verdict === 'neutral' &&
+                                    'bg-muted text-muted-foreground',
+                            )}
+                        >
+                            <Sparkles className="size-3" aria-hidden />
+                            {lead.ai_verdict_label}
+                        </Badge>
+                    )}
                     <FirstContactBadge timer={firstContact} />
                     {(urgency.contact === 'warn' ||
                         urgency.contact === 'late') && (

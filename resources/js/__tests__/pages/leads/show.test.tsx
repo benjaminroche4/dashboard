@@ -28,6 +28,7 @@ vi.mock('@inertiajs/react', () => ({
     usePage: () => ({
         props: {
             auth: { user: { id: 1, name: 'Admin' } },
+            features: { assistant: true },
             staff: [
                 { id: 1, name: 'Admin', role: 'admin', avatar: null },
                 { id: 2, name: 'Admin 2', role: 'member', avatar: null },
@@ -65,6 +66,7 @@ import {
     makeLeadDetail,
     makeLeadPropertyDetail,
     makeInbound,
+    makeVerdict,
 } from '@/test/fixtures/lead';
 import type { LeadInvoice, LeadNote } from '@/types';
 
@@ -105,22 +107,18 @@ const base = {
     recontactChannels: [
         { value: 'phone' as const, label: 'Téléphone' },
         { value: 'whatsapp' as const, label: 'WhatsApp' },
+        { value: 'visio' as const, label: 'Visio' },
     ],
     duplicates: [],
     inbound: null,
-    agents: [],
-    partners: [],
-    partnerOptions: [],
-    partnerRoles: [],
     can: { delete: false },
     invoices: [],
     quotes: [],
-    documentRequests: [],
     lossReasons,
 };
 
 describe('Lead detail page', () => {
-    it('shows the proposed property of an owner lead and edits it on the owner lead form', () => {
+    it('shows the proposed property of an owner lead and edits it on the owner lead form', async () => {
         render(
             <LeadsShow
                 {...base}
@@ -139,7 +137,13 @@ describe('Lead detail page', () => {
         ).toBeInTheDocument();
         expect(section.getByText('Ascenseur')).toBeInTheDocument();
         expect(screen.queryByRole('region', { name: 'Projet' })).toBeNull();
-        expect(screen.getByRole('link', { name: 'Modifier' })).toHaveAttribute(
+        // « Modifier » vit dans le menu « ⋯ », avec les autres actions.
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Plus d’actions' }),
+        );
+        expect(
+            await screen.findByRole('menuitem', { name: 'Modifier' }),
+        ).toHaveAttribute(
             'href',
             '/owners/leads/0199a9a0-0000-7000-8000-000000000001/edit',
         );
@@ -202,10 +206,23 @@ describe('Lead detail page', () => {
         expect(
             screen.getByRole('link', { name: '+33 6 00 00 00 00' }),
         ).toHaveAttribute('href', 'tel:+33600000000');
-        expect(screen.getByRole('link', { name: 'Modifier' })).toHaveAttribute(
+        // « Modifier » et « Convertir en client » vivent dans le menu « ⋯ ».
+        expect(
+            screen.queryByRole('button', { name: 'Convertir en client' }),
+        ).not.toBeInTheDocument();
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Plus d’actions' }),
+        );
+        expect(
+            await screen.findByRole('menuitem', { name: 'Modifier' }),
+        ).toHaveAttribute(
             'href',
             '/locataires/0199a9a0-0000-7000-8000-000000000001/edit',
         );
+        expect(
+            screen.getByRole('menuitem', { name: 'Convertir en client' }),
+        ).toBeInTheDocument();
+        await userEvent.keyboard('{Escape}');
         expect(screen.getAllByText(/2.500,00.*\/ mois/).length).toBeGreaterThan(
             0,
         );
@@ -241,18 +258,16 @@ describe('Lead detail page', () => {
         expect(screen.getAllByText('Non renseigné').length).toBeGreaterThan(1);
         expect(screen.queryByText(/Non précisé/)).not.toBeInTheDocument();
 
-        // Fil d'activité : notes et statuts mêlés, compteur, filtres.
-        const section = within(
-            screen.getByRole('region', { name: 'Activité' }),
-        );
-        // Le compteur vit dans l'intitulé de la carte, comme sur les fiches.
+        // Fil d'activité : un seul bouton « Notes », le compte en pastille dedans.
         expect(
-            section.getByRole('heading', { name: /Activité\s*3/ }),
-        ).toBeInTheDocument();
+            screen.queryByRole('region', { name: 'Activité' }),
+        ).not.toBeInTheDocument();
+        const notesButton = screen.getByRole('button', { name: /^Notes/ });
+        expect(
+            within(notesButton).getByLabelText('3 entrées'),
+        ).toHaveTextContent('3');
         expect(screen.queryByText('Rappeler mardi.')).not.toBeInTheDocument();
-        await userEvent.click(
-            section.getByRole('button', { name: 'Voir l’activité' }),
-        );
+        await userEvent.click(notesButton);
         const activity = within(
             screen.getByRole('dialog', { name: 'Activité' }),
         );
@@ -278,9 +293,7 @@ describe('Lead detail page', () => {
         expect(
             screen.queryByRole('textbox', { name: 'Nouvelle note' }),
         ).not.toBeInTheDocument();
-        await user.click(
-            screen.getByRole('button', { name: 'Voir l’activité' }),
-        );
+        await user.click(screen.getByRole('button', { name: /^Notes/ }));
         expect(
             screen.getByRole('button', { name: 'Ajouter la note' }),
         ).toBeDisabled();
@@ -294,7 +307,7 @@ describe('Lead detail page', () => {
         );
     });
 
-    it('marks the lead as contacted now and shows the blocked visio button', async () => {
+    it('marks the lead as contacted now, and schedules the video call from the « Planifier » popover', async () => {
         const user = userEvent.setup();
         render(
             <LeadsShow
@@ -306,9 +319,20 @@ describe('Lead detail page', () => {
             />,
         );
 
+        // Un seul bouton pour tout : « Planifier » ouvre le choix du canal,
+        // et la visio s'y programme (plus de bouton « Programmer une visio »).
         expect(
-            screen.getByRole('button', { name: 'Programmer une visio' }),
-        ).toBeEnabled();
+            screen.queryByRole('button', { name: 'Programmer une visio' }),
+        ).not.toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Planifier' }));
+        await user.click(
+            await screen.findByRole('combobox', { name: 'Canal' }),
+        );
+        await user.click(await screen.findByRole('option', { name: 'Visio' }));
+        expect(
+            screen.getByRole('button', { name: 'Programmer la visio' }),
+        ).toBeInTheDocument();
+        await user.keyboard('{Escape}');
 
         await user.click(screen.getByRole('button', { name: 'Mettre à jour' }));
 
@@ -376,6 +400,10 @@ describe('Lead detail page', () => {
         );
 
         const card = within(screen.getByRole('region', { name: 'Suivi par' }));
+        // Le suivi est une frise : dernier contact puis prochain recontact.
+        const steps = card.getAllByRole('listitem');
+        expect(steps[0]).toHaveTextContent('Dernier contact');
+        expect(steps[1]).toHaveTextContent('Prochain recontact');
         expect(card.getByText(/WhatsApp ·/)).toBeInTheDocument();
         expect(card.getByText(/En retard de \d+ j/)).toHaveAttribute(
             'data-late',
@@ -383,6 +411,42 @@ describe('Lead detail page', () => {
         );
         expect(
             card.getByRole('button', { name: 'Reporter' }),
+        ).toBeInTheDocument();
+    });
+
+    it('shows a scheduled video call as a step of the follow-up timeline, with its Meet link', () => {
+        render(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail({
+                    visio_at: '2026-11-03T10:00:00+01:00',
+                    visio_meet_link: 'https://meet.google.com/abc-defg-hij',
+                })}
+                notes={[]}
+                history={[]}
+                invoices={[]}
+            />,
+        );
+
+        const card = within(screen.getByRole('region', { name: 'Suivi par' }));
+        const steps = card.getAllByRole('listitem');
+        expect(steps.map((step) => step.textContent)).toEqual([
+            expect.stringContaining('Dernier contact'),
+            expect.stringContaining('Appel vidéo prévu'),
+            expect.stringContaining('Prochain recontact'),
+        ]);
+        expect(steps[1]).toHaveTextContent('3 novembre 2026 à 10:00');
+        expect(
+            within(steps[1]!).getByRole('link', {
+                name: 'Rejoindre sur Google Meet',
+            }),
+        ).toHaveAttribute('href', 'https://meet.google.com/abc-defg-hij');
+        expect(
+            document.querySelectorAll('[data-test="visio-summary"]'),
+        ).toHaveLength(1);
+        // Un seul bouton, « Planifier », qui proposera de déplacer la visio.
+        expect(
+            card.getByRole('button', { name: 'Planifier' }),
         ).toBeInTheDocument();
     });
 
@@ -405,6 +469,178 @@ describe('Lead detail page', () => {
         expect(screen.getByTestId('loss-reason')).toHaveTextContent(
             'Motif : Trop petit budget · Budget à 900 €.',
         );
+    });
+});
+
+describe('Next step banner on the lead page', () => {
+    it('says the overdue recontact first and opens the planning dialog from the banner', async () => {
+        const user = userEvent.setup();
+        render(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail({
+                    recontact_channel: 'phone',
+                    recontact_channel_label: 'Téléphone',
+                    recontact_at: '2020-01-01T10:00:00+01:00',
+                })}
+                notes={[]}
+                history={[]}
+                invoices={[]}
+            />,
+        );
+
+        const banner = screen.getByTestId('lead-next-step');
+        expect(banner).toHaveAttribute('data-tone', 'late');
+        expect(banner).toHaveTextContent(
+            /Recontact en retard de \d+ j · Téléphone/,
+        );
+        await user.click(
+            within(banner).getByRole('button', { name: 'Reporter' }),
+        );
+        expect(
+            await screen.findByRole('dialog', {
+                name: 'Reporter le recontact',
+            }),
+        ).toBeInTheDocument();
+    });
+
+    it('shows nothing when the lead is up to date, and no creation line under the name', () => {
+        render(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail({
+                    status: 'in_progress',
+                    last_contacted_at: new Date().toISOString(),
+                    recontact_at: null,
+                })}
+                notes={[]}
+                history={[]}
+                invoices={[]}
+            />,
+        );
+
+        expect(screen.queryByTestId('lead-next-step')).toBeNull();
+        expect(document.querySelector('[data-test="lead-author"]')).toBeNull();
+    });
+
+    it('flags a lead left unassigned for weeks and keeps a « Message reçu » row even without inbound message', () => {
+        render(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail({
+                    assignee: null,
+                    created_at: '2020-01-01T10:00:00+01:00',
+                    last_contacted_at: new Date().toISOString(),
+                })}
+                inbound={null}
+                notes={[]}
+                history={[]}
+                invoices={[]}
+            />,
+        );
+
+        expect(screen.getByTestId('unassigned-warning')).toHaveTextContent(
+            /Non attribué depuis \d+ j/,
+        );
+        expect(
+            screen.getByRole('region', { name: 'Message reçu' }),
+        ).toHaveTextContent('Aucun message d’arrivée');
+    });
+});
+
+describe('AI check shortcuts on the lead page', () => {
+    it('archives with the assistant’s reason prefilled from a red verdict', async () => {
+        const user = userEvent.setup();
+        render(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail({ status: 'in_progress' })}
+                verdict={makeVerdict({
+                    value: 'not_qualified',
+                    label: 'Non qualifié',
+                    reason: 'Demande d’achat, hors cible.',
+                })}
+                notes={[]}
+                history={[]}
+                invoices={[]}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Archiver avec ce motif' }),
+        );
+        const dialog = within(await screen.findByRole('dialog'));
+        expect(
+            dialog.getByRole('radio', { name: 'Pas du tout qualifié' }),
+        ).toBeChecked();
+        expect(dialog.getByLabelText('Précision (facultatif)')).toHaveValue(
+            'Demande d’achat, hors cible.',
+        );
+        await user.click(dialog.getByRole('button', { name: /Archiver/ }));
+        expect(patch).toHaveBeenCalledWith(
+            '/locataires/0199a9a0-0000-7000-8000-000000000001/status',
+            {
+                status: 'archived',
+                loss_reason: 'not_qualified',
+                loss_note: 'Demande d’achat, hors cible.',
+            },
+            expect.objectContaining({ preserveScroll: true }),
+        );
+    });
+
+    it('opens the planning dialog from a green verdict', async () => {
+        const user = userEvent.setup();
+        render(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail({ status: 'todo', recontact_at: null })}
+                verdict={makeVerdict()}
+                notes={[]}
+                history={[]}
+                invoices={[]}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', {
+                name: 'Planifier le premier contact',
+            }),
+        );
+        expect(
+            await screen.findByRole('dialog', {
+                name: 'Planifier le prochain recontact',
+            }),
+        ).toBeInTheDocument();
+    });
+});
+
+describe('Arrival message on the lead page', () => {
+    it('does not repeat the website message under the project once the lead is in progress', () => {
+        render(
+            <LeadsShow
+                {...base}
+                lead={makeLeadDetail({
+                    status: 'in_progress',
+                    message: 'Arrive avec sa famille, cherche un 3 pièces.',
+                })}
+                inbound={makeInbound({
+                    body: 'Arrive avec sa famille, cherche un 3 pièces.',
+                })}
+                notes={[]}
+                history={[]}
+                invoices={[]}
+            />,
+        );
+
+        // La carte d'arrivée porte le message ; le projet ne le cite pas.
+        expect(
+            screen.getAllByText('Arrive avec sa famille, cherche un 3 pièces.'),
+        ).toHaveLength(1);
+        expect(
+            within(screen.getByRole('region', { name: 'Projet' })).queryByText(
+                'Arrive avec sa famille, cherche un 3 pièces.',
+            ),
+        ).toBeNull();
     });
 });
 
@@ -431,6 +667,7 @@ describe('First contact countdown on the lead page', () => {
         expect(timer).toHaveAttribute('data-late', 'true');
     });
     it('puts the inbound message first and condenses empty sections for a fresh website lead', async () => {
+        const user = userEvent.setup();
         render(
             <LeadsShow
                 {...base}
@@ -453,40 +690,54 @@ describe('First contact countdown on the lead page', () => {
                         "Bonjour, j'arrive à Paris en octobre avec ma famille.",
                 })}
                 inbound={makeInbound()}
+                verdict={makeVerdict()}
                 notes={[]}
                 history={[]}
                 invoices={[]}
             />,
         );
 
+        // L'avis de l'assistant précède le message reçu.
+        const check = screen.getByTestId('lead-ai-check');
+        expect(check).toHaveAttribute('data-verdict', 'qualified');
+        expect(
+            check.compareDocumentPosition(screen.getByTestId('lead-inbound')) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
         const block = screen.getByTestId('lead-inbound');
         expect(block).toHaveAttribute('data-state', 'open');
         expect(block).toHaveTextContent('Message reçu depuis le site');
-        expect(block).toHaveTextContent('CT-4F2A11');
+        expect(block).not.toHaveTextContent('CT-4F2A11');
+        expect(block).toHaveTextContent('Topic : Recherche de logement');
         expect(block).toHaveTextContent("j'arrive à Paris en octobre");
         expect(
-            within(block).getByRole('button', { name: 'Je m’en occupe' }),
-        ).toBeInTheDocument();
+            within(block).queryByRole('button', { name: 'Je m’en occupe' }),
+        ).not.toBeInTheDocument();
+        // L'attribution vit dans « Suivi par » : avatar et « Attribuer ».
+        expect(
+            screen.getByRole('button', { name: /Attribuer|Suivi par/ }),
+        ).toHaveTextContent('Attribuer');
 
         // Le message n'est pas répété dans « Note sur le projet ».
         expect(
             screen.queryByRole('region', { name: 'Note sur le projet' }),
         ).not.toBeInTheDocument();
-        // Projet et Qualification sont vides : une ligne et un bouton chacun, pas de grille de champs vides.
-        expect(screen.getAllByText('Non renseigné')).toHaveLength(2);
+        // Projet et Qualification sont vides : deux accordéons repliés,
+        // chacun ne montrant qu'une ligne et un bouton une fois ouvert,
+        // pas de grille de champs vides.
+        expect(screen.queryByText('Non renseigné')).toBeNull();
+        await user.click(screen.getByRole('button', { name: 'Projet' }));
+        expect(screen.getAllByText('Non renseigné')).toHaveLength(1);
         expect(screen.getAllByRole('link', { name: 'Compléter' })).toHaveLength(
-            2,
+            1,
         );
-        const qualification = within(
-            screen.getByRole('region', { name: 'Qualification' }),
-        );
-        expect(qualification.getByText('Non renseigné')).toBeInTheDocument();
+        // Qualification porte son éditeur en place (note, qualité), pas une
+        // ligne « Non renseigné ».
         expect(
-            qualification.getByRole('link', { name: 'Compléter' }),
-        ).toHaveAttribute(
-            'href',
-            '/locataires/' + makeLeadDetail().uuid + '/edit',
-        );
+            within(
+                screen.getByRole('region', { name: 'Qualification' }),
+            ).getByRole('radiogroup', { name: 'Qualité du lead' }),
+        ).toBeInTheDocument();
     });
 
     it('shows the summary of a later call on the fiche, not only in the notes', () => {
@@ -540,7 +791,7 @@ describe('First contact countdown on the lead page', () => {
         expect(screen.getAllByTestId('lead-inbound')).toHaveLength(1);
     });
 
-    it('collapses the inbound message once the lead is being handled', async () => {
+    it('keeps the inbound message open whatever the status, and folds it on demand', async () => {
         const user = userEvent.setup();
         render(
             <LeadsShow
@@ -561,12 +812,14 @@ describe('First contact countdown on the lead page', () => {
         );
 
         const block = screen.getByTestId('lead-inbound');
+        // Déplié par défaut, même pour un lead déjà pris en charge.
+        expect(block).toHaveAttribute('data-state', 'open');
+        expect(block).toHaveTextContent('Cherche un T2 dans le 11e.');
+        await user.click(
+            within(block).getByRole('button', { name: 'Replier' }),
+        );
         expect(block).toHaveAttribute('data-state', 'collapsed');
         expect(block).not.toHaveTextContent('Cherche un T2');
-        await user.click(
-            within(block).getByRole('button', { name: 'Afficher' }),
-        );
-        expect(block).toHaveTextContent('Cherche un T2 dans le 11e.');
         expect(
             within(block).queryByRole('button', { name: 'Je m’en occupe' }),
         ).not.toBeInTheDocument();
@@ -574,7 +827,7 @@ describe('First contact countdown on the lead page', () => {
         expect(screen.getAllByText('Non renseigné').length).toBeGreaterThan(0);
     });
 
-    it('splits the file into Dossier, Commercial and Partenaires tabs', async () => {
+    it('splits the file into two columns with Qualification, Devis and Factures folds on the right', async () => {
         const user = userEvent.setup();
         render(
             <LeadsShow
@@ -584,61 +837,79 @@ describe('First contact countdown on the lead page', () => {
                 history={[]}
                 invoices={[]}
                 quotes={[]}
-                documentRequests={[]}
             />,
         );
 
-        const tabs = screen.getAllByRole('tab');
-        expect(tabs.map((tab) => tab.textContent)).toEqual([
-            'Dossier',
-            'Commercial',
-            'Partenaires',
-        ]);
-        // Onglet Dossier ouvert par défaut : contact, projet, qualification.
+        // La page est coupée en deux moitiés séparées d'un filet : à gauche la
+        // personne et son suivi (en-tête, contact en lignes, suivi, activité),
+        // à droite le projet (projet, qualification, onglets Commercial et
+        // Partenaires).
+        const columns = screen.getByTestId('lead-columns');
+        expect(columns).toHaveClass('lg:grid-cols-2', 'lg:divide-x');
+        expect(columns.children).toHaveLength(2);
+        // La colonne de gauche reste collée sous l'en-tête pendant que le
+        // projet défile.
+        expect(columns.children[0]).toHaveClass(
+            'lg:sticky',
+            'lg:top-20',
+            'lg:self-start',
+        );
+        // Le filet vertical court sur toute la hauteur : la grille remplit
+        // la page et les colonnes portent le padding haut et bas.
+        expect(columns).toHaveClass('lg:flex-1');
+        expect(columns.children[1]).toHaveClass('lg:pb-10');
+        const left = within(columns.children[0] as HTMLElement);
+        const right = within(columns.children[1] as HTMLElement);
+        expect(left.getByRole('heading', { level: 1 })).toBeInTheDocument();
+        // L'en-tête est posé sur un fond gris clair.
+        expect(left.getByTestId('lead-header')).toHaveClass('bg-sidebar');
+        // Le contact est une liste de lignes sur deux colonnes, pas une carte.
+        const contact = left.getByRole('region', { name: 'Contact' });
+        expect(contact.querySelector('dl')).toHaveClass('sm:grid-cols-2');
+        expect(contact).not.toHaveClass('bg-sidebar');
         expect(
-            screen.getByRole('region', { name: 'Contact' }),
+            left.getByRole('region', { name: 'Suivi par' }),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('region', { name: 'Qualification' }),
+            left.getByRole('button', { name: /^Notes/ }),
         ).toBeInTheDocument();
         expect(
-            screen.queryByRole('region', { name: 'Factures' }),
-        ).not.toBeInTheDocument();
+            right.getByRole('region', { name: 'Projet' }),
+        ).toBeInTheDocument();
+        expect(
+            right.getByRole('region', { name: 'Qualification' }),
+        ).toBeInTheDocument();
+        // Plus d'onglet : Qualification, Devis et Factures sont trois
+        // accordéons à filet. Vides, ils sont repliés ; Documents et
+        // Partenaires ne sont plus sur la fiche lead.
+        expect(right.queryAllByRole('tab')).toHaveLength(0);
+        // Qualification est garnie, donc ouverte ; Devis et Factures,
+        // vides, sont repliés.
+        expect(
+            right.getByRole('button', { name: 'Qualification' }),
+        ).toHaveAttribute('aria-expanded', 'true');
+        for (const title of ['Devis', 'Factures']) {
+            expect(right.getByRole('button', { name: title })).toHaveAttribute(
+                'aria-expanded',
+                'false',
+            );
+        }
         expect(
             screen.queryByRole('region', { name: 'Agent en contact' }),
         ).not.toBeInTheDocument();
-        // La colonne droite reste limitée au suivi et à l'activité.
         expect(
-            screen.getByRole('region', { name: 'Suivi par' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('region', { name: 'Activité' }),
-        ).toBeInTheDocument();
-
-        await user.click(screen.getByRole('tab', { name: 'Commercial' }));
-        expect(
-            screen.getByRole('region', { name: 'Devis' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('region', { name: 'Factures' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('region', { name: 'Documents' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('region', { name: 'Contact' }),
+            screen.queryByRole('region', { name: 'Documents' }),
         ).not.toBeInTheDocument();
 
-        await user.click(screen.getByRole('tab', { name: 'Partenaires' }));
+        await user.click(screen.getByRole('button', { name: 'Devis' }));
+        expect(screen.getByText('Aucun devis pour ce lead.')).toBeVisible();
+        // Le contact reste lisible à gauche.
         expect(
-            screen.getByRole('region', { name: 'Agent en contact' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('region', { name: 'Partenaires du dossier' }),
+            screen.getByRole('region', { name: 'Contact' }),
         ).toBeInTheDocument();
     });
 
-    it('shows a counter on the Commercial and Partenaires tabs', () => {
+    it('opens the Factures fold with its count when invoices exist', () => {
         render(
             <LeadsShow
                 {...base}
@@ -647,20 +918,15 @@ describe('First contact countdown on the lead page', () => {
                 history={[]}
                 invoices={[leadInvoice(1), leadInvoice(2)]}
                 quotes={[]}
-                documentRequests={[]}
             />,
         );
 
-        expect(
-            screen.getByRole('tab', { name: /Commercial/ }),
-        ).toHaveTextContent('Commercial2');
-        expect(
-            within(
-                screen.getByRole('tab', { name: /Commercial/ }),
-            ).getByLabelText('2 éléments'),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('tab', { name: 'Partenaires' }),
-        ).toHaveTextContent(/^Partenaires$/);
+        const fold = screen.getByRole('button', { name: /Factures/ });
+        expect(fold).toHaveAttribute('aria-expanded', 'true');
+        expect(fold).toHaveTextContent('Factures2');
+        expect(screen.getByRole('button', { name: 'Devis' })).toHaveAttribute(
+            'aria-expanded',
+            'false',
+        );
     });
 });

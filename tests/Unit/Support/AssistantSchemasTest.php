@@ -11,7 +11,7 @@ use App\Actions\Partners\DraftPartnerMessage;
 use App\Data\AgencyEnrichmentData;
 use App\Data\DocumentAnalysisData;
 use App\Data\DossierBriefData;
-use App\Data\LeadQualificationData;
+use App\Data\LeadVerdictData;
 use App\Data\ListingExtractionData;
 use App\Data\PropertyTransitData;
 use App\Support\JsonSchema;
@@ -53,7 +53,7 @@ function motsCleInterdits(mixed $schema, string $chemin = ''): array
 
 test('the schemas sent to the assistant use only what the API accepts', function (): void {
     $schemas = [
-        'qualification d’un lead' => LeadQualificationData::schema(),
+        'avis sur un lead (AI check)' => LeadVerdictData::schema(),
         'lecture d’une pièce' => DocumentAnalysisData::schema(),
         'lettre de présentation' => DraftPresentationLetter::schema(),
         'mot au partenaire' => DraftPartnerMessage::schema(),

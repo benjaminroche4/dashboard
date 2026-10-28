@@ -10,7 +10,7 @@ use App\Models\Lead;
 use Carbon\CarbonInterface;
 
 /**
- * Planifie (ou efface) le prochain recontact d'un lead : canal et date.
+ * Planifie (ou efface) le prochain recontact d'un lead : canal, date et heure.
  */
 final class ScheduleLeadRecontact
 {
@@ -21,7 +21,7 @@ final class ScheduleLeadRecontact
         $lead->save();
 
         $message = $at instanceof CarbonInterface
-            ? "a planifié un recontact du lead {$lead->fullName()} le {$at->format('d/m/Y')}"
+            ? "a planifié un recontact du lead {$lead->fullName()} le {$at->format('d/m/Y')} à {$at->format('H:i')}"
             : "a effacé le recontact du lead {$lead->fullName()}";
         event(new DashboardUpdated('leads', ['id' => $lead->id], $message));
 

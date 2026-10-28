@@ -37,7 +37,6 @@ describe('sendChoices', () => {
         expect(choices.map((c) => c.unavailable)).toEqual([
             null,
             'Aucun lien de paiement configuré.',
-            null,
         ]);
         expect(
             sendChoices(
@@ -49,11 +48,7 @@ describe('sendChoices', () => {
                     paymentPlans: [],
                 },
             ).map((c) => c.unavailable),
-        ).toEqual([
-            null,
-            'Choisissez d’abord une formule.',
-            'Choisissez d’abord une formule.',
-        ]);
+        ).toEqual([null, 'Choisissez d’abord une formule.']);
     });
 });
 
@@ -95,12 +90,11 @@ describe('LeadSendDialog', () => {
         expect(
             screen.getByRole('checkbox', { name: /Récapitulatif du dossier/ }),
         ).toBeChecked();
+        // Le lien du contrat n'est plus proposé, configuré ou non.
         expect(
-            screen.getByRole('checkbox', { name: /Lien du contrat/ }),
-        ).toBeDisabled();
-        expect(
-            screen.getByText('Yousign ou DocRaptor n’est pas configuré.'),
-        ).toBeInTheDocument();
+            screen.queryByRole('checkbox', { name: /Lien du contrat/ }),
+        ).not.toBeInTheDocument();
+        expect(screen.getAllByRole('checkbox')).toHaveLength(2);
 
         expect(
             screen.queryByRole('radiogroup', { name: 'Modalité de paiement' }),
@@ -163,5 +157,78 @@ describe('LeadSendDialog', () => {
         expect(
             screen.getByRole('button', { name: 'Envoyer au lead' }),
         ).toBeDisabled();
+    });
+
+    it('sends the « n homes match » e-mail from its own tab, with the count prefilled', async () => {
+        const user = userEvent.setup();
+        render(
+            <LeadSendDialog
+                lead={lead}
+                sending={{
+                    email: true,
+                    paymentLink: false,
+                    contractLink: false,
+                    paymentPlans: [],
+                }}
+                matchingCount={4}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Envoyer au lead' }),
+        );
+        await user.click(
+            screen.getByRole('tab', { name: 'Biens correspondants' }),
+        );
+
+        // Le chiffre de l'annuaire est prérempli, et modifiable.
+        const input = screen.getByRole('spinbutton', {
+            name: 'Nombre de biens correspondants',
+        });
+        expect(input).toHaveValue(4);
+        await user.clear(input);
+        await user.type(input, '6');
+        await user.click(screen.getByRole('button', { name: 'Envoyer' }));
+
+        // Un e-mail à part, sur sa propre route, avec le nombre.
+        expect(post).toHaveBeenCalledWith(
+            '/locataires/0199a9a0-0000-7000-8000-000000000001/property-match',
+            { count: 6 },
+            expect.objectContaining({ preserveScroll: true }),
+        );
+    });
+
+    it('refuses to send without a valid count', async () => {
+        const user = userEvent.setup();
+        render(
+            <LeadSendDialog
+                lead={lead}
+                sending={{
+                    email: true,
+                    paymentLink: false,
+                    contractLink: false,
+                    paymentPlans: [],
+                }}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Envoyer au lead' }),
+        );
+        await user.click(
+            screen.getByRole('tab', { name: 'Biens correspondants' }),
+        );
+
+        // Sans bien dans l'annuaire, le champ part à 1 et l'aide le dit.
+        const input = screen.getByRole('spinbutton', {
+            name: 'Nombre de biens correspondants',
+        });
+        expect(input).toHaveValue(1);
+        expect(
+            screen.getByText(/Aucun bien de l’annuaire ne correspond encore/),
+        ).toBeInTheDocument();
+        await user.clear(input);
+        expect(screen.getByRole('button', { name: 'Envoyer' })).toBeDisabled();
+        expect(post).not.toHaveBeenCalled();
     });
 });

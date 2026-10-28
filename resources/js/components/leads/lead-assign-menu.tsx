@@ -42,9 +42,12 @@ export const memberTone = (id: number) => palette[id % palette.length];
 export function LeadAssignMenu({
     lead,
     size = 'sm',
+    label,
 }: {
     lead: Pick<Lead, 'id' | 'uuid' | 'name' | 'assignee'>;
     size?: 'sm' | 'md';
+    /** Texte à côté de l'avatar, dans le même bouton (« Attribuer » sur la fiche). */
+    label?: string;
 }) {
     const { staff } = usePage().props;
     const [pending, setPending] = useState(false);
@@ -77,7 +80,12 @@ export function LeadAssignMenu({
                         : 'Non attribué'
                 }
                 disabled={pending}
-                className="rounded-full transition-opacity outline-none hover:opacity-80 focus-visible:ring-2"
+                className={cn(
+                    'transition-opacity outline-none hover:opacity-80 focus-visible:ring-2',
+                    label
+                        ? 'flex min-w-0 items-center gap-2 rounded-md'
+                        : 'rounded-full',
+                )}
             >
                 <Avatar
                     className={cn(
@@ -103,6 +111,7 @@ export function LeadAssignMenu({
                         )}
                     </AvatarFallback>
                 </Avatar>
+                {label && <span className="truncate font-medium">{label}</span>}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">

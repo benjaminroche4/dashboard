@@ -6,12 +6,9 @@ use Anthropic\Messages\OutputConfig\Effort;
 use App\Actions\Leads\CreateLead;
 use App\Actions\Leads\QualifyLead;
 use App\Data\LeadData;
-use App\Data\LeadQualificationData;
-use App\Enums\Furnished;
-use App\Enums\LeadDuration;
-use App\Enums\LeadLanguage;
+use App\Data\LeadVerdictData;
 use App\Enums\LeadSource;
-use App\Enums\PropertyType;
+use App\Enums\LeadVerdict;
 use App\Events\DashboardUpdated;
 use App\Jobs\QualifyLeadJob;
 use App\Models\Lead;
@@ -50,47 +47,18 @@ function qualificationAssistant(array $reply, bool $configured = true): Assistan
     };
 }
 
-$reply = [
-    'summary' => 'Cadre muté de Genève, cherche un T3 meublé dans le Marais pour septembre.',
-    'company' => 'Nestlé',
-    'language' => 'en',
-    'budget' => 2500,
-    'currency' => 'EUR',
-    'arrival_at' => '2026-10-01',
-    'districts' => [3, 4, 4, 25],
-    'property_types' => ['t3', 'villa'],
-    'furnished' => 'furnished',
-    'duration' => 'long',
-    'guarantors' => ['garantme'],
-    'origin_city' => 'Genève',
-    'score' => 4,
-    'score_reason' => 'Projet précis et budget réaliste.',
-];
+$reply = ['verdict' => 'qualified', 'reason' => 'Projet précis, budget réaliste et arrivée proche.'];
 
-test('the assistant reply is normalised and only the fields the lead lacks are proposed', function () use ($reply): void {
-    $data = LeadQualificationData::from($reply);
-
-    expect($data->budgetCents)->toBe(250_000)
-        ->and($data->districts)->toBe([3, 4])
-        ->and($data->propertyTypes)->toBe([PropertyType::T3])
-        ->and($data->language)->toBe(LeadLanguage::English)
-        ->and($data->duration)->toBe(LeadDuration::Long)
-        ->and($data->arrivalAt?->toDateString())->toBe('2026-10-01')
-        ->and(LeadQualificationData::from($data->toArray())->budgetCents)->toBe(250_000);
-
-    $lead = Lead::factory()->create(['budget_cents' => 200_000, 'districts' => [], 'property_types' => [], 'furnished' => null, 'company' => null, 'language' => LeadLanguage::French, 'origin_city' => 'Lyon', 'score' => null, 'duration' => null, 'guarantors' => [], 'arrival_at' => null]);
-    $proposals = $data->proposals($lead);
-
-    expect(array_column($proposals, 'key'))->toBe(['company', 'language', 'arrival_at', 'districts', 'property_types', 'furnished', 'duration', 'guarantors', 'score'])
-        ->and(collect($proposals)->firstWhere('key', 'districts')['value'])->toBe('3e, 4e')
-        ->and(collect($proposals)->firstWhere('key', 'score')['value'])->toBe('4 / 5 · Projet précis et budget réaliste.')
-        ->and($data->attributes(['districts', 'budget_cents', 'unknown']))->toMatchArray(['districts' => [3, 4], 'budget_cents' => 250_000])
-        ->and($data->attributes(['budget_cents'])['currency']->value)->toBe('EUR');
+test('the assistant reply is normalised: an unknown verdict is neutral, the reason is trimmed', function (): void {
+    expect(LeadVerdictData::from(['verdict' => 'qualified', 'reason' => '  Budget tenable.  '])->reason)->toBe('Budget tenable.')
+        ->and(LeadVerdictData::from(['verdict' => 'whatever', 'reason' => ''])->verdict)->toBe(LeadVerdict::Neutral)
+        ->and(LeadVerdictData::from(['verdict' => 'whatever', 'reason' => ''])->reason)->toBeNull()
+        ->and(LeadVerdictData::from(['verdict' => 'not_qualified', 'reason' => str_repeat('a', 400)])->reason)->toHaveLength(300);
 });
 
-test('qualifying a website lead stores the proposal, broadcasts it to the assignee and the page exposes it', function () use ($reply): void {
+test('analysing a lead stores the verdict, broadcasts it to the assignee and the pages expose it', function () use ($reply): void {
     $advisor = User::factory()->create();
-    $lead = Lead::factory()->create(['source' => LeadSource::Website, 'source_note' => 'Formulaire de contact · Recherche de logement · CT-1', 'message' => 'Hi, I am moving from Geneva in October with Nestlé, looking for a furnished 2-bedroom in the Marais, budget 2500.', 'assigned_to' => $advisor->id, 'language' => LeadLanguage::French, 'company' => null, 'budget_cents' => null, 'districts' => [], 'property_types' => [], 'furnished' => null, 'score' => null, 'arrival_at' => null, 'duration' => null, 'guarantors' => [], 'origin_city' => null]);
+    $lead = Lead::factory()->create(['source' => LeadSource::Website, 'message' => 'Hi, I am moving from Geneva in October with Nestlé, looking for a furnished 2-bedroom in the Marais, budget 2500.', 'assigned_to' => $advisor->id, 'company' => 'Nestlé', 'budget_cents' => 250_000]);
     $assistant = qualificationAssistant($reply);
     app()->instance(Assistant::class, $assistant);
 
@@ -98,55 +66,38 @@ test('qualifying a website lead stores the proposal, broadcasts it to the assign
         ->post(route('leads.qualify', $lead))
         ->assertRedirect();
 
-    expect($assistant->lastPrompt)->toContain('moving from Geneva')->toContain("Déjà connu par l'équipe")
-        ->and($lead->refresh()->ai_qualification['budget_cents'])->toBe(250_000)
-        ->and($lead->ai_qualified_at)->not->toBeNull();
-    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => str_starts_with((string) $event->message, "L'assistant a qualifié le lead") && ($event->payload['mentions'] ?? []) === [$advisor->id]);
+    // Tout ce que le lead porte part dans le prompt : le message et ce que l'équipe sait déjà.
+    expect($assistant->lastPrompt)->toContain('moving from Geneva')->toContain("Déjà connu par l'équipe")->toContain('Nestlé')
+        ->and($lead->refresh()->ai_verdict)->toBe(LeadVerdict::Qualified)
+        ->and($lead->ai_verdict_reason)->toBe('Projet précis, budget réaliste et arrivée proche.')
+        ->and($lead->ai_verdict_at)->not->toBeNull();
+    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->message === "L'assistant a évalué le lead {$lead->fullName()} : qualifié" && ($event->payload['mentions'] ?? []) === [$advisor->id]);
 
     $this->actingAs($advisor)
         ->get(route('leads.show', $lead))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
-            ->where('qualification.summary', $reply['summary'])
-            ->where('qualification.score', 4)
-            ->has('qualification.fields', 11)
-            ->where('qualification.fields.0.key', 'company')
-            ->where('qualification.fields.0.value', 'Nestlé'));
+            ->where('verdict.value', 'qualified')
+            ->where('verdict.label', 'Qualifié')
+            ->where('verdict.reason', 'Projet précis, budget réaliste et arrivée proche.')
+            ->missing('qualification'));
 
     $this->actingAs($advisor)
         ->get(route('leads.index'))
-        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->where('leads.0.ai_pending', true));
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->where('leads.0.ai_verdict', 'qualified')->where('leads.0.ai_verdict_label', 'Qualifié'));
 });
 
-test('the proposal is applied to empty fields only, noted, then cleared; a dismissal clears it too', function () use ($reply): void {
-    $member = User::factory()->create();
-    $lead = Lead::factory()->create(['budget_cents' => 200_000, 'company' => null, 'districts' => [], 'furnished' => Furnished::Unfurnished, 'score' => null, 'qualification_note' => null, 'ai_qualification' => LeadQualificationData::from($reply)->toArray(), 'ai_qualified_at' => now()]);
+test('a neutral verdict is stored and labelled « À vérifier »', function (): void {
+    $lead = Lead::factory()->create(['message' => 'Bonjour.']);
+    app()->instance(Assistant::class, qualificationAssistant(['verdict' => 'neutral', 'reason' => 'Message trop court pour juger.']));
 
-    $this->actingAs($member)
-        ->post(route('leads.qualification.apply', $lead), ['fields' => ['company', 'districts', 'score', 'budget_cents', 'furnished', 'bogus']])
-        ->assertSessionHasErrors(['fields.5']);
+    resolve(QualifyLead::class)->handle($lead);
 
-    $this->actingAs($member)
-        ->post(route('leads.qualification.apply', $lead), ['fields' => ['company', 'districts', 'score', 'budget_cents', 'furnished']])
-        ->assertRedirect()
-        ->assertSessionHasNoErrors();
-
-    $lead->refresh();
-    expect($lead->company)->toBe('Nestlé')
-        ->and($lead->districts)->toBe([3, 4])
-        ->and($lead->score)->toBe(4)
-        ->and($lead->budget_cents)->toBe(200_000) // déjà renseigné : jamais écrasé
-        ->and($lead->furnished)->toBe(Furnished::Unfurnished)
-        ->and($lead->qualification_note)->toContain($reply['summary'])->toContain('Projet précis')
-        ->and($lead->ai_qualification)->toBeNull()
-        ->and($lead->notes()->latest()->value('body'))->toBe('Qualification IA appliquée : Société, Arrondissements, Note.');
-    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => str_contains((string) $event->message, 'a appliqué la qualification IA'));
-
-    $other = Lead::factory()->create(['ai_qualification' => LeadQualificationData::from($reply)->toArray(), 'ai_qualified_at' => now()]);
-    $this->actingAs($member)->delete(route('leads.qualification.dismiss', $other))->assertRedirect();
-    expect($other->refresh()->ai_qualification)->toBeNull();
+    expect($lead->refresh()->ai_verdict)->toBe(LeadVerdict::Neutral)
+        ->and($lead->ai_verdict?->label())->toBe('À vérifier');
+    Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => str_ends_with((string) $event->message, ': à vérifier'));
 });
 
-test('without an assistant nothing is proposed, and an inbound lead queues a qualification job only when a key is set', function (): void {
+test('without an assistant nothing is said, and every new lead queues an analysis only when a key is set', function (): void {
     app()->instance(Assistant::class, qualificationAssistant([], configured: false));
     $lead = Lead::factory()->create(['message' => 'Je cherche un studio.']);
 
@@ -160,10 +111,13 @@ test('without an assistant nothing is proposed, and an inbound lead queues a qua
 
     $created = resolve(CreateLead::class)->handle(LeadData::from(['first_name' => 'Léa', 'last_name' => 'Durand', 'email' => 'lea@example.com', 'source' => 'website', 'message' => 'Studio Marais.']));
     Queue::assertPushed(QualifyLeadJob::class, fn (QualifyLeadJob $job): bool => $job->lead->is($created));
+    // Un lead saisi par l'équipe est évalué lui aussi.
+    $typed = resolve(CreateLead::class)->handle(LeadData::from(['first_name' => 'Marc', 'last_name' => 'Petit', 'email' => 'marc@example.com', 'source' => 'referral']), User::factory()->create());
+    Queue::assertPushed(QualifyLeadJob::class, fn (QualifyLeadJob $job): bool => $job->lead->is($typed));
 
     config()->set('services.anthropic.key');
     resolve(CreateLead::class)->handle(LeadData::from(['first_name' => 'Paul', 'last_name' => 'Roux', 'email' => 'paul@example.com', 'source' => 'website']));
-    Queue::assertPushed(QualifyLeadJob::class, 1);
+    Queue::assertPushed(QualifyLeadJob::class, 2);
 });
 
 it('reads the ten most recent notes of the team and of the phone, never the tracking', function (): void {

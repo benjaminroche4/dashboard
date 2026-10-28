@@ -26,6 +26,7 @@ const base: LeadForm = {
     score: null,
     recontact_channel: '',
     recontact_at: '',
+    recontact_time: '10:00',
     qualification_note: '',
     assigned_to: null,
     segment: 'tenant',

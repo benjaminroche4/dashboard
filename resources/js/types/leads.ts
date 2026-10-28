@@ -62,13 +62,23 @@ export type Lead = {
     budget_cents: number | null;
     currency: Currency;
     origin_city: string | null;
+    /** Pays de la ville d'origine (ISO à deux lettres), pour le drapeau. */
+    origin_country: string | null;
+    /** Situation professionnelle (`App\Enums\EmploymentStatus`), avec son libellé. */
+    employment_status: string | null;
+    employment_status_label: string | null;
+    /** Notes libres de l'équipe sur le projet de relocation (pas le message du lead). */
+    project_notes: string | null;
     source_label: string;
     source_note: string | null;
     /** Arrondissements visés (1 à 20). */
     districts: number[];
     property_types: LabeledOption<PropertyType>[];
+    duration: LeadDuration | null;
     duration_label: string | null;
+    guarantors: GuarantorType[];
     guarantor_label: string | null;
+    furnished: Furnished | null;
     furnished_label: string | null;
     message: string | null;
     recontact_channel: RecontactChannel | null;
@@ -81,8 +91,9 @@ export type Lead = {
     status_label: string;
     /** Liste où vit le lead : « Tous les leads » ou « Leads propriétaires ». */
     segment: LeadSegment;
-    /** Une qualification proposée par l'assistant IA attend d'être relue. */
-    ai_pending: boolean;
+    /** Avis de l'assistant (« AI check »), conservé après relecture. */
+    ai_verdict: LeadVerdict | null;
+    ai_verdict_label: string | null;
     /** Motif d'archivage, présent seulement sur un lead archivé. */
     loss_reason: LeadLossReason | null;
     loss_reason_label: string | null;
@@ -105,6 +116,17 @@ export type Lead = {
 };
 
 export type LeadSegment = 'tenant' | 'owner';
+
+/** Listes des champs modifiables en place dans le bloc Projet de la fiche. */
+export type LeadEditOptions = {
+    offers: LabeledOption<OfferValue>[];
+    currencies: LabeledOption<Currency>[];
+    propertyTypes: LabeledOption<PropertyType>[];
+    durations: LabeledOption<LeadDuration>[];
+    guarantors: LabeledOption<GuarantorType>[];
+    furnishedOptions: LabeledOption<Furnished>[];
+    employmentStatuses: LabeledOption[];
+};
 
 export type LeadStatusOption = { value: LeadStatus; label: string };
 
@@ -146,7 +168,9 @@ export type LeadForm = {
     message: string;
     score: number | null;
     recontact_channel: RecontactChannel | '';
+    /** Date « AAAA-MM-JJ » et heure « HH:MM », assemblées à l'envoi. */
     recontact_at: string;
+    recontact_time: string;
     qualification_note: string;
     /** Responsable du suivi, pré-rempli avec l'utilisateur courant. */
     assigned_to: number | null;
@@ -215,6 +239,8 @@ export type LeadInboundMessage = {
     at: string | null;
     /** Note d'où vient un résumé d'appel ou de SMS, pour ne pas l'afficher deux fois. */
     note_id?: number | null;
+    /** Type de demande du formulaire du site (« Gestion locative »), écrit en tête du message. */
+    topic?: string | null;
 };
 
 /** Autre lead partageant l'e-mail ou le téléphone. */
@@ -265,12 +291,13 @@ export type LeadSortKey = 'manual' | 'score' | 'arrival' | 'created';
 export type LeadAssigneeFilter = 'all' | 'none' | number;
 
 /** Qualification proposée par l'assistant IA, en attente de relecture sur la fiche. */
-export type LeadQualification = {
+/** L'avis de l'assistant sur un lead : qualifié ou non. Miroir de `App\Enums\LeadVerdict`. */
+export type LeadVerdict = 'qualified' | 'not_qualified' | 'neutral';
+
+/** L'avis de l'assistant tel que la fiche l'affiche. */
+export type LeadVerdictInfo = {
+    value: LeadVerdict;
+    label: string;
+    reason: string | null;
     at: string | null;
-    /** Le projet en une ou deux phrases. */
-    summary: string;
-    score: number | null;
-    score_reason: string | null;
-    /** Champs proposés (vides sur le lead), avec la valeur affichable. */
-    fields: { key: string; label: string; value: string }[];
 };

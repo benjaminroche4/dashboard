@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { DetailSection } from '@/components/real-estate/detail-header';
 import type { AttentionItem } from '@/lib/dossier-attention';
+import { projectSentence } from '@/lib/project-sentence';
 import type { ClientDetail, DossierReadiness } from '@/types';
 
 type IconType = ComponentType<SVGProps<SVGSVGElement>>;
@@ -85,30 +86,7 @@ function DistrictMapDialog({ districts }: { districts: number[] }) {
     );
 }
 
-/** Le projet en une phrase, comme on le dirait à un propriétaire. */
-export function projectSentence(
-    client: ClientDetail,
-    budget: string | null,
-): string {
-    const type =
-        client.property_types.length > 0
-            ? client.property_types.join(' ou ')
-            : 'un logement';
-    const furnished =
-        client.furnished_label && client.furnished_label !== 'Indifférent'
-            ? ` ${client.furnished_label.toLowerCase()}`
-            : '';
-    const where =
-        client.districts.length > 0
-            ? ` dans le ${client.districts.map((d) => `${d}e`).join(' ou le ')}`
-            : ' à Paris';
-    const price = budget ? ` pour ${budget} par mois` : '';
-    const duration = client.duration_label
-        ? `, ${client.duration_label.toLowerCase()}`
-        : '';
-
-    return `Cherche ${type}${furnished}${where}${price}${duration}.`;
-}
+export { projectSentence };
 
 /**
  * Onglet « Aperçu » d'un dossier client, en deux tiers / un tiers : à gauche

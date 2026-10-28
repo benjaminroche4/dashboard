@@ -70,28 +70,44 @@ export async function fetchPlaceSuggestions(
     return suggestions.map((suggestion) => ({
         ...suggestion,
         resolve: async () => {
-            // Une ville se lit dans la suggestion elle-même : pas de requête
-            // « details » à payer pour apprendre ce qu'on affiche déjà.
-            if (kind === 'cities') {
+            // Une ville se lit dans la suggestion, mais son pays (pour le
+            // drapeau) demande « details » ; si la requête échoue, la ville
+            // part sans pays plutôt que de bloquer la saisie (28 octobre 2026).
+            const fromSuggestion: ResolvedAddress = {
+                street: '',
+                postalCode: '',
+                city: suggestion.main,
+                countryCode: null,
+                countryName: suggestion.secondary,
+            };
+
+            try {
+                const { address } = await getJson<{
+                    address: ResolvedAddress;
+                }>(
+                    details.url({
+                        query: { place_id: suggestion.id, session: token },
+                    }),
+                );
+
+                return kind === 'cities'
+                    ? {
+                          ...fromSuggestion,
+                          city: address.city || suggestion.main,
+                          countryCode: address.countryCode,
+                          countryName:
+                              address.countryName || suggestion.secondary,
+                      }
+                    : address;
+            } catch (error) {
+                if (kind !== 'cities') {
+                    throw error;
+                }
+
+                return fromSuggestion;
+            } finally {
                 session.token = undefined;
-
-                return {
-                    street: '',
-                    postalCode: '',
-                    city: suggestion.main,
-                    countryCode: null,
-                    countryName: suggestion.secondary,
-                };
             }
-
-            const { address } = await getJson<{ address: ResolvedAddress }>(
-                details.url({
-                    query: { place_id: suggestion.id, session: token },
-                }),
-            );
-            session.token = undefined;
-
-            return address;
         },
     }));
 }

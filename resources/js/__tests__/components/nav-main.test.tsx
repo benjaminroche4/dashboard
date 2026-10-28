@@ -42,8 +42,8 @@ vi.mock('@/hooks/use-current-url', () => ({
     }),
 }));
 
-import { NavMain } from '@/components/nav-main';
-import { SidebarProvider } from '@/components/ui/sidebar';
+import { NavMain, tooltipFor } from '@/components/nav-main';
+import { SidebarProvider, useSidebar } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import type { NavGroup } from '@/types';
 
@@ -69,7 +69,12 @@ const groups: NavGroup[] = [
                 icon: Users,
                 items: [
                     { title: "Vue d'ensemble", href: '/people' },
-                    { title: 'Employés', href: '/people/employees', badge: 7 },
+                    {
+                        title: 'Employés',
+                        href: '/people/employees',
+                        badge: 7,
+                        shortcut: 'G E',
+                    },
                     { title: 'Anciens', href: '/people/former', badge: 0 },
                 ],
             },
@@ -106,22 +111,28 @@ describe('NavMain', () => {
         expect(
             screen.getByRole('link', { name: /Tableau de bord/ }),
         ).toHaveAttribute('href', '/dashboard');
-        expect(screen.getByText('3')).toHaveAttribute(
-            'data-sidebar',
-            'menu-badge',
-        );
+        // Un point rouge sans chiffre : le compte n'est que dans le texte lu.
+        const badge = screen.getByText('3 en attente').parentElement;
+        expect(badge).toHaveAttribute('data-sidebar', 'menu-badge');
+        expect(badge).toHaveClass('bg-destructive');
+        expect(screen.queryByText('3')).not.toBeInTheDocument();
     });
 
     it('renders a counter on a sub item, hidden when it is zero', () => {
         renderNav();
 
-        const badge = screen.getByText('7');
-        expect(badge).toHaveAttribute('data-sidebar', 'menu-badge');
+        const link = screen.getByRole('link', { name: 'Employés' });
+        const badge = link.querySelector('[data-sidebar="menu-badge"]');
+        expect(badge).toHaveAttribute('title', '7 en attente');
+        expect(badge).toHaveClass('bg-destructive');
+        expect(screen.queryByText('7')).not.toBeInTheDocument();
         // Dans le lien lui-même, à droite du libellé : jamais en absolu sous la ligne.
-        expect(screen.getByRole('link', { name: /Employés/ })).toContainElement(
-            badge,
-        );
-        expect(screen.queryByText('0')).not.toBeInTheDocument();
+        expect(link).toContainElement(badge as HTMLElement);
+        expect(
+            screen
+                .getByRole('link', { name: 'Anciens' })
+                .querySelector('[data-sidebar="menu-badge"]'),
+        ).toBeNull();
     });
 
     it('opens the branch that contains the current page and marks it active', () => {
@@ -136,6 +147,81 @@ describe('NavMain', () => {
         expect(
             screen.getByRole('link', { name: "Vue d'ensemble" }),
         ).toHaveAttribute('data-active', 'false');
+    });
+});
+
+describe('NavMain alert badges', () => {
+    it('draws an alert as a red dot without the number and a total on a white pill', () => {
+        const mixed: NavGroup[] = [
+            {
+                label: 'Leads',
+                items: [
+                    {
+                        title: 'Leads locataires',
+                        href: '/locataires',
+                        icon: Users,
+                        badge: 4,
+                    },
+                    {
+                        title: 'Dossiers',
+                        href: '/clients',
+                        icon: Users,
+                        total: 12,
+                    },
+                ],
+            },
+        ];
+
+        render(
+            <TooltipProvider>
+                <SidebarProvider>
+                    <NavMain groups={mixed} />
+                </SidebarProvider>
+            </TooltipProvider>,
+        );
+
+        const alert = screen.getByText('4 en attente').parentElement;
+        expect(alert).toHaveClass('bg-destructive', 'rounded-full');
+        expect(screen.queryByText('4')).not.toBeInTheDocument();
+
+        const total = screen.getByText('12');
+        expect(total).toHaveAttribute('data-tone', 'total');
+        expect(total).toHaveClass('bg-background', 'rounded-full');
+        expect(total).not.toHaveClass('bg-destructive');
+    });
+});
+
+describe('NavMain tree menu', () => {
+    it('draws a straight branch to each sub-link, the last one without a trunk below', () => {
+        renderNav();
+
+        const items = screen
+            .getByRole('link', { name: 'Employés' })
+            .closest('ul')
+            ?.querySelectorAll('li');
+        expect(items).toHaveLength(3);
+        for (const li of items ?? []) {
+            expect(li).toHaveAttribute('data-tree-branch');
+            expect(li).toHaveClass(
+                'before:border-l',
+                'before:border-b',
+                'last:after:hidden',
+            );
+            expect(li).not.toHaveClass('before:rounded-bl-md');
+        }
+        // Le tronc est dessiné par les branches, pas par la liste.
+        expect(
+            screen.getByRole('link', { name: 'Employés' }).closest('ul'),
+        ).toHaveClass('border-l-0');
+    });
+
+    it('navigates to a sub-link with its « G » shortcut', () => {
+        renderNav();
+
+        fireEvent.keyDown(window, { key: 'g' });
+        fireEvent.keyDown(window, { key: 'e' });
+
+        expect(visit).toHaveBeenCalledWith('/people/employees');
     });
 });
 
@@ -375,10 +461,17 @@ describe('NavMain folded group markers', () => {
         // Ouvert : pas de pastille sur l'intitulé, le compteur est sur la ligne.
         expect(screen.queryByLabelText('3 en attente')).not.toBeInTheDocument();
 
-        await user.click(
-            screen.getByRole('button', { name: 'Replier Général' }),
+        const general = screen.getByRole('button', { name: 'Replier Général' });
+        const shell = general.closest('[data-sidebar="group"]');
+        expect(shell).not.toHaveClass('py-0');
+
+        await user.click(general);
+        expect(screen.getByLabelText('3 en attente')).toHaveClass(
+            'bg-destructive',
         );
-        expect(screen.getByLabelText('3 en attente')).toHaveTextContent('3');
+        // Plié, le groupe perd sa marge verticale : deux intitulés fermés ne
+        // sont séparés que par l'écart du conteneur.
+        expect(shell).toHaveClass('py-0');
 
         // « Général » plié ne contient pas la page courante : pas de filet.
         expect(
@@ -423,6 +516,62 @@ describe('NavMain keyboard shortcuts', () => {
         fireEvent.keyDown(window, { key: 'g', metaKey: true });
         fireEvent.keyDown(window, { key: 'a' });
         expect(visit).not.toHaveBeenCalled();
+    });
+
+    it('opens and closes the menu with « G » then « M »', () => {
+        function SidebarState() {
+            const { state } = useSidebar();
+
+            return <output data-testid="sidebar-state">{state}</output>;
+        }
+
+        render(
+            <TooltipProvider>
+                <SidebarProvider>
+                    <NavMain groups={groups} />
+                    <SidebarState />
+                </SidebarProvider>
+            </TooltipProvider>,
+        );
+
+        expect(screen.getByTestId('sidebar-state')).toHaveTextContent(
+            'expanded',
+        );
+
+        fireEvent.keyDown(window, { key: 'g' });
+        fireEvent.keyDown(window, { key: 'm' });
+        expect(screen.getByTestId('sidebar-state')).toHaveTextContent(
+            'collapsed',
+        );
+
+        fireEvent.keyDown(window, { key: 'g' });
+        fireEvent.keyDown(window, { key: 'm' });
+        expect(screen.getByTestId('sidebar-state')).toHaveTextContent(
+            'expanded',
+        );
+
+        // « M » seul, sans « G », ne touche pas au menu.
+        fireEvent.keyDown(window, { key: 'm' });
+        expect(screen.getByTestId('sidebar-state')).toHaveTextContent(
+            'expanded',
+        );
+        expect(visit).not.toHaveBeenCalled();
+    });
+});
+
+describe('tooltipFor', () => {
+    it('names the entry only: neither what awaits nor the keyboard shortcut', () => {
+        expect(
+            tooltipFor({
+                title: 'Leads locataires',
+                href: '/locataires',
+                badge: 7,
+                shortcut: 'G L',
+            }),
+        ).toBe('Leads locataires');
+        expect(
+            tooltipFor({ title: 'Visites', href: '/visits', shortcut: 'G V' }),
+        ).toBe('Visites');
     });
 });
 

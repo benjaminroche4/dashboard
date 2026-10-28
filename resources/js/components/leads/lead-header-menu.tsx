@@ -1,9 +1,12 @@
-import { router } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import {
     Archive,
     ArrowRightLeft,
     MoreHorizontal,
+    Pencil,
+    Sparkles,
     Trash2,
+    UserRoundCheck,
     UserRoundPlus,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -11,6 +14,7 @@ import {
     LeadArchiveDialog,
     type ArchiveChoice,
 } from '@/components/leads/lead-archive-dialog';
+import { LeadConvertDialog } from '@/components/leads/lead-convert-dialog';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -29,6 +33,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
     destroy as leadDestroy,
+    qualify as leadQualify,
     segment as leadSegmentRoute,
     status as leadStatusRoute,
 } from '@/routes/leads';
@@ -40,10 +45,11 @@ import type {
     LeadLossReason,
 } from '@/types';
 
-type Pending = 'archive' | 'delete' | null;
+type Pending = 'convert' | 'archive' | 'delete' | null;
 
 /**
- * Menu « ⋯ » de l'en-tête : déplacer le lead vers l'autre liste (locataires
+ * Menu « ⋯ » de l'en-tête : modifier, convertir en client, lancer une
+ * analyse IA, déplacer le lead vers l'autre liste (locataires
  * ou propriétaires, confirmé par un toast), l'archiver et, pour les admins, le
  * supprimer. Archivage et suppression demandent confirmation.
  */
@@ -52,13 +58,17 @@ export function LeadHeaderMenu({
     canDelete,
     lossReasons,
     directoryOwner = null,
+    editHref,
 }: {
     lead: LeadDetail;
     canDelete: boolean;
+    /** Page de modification du lead : l'entrée « Modifier » du menu. */
+    editHref: string;
     lossReasons: LabeledOption<LeadLossReason>[];
     /** Fiche de l'annuaire déjà créée depuis ce lead, s'il y en a une. */
     directoryOwner?: LeadDirectoryOwner | null;
 }) {
+    const { features } = usePage().props;
     const [pending, setPending] = useState<Pending>(null);
     const [busy, setBusy] = useState(false);
     const archived = lead.status === 'archived';
@@ -73,6 +83,18 @@ export function LeadHeaderMenu({
             ownerFromLead({ lead: lead.uuid }).url,
             {},
             { onFinish: () => setBusy(false) },
+        );
+    };
+
+    // L'analyse IA relit tout ce que le lead porte : message d'arrivée,
+    // notes, champs déjà connus. Elle rend l'avis « AI check » et des
+    // propositions à relire.
+    const analyse = () => {
+        setBusy(true);
+        router.post(
+            leadQualify({ lead: lead.uuid }).url,
+            {},
+            { preserveScroll: true, onFinish: () => setBusy(false) },
         );
     };
 
@@ -123,6 +145,32 @@ export function LeadHeaderMenu({
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                        <Link href={editHref}>
+                            <Pencil aria-hidden />
+                            Modifier
+                        </Link>
+                    </DropdownMenuItem>
+                    {!archived && lead.status !== 'converted' && (
+                        <DropdownMenuItem
+                            onSelect={() => setPending('convert')}
+                            data-test="convert-lead"
+                        >
+                            <UserRoundCheck aria-hidden />
+                            Convertir en client
+                        </DropdownMenuItem>
+                    )}
+                    {features.assistant && !archived && (
+                        <DropdownMenuItem
+                            disabled={busy}
+                            onSelect={analyse}
+                            data-test="analyse-lead"
+                        >
+                            <Sparkles aria-hidden />
+                            Lancer une analyse IA
+                        </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
                     {lead.segment === 'owner' && (
                         <DropdownMenuItem
                             // Ouvrir une fiche existante n'attend rien.
@@ -169,6 +217,16 @@ export function LeadHeaderMenu({
                     )}
                 </DropdownMenuContent>
             </DropdownMenu>
+
+            {/* La modale vit hors du menu : fermé, il démonte son contenu. */}
+            <LeadConvertDialog
+                leadUuid={lead.uuid}
+                leadName={lead.name}
+                status={lead.status}
+                offerLabel={lead.offer_label}
+                open={pending === 'convert'}
+                onOpenChange={(open) => !open && setPending(null)}
+            />
 
             <LeadArchiveDialog
                 leadName={lead.name}

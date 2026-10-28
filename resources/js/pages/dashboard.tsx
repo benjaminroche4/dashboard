@@ -33,6 +33,7 @@ const longDate = parisFormat({
     month: 'long',
 });
 const shortDate = parisFormat({ day: 'numeric', month: 'short' });
+const shortTime = parisFormat({ hour: '2-digit', minute: '2-digit' });
 
 /** Un bloc avec le total réel, même quand la liste est tronquée. */
 function Section<T>({
@@ -258,6 +259,12 @@ export default function Dashboard({ today }: Props) {
                                                         className="tabular-nums"
                                                     >
                                                         {shortDate.format(
+                                                            new Date(
+                                                                lead.recontact_at,
+                                                            ),
+                                                        )}
+                                                        {' · '}
+                                                        {shortTime.format(
                                                             new Date(
                                                                 lead.recontact_at,
                                                             ),

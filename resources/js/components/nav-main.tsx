@@ -1,5 +1,5 @@
 import { Link, router } from '@inertiajs/react';
-import { ChevronUp, Plus } from 'lucide-react';
+import { ChevronUp } from 'lucide-react';
 import { type CSSProperties, useEffect, useRef, useState } from 'react';
 import {
     Collapsible,
@@ -29,72 +29,52 @@ import type { AnimatedNavIconHandle, NavGroup, NavItem } from '@/types';
 function NavBadge({
     value,
     tone = 'alert',
-    yieldsOnHover = false,
 }: {
     value: number | undefined;
-    /** `alert` : ce qui attend une action, pastille colorée. `total` : un simple compte, en gris. */
+    /** `alert` : ce qui attend une action, point rouge sans chiffre. `total` : un simple compte, sur une pastille blanche. */
     tone?: 'alert' | 'total';
-    /** Un bouton « + » prend la place au survol : la pastille s'efface. */
-    yieldsOnHover?: boolean;
 }) {
-    // Un zéro n'apprend rien : le compteur n'apparaît qu'à partir de 1, comme
+    // Un zéro n'apprend rien : le repère n'apparaît qu'à partir de 1, comme
     // sur les sous-entrées.
     if (value === undefined || value === null || value <= 0) {
         return null;
     }
 
-    return (
-        <>
-            {/* Même pastille que les sous-entrées, et rien qui bouge au survol
-                ni sur le lien actif. Un total se lit en gris : il n'alerte pas. */}
-            <SidebarMenuBadge
-                data-tone={tone}
-                className={cn(
-                    'rounded-full transition-opacity',
-                    tone === 'alert'
-                        ? 'bg-sidebar-primary text-sidebar-primary-foreground peer-hover/menu-button:text-sidebar-primary-foreground peer-data-[active=true]/menu-button:text-sidebar-primary-foreground'
-                        : 'text-sidebar-foreground/60 peer-hover/menu-button:text-sidebar-foreground/60 peer-data-[active=true]/menu-button:text-sidebar-foreground/60 bg-transparent font-normal',
-                    yieldsOnHover &&
-                        'group-focus-within/menu-item:opacity-0 group-hover/menu-item:opacity-0',
-                )}
+    if (tone === 'alert') {
+        // Un point rouge, pas un chiffre : il dit « il y a du nouveau », le
+        // nombre se lit sur la page. Le compte reste dans le nom accessible.
+        // En mode icône, le point se pose sur l'icône.
+        return (
+            <span
+                data-sidebar="menu-badge"
+                data-tone="alert"
+                className="bg-destructive ring-sidebar pointer-events-none absolute top-1/2 right-3 size-2 -translate-y-1/2 rounded-full ring-2 select-none group-data-[collapsible=icon]:top-1.5 group-data-[collapsible=icon]:right-1.5 group-data-[collapsible=icon]:size-1.5 group-data-[collapsible=icon]:translate-y-0"
             >
-                {value}
-            </SidebarMenuBadge>
-            {/* Mode icône : seule une alerte devient un point sur l'icône. */}
-            {tone === 'alert' && (
-                <span
-                    aria-hidden="true"
-                    className="bg-sidebar-primary ring-sidebar pointer-events-none absolute top-1.5 right-1.5 hidden size-1.5 rounded-full ring-2 group-data-[collapsible=icon]:block"
-                />
-            )}
-        </>
-    );
-}
+                <span className="sr-only">{value} en attente</span>
+            </span>
+        );
+    }
 
-/** Bouton « + » d'une entrée, révélé au survol : un formulaire sans passer par la liste. */
-function NavCreateAction({
-    create,
-}: {
-    create: NonNullable<NavItem['create']>;
-}) {
+    // Un total se lit en gris sur une pastille blanche : il n'alerte pas, et
+    // rien ne bouge au survol ni sur le lien actif.
     return (
-        <SidebarMenuAction asChild showOnHover className="rounded-full">
-            <Link href={create.href} prefetch aria-label={create.label}>
-                <Plus aria-hidden="true" />
-            </Link>
-        </SidebarMenuAction>
+        <SidebarMenuBadge
+            data-tone="total"
+            className="bg-background text-sidebar-foreground/70 peer-hover/menu-button:text-sidebar-foreground/70 peer-data-[active=true]/menu-button:text-sidebar-foreground/70 rounded-full font-normal shadow-xs"
+        >
+            {value}
+        </SidebarMenuBadge>
     );
 }
 
-/** Infobulle du mode icône : le titre, puis ce qui attend, puis le raccourci. */
-function tooltipFor(item: NavItem): string {
-    return [
-        item.title,
-        item.badge ? `${item.badge} en attente` : null,
-        item.shortcut ?? null,
-    ]
-        .filter(Boolean)
-        .join(' · ');
+/**
+ * Infobulle du mode icône : le titre, rien d'autre. Ni le raccourci clavier
+ * ni « n en attente » (retirés le 28 octobre 2026 à la demande de l'équipe) :
+ * le point rouge sur l'icône dit déjà qu'il y a du nouveau, le compte se lit
+ * sur la page.
+ */
+export function tooltipFor(item: NavItem): string {
+    return item.title;
 }
 
 // Survol : toute la ligne réagit, fond doux et texte renforcé, sans saut.
@@ -199,15 +179,10 @@ function NavLeaf({
                 </Link>
             </SidebarMenuButton>
             {item.badge ? (
-                <NavBadge value={item.badge} yieldsOnHover={!!item.create} />
+                <NavBadge value={item.badge} />
             ) : (
-                <NavBadge
-                    value={item.total}
-                    tone="total"
-                    yieldsOnHover={!!item.create}
-                />
+                <NavBadge value={item.total} tone="total" />
             )}
-            {item.create && <NavCreateAction create={item.create} />}
         </SidebarMenuItem>
     );
 }
@@ -242,6 +217,15 @@ const readBranchOpen = (title: string) =>
 const writeBranchOpen = (title: string, open: boolean) =>
     writeStoredOpen(branchStorageKey(title), open);
 
+/**
+ * Branche de l'arbre d'un menu déroulant : équerre droite du tronc au milieu
+ * de la ligne (pas d'arrondi, demandé le 27 octobre 2026), puis le tronc continue jusqu'à la ligne suivante (couvrant
+ * l'écart `gap-1`), sauf sur la dernière.
+ */
+const treeBranchClasses =
+    'before:border-sidebar-border before:pointer-events-none before:absolute before:top-0 before:-left-2.5 before:h-1/2 before:w-2.5 before:border-b before:border-l ' +
+    'after:border-sidebar-border after:pointer-events-none after:absolute after:top-1/2 after:-bottom-1 after:-left-2.5 after:border-l last:after:hidden';
+
 /** Entrée en cascade : fondu et léger glissement, décalés d'une ligne à l'autre. */
 const cascadeClass =
     'animate-in fade-in slide-in-from-top-1 fill-mode-backwards duration-200 ease-out motion-reduce:animate-none';
@@ -275,11 +259,37 @@ function NavBranch({
         () => readBranchOpen(storageKey) ?? hasActiveChild,
     );
     const { icon, hoverProps } = useNavIcon(item, hasActiveChild);
+    const { state } = useSidebar();
 
     const toggle = (next: boolean) => {
         setOpen(next);
         writeBranchOpen(storageKey, next);
     };
+
+    // En mode icône, l'arbre n'a pas de place pour se déployer : un menu qui
+    // n'est pas une page mène alors à son premier sous-lien, sinon l'icône
+    // serait un bouton mort.
+    if (!linkable && state === 'collapsed' && items[0]) {
+        return (
+            <SidebarMenuItem
+                className={className}
+                style={style}
+                {...hoverProps}
+            >
+                <SidebarMenuButton
+                    asChild
+                    tooltip={{ children: item.title }}
+                    isActive={hasActiveChild}
+                    className={hoverClasses}
+                >
+                    <Link href={items[0].href} prefetch>
+                        {icon}
+                        <span>{item.title}</span>
+                    </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+        );
+    }
 
     return (
         <Collapsible
@@ -342,12 +352,17 @@ function NavBranch({
                     </CollapsibleTrigger>
                 )}
                 <CollapsibleContent className="data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up overflow-hidden ease-[cubic-bezier(0.4,0,0.2,1)]">
-                    <SidebarMenuSub>
+                    {/* Arbre : pas de trait continu sur le `ul`, chaque sous-lien
+                        dessine sa propre branche — une équerre droite depuis le tronc
+                        jusqu'au milieu de sa ligne (`before`), et la suite du tronc
+                        vers la ligne suivante (`after`), que le dernier n'a pas. */}
+                    <SidebarMenuSub className="border-l-0">
                         {items.map((sub, index) => (
                             <SidebarMenuSubItem
                                 key={sub.title}
+                                data-tree-branch
                                 // Les sous-liens apparaissent un à un, en fondu avec un léger glissement vertical.
-                                className={cascadeClass}
+                                className={cn(cascadeClass, treeBranchClasses)}
                                 style={cascadeDelay(index)}
                             >
                                 <SidebarMenuSubButton
@@ -357,16 +372,16 @@ function NavBranch({
                                 >
                                     <Link href={sub.href} prefetch>
                                         <span>{sub.title}</span>
-                                        {/* Compteur dans le flux du lien (pas en absolu : le sous-lien n'a pas de repère `peer`), hors nom accessible comme pour les entrées parentes. */}
+                                        {/* Point rouge dans le flux du lien (pas en absolu : le sous-lien n'a pas de repère `peer`), hors nom accessible comme pour les entrées parentes. */}
                                         {sub.badge !== undefined &&
                                             sub.badge > 0 && (
                                                 <span
                                                     aria-hidden="true"
                                                     data-sidebar="menu-badge"
-                                                    className="bg-sidebar-primary text-sidebar-primary-foreground ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1 text-xs font-medium tabular-nums"
-                                                >
-                                                    {sub.badge}
-                                                </span>
+                                                    data-tone="alert"
+                                                    title={`${sub.badge} en attente`}
+                                                    className="bg-destructive ml-auto size-2 shrink-0 rounded-full"
+                                                />
                                             )}
                                     </Link>
                                 </SidebarMenuSubButton>
@@ -450,7 +465,10 @@ function NavGroupSection({
     );
 
     return (
-        <SidebarGroup>
+        // Plié, le groupe se réduit à son intitulé : plus de marge verticale,
+        // seul l'écart de `SidebarContent` sépare deux intitulés fermés.
+        // Sinon trois groupes pliés laissaient 24 px entre eux.
+        <SidebarGroup className={cn(!shown && 'py-0')}>
             {index > 0 && (
                 <SidebarSeparator className="mx-0 mb-2 hidden w-auto group-data-[collapsible=icon]:block" />
             )}
@@ -482,10 +500,8 @@ function NavGroupSection({
                                         <span
                                             aria-label={`${pending} en attente`}
                                             data-sidebar="group-badge"
-                                            className="bg-sidebar-primary text-sidebar-primary-foreground flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-medium tabular-nums"
-                                        >
-                                            {pending}
-                                        </span>
+                                            className="bg-destructive size-2 rounded-full"
+                                        />
                                     )}
                                 </span>
                                 {/* Flèche discrète : à peine visible au repos, révélée
@@ -535,19 +551,29 @@ function typingSomewhere(event: KeyboardEvent): boolean {
     );
 }
 
+/** Touche qui, après « G », ouvre ou ferme le menu latéral. */
+export const MENU_SHORTCUT_KEY = 'm';
+
 /**
  * Raccourcis « G puis touche » (`NavItem.shortcut`, ex. `G L`) : la première
- * ouvre une fenêtre d'une seconde et demie, la seconde navigue. Rien ne se
- * passe dans un champ, une modale, ou avec une touche de modification.
+ * ouvre une fenêtre d'une seconde et demie, la seconde navigue. « G M »
+ * ouvre ou ferme le menu lui-même (`toggleMenu`), en plus du ⌘C du
+ * composant (retouche de `ui/sidebar.tsx`). Rien ne se passe dans un champ, une modale, ou avec une touche
+ * de modification.
  */
-export function useNavShortcuts(groups: NavGroup[]): void {
+export function useNavShortcuts(
+    groups: NavGroup[],
+    toggleMenu?: () => void,
+): void {
     useEffect(() => {
         const targets = new Map<string, string>();
         for (const group of groups) {
             for (const item of group.items) {
-                const key = item.shortcut?.split(' ')[1]?.toLowerCase();
-                if (key) {
-                    targets.set(key, toUrl(item.href));
+                for (const entry of [item, ...(item.items ?? [])]) {
+                    const key = entry.shortcut?.split(' ')[1]?.toLowerCase();
+                    if (key) {
+                        targets.set(key, toUrl(entry.href));
+                    }
                 }
             }
         }
@@ -578,6 +604,14 @@ export function useNavShortcuts(groups: NavGroup[]): void {
             }
 
             armedUntil = 0;
+
+            if (key === MENU_SHORTCUT_KEY && toggleMenu) {
+                event.preventDefault();
+                toggleMenu();
+
+                return;
+            }
+
             const url = targets.get(key);
 
             if (url) {
@@ -589,13 +623,14 @@ export function useNavShortcuts(groups: NavGroup[]): void {
         window.addEventListener('keydown', onKeyDown);
 
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, [groups]);
+    }, [groups, toggleMenu]);
 }
 
 export function NavMain({ groups }: { groups: NavGroup[] }) {
     const { currentUrl } = useCurrentUrl();
     const activeUrl = activeHref(collectHrefs(groups), currentUrl);
-    useNavShortcuts(groups);
+    const { toggleSidebar } = useSidebar();
+    useNavShortcuts(groups, toggleSidebar);
 
     return (
         <>

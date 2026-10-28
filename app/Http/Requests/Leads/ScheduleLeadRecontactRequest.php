@@ -26,9 +26,17 @@ class ScheduleLeadRecontactRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'recontact_at' => ['nullable', 'date'],
+            'recontact_at' => ['nullable', 'date', 'after:now'],
             'recontact_channel' => ['nullable', 'required_with:recontact_at', Rule::enum(RecontactChannel::class)],
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return ['recontact_at.after' => __('Le recontact doit être planifié dans le futur.')];
     }
 
     /**

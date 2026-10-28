@@ -56,7 +56,7 @@ test('a member fills the details of a tenant and the dossier shows them back', f
             // Sans second locataire, pas de second emplacement.
             ->missing('tenantProfiles.co')
             ->has('residencyStatuses', 6)
-            ->has('employmentStatuses', 8));
+            ->has('employmentStatuses', count(EmploymentStatus::cases())));
 });
 
 test('a citizen of the European Union keeps no permit number, and an empty form clears the details', function (): void {

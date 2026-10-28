@@ -44,8 +44,9 @@ final readonly class CreateLead
 
             event(new DashboardUpdated('leads', ['id' => $lead->id], $message));
 
-            // Lead arrivé seul (site, téléphone) : l'assistant IA propose une qualification à relire.
-            if (! $by instanceof User && config('services.anthropic.key')) {
+            // Chaque lead reçu, du site comme de l'équipe, passe par l'assistant :
+            // avis « AI check » et proposition de champs à relire (28 octobre 2026).
+            if (config('services.anthropic.key')) {
                 dispatch(new QualifyLeadJob($lead))->afterCommit();
             }
 

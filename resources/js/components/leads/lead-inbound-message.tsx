@@ -1,20 +1,12 @@
-import { router, usePage } from '@inertiajs/react';
 import {
     ChevronDown,
     Globe,
-    Mail,
-    MessageCircle,
     MessageSquareText,
-    Phone,
     PhoneIncoming,
-    UserCheck,
 } from 'lucide-react';
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
-import { notify } from '@/lib/toast';
+import { useStoredState } from '@/hooks/use-stored-state';
 import { cn } from '@/lib/utils';
-import { assign as leadAssign, status as leadStatus } from '@/routes/leads';
 import type { LeadDetail, LeadInboundMessage as Inbound } from '@/types';
 import { parisFormat } from '@/lib/datetime';
 
@@ -31,63 +23,42 @@ const dateTime = parisFormat({
     minute: '2-digit',
 });
 
-/** Lien WhatsApp vers un numéro saisi librement (indicatif compris). */
-export function whatsAppUrl(phone: string): string {
-    return `https://wa.me/${phone.replace(/\D+/g, '')}`;
-}
-
 /**
- * Ce que le lead nous a dit en arrivant, mis en avant tant qu'il est à traiter,
- * puis replié sur une ligne. Les boutons répondent par le canal de son choix,
- * « Je m'en occupe » m'attribue le lead et le passe en « En cours ».
+ * Ce que le lead nous a dit en arrivant, **déplié par défaut** quel que soit
+ * le statut du lead ; replié ou déplié, l'état est mémorisé par lead dans
+ * `localStorage` (`lead.<uuid>.inbound`) et survit au rechargement
+ * (28 octobre 2026). Aucun bouton d'action : l'attribution se fait dans le
+ * bloc « Suivi par » et les coordonnées se lisent à côté.
  */
 export function LeadInboundMessage({
     lead,
     inbound,
     title: heading,
     defaultOpen,
+    storageKey,
     className,
 }: {
     lead: LeadDetail;
     inbound: Inbound;
     /** Intitulé imposé (« Dernier appel entrant » pour un échange postérieur à l'arrivée). */
     title?: string;
-    /** Carte dépliée d'entrée de jeu ; par défaut, seulement pour un lead à traiter. */
+    /** État initial quand rien n'est mémorisé ; dépliée par défaut. */
     defaultOpen?: boolean;
+    /** Suffixe de la clé mémorisée (`inbound` par défaut, `last-call` pour la carte du dernier appel). */
+    storageKey?: string;
     className?: string;
 }) {
-    const { auth } = usePage().props;
-    const pending = lead.status === 'todo';
-    const [open, setOpen] = useState(defaultOpen ?? pending);
-    const [claiming, setClaiming] = useState(false);
+    const [open, setOpen] = useStoredState(
+        `lead.${lead.uuid}.${storageKey ?? 'inbound'}`,
+        defaultOpen ?? true,
+    );
     const { icon: Icon, title: kindTitle } = kinds[inbound.kind];
     const title = heading ?? kindTitle;
     const when = inbound.at ? dateTime.format(new Date(inbound.at)) : null;
-
-    const claim = () => {
-        setClaiming(true);
-        router.patch(
-            leadAssign({ lead: lead.uuid }).url,
-            { user_id: auth.user.id },
-            {
-                preserveScroll: true,
-                onError: () => setClaiming(false),
-                onSuccess: () =>
-                    router.patch(
-                        leadStatus({ lead: lead.uuid }).url,
-                        { status: 'in_progress' },
-                        {
-                            preserveScroll: true,
-                            onSuccess: () =>
-                                notify.success(
-                                    'Lead pris en charge, il passe en « En cours ».',
-                                ),
-                            onFinish: () => setClaiming(false),
-                        },
-                    ),
-            },
-        );
-    };
+    // Un message du site ne porte plus sa ligne de provenance (formulaire,
+    // référence, date) : son type de demande s'écrit en tête du message,
+    // le reste se lit dans le fil d'activité (28 octobre 2026).
+    const provenance = inbound.kind !== 'website';
 
     return (
         <section
@@ -106,21 +77,23 @@ export function LeadInboundMessage({
                     <h2 className="text-muted-foreground text-xs tracking-wide uppercase">
                         {title}
                     </h2>
-                    <p className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
-                        <Icon className="size-3.5 shrink-0" aria-hidden />
-                        <span className="truncate">
-                            {inbound.meta}
-                            {when ? ` · ${when}` : ''}
-                        </span>
-                    </p>
+                    {provenance && (
+                        <p className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
+                            <Icon className="size-3.5 shrink-0" aria-hidden />
+                            <span className="truncate">
+                                {inbound.meta}
+                                {when ? ` · ${when}` : ''}
+                            </span>
+                        </p>
+                    )}
                 </div>
-                {(!pending || defaultOpen !== undefined) && (
+                {
                     <Button
                         type="button"
                         variant="ghost"
                         size="sm"
                         aria-expanded={open}
-                        onClick={() => setOpen((value) => !value)}
+                        onClick={() => setOpen(!open)}
                     >
                         {open ? 'Replier' : 'Afficher'}
                         <ChevronDown
@@ -131,64 +104,21 @@ export function LeadInboundMessage({
                             aria-hidden
                         />
                     </Button>
-                )}
+                }
             </header>
             {open && (
                 <div className="bg-background grid gap-3 rounded-lg border p-4">
-                    <blockquote className="text-sm whitespace-pre-line">
-                        {inbound.body}
+                    {/* Le sujet sur sa ligne, puis le message, séparés d'un peu
+                        d'air : deux choses, pas une phrase. */}
+                    <blockquote className="grid gap-2 text-sm">
+                        {inbound.topic && (
+                            <p data-testid="lead-inbound-topic">
+                                <span className="font-semibold">Topic :</span>{' '}
+                                {inbound.topic}
+                            </p>
+                        )}
+                        <p className="whitespace-pre-line">{inbound.body}</p>
                     </blockquote>
-                    <div className="flex flex-wrap items-center gap-2 border-t pt-3">
-                        {lead.email && (
-                            <Button variant="outline" size="sm" asChild>
-                                <a href={`mailto:${lead.email}`}>
-                                    <Mail aria-hidden />
-                                    Répondre par e-mail
-                                </a>
-                            </Button>
-                        )}
-                        {lead.phone && (
-                            <>
-                                <Button variant="outline" size="sm" asChild>
-                                    <a
-                                        href={`tel:${lead.phone.replace(/\s+/g, '')}`}
-                                    >
-                                        <Phone aria-hidden />
-                                        Appeler
-                                    </a>
-                                </Button>
-                                <Button variant="outline" size="sm" asChild>
-                                    <a
-                                        href={whatsAppUrl(lead.phone)}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        <MessageCircle aria-hidden />
-                                        WhatsApp
-                                    </a>
-                                </Button>
-                            </>
-                        )}
-                        {/* « Je m'en occupe » n'appartient qu'à la carte
-                            d'arrivée : deux boutons identiques sur la même
-                            page ne servent à rien. */}
-                        {pending && heading === undefined && (
-                            <Button
-                                type="button"
-                                size="sm"
-                                className="sm:ml-auto"
-                                disabled={claiming}
-                                onClick={claim}
-                            >
-                                {claiming ? (
-                                    <Spinner />
-                                ) : (
-                                    <UserCheck aria-hidden />
-                                )}
-                                Je m’en occupe
-                            </Button>
-                        )}
-                    </div>
                 </div>
             )}
         </section>

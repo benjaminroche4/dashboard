@@ -19,12 +19,21 @@ describe('fetchPlaceSuggestions', () => {
         vi.unstubAllGlobals();
     });
 
-    it('asks only for cities, and reads the city from the suggestion itself', async () => {
+    it('asks only for cities, and resolves the country code for the flag, falling back to the suggestion', async () => {
         const fetchMock = fakeFetch({
             '/places/suggest': {
                 suggestions: [
                     { id: 'c1', main: 'Genève', secondary: 'Suisse' },
                 ],
+            },
+            '/places/details': {
+                address: {
+                    street: '',
+                    postalCode: '',
+                    city: 'Genève',
+                    countryCode: 'CH',
+                    countryName: 'Suisse',
+                },
             },
         });
         vi.stubGlobal('fetch', fetchMock);
@@ -43,13 +52,32 @@ describe('fetchPlaceSuggestions', () => {
         );
         expect(url.searchParams.get('kind')).toBe('cities');
 
-        // Aucune requête « details » : la ville est déjà dans la suggestion.
+        // Une requête « details » pour le pays : c'est lui qui donne le drapeau.
         await expect(city!.resolve()).resolves.toMatchObject({
             city: 'Genève',
+            countryCode: 'CH',
             countryName: 'Suisse',
             street: '',
         });
-        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+
+        // Détails injoignables : la ville part sans pays, la saisie n'est pas bloquée.
+        vi.stubGlobal(
+            'fetch',
+            fakeFetch({
+                '/places/suggest': {
+                    suggestions: [
+                        { id: 'c2', main: 'Lyon', secondary: 'France' },
+                    ],
+                },
+            }),
+        );
+        const [lyon] = await fetchPlaceSuggestions('Ly', [], {}, 'cities');
+        await expect(lyon!.resolve()).resolves.toMatchObject({
+            city: 'Lyon',
+            countryCode: null,
+            countryName: 'France',
+        });
     });
 
     it('queries the Laravel proxy with a session token and resolves details', async () => {

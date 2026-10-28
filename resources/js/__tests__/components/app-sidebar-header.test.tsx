@@ -7,7 +7,11 @@ vi.mock('@/components/breadcrumbs', () => ({
 vi.mock('@/components/online-staff', () => ({ OnlineStaff: () => null }));
 vi.mock('@/components/realtime-staff', () => ({ RealtimeStaff: () => null }));
 vi.mock('@/components/ui/sidebar', () => ({
-    SidebarTrigger: () => <button type="button">toggle</button>,
+    SidebarTrigger: (props: React.ComponentProps<'button'>) => (
+        <button type="button" {...props}>
+            toggle
+        </button>
+    ),
 }));
 vi.mock('@inertiajs/react', () => ({
     router: { visit: vi.fn() },
@@ -39,9 +43,14 @@ describe('AppSidebarHeader', () => {
 
         expect(header).toHaveClass('grid-cols-[1fr_auto_1fr]');
         expect(screen.getByLabelText("fil d'ariane")).toBeInTheDocument();
-        expect(
-            screen.getByRole('button', { name: 'toggle' }),
-        ).toBeInTheDocument();
+        // Le bouton du menu parle français et affiche ses raccourcis.
+        const trigger = screen.getByRole('button', {
+            name: 'Afficher ou masquer le menu',
+        });
+        expect(trigger).toHaveAttribute(
+            'title',
+            'Afficher ou masquer le menu · ⌘C ou G M',
+        );
         expect(
             screen.getByRole('button', { name: 'Rechercher' }),
         ).toBeInTheDocument();

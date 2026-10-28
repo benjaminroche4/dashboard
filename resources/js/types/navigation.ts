@@ -34,14 +34,13 @@ export type NavItem = {
     animatedIcon?: AnimatedNavIcon | null;
     isActive?: boolean;
     /**
-     * Ce qui **attend une action** : pastille colorée à droite, point en mode
-     * icône, et reporté sur l'intitulé du groupe quand il est plié.
+     * Ce qui **attend une action** : point rouge à droite (sans chiffre, le
+     * compte reste dans le nom accessible), point sur l'icône en mode icône,
+     * et reporté sur l'intitulé du groupe quand il est plié.
      */
     badge?: number;
-    /** Simple total, affiché en gris : il n'appelle rien. */
+    /** Simple total, affiché en gris sur une pastille blanche : il n'appelle rien. */
     total?: number;
-    /** Bouton « + » révélé au survol, vers le formulaire de création. */
-    create?: NavCreate;
     /** Raccourci clavier « G puis touche » (ex. `G L`), annoncé dans l'infobulle. */
     shortcut?: string;
     /** Sous-entrées (menu dépliable). */
@@ -52,15 +51,6 @@ export type NavItem = {
     section?: SiteSection;
 };
 
-/** Création en un geste depuis une entrée du menu. */
-export type NavCreate = {
-    href: NonNullable<InertiaLinkProps['href']>;
-    /** Libellé accessible du bouton (« Nouveau lead locataire »). */
-    label: string;
-    /** Section requise pour créer ; absente = toujours visible. */
-    section?: SiteSection;
-};
-
 export type NavSubItem = {
     title: string;
     href: NonNullable<InertiaLinkProps['href']>;
@@ -68,6 +58,8 @@ export type NavSubItem = {
     badge?: number;
     /** Section requise ; absente = toujours visible. */
     section?: SiteSection;
+    /** Raccourci clavier « G puis touche », comme sur une entrée parente. */
+    shortcut?: string;
 };
 
 export type NavGroup = {

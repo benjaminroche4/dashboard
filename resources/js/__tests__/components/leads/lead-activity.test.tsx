@@ -110,6 +110,18 @@ describe('LeadActivity', () => {
         expect(items[1]).toHaveTextContent('En cours (depuis À traiter)');
         expect(screen.getByText('@Admin')).toHaveAttribute('data-mention');
         expect(items[2]).toHaveAttribute('data-mine', 'true');
+        // Mes notes en dégradé bleu façon messagerie, celles des autres en gris.
+        const bubbles = [...document.querySelectorAll('[data-slot="bubble"]')];
+        const mineBubble = bubbles.find(
+            (bubble) => bubble.getAttribute('data-align') === 'end',
+        );
+        expect(mineBubble).toHaveAttribute('data-tone', 'messenger');
+        expect(mineBubble?.className).toContain('from-sky-500');
+        expect(mineBubble?.className).toContain('to-blue-600');
+        const theirs = bubbles.find(
+            (bubble) => bubble.getAttribute('data-align') === 'start',
+        );
+        expect(theirs).not.toHaveAttribute('data-tone');
         expect(
             screen.getByRole('button', {
                 name: 'Aller à la dernière activité',

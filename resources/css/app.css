@@ -107,6 +107,28 @@
        fondu que la carte du kanban. */
     --animate-row-enter: lead-enter 350ms cubic-bezier(0.22, 1, 0.36, 1) both;
 
+    /* Point de la frise « Suivi par » (dernier contact, visio, prochain
+       recontact) : il se pose sur le rail en grossissant un peu, son halo
+       s'estompe. Joué à l'arrivée de la frise (en cascade) et rejoué par le
+       point dont la date vient de changer. */
+    --animate-timeline-dot: timeline-dot 500ms cubic-bezier(0.22, 1, 0.36, 1)
+        both;
+
+    @keyframes timeline-dot {
+        0% {
+            transform: scale(0.4);
+            box-shadow: 0 0 0 0
+                color-mix(in oklch, currentColor 45%, transparent);
+        }
+        60% {
+            transform: scale(1.15);
+        }
+        100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 8px transparent;
+        }
+    }
+
     /* Converting Machine : le panneau suivant glisse depuis la droite, le
        précédent depuis la gauche — on sait où l'on va. */
     --animate-step-forward: step-forward 180ms cubic-bezier(0.22, 1, 0.36, 1)

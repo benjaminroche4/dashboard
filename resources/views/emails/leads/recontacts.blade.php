@@ -16,7 +16,7 @@
                         <a href="{{ route('leads.show', $lead) }}" style="color:#171717;font-weight:600;text-decoration:none">{{ $lead->fullName() }}</a>
                         <span style="color:#737373"> · {{ $lead->reference }}</span><br />
                         <span style="font-size:0.95em;color:#525252">
-                            {{ $lead->recontact_channel?->label() ?? 'Canal libre' }} · {{ $lead->recontact_at->translatedFormat('j F') }}@if ($lead->phone) · {{ $lead->phone }}@endif@if ($lead->email) · {{ $lead->email }}@endif
+                            {{ $lead->recontact_channel?->label() ?? 'Canal libre' }} · {{ $lead->recontact_at->translatedFormat('j F \à H:i') }}@if ($lead->phone) · {{ $lead->phone }}@endif@if ($lead->email) · {{ $lead->email }}@endif
                         </span>
                     </p>
                 @endforeach

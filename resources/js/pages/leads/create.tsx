@@ -54,6 +54,7 @@ import {
 import { TIGHT_BUDGET_CENTS, isTightBudget } from '@/lib/paris-budget';
 import { daysUntil, isUrgentArrival } from '@/lib/lead-urgency';
 import { notify } from '@/lib/toast';
+import { DEFAULT_TIME, timeSlotsWith } from '@/lib/time-slots';
 import { cn } from '@/lib/utils';
 import {
     duplicates as leadDuplicates,
@@ -210,6 +211,8 @@ export default function LeadsCreate({
     prefill = null,
 }: Props) {
     const editing = lead !== undefined;
+    // Un recontact ne s'antidate pas : le calendrier refuse les jours passés.
+    const todayIso = new Date().toISOString().slice(0, 10);
     const owner = (lead?.segment ?? segment) === 'owner';
     const { auth, staff, features } = usePage().props;
     const form = useForm<LeadForm>(
@@ -238,6 +241,7 @@ export default function LeadsCreate({
                   score: null,
                   recontact_channel: '',
                   recontact_at: '',
+                  recontact_time: DEFAULT_TIME,
                   qualification_note: '',
                   assigned_to: auth.user?.id ?? null,
                   segment,
@@ -422,7 +426,11 @@ export default function LeadsCreate({
             ...data,
             offer: data.offer === '' ? null : data.offer,
             arrival_at: data.arrival_at === '' ? null : data.arrival_at,
-            recontact_at: data.recontact_at === '' ? null : data.recontact_at,
+            // La date et l'heure partent ensemble, « AAAA-MM-JJTHH:MM ».
+            recontact_at:
+                data.recontact_at === ''
+                    ? null
+                    : `${data.recontact_at}T${data.recontact_time || DEFAULT_TIME}`,
             duration: data.duration === '' ? null : data.duration,
             furnished: data.furnished === '' ? null : data.furnished,
             recontact_channel:
@@ -1252,7 +1260,43 @@ export default function LeadsCreate({
                                                 aria-label="Recontacter le"
                                                 value={form.data.recontact_at}
                                                 onChange={set('recontact_at')}
+                                                min={todayIso}
                                             />
+                                        </Field>
+                                        <Field
+                                            label="À quelle heure"
+                                            htmlFor="recontact_time"
+                                        >
+                                            <Select
+                                                value={form.data.recontact_time}
+                                                onValueChange={(value) =>
+                                                    form.setData(
+                                                        'recontact_time',
+                                                        value,
+                                                    )
+                                                }
+                                            >
+                                                <SelectTrigger
+                                                    id="recontact_time"
+                                                    aria-label="À quelle heure"
+                                                    className="w-full"
+                                                >
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {timeSlotsWith(
+                                                        form.data
+                                                            .recontact_time,
+                                                    ).map((slot) => (
+                                                        <SelectItem
+                                                            key={slot}
+                                                            value={slot}
+                                                        >
+                                                            {slot}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                         </Field>
                                     </div>
                                 </Group>

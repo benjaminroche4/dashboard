@@ -1,36 +1,11 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-    LeadInboundMessage,
-    whatsAppUrl,
-} from '@/components/leads/lead-inbound-message';
+import { describe, expect, it } from 'vitest';
+import { LeadInboundMessage } from '@/components/leads/lead-inbound-message';
 import { makeInbound, makeLeadDetail } from '@/test/fixtures/lead';
 
-const patch = vi.fn();
-
-vi.mock('@inertiajs/react', () => ({
-    router: { patch: (...args: unknown[]) => patch(...args) },
-    usePage: () => ({ props: { auth: { user: { id: 7 } } } }),
-}));
-
-vi.mock('@/lib/toast', () => ({
-    notify: { success: vi.fn(), error: vi.fn() },
-}));
-
-describe('whatsAppUrl', () => {
-    it('keeps only the digits of the phone number', () => {
-        expect(whatsAppUrl('+33 6 12 34 56 78')).toBe(
-            'https://wa.me/33612345678',
-        );
-    });
-});
-
 describe('LeadInboundMessage', () => {
-    beforeEach(() => patch.mockReset());
-
-    it('shows the message with reply links and claims the lead for me', async () => {
-        const user = userEvent.setup();
+    it('shows the message without any reply or claim button', () => {
         const lead = makeLeadDetail({
             status: 'todo',
             email: 'lea@example.com',
@@ -38,41 +13,35 @@ describe('LeadInboundMessage', () => {
         });
         render(<LeadInboundMessage lead={lead} inbound={makeInbound()} />);
 
+        const region = screen.getByRole('region', {
+            name: 'Message reçu depuis le site',
+        });
+        expect(region).toHaveTextContent("j'arrive à Paris en octobre");
+        // Plus de ligne « Formulaire de contact · … · CT-… · date » : le type
+        // de demande s'écrit en tête du message, sur sa propre ligne.
+        expect(region).not.toHaveTextContent('CT-4F2A11');
+        expect(region).not.toHaveTextContent('Formulaire de contact');
+        const quote = region.querySelector('blockquote');
+        // Le sujet sur sa propre ligne, à distance du message (`gap-2`) ;
+        // seul « Topic : » est en gras, le sujet reste en texte courant.
+        expect(quote).toHaveClass('gap-2');
+        const topic = screen.getByTestId('lead-inbound-topic');
+        expect(topic).toHaveTextContent('Topic : Recherche de logement');
+        expect(topic.querySelector('.font-semibold')?.textContent).toBe(
+            'Topic :',
+        );
+        expect(topic.nextElementSibling).toHaveTextContent(
+            "Bonjour, j'arrive à Paris en octobre avec ma famille.",
+        );
+        // Les coordonnées se lisent dans la colonne de gauche et
+        // l'attribution dans « Suivi par » : la carte ne porte aucun bouton.
+        expect(screen.queryByRole('link')).not.toBeInTheDocument();
         expect(
-            screen.getByRole('region', { name: 'Message reçu depuis le site' }),
-        ).toHaveTextContent("j'arrive à Paris en octobre");
-        expect(
-            screen.getByRole('link', { name: 'Répondre par e-mail' }),
-        ).toHaveAttribute('href', 'mailto:lea@example.com');
-        expect(screen.getByRole('link', { name: 'Appeler' })).toHaveAttribute(
-            'href',
-            'tel:+33612345678',
-        );
-        expect(screen.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute(
-            'href',
-            'https://wa.me/33612345678',
-        );
-
-        await user.click(
-            screen.getByRole('button', { name: 'Je m’en occupe' }),
-        );
-
-        expect(patch).toHaveBeenCalledWith(
-            `/locataires/${lead.uuid}/assign`,
-            { user_id: 7 },
-            expect.objectContaining({ preserveScroll: true }),
-        );
-        // Une fois attribué, le lead passe en « En cours ».
-        const options = patch.mock.calls[0]?.[2] as { onSuccess: () => void };
-        options.onSuccess();
-        expect(patch).toHaveBeenLastCalledWith(
-            `/locataires/${lead.uuid}/status`,
-            { status: 'in_progress' },
-            expect.objectContaining({ preserveScroll: true }),
-        );
+            screen.queryByRole('button', { name: 'Je m’en occupe' }),
+        ).not.toBeInTheDocument();
     });
 
-    it('labels calls and SMS and hides links without contact details', () => {
+    it('labels calls and SMS and shows no link', () => {
         const lead = makeLeadDetail({
             status: 'todo',
             email: null,
@@ -85,13 +54,43 @@ describe('LeadInboundMessage', () => {
                     kind: 'sms',
                     meta: 'SMS reçu',
                     body: 'Dispo demain ?',
+                    topic: null,
                 })}
             />,
         );
 
-        expect(
-            screen.getByRole('region', { name: 'SMS reçu' }),
-        ).toHaveTextContent('Dispo demain ?');
+        const region = screen.getByRole('region', { name: 'SMS reçu' });
+        expect(region).toHaveTextContent('Dispo demain ?');
+        // Un échange téléphonique garde sa ligne de provenance, sans « Topic ».
+        expect(region).toHaveTextContent('SMS reçu');
+        expect(region).not.toHaveTextContent('Topic');
         expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    });
+
+    it('opens by default whatever the status, and remembers being folded across a reload', async () => {
+        const user = userEvent.setup();
+        const lead = makeLeadDetail({ status: 'in_progress', uuid: 'lead-9' });
+        const { unmount } = render(
+            <LeadInboundMessage lead={lead} inbound={makeInbound()} />,
+        );
+
+        const block = screen.getByTestId('lead-inbound');
+        expect(block).toHaveAttribute('data-state', 'open');
+        await user.click(screen.getByRole('button', { name: 'Replier' }));
+        expect(block).toHaveAttribute('data-state', 'collapsed');
+        expect(localStorage.getItem('dashboard.lead.lead-9.inbound')).toBe(
+            'false',
+        );
+
+        // Un rechargement retrouve la carte telle qu'on l'a laissée.
+        unmount();
+        render(<LeadInboundMessage lead={lead} inbound={makeInbound()} />);
+        expect(screen.getByTestId('lead-inbound')).toHaveAttribute(
+            'data-state',
+            'collapsed',
+        );
+        expect(
+            screen.getByRole('button', { name: 'Afficher' }),
+        ).toBeInTheDocument();
     });
 });

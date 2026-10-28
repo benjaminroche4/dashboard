@@ -78,6 +78,7 @@ class QuoteController extends Controller
         }
 
         return response()->json(Quote::query()
+            ->with('lead')
             ->where(function ($builder) use ($query): void {
                 $builder->where('number', 'like', "%{$query}%")
                     ->orWhere('client_name', 'like', "%{$query}%");
@@ -92,6 +93,13 @@ class QuoteController extends Controller
                 'title' => $quote->number,
                 'subtitle' => $quote->client_name.' · '.$this->money($quote->amount_cents, $quote->currency).' · '.$quote->status->label(),
                 'url' => route('tools.quotes.show', $quote),
+                // Les mêmes clés que la recherche des factures, pour « Lier un devis existant » sur une fiche.
+                'number' => $quote->number,
+                'client_name' => $quote->client_name,
+                'amount_cents' => $quote->amount_cents,
+                'currency' => $quote->currency->value,
+                'status_label' => $quote->status->label(),
+                'lead' => LeadController::linkSummary($quote->lead),
             ])
             ->all());
     }

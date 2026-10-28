@@ -275,7 +275,16 @@ function NoteBubble({
 
     return (
         <Bubble
-            className="group/note max-w-[90%]"
+            className={cn(
+                'group/note max-w-[90%]',
+                // Mes notes en dégradé bleu, comme une messagerie : on
+                // repère d'un coup d'œil ce qu'on a écrit soi-même
+                // (demandé le 28 octobre 2026). Les envois restent cadrés.
+                mine &&
+                    !isSend &&
+                    '*:data-[slot=bubble-content]:bg-linear-to-br *:data-[slot=bubble-content]:from-sky-500 *:data-[slot=bubble-content]:to-blue-600 *:data-[slot=bubble-content]:text-white',
+            )}
+            data-tone={mine && !isSend ? 'messenger' : undefined}
             align={mine ? 'end' : 'start'}
             variant={isSend ? 'outline' : mine ? 'default' : 'muted'}
         >

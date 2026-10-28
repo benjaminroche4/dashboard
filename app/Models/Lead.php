@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\ClientClosingReason;
 use App\Enums\ClientPriority;
 use App\Enums\Currency;
+use App\Enums\EmploymentStatus;
 use App\Enums\Furnished;
 use App\Enums\GuarantorType;
 use App\Enums\LeadDuration;
@@ -14,6 +15,7 @@ use App\Enums\LeadLanguage;
 use App\Enums\LeadLossReason;
 use App\Enums\LeadSource;
 use App\Enums\LeadStatus;
+use App\Enums\LeadVerdict;
 use App\Enums\Offer;
 use App\Enums\PropertyType;
 use App\Enums\RecontactChannel;
@@ -56,6 +58,9 @@ use Illuminate\Support\Collection;
  * @property int|null $budget_cents
  * @property Currency $currency
  * @property string|null $origin_city
+ * @property string|null $origin_country
+ * @property EmploymentStatus|null $employment_status
+ * @property string|null $project_notes
  * @property LeadSource $source
  * @property string|null $source_note
  * @property WebsiteHelpType|null $help_type
@@ -66,6 +71,9 @@ use Illuminate\Support\Collection;
  * @property Furnished|null $furnished
  * @property array<string, mixed>|null $ai_qualification
  * @property CarbonInterface|null $ai_qualified_at
+ * @property LeadVerdict|null $ai_verdict
+ * @property string|null $ai_verdict_reason
+ * @property CarbonInterface|null $ai_verdict_at
  * @property string|null $message
  * @property int|null $score
  * @property ClientPriority $priority
@@ -105,7 +113,7 @@ use Illuminate\Support\Collection;
 #[Fillable([
     'reference', 'external_reference',
     'first_name', 'last_name', 'email', 'phone', 'co_first_name', 'co_last_name', 'co_email', 'co_phone', 'tenant_profiles', 'company', 'company_id', 'language', 'offer', 'arrival_at', 'budget_cents', 'currency',
-    'origin_city', 'districts', 'property_types', 'duration', 'guarantors', 'furnished', 'source', 'source_note', 'help_type', 'message', 'ai_qualification', 'ai_qualified_at',
+    'origin_city', 'origin_country', 'employment_status', 'districts', 'property_types', 'duration', 'guarantors', 'furnished', 'source', 'source_note', 'help_type', 'message', 'project_notes', 'ai_qualification', 'ai_qualified_at', 'ai_verdict', 'ai_verdict_reason', 'ai_verdict_at',
     'score', 'priority', 'recontact_channel', 'recontact_at', 'visio_at', 'visio_event_id', 'visio_meet_link', 'visio_report', 'visio_report_submitted_at', 'visio_report_submitted_by', 'visio_report_reminded_at', 'qualification_note', 'status', 'loss_reason', 'loss_note', 'position', 'last_contacted_at', 'first_contact_alerted_at', 'arrival_alerted_days', 'created_by', 'assigned_to', 'co_assigned_to',
     'agent_id',
 ])]
@@ -163,9 +171,12 @@ class Lead extends Model
             'duration' => LeadDuration::class,
             'guarantors' => AsEnumCollection::of(GuarantorType::class),
             'furnished' => Furnished::class,
+            'employment_status' => EmploymentStatus::class,
             'recontact_channel' => RecontactChannel::class,
-            'recontact_at' => 'date',
+            'recontact_at' => 'datetime',
             'ai_qualification' => 'array',
+            'ai_verdict' => LeadVerdict::class,
+            'ai_verdict_at' => 'datetime',
             'tenant_profiles' => 'array',
             'ai_qualified_at' => 'datetime',
             'visio_at' => 'datetime',

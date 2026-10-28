@@ -4,6 +4,19 @@ import { describe, expect, it } from 'vitest';
 import { LeadActivitySheet } from '@/components/leads/lead-activity-sheet';
 
 describe('LeadActivitySheet', () => {
+    it('can read « Notes » and carry the count inside the button', () => {
+        render(
+            <LeadActivitySheet count={4} label="Notes" showCount>
+                <p>Fil</p>
+            </LeadActivitySheet>,
+        );
+
+        const button = screen.getByRole('button', { name: /^Notes/ });
+        expect(within(button).getByLabelText('4 entrées')).toHaveTextContent(
+            '4',
+        );
+    });
+
     it('opens a side sheet with the count, filters, feed and composer', async () => {
         const user = userEvent.setup();
         render(

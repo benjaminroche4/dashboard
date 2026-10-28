@@ -14,16 +14,16 @@ beforeEach(function (): void {
     Event::fake([DashboardUpdated::class]);
 });
 
-test('a recontact can be scheduled then cleared', function (): void {
+test('a recontact can be scheduled with its time, then cleared', function (): void {
     $lead = Lead::factory()->create();
     $user = User::factory()->create();
 
     $this->actingAs($user)
-        ->patch(route('leads.recontact', $lead), ['recontact_at' => '2026-10-01', 'recontact_channel' => 'whatsapp'])
+        ->patch(route('leads.recontact', $lead), ['recontact_at' => '2030-03-01T14:30', 'recontact_channel' => 'whatsapp'])
         ->assertRedirect();
 
     $fresh = $lead->fresh();
-    expect($fresh?->recontact_at?->toDateString())->toBe('2026-10-01')
+    expect($fresh?->recontact_at?->format('Y-m-d H:i'))->toBe('2030-03-01 14:30')
         ->and($fresh?->recontact_channel)->toBe(RecontactChannel::WhatsApp);
 
     $this->actingAs($user)
@@ -38,8 +38,17 @@ test('a recontact date needs a channel', function (): void {
 
     $this->actingAs(User::factory()->create())
         ->from(route('leads.show', $lead))
-        ->patch(route('leads.recontact', $lead), ['recontact_at' => '2026-10-01'])
+        ->patch(route('leads.recontact', $lead), ['recontact_at' => '2030-03-01'])
         ->assertSessionHasErrors('recontact_channel');
+});
+
+test('a recontact cannot be planned in the past', function (): void {
+    $lead = Lead::factory()->create();
+
+    $this->actingAs(User::factory()->create())
+        ->from(route('leads.show', $lead))
+        ->patch(route('leads.recontact', $lead), ['recontact_at' => now()->subHour()->format('Y-m-d\TH:i'), 'recontact_channel' => 'phone'])
+        ->assertSessionHasErrors(['recontact_at' => 'Le recontact doit être planifié dans le futur.']);
 });
 
 test('only admins delete a lead, with its notes and history', function (): void {

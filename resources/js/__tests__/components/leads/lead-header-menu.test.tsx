@@ -10,6 +10,19 @@ const { patch, destroy, post, visit } = vi.hoisted(() => ({
 }));
 vi.mock('@inertiajs/react', () => ({
     router: { patch, delete: destroy, post, visit },
+    usePage: () => ({ props: { features: { assistant: true } } }),
+    Link: ({
+        href,
+        children,
+        ...props
+    }: {
+        href: string;
+        children: React.ReactNode;
+    }) => (
+        <a href={href} {...props}>
+            {children}
+        </a>
+    ),
 }));
 const { success } = vi.hoisted(() => ({ success: vi.fn() }));
 vi.mock('@/lib/toast', () => ({ notify: { success } }));
@@ -18,12 +31,71 @@ import { LeadHeaderMenu } from '@/components/leads/lead-header-menu';
 import { lossReasons, makeLeadDetail } from '@/test/fixtures/lead';
 
 describe('LeadHeaderMenu', () => {
+    it('opens with « Modifier » and « Convertir en client » before the other actions', async () => {
+        const user = userEvent.setup();
+        render(
+            <LeadHeaderMenu
+                lead={makeLeadDetail()}
+                canDelete={false}
+                editHref="/locataires/x/edit"
+                lossReasons={lossReasons}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Plus d’actions' }),
+        );
+        const items = await screen.findAllByRole('menuitem');
+        expect(items.slice(0, 2).map((item) => item.textContent)).toEqual([
+            'Modifier',
+            'Convertir en client',
+        ]);
+        expect(items[0]).toHaveAttribute('href', '/locataires/x/edit');
+
+        // L'entrée ouvre la confirmation de conversion.
+        await user.click(items[1]!);
+        expect(
+            await screen.findByRole('dialog', {
+                name: /Convertir .* en client/,
+            }),
+        ).toBeInTheDocument();
+    });
+
+    it('launches an AI analysis of the whole lead from the menu', async () => {
+        post.mockClear();
+        const user = userEvent.setup();
+        render(
+            <LeadHeaderMenu
+                lead={makeLeadDetail()}
+                canDelete={false}
+                editHref="/locataires/x/edit"
+                lossReasons={lossReasons}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Plus d’actions' }),
+        );
+        await user.click(
+            await screen.findByRole('menuitem', {
+                name: 'Lancer une analyse IA',
+            }),
+        );
+
+        expect(post).toHaveBeenCalledWith(
+            '/locataires/0199a9a0-0000-7000-8000-000000000001/qualify',
+            {},
+            expect.objectContaining({ preserveScroll: true }),
+        );
+    });
+
     it('moves a tenant lead to the owner leads', async () => {
         const user = userEvent.setup();
         render(
             <LeadHeaderMenu
                 lead={makeLeadDetail()}
                 canDelete={false}
+                editHref="/locataires/x/edit"
                 lossReasons={lossReasons}
             />,
         );
@@ -52,6 +124,7 @@ describe('LeadHeaderMenu', () => {
             <LeadHeaderMenu
                 lead={makeLeadDetail({ segment: 'owner' })}
                 canDelete={false}
+                editHref="/locataires/x/edit"
                 lossReasons={lossReasons}
             />,
         );
@@ -75,6 +148,7 @@ describe('LeadHeaderMenu', () => {
             <LeadHeaderMenu
                 lead={makeLeadDetail({ segment: 'owner' })}
                 canDelete={false}
+                editHref="/locataires/x/edit"
                 lossReasons={lossReasons}
                 directoryOwner={{ uuid: 'owner-1', name: 'Zoé Martin' }}
             />,
@@ -96,6 +170,7 @@ describe('LeadHeaderMenu', () => {
             <LeadHeaderMenu
                 lead={makeLeadDetail()}
                 canDelete={false}
+                editHref="/locataires/x/edit"
                 lossReasons={lossReasons}
             />,
         );
@@ -117,6 +192,7 @@ describe('LeadHeaderMenu', () => {
             <LeadHeaderMenu
                 lead={makeLeadDetail({ segment: 'owner' })}
                 canDelete={false}
+                editHref="/locataires/x/edit"
                 lossReasons={lossReasons}
             />,
         );
@@ -137,6 +213,7 @@ describe('LeadHeaderMenu', () => {
             <LeadHeaderMenu
                 lead={makeLeadDetail()}
                 canDelete={false}
+                editHref="/locataires/x/edit"
                 lossReasons={lossReasons}
             />,
         );
@@ -173,6 +250,7 @@ describe('LeadHeaderMenu', () => {
             <LeadHeaderMenu
                 lead={makeLeadDetail()}
                 canDelete
+                editHref="/locataires/x/edit"
                 lossReasons={lossReasons}
             />,
         );

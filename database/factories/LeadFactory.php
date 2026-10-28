@@ -17,6 +17,7 @@ use App\Enums\RecontactChannel;
 use App\Enums\WebsiteHelpType;
 use App\Models\Lead;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -54,7 +55,7 @@ class LeadFactory extends Factory
             'score' => fake()->optional(0.8)->numberBetween(1, 5),
             'source_note' => fake()->optional()->words(3, true),
             'recontact_channel' => fake()->optional()->randomElement(RecontactChannel::cases()),
-            'recontact_at' => fake()->boolean() ? fake()->dateTimeBetween('now', '+2 weeks')->format('Y-m-d') : null,
+            'recontact_at' => fake()->boolean() ? CarbonImmutable::instance(fake()->dateTimeBetween('now', '+2 weeks'))->setTime(fake()->numberBetween(9, 18), fake()->randomElement([0, 30])) : null,
             'qualification_note' => fake()->optional()->sentence(8),
             'status' => LeadStatus::Todo,
             'last_contacted_at' => null,

@@ -19,7 +19,11 @@ export function AppSidebarHeader({
     return (
         <header className="border-sidebar-border/50 bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky top-0 z-30 grid h-16 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-4 border-b px-6 backdrop-blur transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
             <div className="flex min-w-0 items-center gap-2">
-                <SidebarTrigger className="-ml-1" />
+                <SidebarTrigger
+                    className="-ml-1"
+                    aria-label="Afficher ou masquer le menu"
+                    title="Afficher ou masquer le menu · ⌘C ou G M"
+                />
                 <Breadcrumbs breadcrumbs={breadcrumbs} />
             </div>
 

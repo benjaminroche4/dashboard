@@ -4,29 +4,32 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Leads;
 
+use App\Actions\Clients\SuggestClientProperties;
 use App\Actions\Leads\AddLeadNote;
-use App\Actions\Leads\ApplyLeadQualification;
 use App\Actions\Leads\AssignLead;
 use App\Actions\Leads\ConvertLeadToClient;
 use App\Actions\Leads\CreateLead;
 use App\Actions\Leads\DeleteLead;
 use App\Actions\Leads\DeleteLeadNote;
-use App\Actions\Leads\DismissLeadQualification;
 use App\Actions\Leads\MoveLeadSegment;
 use App\Actions\Leads\QualifyLead;
 use App\Actions\Leads\ScheduleLeadRecontact;
 use App\Actions\Leads\ScheduleLeadVisio;
 use App\Actions\Leads\SendLeadDossier;
+use App\Actions\Leads\SendLeadPropertyMatch;
 use App\Actions\Leads\SetLeadAgent;
+use App\Actions\Leads\SetLeadQualification;
 use App\Actions\Leads\SubmitLeadVisioReport;
 use App\Actions\Leads\TouchLeadContact;
 use App\Actions\Leads\UpdateLead;
+use App\Actions\Leads\UpdateLeadFields;
 use App\Actions\Leads\UpdateLeadNote;
 use App\Actions\Leads\UpdateLeadStatus;
 use App\Data\LeadData;
 use App\Data\LeadInboundMessageData;
-use App\Data\LeadQualificationData;
+use App\Data\LeadVerdictData;
 use App\Enums\Currency;
+use App\Enums\EmploymentStatus;
 use App\Enums\Furnished;
 use App\Enums\GuarantorType;
 use App\Enums\LeadDuration;
@@ -44,16 +47,18 @@ use App\Enums\WebsiteHelpType;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Owners\OwnerLeadController;
 use App\Http\Controllers\RealEstate\AgentController;
-use App\Http\Requests\Leads\ApplyLeadQualificationRequest;
 use App\Http\Requests\Leads\AssignLeadRequest;
 use App\Http\Requests\Leads\MoveLeadSegmentRequest;
+use App\Http\Requests\Leads\QualifyLeadRequest;
 use App\Http\Requests\Leads\ScheduleLeadRecontactRequest;
 use App\Http\Requests\Leads\ScheduleLeadVisioRequest;
 use App\Http\Requests\Leads\SendLeadDossierRequest;
+use App\Http\Requests\Leads\SendLeadPropertyMatchRequest;
 use App\Http\Requests\Leads\SetLeadAgentRequest;
 use App\Http\Requests\Leads\StoreLeadNoteRequest;
 use App\Http\Requests\Leads\StoreLeadRequest;
 use App\Http\Requests\Leads\StoreLeadVisioReportRequest;
+use App\Http\Requests\Leads\UpdateLeadFieldsRequest;
 use App\Http\Requests\Leads\UpdateLeadNoteRequest;
 use App\Http\Requests\Leads\UpdateLeadRequest;
 use App\Http\Requests\Leads\UpdateLeadStatusRequest;
@@ -296,15 +301,32 @@ class LeadController extends Controller
         return $data->segment === LeadSegment::Owner ? to_route('owners.leads') : to_route('leads.index');
     }
 
-    public function show(Request $request, Lead $lead, PaymentLinks $paymentLinks, Yousign $yousign): Response
+    public function show(Request $request, Lead $lead, PaymentLinks $paymentLinks, Yousign $yousign, SuggestClientProperties $suggestProperties): Response
     {
         $this->authorize('view', $lead);
 
         return Inertia::render('leads/show', [
             ...$this->detail($lead),
+            // Combien de biens de l'annuaire correspondent à la recherche :
+            // le chiffre que l'e-mail « n biens correspondent » annonce.
+            'matchingCount' => count($suggestProperties->handle($lead, 50)),
             'statuses' => self::statuses(),
             'recontactChannels' => RecontactChannel::options(),
             'lossReasons' => LeadLossReason::options(),
+            // Listes des champs modifiables en place dans le bloc Projet.
+            'editOptions' => [
+                // Le prix à côté de la formule : on choisit une offre en sachant ce qu'elle coûte.
+                'offers' => array_map(fn (array $offer): array => [
+                    'value' => $offer['value'],
+                    'label' => $offer['label'].' · '.number_format($offer['price_cents'] / 100, 0, ',', ' ').' €',
+                ], self::offers()),
+                'currencies' => array_map(fn (Currency $currency): array => ['value' => $currency->value, 'label' => $currency->label()], Currency::cases()),
+                'propertyTypes' => PropertyType::options(),
+                'durations' => LeadDuration::options(),
+                'guarantors' => GuarantorType::options(),
+                'furnishedOptions' => Furnished::options(),
+                'employmentStatuses' => EmploymentStatus::options(),
+            ],
             // Annuaire des agents immobiliers pour la carte « Agent en contact ».
             'agents' => Agent::query()->with('agency')->withFavoriteOf($request->user())->orderBy('last_name')->orderBy('first_name')->get()
                 ->map(fn (Agent $agent): array => AgentController::option($agent))->all(),
@@ -336,7 +358,7 @@ class LeadController extends Controller
             // pas au fond des notes.
             'lastCall' => LeadInboundMessageData::lastPhone($lead)?->toArray(),
             // Qualification proposée par l'assistant IA, en attente de relecture.
-            'qualification' => self::qualification($lead),
+            'verdict' => self::verdict($lead),
             'can' => ['delete' => Auth::user()?->can('delete', $lead) ?? false],
             // Fiche de l'annuaire des propriétaires créée depuis ce lead : le
             // menu propose de l'y ajouter, ou d'ouvrir celle qui existe déjà.
@@ -389,6 +411,18 @@ class LeadController extends Controller
         return to_route('leads.show', $lead);
     }
 
+    /** E-mail indépendant : « n biens correspondent à votre recherche ». */
+    public function propertyMatch(SendLeadPropertyMatchRequest $request, Lead $lead, SendLeadPropertyMatch $sendPropertyMatch): RedirectResponse
+    {
+        $this->authorize('update', $lead);
+
+        $sendPropertyMatch->handle($lead, $request->count(), $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('E-mail envoyé à :email.', ['email' => (string) $lead->email])]);
+
+        return to_route('leads.show', $lead);
+    }
+
     public function contact(Lead $lead, TouchLeadContact $touchLeadContact): RedirectResponse
     {
         $this->authorize('update', $lead);
@@ -413,7 +447,7 @@ class LeadController extends Controller
         return back();
     }
 
-    /** Demande à l'assistant IA une qualification du lead (bouton « Qualifier avec l'IA »). */
+    /** Demande à l'assistant IA son avis sur le lead (« Lancer une analyse IA » du menu « ⋯ »). */
     public function qualify(Lead $lead, QualifyLead $qualify): RedirectResponse
     {
         $this->authorize('update', $lead);
@@ -426,35 +460,22 @@ class LeadController extends Controller
             return back();
         }
 
-        Inertia::flash('toast', match (true) {
-            ! $data instanceof LeadQualificationData => ['type' => 'warning', 'message' => __("Rien à lire pour ce lead : ajoutez son message ou une note, ou configurez l'assistant.")],
-            $data->proposals($lead->refresh()) === [] => ['type' => 'info', 'message' => __("L'assistant n'a rien trouvé de nouveau à proposer.")],
-            default => ['type' => 'success', 'message' => __("Qualification proposée par l'assistant : à relire.")],
-        });
+        Inertia::flash('toast', $data instanceof LeadVerdictData
+            ? ['type' => 'success', 'message' => __('Avis de l’assistant : :verdict.', ['verdict' => $data->verdict->label()])]
+            : ['type' => 'warning', 'message' => __("Rien à lire pour ce lead : ajoutez son message ou une note, ou configurez l'assistant.")]);
 
         return back();
     }
 
-    public function applyQualification(ApplyLeadQualificationRequest $request, Lead $lead, ApplyLeadQualification $apply): RedirectResponse
+    public function assign(AssignLeadRequest $request, Lead $lead, AssignLead $assignLead): RedirectResponse
     {
-        /** @var list<string>|null $fields */
-        $fields = $request->validated('fields');
-        $applied = $apply->handle($lead, $fields, $request->user());
+        $userId = $request->validated('user_id');
+        $member = $userId === null ? null : User::query()->findOrFail((int) $userId);
+        $assignLead->handle($lead, $member);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => $applied === []
-            ? __('Résumé de l’assistant ajouté à la qualification.')
-            : __(':count champ(s) renseigné(s) depuis la qualification IA.', ['count' => count($applied)])]);
-
-        return back();
-    }
-
-    public function dismissQualification(Lead $lead, DismissLeadQualification $dismiss): RedirectResponse
-    {
-        $this->authorize('update', $lead);
-
-        $dismiss->handle($lead, auth()->user());
-
-        Inertia::flash('toast', ['type' => 'info', 'message' => __('Proposition de l’assistant ignorée.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => $member === null
+            ? __('Lead :name sans responsable.', ['name' => $lead->fullName()])
+            : __('Lead :name suivi par :member.', ['name' => $lead->fullName(), 'member' => $member->name])]);
 
         return back();
     }
@@ -472,15 +493,27 @@ class LeadController extends Controller
         return back();
     }
 
-    public function assign(AssignLeadRequest $request, Lead $lead, AssignLead $assignLead): RedirectResponse
+    /** Un ou plusieurs champs du projet, modifiés en place depuis la fiche. */
+    public function fields(UpdateLeadFieldsRequest $request, Lead $lead, UpdateLeadFields $updateLeadFields): RedirectResponse
     {
-        $userId = $request->validated('user_id');
-        $member = $userId === null ? null : User::query()->findOrFail((int) $userId);
-        $assignLead->handle($lead, $member);
+        $updateLeadFields->handle($lead, $request->fields());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => $member === null
-            ? __('Lead :name sans responsable.', ['name' => $lead->fullName()])
-            : __('Lead :name suivi par :member.', ['name' => $lead->fullName(), 'member' => $member->name])]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Lead :name mis à jour.', ['name' => $lead->fullName()])]);
+
+        return back();
+    }
+
+    /** Qualité du lead et note de qualification, posées en place depuis la fiche. */
+    public function setQualification(QualifyLeadRequest $request, Lead $lead, SetLeadQualification $setLeadQualification): RedirectResponse
+    {
+        $score = $request->validated('score');
+        $setLeadQualification->handle(
+            $lead,
+            $score === null ? null : (int) $score,
+            $request->validated('qualification_note'),
+        );
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Qualification enregistrée.')]);
 
         return back();
     }
@@ -585,7 +618,8 @@ class LeadController extends Controller
                 'message' => $lead->message ?? '',
                 'score' => $lead->score,
                 'recontact_channel' => $lead->recontact_channel === null ? '' : $lead->recontact_channel->value,
-                'recontact_at' => $lead->recontact_at?->toDateString() ?? '',
+                'recontact_at' => $lead->recontact_at?->format('Y-m-d') ?? '',
+                'recontact_time' => $lead->recontact_at?->format('H:i') ?? '10:00',
                 'qualification_note' => $lead->qualification_note ?? '',
                 'assigned_to' => $lead->assigned_to,
                 'segment' => LeadSegment::fromLead($lead)->value,
@@ -704,24 +738,21 @@ class LeadController extends Controller
     }
 
     /**
-     * Proposition IA à relire : résumé, note et champs proposés (vides sur le lead).
+     * L'avis de l'assistant (« AI check ») : qualifié ou non, motif, date.
      *
-     * @return array{at: string|null, summary: string, score: int|null, score_reason: string|null, fields: list<array{key: string, label: string, value: string}>}|null
+     * @return array{value: string, label: string, reason: string|null, at: string|null}|null
      */
-    public static function qualification(Lead $lead): ?array
+    public static function verdict(Lead $lead): ?array
     {
-        if ($lead->ai_qualification === null) {
+        if ($lead->ai_verdict === null) {
             return null;
         }
 
-        $data = LeadQualificationData::from($lead->ai_qualification);
-
         return [
-            'at' => $lead->ai_qualified_at?->toIso8601String(),
-            'summary' => $data->summary,
-            'score' => $data->score,
-            'score_reason' => $data->scoreReason,
-            'fields' => $data->proposals($lead),
+            'value' => $lead->ai_verdict->value,
+            'label' => $lead->ai_verdict->label(),
+            'reason' => $lead->ai_verdict_reason,
+            'at' => $lead->ai_verdict_at?->toIso8601String(),
         ];
     }
 
@@ -745,6 +776,10 @@ class LeadController extends Controller
             'budget_cents' => $lead->budget_cents,
             'currency' => $lead->currency->value,
             'origin_city' => $lead->origin_city,
+            'origin_country' => $lead->origin_country,
+            'employment_status' => $lead->employment_status?->value,
+            'employment_status_label' => $lead->employment_status?->label(),
+            'project_notes' => $lead->project_notes,
             'source_label' => $lead->source->label(),
             'source_note' => $lead->source_note,
             'company' => $lead->company,
@@ -752,21 +787,25 @@ class LeadController extends Controller
             'language_label' => $lead->language->label(),
             'districts' => $lead->districts ?? [],
             'property_types' => $lead->property_types?->map(fn (PropertyType $type): array => ['value' => $type->value, 'label' => $type->label()])->all() ?? [],
+            'duration' => $lead->duration?->value,
             'duration_label' => $lead->duration?->label(),
             'guarantor_label' => $lead->guarantors === null || $lead->guarantors->isEmpty()
                 ? null
                 : $lead->guarantors->map(fn (GuarantorType $type): string => $type->label())->implode(', '),
+            'furnished' => $lead->furnished?->value,
             'furnished_label' => $lead->furnished?->label(),
+            'guarantors' => $lead->guarantors?->map(fn (GuarantorType $type): string => $type->value)->all() ?? [],
             'message' => $lead->message,
             'score' => $lead->score,
             'recontact_channel' => $lead->recontact_channel?->value,
             'recontact_channel_label' => $lead->recontact_channel?->label(),
-            'recontact_at' => $lead->recontact_at?->toDateString(),
+            'recontact_at' => $lead->recontact_at?->toIso8601String(),
             'qualification_note' => $lead->qualification_note,
             'status' => $lead->status->value,
             'segment' => LeadSegment::fromLead($lead)->value,
-            // Une qualification IA attend d'être relue (badge sur la carte).
-            'ai_pending' => $lead->ai_qualification !== null,
+            // L'avis de l'assistant, lisible partout où le lead apparaît.
+            'ai_verdict' => $lead->ai_verdict?->value,
+            'ai_verdict_label' => $lead->ai_verdict?->label(),
             'status_label' => $ownerLabels ? $lead->status->ownerLabel() : $lead->status->label(),
             'loss_reason' => $lead->loss_reason?->value,
             'loss_reason_label' => $lead->loss_reason?->label(),

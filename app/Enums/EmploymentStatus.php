@@ -12,6 +12,7 @@ enum EmploymentStatus: string
     case Permanent = 'cdi';
     case FixedTerm = 'cdd';
     case Freelance = 'independant';
+    case Entrepreneur = 'entrepreneur';
     case Student = 'etudiant';
     case Intern = 'stage_alternance';
     case Retired = 'retraite';
@@ -24,6 +25,7 @@ enum EmploymentStatus: string
             self::Permanent => 'CDI',
             self::FixedTerm => 'CDD',
             self::Freelance => 'Indépendant',
+            self::Entrepreneur => 'Entrepreneur',
             self::Student => 'Étudiant',
             self::Intern => 'Stage ou alternance',
             self::Retired => 'Retraité',

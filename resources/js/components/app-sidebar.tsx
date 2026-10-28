@@ -1,20 +1,15 @@
 import {
-    BriefcaseBusinessIcon,
     CalendarCheckIcon,
     ChartPieIcon,
     FilePenLineIcon,
     FileStackIcon,
     FolderOpenIcon,
-    HeartHandshakeIcon,
     HistoryIcon,
-    HomeIcon,
-    IdCardIcon,
     KeyIcon,
-    MapPinHouseIcon,
     ReceiptEuroIcon,
     SunIcon,
-    UserCheckIcon,
     UserRoundPlusIcon,
+    UsersRoundIcon,
 } from 'lucide-animated';
 import { usePage } from '@inertiajs/react';
 import { NavMain } from '@/components/nav-main';
@@ -33,19 +28,15 @@ import {
     index as clientsIndex,
     visits as clientsVisits,
 } from '@/routes/clients';
-import { create as visitsCreate } from '@/routes/clients/visits';
 import { index as agentsIndex } from '@/routes/agents';
 import { index as invoicesIndex } from '@/routes/invoices';
-import { create as leadsCreate, index as leadsIndex } from '@/routes/leads';
+import { index as leadsIndex } from '@/routes/leads';
 import { index as ownersIndex, leads as ownersLeads } from '@/routes/owners';
 import { index as partnersIndex } from '@/routes/partners';
 import { index as companiesIndex } from '@/routes/companies';
 import { index as propertiesIndex } from '@/routes/properties';
 import { index as activityIndex } from '@/routes/tools/activity';
-import {
-    create as documentsCreate,
-    index as documentsIndex,
-} from '@/routes/tools/documents';
+import { index as documentsIndex } from '@/routes/tools/documents';
 import { index as quotesIndex } from '@/routes/tools/quotes';
 import { index as reportsIndex } from '@/routes/tools/reports';
 import { filterNavGroups } from '@/lib/nav-access';
@@ -61,8 +52,7 @@ type Counts = {
 
 /**
  * Groupes du menu. `badge` dit ce qui attend une action (leads à traiter,
- * pièces à vérifier), `total`
- * un simple compte ; `create` pose un « + » vers le formulaire, `shortcut`
+ * pièces à vérifier : un point rouge), `total` un simple compte, `shortcut`
  * le raccourci « G puis touche ».
  */
 export function buildNavGroups(counts: Counts): NavGroup[] {
@@ -96,11 +86,6 @@ export function buildNavGroups(counts: Counts): NavGroup[] {
                     badge: counts.leadsTodo,
                     section: 'leads',
                     shortcut: 'G L',
-                    create: {
-                        href: leadsCreate(),
-                        label: 'Nouveau lead locataire',
-                        section: 'leads_create',
-                    },
                 },
                 {
                     title: 'Leads propriétaires',
@@ -109,11 +94,6 @@ export function buildNavGroups(counts: Counts): NavGroup[] {
                     badge: counts.ownerLeadsTodo,
                     section: 'owner_leads',
                     shortcut: 'G O',
-                    create: {
-                        href: leadsCreate({ query: { segment: 'owner' } }),
-                        label: 'Nouveau lead propriétaire',
-                        section: 'owner_leads_create',
-                    },
                 },
             ],
         },
@@ -140,11 +120,6 @@ export function buildNavGroups(counts: Counts): NavGroup[] {
                     // la page et dans « Aujourd'hui », pas dans le menu.
                     section: 'visits',
                     shortcut: 'G V',
-                    create: {
-                        href: visitsCreate(),
-                        label: 'Planifier une visite',
-                        section: 'visits',
-                    },
                 },
                 {
                     // Le même nom que l'objet, partout : une liste de pièces.
@@ -154,64 +129,6 @@ export function buildNavGroups(counts: Counts): NavGroup[] {
                     badge: counts.pendingUploads,
                     section: 'documents',
                     shortcut: 'G P',
-                    create: {
-                        href: documentsCreate(),
-                        label: 'Nouvelle liste de pièces',
-                        section: 'documents',
-                    },
-                },
-            ],
-        },
-        // « Annuaire » : les fiches des tiers avec qui l'équipe travaille, à
-        // plat. Un menu dépliable qui ne cache que deux liens coûtait un clic
-        // pour rien.
-        {
-            label: 'Annuaire',
-            items: [
-                {
-                    title: 'Agents',
-                    href: agentsIndex(),
-                    animatedIcon: UserCheckIcon,
-                    section: 'agents',
-                    shortcut: 'G T',
-                },
-                {
-                    title: 'Agences',
-                    href: agenciesIndex(),
-                    animatedIcon: MapPinHouseIcon,
-                    section: 'agents',
-                    shortcut: 'G C',
-                },
-                {
-                    title: 'Partenaires',
-                    href: partnersIndex(),
-                    animatedIcon: HeartHandshakeIcon,
-                    section: 'partners',
-                    shortcut: 'G R',
-                },
-                {
-                    // Employeurs et sociétés qui nous confient leurs collaborateurs.
-                    title: 'Entreprises',
-                    href: companiesIndex(),
-                    animatedIcon: BriefcaseBusinessIcon,
-                    section: 'companies',
-                    shortcut: 'G N',
-                },
-                {
-                    // L'annuaire de qui possède quoi ; la prospection, c'est
-                    // « Leads propriétaires » plus haut.
-                    title: 'Propriétaires',
-                    href: ownersIndex(),
-                    animatedIcon: IdCardIcon,
-                    section: 'owners',
-                    shortcut: 'G I',
-                },
-                {
-                    title: 'Biens',
-                    href: propertiesIndex(),
-                    animatedIcon: HomeIcon,
-                    section: 'properties',
-                    shortcut: 'G B',
                 },
             ],
         },
@@ -220,6 +137,57 @@ export function buildNavGroups(counts: Counts): NavGroup[] {
         {
             label: 'Outils',
             items: [
+                // « Annuaire » : les fiches des tiers avec qui l'équipe travaille.
+                // Six liens à plat prenaient le tiers du menu : ils vivent dans un
+                // seul menu déroulant, en tête des outils, ouvert au clic, qui
+                // déploie les liens en arbre (une ligne arrondie vers chacun). Le
+                // menu n'est pas une page : cliquer dessus l'ouvre, rien d'autre.
+                {
+                    title: 'Annuaire',
+                    href: '#',
+                    animatedIcon: UsersRoundIcon,
+                    items: [
+                        {
+                            title: 'Agents',
+                            href: agentsIndex(),
+                            section: 'agents',
+                            shortcut: 'G T',
+                        },
+                        {
+                            title: 'Agences',
+                            href: agenciesIndex(),
+                            section: 'agents',
+                            shortcut: 'G C',
+                        },
+                        {
+                            title: 'Partenaires',
+                            href: partnersIndex(),
+                            section: 'partners',
+                            shortcut: 'G R',
+                        },
+                        {
+                            // Employeurs et sociétés qui nous confient leurs collaborateurs.
+                            title: 'Entreprises',
+                            href: companiesIndex(),
+                            section: 'companies',
+                            shortcut: 'G N',
+                        },
+                        {
+                            // L'annuaire de qui possède quoi ; la prospection, c'est
+                            // « Leads propriétaires » plus haut.
+                            title: 'Propriétaires',
+                            href: ownersIndex(),
+                            section: 'owners',
+                            shortcut: 'G I',
+                        },
+                        {
+                            title: 'Biens',
+                            href: propertiesIndex(),
+                            section: 'properties',
+                            shortcut: 'G B',
+                        },
+                    ],
+                },
                 {
                     title: 'Devis',
                     href: quotesIndex(),

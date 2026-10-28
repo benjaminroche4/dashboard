@@ -12,6 +12,7 @@ use App\Mail\FirstContactOverdueForAssignee;
 use App\Mail\InvoiceSent;
 use App\Mail\LeadDossierForwarded;
 use App\Mail\LeadDossierSent;
+use App\Mail\LeadPropertyMatch;
 use App\Mail\LeadVisioScheduled;
 use App\Mail\PropertyDecisionDue as DecisionDue;
 use App\Mail\QuoteSent;
@@ -63,6 +64,7 @@ function everyMailable(): array
         'InvoiceSent' => new InvoiceSent(Invoice::factory()->create()),
         'LeadDossierForwarded' => new LeadDossierForwarded($client, $link, 'Merci de votre retour.', $advisor),
         'LeadDossierSent' => new LeadDossierSent($lead, [LeadMailItem::Recap], 'https://pay.example.com', 'https://sign.example.com'),
+        'LeadPropertyMatch' => new LeadPropertyMatch($lead, 4),
         'LeadVisioScheduled' => new LeadVisioScheduled($lead, CarbonImmutable::now()->addDay(), 'https://meet.google.com/abc', false, 'ICS'),
         'PropertyDecisionDue' => new DecisionDue($client, $property, $advisor, 3),
         'QuoteSent' => new QuoteSent(Quote::factory()->create()),
@@ -104,6 +106,7 @@ test('each e-mail still says what it is for', function (): void {
         'InvoiceSent' => ['Votre facture', 'Échéance', 'IBAN'],
         'LeadDossierForwarded' => ['Dossier', 'Merci de votre retour.'],
         'LeadDossierSent' => ['Votre projet logement', 'Bonjour'],
+        'LeadPropertyMatch' => ['4 biens correspondent à votre recherche', 'Contacter mon conseiller', 'Ce que nous faisons pour vous'],
         'LeadVisioScheduled' => ['appel vidéo', 'meet.google.com'],
         'PropertyDecisionDue' => ['une décision se fait attendre', 'En attente depuis', 'Ouvrir le dossier'],
         'QuoteSent' => ['Votre devis', 'Valable jusqu’au'],

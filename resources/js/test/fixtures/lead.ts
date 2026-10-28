@@ -1,10 +1,11 @@
 import type {
+    LeadEditOptions,
+    LeadVerdictInfo,
     Lead,
     LeadDetail,
     LeadInboundMessage,
     LeadProperty,
     LeadPropertyDetail,
-    LeadQualification,
     LeadStatusOption,
     OwnerLeadEditable,
 } from '@/types';
@@ -27,12 +28,19 @@ export function makeLead(overrides: Partial<Lead> = {}): Lead {
         budget_cents: 250_000,
         currency: 'EUR',
         origin_city: 'Genève',
+        origin_country: 'CH',
+        employment_status: null,
+        employment_status_label: null,
+        project_notes: null,
         source_label: 'Recommandation',
         source_note: null,
         districts: [3, 4],
         property_types: [{ value: 't2', label: 'T2' }],
+        duration: 'long',
         duration_label: 'Long terme · 12 mois et plus',
+        guarantors: [],
         guarantor_label: null,
+        furnished: 'furnished',
         furnished_label: 'Meublé',
         recontact_channel: null,
         recontact_channel_label: null,
@@ -43,7 +51,8 @@ export function makeLead(overrides: Partial<Lead> = {}): Lead {
         status: 'todo',
         status_label: 'À traiter',
         segment: 'tenant',
-        ai_pending: false,
+        ai_verdict: null,
+        ai_verdict_label: null,
         loss_reason: null,
         loss_reason_label: null,
         loss_note: null,
@@ -83,6 +92,38 @@ export function makeLeadDetail(
     } as LeadDetail;
 }
 
+export const leadEditOptions: LeadEditOptions = {
+    offers: [
+        { value: 'accompagne', label: 'Accompagné' },
+        { value: 'confie', label: 'Confié' },
+    ],
+    currencies: [
+        { value: 'EUR', label: 'Euro' },
+        { value: 'CHF', label: 'Franc suisse' },
+    ],
+    propertyTypes: [
+        { value: 'studio', label: 'Studio' },
+        { value: 't2', label: 'T2' },
+        { value: 'loft', label: 'Loft' },
+    ],
+    durations: [
+        { value: 'short', label: 'Court terme' },
+        { value: 'long', label: 'Long terme · 12 mois et plus' },
+    ],
+    guarantors: [
+        { value: 'physique', label: 'Garant physique' },
+        { value: 'garantme', label: 'Garantme' },
+    ],
+    furnishedOptions: [
+        { value: 'furnished', label: 'Meublé' },
+        { value: 'unfurnished', label: 'Vide' },
+    ],
+    employmentStatuses: [
+        { value: 'cdi', label: 'CDI' },
+        { value: 'etudiant', label: 'Étudiant' },
+    ],
+};
+
 export function makeInbound(
     overrides: Partial<LeadInboundMessage> = {},
 ): LeadInboundMessage {
@@ -91,6 +132,7 @@ export function makeInbound(
         body: "Bonjour, j'arrive à Paris en octobre avec ma famille.",
         meta: 'Formulaire de contact · Recherche de logement · CT-4F2A11',
         at: '2026-09-06T17:03:00+02:00',
+        topic: 'Recherche de logement',
         ...overrides,
     };
 }
@@ -166,25 +208,15 @@ export function makeOwnerLeadEditable(
         ...overrides,
     };
 }
-
-export function makeQualification(
-    overrides: Partial<LeadQualification> = {},
-): LeadQualification {
+/** Avis de l'assistant sur un lead, qualifié par défaut. */
+export function makeVerdict(
+    overrides: Partial<LeadVerdictInfo> = {},
+): LeadVerdictInfo {
     return {
-        at: '2026-09-08T10:00:00+00:00',
-        summary:
-            'Cadre muté de Genève, cherche un T3 meublé dans le Marais pour octobre.',
-        score: 4,
-        score_reason: 'Projet précis et budget réaliste.',
-        fields: [
-            { key: 'company', label: 'Société', value: 'Nestlé' },
-            { key: 'districts', label: 'Arrondissements', value: '3e, 4e' },
-            {
-                key: 'score',
-                label: 'Note',
-                value: '4 / 5 · Projet précis et budget réaliste.',
-            },
-        ],
+        value: 'qualified',
+        label: 'Qualifié',
+        reason: 'Projet précis, budget réaliste et arrivée proche.',
+        at: '2026-10-28T09:00:00+01:00',
         ...overrides,
     };
 }

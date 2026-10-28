@@ -5,42 +5,39 @@ declare(strict_types=1);
 namespace App\Actions\Leads;
 
 use App\Data\LeadInboundMessageData;
-use App\Data\LeadQualificationData;
+use App\Data\LeadVerdictData;
 use App\Enums\LeadNoteKind;
 use App\Events\DashboardUpdated;
 use App\Models\Lead;
 use App\Models\LeadNote;
 use App\Services\Assistant;
-use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 /**
- * Demande à l'assistant IA de qualifier un lead à partir de ce qu'il a écrit
- * ou dit (formulaire du site, résumé d'appel, SMS, notes). La proposition est
- * stockée sur le lead et attend la relecture d'un membre : rien n'est appliqué ici.
+ * Demande à l'assistant IA son avis sur un lead (« AI check ») à partir de
+ * tout ce que le lead porte : message d'arrivée (site, appel, SMS), notes de
+ * l'équipe et champs déjà connus. L'avis est posé sur le lead, rien d'autre
+ * n'est écrit : l'équipe garde la main sur la fiche.
  */
 final readonly class QualifyLead
 {
     private const string SYSTEM = <<<'TXT'
-Tu es l'assistant d'une agence de relocation qui aide des personnes (souvent étrangères, ou en mutation) à trouver un logement à Paris.
-On te donne ce qu'un prospect a écrit ou dit en arrivant, et ce que l'équipe sait déjà. Déduis le projet de logement pour préremplir sa fiche. Règles :
-- N'invente rien : un champ absent vaut null (ou une liste vide). Ne répète pas ce qui est déjà connu, sauf pour le corriger si le texte le contredit clairement.
-- Le budget est le loyer mensuel maximal ; convertis un budget annuel ou hebdomadaire en mensuel. Devise EUR sauf mention explicite de francs suisses (CHF).
-- Les arrondissements se déduisent des quartiers cités (Marais → 3 et 4, Saint-Germain → 6, Oberkampf ou Bastille → 11, Batignolles → 17, Montmartre → 18…). Rien si le prospect ne cible aucun quartier.
-- « property_types » : studio, t1 à t4 selon le nombre de pièces ou de chambres demandées (2 chambres → t3), grand_appartement au-delà, maison si demandé.
-- « duration » : short = moins de 3 mois, medium = 3 à 12 mois, long = 12 mois et plus.
-- « score » de 1 à 5 : 5 = projet précis, budget réaliste pour Paris (au moins 1 300 € par mois pour un studio), date d'arrivée proche, coordonnées complètes ; 1 = demande vague, budget très insuffisant ou hors cible (vente, colocation gratuite…). Explique en une phrase dans « score_reason ».
-- « summary » : le projet en une ou deux phrases, en français, factuel.
+Tu es l'assistant d'une agence de relocation qui aide des personnes (souvent étrangères, ou en mutation) à trouver un logement à louer à Paris.
+On te donne ce qu'un prospect a écrit ou dit en arrivant, les notes de l'équipe et ce qu'elle sait déjà de lui. Rends ton avis sur ce lead, rien d'autre.
+- « qualified » : un vrai projet de location à Paris que l'agence peut servir — intention claire, budget mensuel d'au moins 1 100 € (en dessous, une relocation sérieuse n'est pas possible), date d'arrivée plausible, personne joignable.
+- « not_qualified » : hors cible (achat, colocation gratuite, démarchage, candidature, spam), budget mensuel sous 1 100 €, ou demande sans suite possible.
+- « neutral » : tu n'as pas assez d'éléments pour trancher (message vague, pas de budget ni de projet lisible). Ne devine pas.
+- « reason » : pourquoi, en une phrase courte en français, factuelle, que l'équipe lira d'un coup d'œil.
 TXT;
 
     public function __construct(private Assistant $assistant) {}
 
     /**
-     * @return LeadQualificationData|null Null si l'assistant n'est pas configuré ou s'il n'y a rien à lire.
+     * @return LeadVerdictData|null Null si l'assistant n'est pas configuré ou s'il n'y a rien à lire.
      *
      * @throws RuntimeException si l'API échoue (l'appelant décide : job silencieux ou message à l'équipe)
      */
-    public function handle(Lead $lead): ?LeadQualificationData
+    public function handle(Lead $lead): ?LeadVerdictData
     {
         if (! $this->assistant->isConfigured()) {
             return null;
@@ -52,15 +49,19 @@ TXT;
             return null;
         }
 
-        $data = LeadQualificationData::from($this->assistant->extract(self::SYSTEM, $prompt, LeadQualificationData::schema()));
+        $data = LeadVerdictData::from($this->assistant->extract(self::SYSTEM, $prompt, LeadVerdictData::schema()));
 
-        $lead->forceFill(['ai_qualification' => $data->toArray(), 'ai_qualified_at' => now()])->save();
+        $lead->forceFill([
+            'ai_verdict' => $data->verdict,
+            'ai_verdict_reason' => $data->reason,
+            'ai_verdict_at' => now(),
+        ])->save();
 
-        if ($data->proposals($lead) !== []) {
-            event(new DashboardUpdated('leads', ['id' => $lead->id, 'mentions' => array_filter([$lead->assigned_to])], "L'assistant a qualifié le lead {$lead->fullName()} : à relire"));
-        } else {
-            Log::info('Qualification IA sans proposition nouvelle.', ['lead' => $lead->id]);
-        }
+        event(new DashboardUpdated(
+            'leads',
+            ['id' => $lead->id, 'mentions' => array_filter([$lead->assigned_to])],
+            "L'assistant a évalué le lead {$lead->fullName()} : ".mb_strtolower($data->verdict->label()),
+        ));
 
         return $data;
     }

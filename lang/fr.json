@@ -331,5 +331,6 @@
     "Cette facture ne peut pas être transformée en devis depuis le statut « :status ».": "Cette facture ne peut pas être transformée en devis depuis le statut « :status ».",
     "Devis :quote créé depuis la facture :number, qui est annulée.": "Devis :quote créé depuis la facture :number, qui est annulée.",
     "Logo de :name mis à jour.": "Logo de :name mis à jour.",
-    "Logo de :name retiré.": "Logo de :name retiré."
+    "Logo de :name retiré.": "Logo de :name retiré.",
+    "Indiquez au moins un bien correspondant.": "Indiquez au moins un bien correspondant."
 }
