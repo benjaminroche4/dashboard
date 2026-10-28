@@ -105,8 +105,6 @@ export type LeadFilters = {
     minScore: number;
     sort: LeadSortKey;
     assignee: LeadAssigneeFilter;
-    /** Mois d'emménagement « AAAA-MM », ou « all » pour tous. */
-    arrivalMonth: string;
 };
 
 export const defaultFilters: LeadFilters = {
@@ -116,7 +114,6 @@ export const defaultFilters: LeadFilters = {
     minScore: 0,
     sort: 'manual',
     assignee: 'all',
-    arrivalMonth: 'all',
 };
 
 /** « AAAA-MM » d'une date d'arrivée, null sans date. */
@@ -124,30 +121,51 @@ export function arrivalMonthOf(lead: Pick<Lead, 'arrival_at'>): string | null {
     return lead.arrival_at ? lead.arrival_at.slice(0, 7) : null;
 }
 
+export type LeadMonthGroup = {
+    /** « AAAA-MM », ou « none » pour les leads sans date d'emménagement. */
+    key: string;
+    label: string;
+    leads: Lead[];
+};
+
 /**
- * Les mois d'emménagement présents dans la liste, du plus proche au plus
- * lointain, avec le nombre de leads qui emménagent chacun.
+ * Les leads groupés par mois d'emménagement, du plus proche au plus
+ * lointain, chaque mois trié par date d'arrivée ; les leads sans date
+ * ferment la liste, dans l'ordre reçu.
  */
-export function arrivalMonths(
-    leads: Pick<Lead, 'arrival_at'>[],
-): { value: string; label: string; count: number }[] {
-    const counts = new Map<string, number>();
+export function groupLeadsByArrivalMonth(leads: Lead[]): LeadMonthGroup[] {
+    const months = new Map<string, Lead[]>();
+    const undated: Lead[] = [];
 
     for (const lead of leads) {
         const month = arrivalMonthOf(lead);
 
-        if (month !== null) {
-            counts.set(month, (counts.get(month) ?? 0) + 1);
+        if (month === null) {
+            undated.push(lead);
+        } else {
+            months.set(month, [...(months.get(month) ?? []), lead]);
         }
     }
 
-    return [...counts.entries()]
+    const groups = [...months.entries()]
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([value, count]) => ({
-            value,
-            label: arrivalMonthLabel(value),
-            count,
+        .map(([key, group]) => ({
+            key,
+            label: arrivalMonthLabel(key),
+            leads: [...group].sort((a, b) =>
+                (a.arrival_at ?? '').localeCompare(b.arrival_at ?? ''),
+            ),
         }));
+
+    if (undated.length > 0) {
+        groups.push({
+            key: 'none',
+            label: "Sans date d'emménagement",
+            leads: undated,
+        });
+    }
+
+    return groups;
 }
 
 const monthFormat = parisFormat({ month: 'long', year: 'numeric' });
@@ -169,8 +187,7 @@ export function hasActiveFilters(filters: LeadFilters): boolean {
         filters.status !== 'all' ||
         filters.offer !== 'all' ||
         filters.minScore > 0 ||
-        filters.assignee !== defaultFilters.assignee ||
-        (filters.arrivalMonth ?? 'all') !== 'all'
+        filters.assignee !== defaultFilters.assignee
     );
 }
 
@@ -213,12 +230,6 @@ export function filterLeads(leads: Lead[], filters: LeadFilters): Lead[] {
         }
 
         if (filters.offer !== 'all' && lead.offer !== filters.offer) {
-            return false;
-        }
-
-        // Des filtres mémorisés avant l'ajout du mois n'ont pas la clé : « tous ».
-        const month = filters.arrivalMonth ?? 'all';
-        if (month !== 'all' && arrivalMonthOf(lead) !== month) {
             return false;
         }
 

@@ -1,6 +1,6 @@
 import { Link, router } from '@inertiajs/react';
 import type { ComponentProps } from 'react';
-import { Kanban, Table2 } from 'lucide-react';
+import { CalendarRange, Kanban, Table2 } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { DataTable } from '@/components/data-table';
 import {
@@ -8,6 +8,7 @@ import {
     type KanbanPalette,
 } from '@/components/leads/kanban-board';
 import { LeadFilterBar } from '@/components/leads/lead-filter-bar';
+import { LeadMonthSection } from '@/components/leads/lead-month-section';
 import {
     leadTableColumnLabels,
     leadTableColumns,
@@ -17,6 +18,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
     defaultFilters,
     filterLeads,
+    groupLeadsByArrivalMonth,
     type LeadFilters,
     hasActiveFilters,
 } from '@/lib/kanban';
@@ -32,14 +34,17 @@ import type {
     LeadStatusOption,
 } from '@/types';
 
-export type LeadView = 'kanban' | 'table';
+/** Kanban, tableau, ou un tableau par mois d'emménagement. */
+export type LeadView = 'kanban' | 'table' | 'months';
+
+const views: LeadView[] = ['kanban', 'table', 'months'];
 
 /** Vue choisie par l'utilisateur, mémorisée entre deux visites sous `storageKey`. */
 function readView(storageKey: string): LeadView {
     try {
-        return localStorage.getItem(storageKey) === 'table'
-            ? 'table'
-            : 'kanban';
+        const stored = localStorage.getItem(storageKey);
+
+        return views.find((view) => view === stored) ?? 'kanban';
     } catch {
         return 'kanban';
     }
@@ -131,6 +136,10 @@ export function LeadListView({
     // Sous filtre, la liste est partielle : une position calculée dessus serait
     // fausse sur la colonne complète, le glisser change alors seulement le statut.
     const filtering = hasActiveFilters(filters);
+    const months = useMemo(
+        () => (view === 'months' ? groupLeadsByArrivalMonth(filtered) : []),
+        [view, filtered],
+    );
     const loadArchived = () =>
         router.reload({ data: { archived: 1 }, only: ['leads', 'archived'] });
     const patch = (changes: Partial<LeadFilters>) => {
@@ -147,7 +156,7 @@ export function LeadListView({
             className={cn(
                 'flex w-full flex-1 flex-col px-4',
                 // En tableau, même gabarit centré que les dossiers clients ; le kanban garde toute la largeur.
-                view === 'table' ? 'mx-auto max-w-7xl pb-10' : 'pb-6',
+                view === 'kanban' ? 'pb-6' : 'mx-auto max-w-7xl pb-10',
             )}
         >
             <div className="flex flex-wrap items-end justify-between gap-4 pt-8 pb-6">
@@ -181,6 +190,14 @@ export function LeadListView({
                             <Table2 aria-hidden />
                             Tableau
                         </ToggleGroupItem>
+                        <ToggleGroupItem
+                            value="months"
+                            aria-label="Par mois"
+                            className="h-9 rounded-md px-3 first:rounded-md last:rounded-md"
+                        >
+                            <CalendarRange aria-hidden />
+                            Par mois
+                        </ToggleGroupItem>
                     </ToggleGroup>
                     {action}
                 </div>
@@ -204,11 +221,28 @@ export function LeadListView({
                     <LeadFilterBar
                         filters={filters}
                         offers={offers}
-                        statuses={view === 'table' ? statuses : undefined}
+                        statuses={view === 'kanban' ? undefined : statuses}
                         leads={leads}
                         onChange={patch}
                     />
-                    {view === 'table' ? (
+                    {view === 'months' ? (
+                        // Un tableau par mois d'emménagement, du plus proche
+                        // au plus lointain : qui arrive en novembre se lit d'un
+                        // coup, sans filtrer mois par mois.
+                        <div className="grid gap-4" data-testid="lead-months">
+                            {months.map((group) => (
+                                <LeadMonthSection
+                                    key={group.key}
+                                    group={group}
+                                />
+                            ))}
+                            {months.length === 0 && (
+                                <p className="text-muted-foreground py-12 text-center text-sm">
+                                    Aucun lead ne correspond aux filtres.
+                                </p>
+                            )}
+                        </div>
+                    ) : view === 'table' ? (
                         <DataTable
                             storageKey={`${storageKey}.table`}
                             columns={leadTableColumns}

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     applyMove,
     arrivalMonthLabel,
-    arrivalMonths,
+    groupLeadsByArrivalMonth,
     columnOf,
     columnStats,
     defaultFilters,
@@ -148,39 +148,38 @@ describe('hasActiveFilters', () => {
         expect(hasActiveFilters({ ...defaultFilters, status: 'todo' })).toBe(
             true,
         );
-        expect(
-            hasActiveFilters({ ...defaultFilters, arrivalMonth: '2026-11' }),
-        ).toBe(true);
     });
 });
 
-describe('arrival month filter', () => {
+describe('arrival month groups', () => {
     const sample = [
-        makeLead({ id: 1, name: 'Nov', arrival_at: '2026-11-03' }),
-        makeLead({ id: 2, name: 'Nov bis', arrival_at: '2026-11-28' }),
+        makeLead({ id: 1, name: 'Nov bis', arrival_at: '2026-11-28' }),
+        makeLead({ id: 2, name: 'Sans date', arrival_at: null }),
         makeLead({ id: 3, name: 'Jan', arrival_at: '2027-01-10' }),
-        makeLead({ id: 4, name: 'Sans date', arrival_at: null }),
+        makeLead({ id: 4, name: 'Nov', arrival_at: '2026-11-03' }),
     ];
 
-    it('lists the months present, in order, with their counts and a readable label', () => {
-        expect(arrivalMonths(sample)).toEqual([
-            { value: '2026-11', label: 'Novembre 2026', count: 2 },
-            { value: '2027-01', label: 'Janvier 2027', count: 1 },
+    it('groups the leads by month, nearest first, each month by arrival date, the undated last', () => {
+        const groups = groupLeadsByArrivalMonth(sample);
+
+        expect(
+            groups.map((group) => [
+                group.key,
+                group.label,
+                group.leads.map((lead) => lead.name),
+            ]),
+        ).toEqual([
+            ['2026-11', 'Novembre 2026', ['Nov', 'Nov bis']],
+            ['2027-01', 'Janvier 2027', ['Jan']],
+            ['none', "Sans date d'emménagement", ['Sans date']],
         ]);
         expect(arrivalMonthLabel('2026-03')).toBe('Mars 2026');
     });
 
-    it('keeps only the leads moving in that month, and everyone when the stored filters predate the key', () => {
+    it('has no undated group when every lead has a date, and nothing at all without leads', () => {
         expect(
-            filterLeads(sample, {
-                ...defaultFilters,
-                arrivalMonth: '2026-11',
-            }).map((lead) => lead.name),
-        ).toEqual(['Nov', 'Nov bis']);
-        const legacy = { ...defaultFilters } as Partial<typeof defaultFilters>;
-        delete legacy.arrivalMonth;
-        expect(
-            filterLeads(sample, legacy as typeof defaultFilters),
-        ).toHaveLength(4);
+            groupLeadsByArrivalMonth(sample.slice(2, 3)).map((g) => g.key),
+        ).toEqual(['2027-01']);
+        expect(groupLeadsByArrivalMonth([])).toEqual([]);
     });
 });

@@ -203,11 +203,15 @@ describe('Leads kanban page', () => {
         expect(screen.queryByText('Marc Petit')).not.toBeInTheDocument();
     });
 
-    it('filters the leads by move-in month from the Filtres popover', async () => {
+    it('shows one table per move-in month in the « Par mois » view, undated leads last', async () => {
         const user = userEvent.setup();
+        localStorage.removeItem('leads.view');
         render(
             <LeadsIndex
-                leads={leads}
+                leads={[
+                    ...leads,
+                    makeLead({ id: 4, name: 'Sam Lenoir', arrival_at: null }),
+                ]}
                 archived={{ loaded: true, count: 0 }}
                 statuses={leadStatuses}
                 offers={offers}
@@ -215,20 +219,42 @@ describe('Leads kanban page', () => {
             />,
         );
 
-        await user.click(screen.getByRole('button', { name: /Filtres/ }));
         await user.click(
-            await screen.findByRole('combobox', {
-                name: "Mois d'emménagement",
+            within(screen.getByLabelText('Affichage')).getByRole('radio', {
+                name: 'Par mois',
             }),
         );
-        // Les mois présents dans la liste, avec le nombre de leads.
-        expect(
-            await screen.findByRole('option', { name: /Novembre 2026/ }),
-        ).toHaveTextContent('2');
-        await user.click(screen.getByRole('option', { name: /Janvier 2027/ }));
 
-        expect(screen.getByText('Marc Petit')).toBeInTheDocument();
-        expect(screen.queryByText('Léa Durand')).not.toBeInTheDocument();
+        const sections = within(screen.getByTestId('lead-months')).getAllByRole(
+            'region',
+        );
+        expect(
+            sections.map((section) => section.getAttribute('aria-label')),
+        ).toEqual([
+            'Novembre 2026',
+            'Janvier 2027',
+            "Sans date d'emménagement",
+        ]);
+        expect(within(sections[0]).getByText('2 leads')).toBeInTheDocument();
+        expect(within(sections[0]).getByText('Léa Durand')).toBeInTheDocument();
+        expect(within(sections[1]).getByText('Marc Petit')).toBeInTheDocument();
+        expect(within(sections[2]).getByText('Sam Lenoir')).toBeInTheDocument();
+        expect(localStorage.getItem('leads.view')).toBe('months');
+
+        // Les filtres restreignent chaque mois ; un mois vidé disparaît.
+        await user.click(screen.getByRole('button', { name: /Filtres/ }));
+        await user.click(
+            await screen.findByRole('combobox', { name: 'Statut' }),
+        );
+        await user.click(
+            await screen.findByRole('option', { name: 'Converti' }),
+        );
+        expect(
+            within(screen.getByTestId('lead-months'))
+                .getAllByRole('region')
+                .map((section) => section.getAttribute('aria-label')),
+        ).toEqual(['Janvier 2027']);
+        localStorage.removeItem('leads.view');
     });
 
     it('remembers the chosen filters after a reload, but not the searched text', async () => {
