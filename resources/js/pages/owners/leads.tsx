@@ -8,7 +8,6 @@ import type {
     LabeledOption,
     Lead,
     LeadLossReason,
-    LeadOfferOption,
     LeadStatusOption,
 } from '@/types';
 
@@ -16,7 +15,6 @@ type Props = {
     leads: Lead[];
     archived: ArchivedLeads;
     statuses: LeadStatusOption[];
-    offers: LeadOfferOption[];
     lossReasons: LabeledOption<LeadLossReason>[];
 };
 
@@ -25,7 +23,6 @@ export default function OwnerLeads({
     leads,
     archived,
     statuses,
-    offers,
     lossReasons,
 }: Props) {
     const open = leads.filter(
@@ -42,7 +39,6 @@ export default function OwnerLeads({
                 leads={leads}
                 archived={archived}
                 statuses={statuses}
-                offers={offers}
                 lossReasons={lossReasons}
                 title="Leads propriétaires"
                 summary={`${leads.length + (archived.loaded ? 0 : archived.count)} lead(s) · ${open} en cours · ${converted} converti(s)`}

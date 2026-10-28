@@ -233,7 +233,8 @@ export function LeadFilterBar({
     onChange,
 }: {
     filters: LeadFilters;
-    offers: LeadOfferOption[];
+    /** Offres proposées au filtre ; absent sur les leads propriétaires, qui n'ont pas de formule à filtrer. */
+    offers?: LeadOfferOption[];
     /** Statuts proposés dans le filtre ; absent sur le kanban, qui a déjà une colonne par statut. */
     statuses?: LeadStatusOption[];
     /** Tous les leads (avant filtrage), pour connaître les responsables présents. */
@@ -242,7 +243,10 @@ export function LeadFilterBar({
 }) {
     const offerOptions: Option<OfferValue | 'all'>[] = [
         { value: 'all', label: 'Toutes les offres' },
-        ...offers.map((offer) => ({ value: offer.value, label: offer.label })),
+        ...(offers ?? []).map((offer) => ({
+            value: offer.value,
+            label: offer.label,
+        })),
     ];
     const dirty =
         filters.query !== '' ||
@@ -329,7 +333,7 @@ export function LeadFilterBar({
             </SelectContent>
         </Select>
     );
-    const offerSelect = (
+    const offerSelect = offers && (
         <Select
             value={filters.offer}
             onValueChange={(offer) =>
@@ -444,10 +448,12 @@ export function LeadFilterBar({
                             {statusSelect}
                         </div>
                     )}
-                    <div className="grid gap-1.5">
-                        <Label htmlFor="filter-offer">Offre</Label>
-                        {offerSelect}
-                    </div>
+                    {offerSelect && (
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="filter-offer">Offre</Label>
+                            {offerSelect}
+                        </div>
+                    )}
                     <div className="grid gap-1.5">
                         <Label htmlFor="filter-score">Note minimale</Label>
                         {scoreSelect}

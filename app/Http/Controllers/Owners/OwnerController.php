@@ -139,7 +139,6 @@ class OwnerController extends Controller
             ],
             // Colonnes du kanban (« En signature » à la place de « Devis envoyé ») et motifs d'archivage.
             'statuses' => LeadStatus::ownerOptions(),
-            'offers' => LeadController::offers(),
             'lossReasons' => LeadLossReason::options(),
             'realtimeOnly' => ['leads'],
         ]);

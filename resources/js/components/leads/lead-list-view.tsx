@@ -61,7 +61,8 @@ type Props = {
     /** Archivés non chargés par défaut : chargés à la demande via `?archived=1`. */
     archived?: ArchivedLeads;
     statuses: LeadStatusOption[];
-    offers: LeadOfferOption[];
+    /** Offres du filtre « Offre » ; absent sur les leads propriétaires. */
+    offers?: LeadOfferOption[];
     lossReasons: LabeledOption<LeadLossReason>[];
     title: string;
     /** Sous-titre calculé à partir des leads reçus. */
@@ -200,14 +201,14 @@ export function LeadListView({
                             Tableau
                         </ToggleGroupItem>
                         {byMonth && (
-                        <ToggleGroupItem
-                            value="months"
-                            aria-label="Par mois"
-                            className="h-9 rounded-md px-3 first:rounded-md last:rounded-md"
-                        >
-                            <CalendarRange aria-hidden />
-                            Par mois
-                        </ToggleGroupItem>
+                            <ToggleGroupItem
+                                value="months"
+                                aria-label="Par mois"
+                                className="h-9 rounded-md px-3 first:rounded-md last:rounded-md"
+                            >
+                                <CalendarRange aria-hidden />
+                                Par mois
+                            </ToggleGroupItem>
                         )}
                     </ToggleGroup>
                     {action}

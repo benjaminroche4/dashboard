@@ -21,6 +21,8 @@
         </include>
     </source>
     <php>
+        <!-- La suite complète dépasse les 512 Mo par défaut de PHP depuis le 28 octobre 2026 (963 tests) : sans cette borne, le run s'arrête net à mi-parcours. -->
+        <ini name="memory_limit" value="1G"/>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>

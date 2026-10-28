@@ -124,7 +124,7 @@ test('the owner leads page lists only rental-management leads, newest first', fu
             ->has('leads.0.districts')
             ->has('statuses', 5)
             ->where('statuses.2.label', 'En signature')
-            ->has('offers', 2)
+            ->missing('offers')
             ->has('lossReasons')
             ->where('realtimeOnly', ['leads']));
 });

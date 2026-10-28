@@ -45,23 +45,6 @@ vi.mock('@inertiajs/react', () => ({
 import OwnerLeads from '@/pages/owners/leads';
 import { lossReasons, makeLead } from '@/test/fixtures/lead';
 
-const offers = [
-    {
-        value: 'accompagne' as const,
-        label: 'Accompagné',
-        description: '',
-        summary: '',
-        price_cents: 119_000,
-    },
-    {
-        value: 'confie' as const,
-        label: 'Confié',
-        description: '',
-        summary: '',
-        price_cents: 219_000,
-    },
-];
-
 /** Miroir de LeadStatus::ownerOptions(). */
 const statuses = [
     { value: 'todo' as const, label: 'À traiter' },
@@ -103,7 +86,6 @@ describe('Owner leads page', () => {
                 leads={leads}
                 archived={{ loaded: true, count: 0 }}
                 statuses={statuses}
-                offers={offers}
                 lossReasons={lossReasons}
             />,
         );
@@ -143,7 +125,6 @@ describe('Owner leads page', () => {
                 leads={leads}
                 archived={{ loaded: true, count: 0 }}
                 statuses={statuses}
-                offers={offers}
                 lossReasons={lossReasons}
             />,
         );
@@ -165,7 +146,6 @@ describe('Owner leads page', () => {
                 leads={leads}
                 archived={{ loaded: true, count: 0 }}
                 statuses={statuses}
-                offers={offers}
                 lossReasons={lossReasons}
             />,
         );
@@ -187,19 +167,38 @@ describe('Owner leads page', () => {
         expect(localStorage.getItem('leads.view')).toBeNull();
     });
 
+    it('has no « Offre » filter: this list handles owners, not tenant formulas', async () => {
+        const user = userEvent.setup();
+        render(
+            <OwnerLeads
+                leads={leads}
+                archived={{ loaded: true, count: 0 }}
+                statuses={statuses}
+                lossReasons={lossReasons}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: /Filtres/ }));
+        expect(
+            await screen.findByRole('combobox', { name: 'Note' }),
+        ).toBeInTheDocument();
+        expect(screen.queryByRole('combobox', { name: 'Offre' })).toBeNull();
+    });
+
     it('offers no « Par mois » view: an owner does not move in', () => {
         render(
             <OwnerLeads
                 leads={leads}
                 archived={{ loaded: true, count: 0 }}
                 statuses={statuses}
-                offers={offers}
                 lossReasons={lossReasons}
             />,
         );
 
         const views = within(screen.getByLabelText('Affichage'));
-        expect(views.getByRole('radio', { name: 'Tableau' })).toBeInTheDocument();
+        expect(
+            views.getByRole('radio', { name: 'Tableau' }),
+        ).toBeInTheDocument();
         expect(views.queryByRole('radio', { name: 'Par mois' })).toBeNull();
     });
 
@@ -209,7 +208,6 @@ describe('Owner leads page', () => {
                 leads={[]}
                 archived={{ loaded: true, count: 0 }}
                 statuses={statuses}
-                offers={offers}
                 lossReasons={lossReasons}
             />,
         );
