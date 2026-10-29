@@ -105,14 +105,21 @@ describe('Owner detail page', () => {
         );
         expect(properties.getByText(/1 500,00 € \/ mois/)).toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: 'Modifier' }));
+        // « Modifier » vit dans le menu « ⋯ », comme sur les autres fiches.
+        await user.click(
+            screen.getByRole('button', { name: 'Actions pour Zoé Martin' }),
+        );
+        await user.click(
+            await screen.findByRole('menuitem', { name: 'Modifier' }),
+        );
         const dialog = within(
             await screen.findByRole('dialog', { name: 'Modifier Zoé Martin' }),
         );
         expect(dialog.getByLabelText('E-mail')).toHaveValue('zoe@example.com');
     });
 
-    it('names a company by its trade name and adds a property from the page', () => {
+    it('names a company by its trade name and adds a property from the page', async () => {
+        const user = userEvent.setup();
         render(
             <OwnerShow
                 owner={makeOwner({
@@ -141,6 +148,8 @@ describe('Owner detail page', () => {
             'href',
             '/properties/create?owner=0199a9a0-0000-7000-8000-0000000000d1',
         );
+        // L'accordéon « Biens » est replié quand il est vide : on l'ouvre.
+        await user.click(screen.getByRole('button', { name: /^Biens/ }));
         expect(
             screen.getByText(/Aucun bien rattaché pour l’instant/),
         ).toBeInTheDocument();
@@ -174,8 +183,9 @@ describe('Owner detail page', () => {
         const relation = within(
             screen.getByRole('region', { name: 'Suivi et notes' }),
         );
+        // La frise donne la date et l'heure (à Paris) du dernier échange.
         expect(
-            relation.getByText('Dernier échange le 1 septembre 2026'),
+            relation.getByText(/1 septembre 2026 à 11:00/),
         ).toBeInTheDocument();
         await user.click(
             relation.getByRole('button', { name: 'Échange noté' }),

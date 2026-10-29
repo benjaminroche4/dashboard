@@ -1,7 +1,7 @@
-import { Plus } from 'lucide-react';
+import { Plus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { CompanyContactDialog } from '@/components/companies/company-contact-dialog';
-import { DetailSection } from '@/components/real-estate/detail-header';
+import { Fold } from '@/components/leads/lead-show-body';
 import { RealEstateRowActions } from '@/components/real-estate/real-estate-row-actions';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -30,21 +30,26 @@ export function CompanyContacts({
     const initials = useInitials();
 
     return (
-        <DetailSection
+        <Fold
             title="Contacts"
+            icon={Users}
             count={contacts.length}
+            defaultOpen={contacts.length > 0}
+            storageKey={`company.${companyUuid}.contacts`}
             action={
                 canEdit && (
                     <Button
-                        variant="outline"
-                        size="sm"
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-foreground size-7 rounded-full"
+                        aria-label="Ajouter un contact"
+                        title="Ajouter un contact"
                         onClick={() => {
                             setEditing(null);
                             setDialogOpen(true);
                         }}
                     >
                         <Plus aria-hidden />
-                        Ajouter un contact
                     </Button>
                 )
             }
@@ -55,11 +60,11 @@ export function CompanyContacts({
                     l’entreprise, en marquant les principaux.
                 </p>
             ) : (
-                <ul role="list" className="divide-border grid divide-y">
+                <ul role="list" className="grid gap-2">
                     {contacts.map((contact) => (
                         <li
                             key={contact.id}
-                            className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3 text-sm first:pt-0 last:pb-0"
+                            className="bg-sidebar flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border p-3 text-sm"
                         >
                             <div className="flex min-w-0 flex-1 items-center gap-3">
                                 <Avatar className="size-9 shrink-0">
@@ -135,6 +140,6 @@ export function CompanyContacts({
                 companyUuid={companyUuid}
                 contact={editing}
             />
-        </DetailSection>
+        </Fold>
     );
 }

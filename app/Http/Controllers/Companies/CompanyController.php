@@ -10,17 +10,17 @@ use App\Actions\Companies\DeleteCompany;
 use App\Actions\Companies\RemoveCompanyLogo;
 use App\Actions\Companies\SendCompanyFollowUp;
 use App\Actions\Companies\UpdateCompany;
+use App\Actions\Companies\UpdateCompanyFields;
 use App\Actions\Companies\UpdateCompanyLogo;
 use App\Data\CompanyData;
 use App\Enums\ContactFunction;
 use App\Enums\LeadStatus;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Tools\ActivityController;
 use App\Http\Requests\Companies\SendCompanyFollowUpRequest;
 use App\Http\Requests\Companies\StoreCompanyRequest;
+use App\Http\Requests\Companies\UpdateCompanyFieldsRequest;
 use App\Http\Requests\Companies\UpdateCompanyLogoRequest;
 use App\Http\Requests\Companies\UpdateCompanyRequest;
-use App\Models\Activity;
 use App\Models\Company;
 use App\Models\CompanyContact;
 use App\Models\Lead;
@@ -88,17 +88,17 @@ class CompanyController extends Controller
                 ->get()
                 ->map(fn (Company $other): array => ['uuid' => $other->uuid, 'name' => $other->name])
                 ->all(),
-            'activities' => Activity::query()
-                ->with(['actor', 'lead', 'partner'])
-                ->where('resource', 'companies')
-                ->where('payload->id', $company->id)
-                ->latest('created_at')
-                ->latest('id')
-                ->limit(10)
-                ->get()
-                ->map(fn (Activity $activity): array => ActivityController::summary($activity))
-                ->all(),
         ]);
+    }
+
+    /** Un ou plusieurs champs de l'entreprise, modifiés en place depuis sa fiche. */
+    public function fields(UpdateCompanyFieldsRequest $request, Company $company, UpdateCompanyFields $updateCompanyFields): RedirectResponse
+    {
+        $updateCompanyFields->handle($company, $request->fields());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Entreprise :name mise à jour.', ['name' => $company->name])]);
+
+        return back();
     }
 
     /** Recherche ⌘K : nom, contact, e-mail ou téléphone. */

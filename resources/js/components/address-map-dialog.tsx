@@ -114,7 +114,9 @@ export function AddressMap({
             : null;
 
     if (message) {
-        if (fallback && located) {
+        // La statique (clé Maps Static, construite depuis l'adresse) vaut aussi
+        // pour une fiche jamais géocodée : propriétaires, entreprises.
+        if (fallback) {
             return (
                 <img
                     src={fallback}

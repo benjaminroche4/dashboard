@@ -1,8 +1,8 @@
 import { Link, router } from '@inertiajs/react';
-import { Plus, Unlink } from 'lucide-react';
+import { FolderOpen, Plus, Unlink } from 'lucide-react';
 import { useState } from 'react';
 import { OfferBadge } from '@/components/clients/offer-badge';
-import { DetailSection } from '@/components/real-estate/detail-header';
+import { Fold } from '@/components/leads/lead-show-body';
 import { SearchSelect } from '@/components/search-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -77,18 +77,23 @@ export function CompanyClients({
     };
 
     return (
-        <DetailSection
+        <Fold
             title="Dossiers clients"
+            icon={FolderOpen}
             count={clients.length}
+            defaultOpen={clients.length > 0}
+            storageKey={`company.${companyUuid}.clients`}
             action={
                 canEdit && (
                     <Button
-                        variant="outline"
-                        size="sm"
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-foreground size-7 rounded-full"
+                        aria-label="Rattacher un client"
+                        title="Rattacher un client"
                         onClick={() => setAttaching(true)}
                     >
                         <Plus aria-hidden />
-                        Rattacher un client
                     </Button>
                 )
             }
@@ -99,11 +104,11 @@ export function CompanyClients({
                     de l’entreprise que l’équipe reloge.
                 </p>
             ) : (
-                <ul role="list" className="divide-border grid divide-y">
+                <ul role="list" className="grid gap-2">
                     {clients.map((client) => (
                         <li
                             key={client.id}
-                            className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 text-sm first:pt-0 last:pb-0"
+                            className="bg-sidebar flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border p-3 text-sm"
                         >
                             <span className="grid min-w-0 flex-1">
                                 <span className="flex min-w-0 items-center gap-2">
@@ -199,6 +204,6 @@ export function CompanyClients({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </DetailSection>
+        </Fold>
     );
 }

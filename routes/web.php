@@ -191,6 +191,7 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('owners/{owner}', [OwnerController::class, 'show'])->name('owners.show');
     Route::patch('owners/{owner}', [OwnerController::class, 'update'])->name('owners.update');
     Route::post('owners/{owner}/contact', [OwnerController::class, 'contact'])->name('owners.contact');
+    Route::patch('owners/{owner}/fields', [OwnerController::class, 'fields'])->name('owners.fields');
     Route::post('owners/{owner}/photo', [OwnerController::class, 'updatePhoto'])->name('owners.photo.update');
     Route::delete('owners/{owner}/photo', [OwnerController::class, 'destroyPhoto'])->name('owners.photo.destroy');
     Route::delete('owners/{owner}', [OwnerController::class, 'destroy'])->name('owners.destroy');
@@ -221,6 +222,7 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('companies/{company}', [CompanyController::class, 'show'])->name('companies.show');
     Route::patch('companies/{company}', [CompanyController::class, 'update'])->name('companies.update');
     Route::delete('companies/{company}', [CompanyController::class, 'destroy'])->name('companies.destroy');
+    Route::patch('companies/{company}/fields', [CompanyController::class, 'fields'])->name('companies.fields');
     Route::post('companies/{company}/follow-up', [CompanyController::class, 'followUp'])->middleware('throttle:20,1')->name('companies.follow-up');
     Route::post('companies/{company}/logo', [CompanyController::class, 'updateLogo'])->name('companies.logo.update');
     Route::delete('companies/{company}/logo', [CompanyController::class, 'destroyLogo'])->name('companies.logo.destroy');

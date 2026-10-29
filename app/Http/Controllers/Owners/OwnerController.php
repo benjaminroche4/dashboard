@@ -12,6 +12,7 @@ use App\Actions\Owners\DeleteOwners;
 use App\Actions\Owners\RemoveOwnerPhoto;
 use App\Actions\Owners\TouchOwnerContact;
 use App\Actions\Owners\UpdateOwner;
+use App\Actions\Owners\UpdateOwnerFields;
 use App\Actions\Owners\UpdateOwnerPhoto;
 use App\Data\OwnerData;
 use App\Enums\LeadLossReason;
@@ -26,6 +27,7 @@ use App\Http\Requests\Owners\BulkOwnersRequest;
 use App\Http\Requests\Owners\IndexOwnersRequest;
 use App\Http\Requests\Owners\StoreOwnerRequest;
 use App\Http\Requests\Owners\TouchOwnerRequest;
+use App\Http\Requests\Owners\UpdateOwnerFieldsRequest;
 use App\Http\Requests\Owners\UpdateOwnerPhotoRequest;
 use App\Http\Requests\Owners\UpdateOwnerRequest;
 use App\Models\Lead;
@@ -174,6 +176,16 @@ class OwnerController extends Controller
             // Tous les échanges notés, pour la modale « Voir l'historique ».
             'contacts' => resolve(ListContactHistory::class)->handle($owner),
         ]);
+    }
+
+    /** Un ou plusieurs champs du propriétaire, modifiés en place depuis sa fiche. */
+    public function fields(UpdateOwnerFieldsRequest $request, Owner $owner, UpdateOwnerFields $updateOwnerFields): RedirectResponse
+    {
+        $updateOwnerFields->handle($owner, $request->fields());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Propriétaire :name mis à jour.', ['name' => $owner->fullName()])]);
+
+        return back();
     }
 
     /** Propriétaires partageant l'e-mail ou le téléphone saisis (hors `except`), pour l'alerte doublons. */

@@ -102,6 +102,18 @@ describe('AddressMap', () => {
             />,
         );
         expect(container).toBeEmptyDOMElement();
+        // Sans position mais avec une statique construite depuis l'adresse :
+        // elle s'affiche (fiches jamais géocodées : propriétaires, entreprises).
+        rerender(
+            <AddressMap
+                place={{ ...place, latitude: null, longitude: null }}
+                fallback="/static/map.png"
+            />,
+        );
+        expect(screen.getByRole('img')).toHaveAttribute(
+            'src',
+            '/static/map.png',
+        );
     });
 
     it('mounts the live map container as soon as a key and a position exist', () => {
