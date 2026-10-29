@@ -9,8 +9,10 @@ use App\Actions\Owners\AddLeadToDirectory;
 use App\Actions\Owners\CreateOwner;
 use App\Actions\Owners\DeleteOwner;
 use App\Actions\Owners\DeleteOwners;
+use App\Actions\Owners\RemoveOwnerPhoto;
 use App\Actions\Owners\TouchOwnerContact;
 use App\Actions\Owners\UpdateOwner;
+use App\Actions\Owners\UpdateOwnerPhoto;
 use App\Data\OwnerData;
 use App\Enums\LeadLossReason;
 use App\Enums\LeadStatus;
@@ -24,6 +26,7 @@ use App\Http\Requests\Owners\BulkOwnersRequest;
 use App\Http\Requests\Owners\IndexOwnersRequest;
 use App\Http\Requests\Owners\StoreOwnerRequest;
 use App\Http\Requests\Owners\TouchOwnerRequest;
+use App\Http\Requests\Owners\UpdateOwnerPhotoRequest;
 use App\Http\Requests\Owners\UpdateOwnerRequest;
 use App\Models\Lead;
 use App\Models\Owner;
@@ -36,6 +39,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Date;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -274,6 +278,34 @@ class OwnerController extends Controller
         return back();
     }
 
+    /** Remplace la photo (portrait ou logo) du propriétaire. */
+    public function updatePhoto(UpdateOwnerPhotoRequest $request, Owner $owner, UpdateOwnerPhoto $update): RedirectResponse
+    {
+        $this->authorize('update', $owner);
+
+        $photo = $request->file('photo');
+
+        if ($photo instanceof UploadedFile) {
+            $update->handle($owner, $photo, $request->user());
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Photo de :name mise à jour.', ['name' => $owner->fullName()])]);
+
+        return back();
+    }
+
+    /** Retire la photo du propriétaire. */
+    public function destroyPhoto(Request $request, Owner $owner, RemoveOwnerPhoto $remove): RedirectResponse
+    {
+        $this->authorize('update', $owner);
+
+        $remove->handle($owner, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Photo de :name retirée.', ['name' => $owner->fullName()])]);
+
+        return back();
+    }
+
     /** Note un échange avec le propriétaire, pour suivre sa fraîcheur. */
     public function contact(TouchOwnerRequest $request, Owner $owner, TouchOwnerContact $touch): RedirectResponse
     {
@@ -334,6 +366,7 @@ class OwnerController extends Controller
             'first_name' => $owner->first_name,
             'last_name' => $owner->last_name,
             'name' => $owner->fullName(),
+            'photo' => $owner->photo,
             'contact_name' => $owner->contactName(),
             'company' => $owner->company,
             'email' => $owner->email,

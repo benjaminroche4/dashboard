@@ -15,7 +15,7 @@ const { post, patch, del } = vi.hoisted(() => ({
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
-    router: { delete: del },
+    router: { delete: del, patch },
     usePage: () => ({
         props: {
             auth: { user: { role: 'member' } },
@@ -87,8 +87,13 @@ describe('Partner detail page', () => {
             screen.getByRole('heading', { level: 1, name: 'Zen Assurances' }),
         ).toBeInTheDocument();
         expect(screen.getByText('Assurance')).toBeInTheDocument();
+        // L'adresse sur une seule ligne modifiable en place (Google Places).
+        const contact = within(screen.getByRole('region', { name: 'Contact' }));
         expect(
-            screen.getByText('8 rue de Rivoli, 75004 Paris'),
+            contact.getByText('8 rue de Rivoli, 75004 Paris'),
+        ).toBeInTheDocument();
+        expect(
+            contact.getByRole('button', { name: 'Modifier Adresse' }),
         ).toBeInTheDocument();
         expect(screen.getByText('Tarif négocié -10 %.')).toBeInTheDocument();
         const contacts = within(
@@ -122,22 +127,24 @@ describe('Partner detail page', () => {
         ).toBeNull();
         expect(screen.getByText(/Ajouté\(e\) par/)).toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: 'Modifier' }));
-        expect(
-            screen.getByRole('dialog', { name: 'Modifier Zen Assurances' }),
-        ).toBeInTheDocument();
-
-        // Membre : pas de suppression.
-        await user.keyboard('{Escape}');
+        // « Modifier » vit dans le menu « ⋯ », comme sur les fiches agent et agence.
         await user.click(
             screen.getByRole('button', { name: 'Actions pour Zen Assurances' }),
         );
+        // Membre : pas de suppression.
         expect(
             screen.queryByRole('menuitem', { name: 'Supprimer' }),
         ).not.toBeInTheDocument();
+        await user.click(
+            await screen.findByRole('menuitem', { name: 'Modifier' }),
+        );
+        expect(
+            screen.getByRole('dialog', { name: 'Modifier Zen Assurances' }),
+        ).toBeInTheDocument();
     });
 
-    it('shows the empty states', () => {
+    it('shows the empty states', async () => {
+        const user = userEvent.setup();
         render(
             <PartnerShow
                 partner={makePartnerDetail({
@@ -157,6 +164,10 @@ describe('Partner detail page', () => {
             screen.getByRole('heading', { name: 'Suivi et notes' }),
         ).toBeInTheDocument();
         expect(screen.getByText('Aucune note.')).toBeInTheDocument();
+        // Un accordéon vide est replié : on l'ouvre pour lire son état vide.
+        await user.click(
+            screen.getByRole('button', { name: /Interlocuteurs/ }),
+        );
         expect(
             screen.getByText('Aucun interlocuteur enregistré.'),
         ).toBeInTheDocument();
@@ -239,14 +250,17 @@ describe('Partner detail page', () => {
             />,
         );
 
-        const billing = within(
-            screen.getByRole('region', { name: 'Devis et factures' }),
+        const billing = within(screen.getByRole('region', { name: 'Devis' }));
+        const invoicesFold = within(
+            screen.getByRole('region', { name: 'Factures' }),
         );
         expect(billing.getByRole('link', { name: /DV-27042/ })).toHaveAttribute(
             'href',
             '/tools/quotes/0199a9a0-0000-7000-8000-00000000d001',
         );
-        expect(billing.getByRole('link', { name: /RP-27042/ })).toHaveAttribute(
+        expect(
+            invoicesFold.getByRole('link', { name: /RP-27042/ }),
+        ).toHaveAttribute(
             'href',
             '/invoices/0199a9a0-0000-7000-8000-000000000101',
         );
@@ -258,7 +272,7 @@ describe('Partner detail page', () => {
             '/tools/quotes/create?partner=0199a9a0-0000-7000-8000-0000000000c1',
         );
         expect(
-            billing.getByRole('link', { name: 'Nouvelle facture' }),
+            invoicesFold.getByRole('link', { name: 'Nouvelle facture' }),
         ).toHaveAttribute(
             'href',
             '/invoices/create?partner=0199a9a0-0000-7000-8000-0000000000c1',
@@ -270,8 +284,62 @@ describe('Partner detail page', () => {
             <PartnerShow partner={makePartnerDetail()} types={partnerTypes} />,
         );
 
+        expect(screen.queryByRole('region', { name: 'Devis' })).toBeNull();
         expect(
-            screen.queryByRole('region', { name: 'Devis et factures' }),
+            screen.queryByRole('region', { name: 'Factures' }),
         ).not.toBeInTheDocument();
+    });
+
+    it('follows the agent fiche: two columns, a logo tile, inline contact, and the follow-up without the welcome shortcut', async () => {
+        const user = userEvent.setup();
+        patch.mockClear();
+        render(
+            <PartnerShow
+                partner={makePartnerDetail({
+                    logo: '/storage/partner-logos/zen.png',
+                })}
+                types={partnerTypes}
+            />,
+        );
+
+        expect(screen.getByTestId('partner-columns')).toHaveClass(
+            'lg:grid-cols-2',
+            'lg:divide-x',
+        );
+        const tile = screen.getByRole('button', { name: 'Changer le logo' });
+        expect(tile.querySelector('img')).toHaveAttribute(
+            'src',
+            '/storage/partner-logos/zen.png',
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Modifier Téléphone' }),
+        );
+        const input = screen.getByRole('textbox', { name: 'Téléphone' });
+        await user.clear(input);
+        await user.type(input, '+33 1 42 00 11 23{Enter}');
+        expect(patch).toHaveBeenCalledWith(
+            '/partners/0199a9a0-0000-7000-8000-0000000000c1/fields',
+            { phone: '+33 1 42 00 11 23' },
+            expect.anything(),
+        );
+
+        const followUp = within(
+            screen.getByRole('region', { name: 'Suivi et notes' }),
+        );
+        // Plus de « Renvoyer la bienvenue » sur la fiche (28 octobre 2026).
+        expect(
+            followUp.queryByRole('button', { name: 'Renvoyer la bienvenue' }),
+        ).toBeNull();
+        expect(
+            followUp.getByRole('button', { name: 'Modifier Notes' }),
+        ).toBeInTheDocument();
+
+        await user.click(
+            screen.getByRole('button', { name: 'Actions pour Zen Assurances' }),
+        );
+        expect(
+            await screen.findByRole('menuitem', { name: 'Retirer le logo' }),
+        ).toBeInTheDocument();
     });
 });

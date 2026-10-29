@@ -68,7 +68,7 @@ export function companyColumns(
                             alt=""
                             className="object-contain p-0.5"
                         />
-                        <AvatarFallback className="bg-muted text-muted-foreground rounded-md text-xs">
+                        <AvatarFallback className="bg-primary/10 text-primary rounded-md text-xs font-medium">
                             {companyInitials(row.original.name)}
                         </AvatarFallback>
                     </Avatar>

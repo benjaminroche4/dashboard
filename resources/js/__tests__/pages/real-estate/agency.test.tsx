@@ -250,16 +250,16 @@ describe('Agency detail page', () => {
         // Plus de bouton « Modifier » : il vit dans le menu « ⋯ ».
         expect(screen.queryByRole('button', { name: 'Modifier' })).toBeNull();
 
-        // L'adresse est une seule ligne (Google Places), et la carte ne
-        // s'ouvre que par « Voir sur la carte » (28 octobre 2026).
+        // L'adresse est une seule ligne (Google Places).
         expect(
             screen.getByRole('button', { name: 'Modifier Adresse' }),
         ).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Modifier Rue' }),
         ).toBeNull();
-        // Ni carte Google (`role="application"`), ni carte statique dans le
-        // bloc : la carte ne s'ouvre que par « Voir sur la carte ».
+        // Aucune carte dans le bloc Contact, ni Google ni statique : la carte
+        // ne s'ouvre que par « Voir sur la carte » (redemandé trois fois par
+        // l'équipe le 28 octobre 2026 ; ne pas la remettre).
         const contactBlock = screen.getByRole('region', { name: 'Contact' });
         expect(within(contactBlock).queryByRole('application')).toBeNull();
         expect(contactBlock.querySelector('img')).toBeNull();

@@ -1,9 +1,13 @@
 import { Link } from '@inertiajs/react';
-import { Plus, Send } from 'lucide-react';
+import { FolderOpen, Handshake, Plus, Send, Users } from 'lucide-react';
 import { useState } from 'react';
 import { PartnerContactDialog } from '@/components/partners/partner-contact-dialog';
 import { PartnerForwardDialog } from '@/components/partners/partner-forward-dialog';
-import { DetailSection } from '@/components/real-estate/detail-header';
+import { Fold } from '@/components/leads/lead-show-body';
+import { initials, memberTone } from '@/components/leads/lead-assign-menu';
+import { leadStatusClasses } from '@/components/leads/lead-status-menu';
+import { formatDate } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { RealEstateRowActions } from '@/components/real-estate/real-estate-row-actions';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -30,20 +34,25 @@ export function PartnerContacts({
     const initials = useInitials();
 
     return (
-        <DetailSection
+        <Fold
             title="Interlocuteurs"
+            icon={Users}
             count={contacts.length}
+            defaultOpen={contacts.length > 0}
+            storageKey={`partner.${partnerUuid}.contacts`}
             action={
                 <Button
-                    variant="outline"
-                    size="sm"
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-foreground size-7 rounded-full"
+                    aria-label="Ajouter un interlocuteur"
+                    title="Ajouter un interlocuteur"
                     onClick={() => {
                         setEditing(null);
                         setDialogOpen(true);
                     }}
                 >
                     <Plus aria-hidden />
-                    Ajouter un interlocuteur
                 </Button>
             }
         >
@@ -52,11 +61,13 @@ export function PartnerContacts({
                     Aucun interlocuteur enregistré.
                 </p>
             ) : (
-                <ul role="list" className="divide-border grid divide-y">
+                /* Chaque interlocuteur en carte grise, comme les agents d'une
+                   agence et les leads d'un agent (28 octobre 2026). */
+                <ul role="list" className="grid gap-2">
                     {contacts.map((contact) => (
                         <li
                             key={contact.id}
-                            className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3 text-sm first:pt-0 last:pb-0"
+                            className="bg-sidebar flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border p-3 text-sm"
                         >
                             <div className="flex min-w-0 flex-1 items-center gap-3">
                                 <Avatar className="size-9 shrink-0">
@@ -131,7 +142,7 @@ export function PartnerContacts({
                 partnerUuid={partnerUuid}
                 contact={editing}
             />
-        </DetailSection>
+        </Fold>
     );
 }
 
@@ -142,30 +153,21 @@ export function PartnerContacts({
 export function PartnerLeads({
     leads,
     partner,
-    roles = [],
 }: {
     leads: PartnerLead[];
     /** Fourni sur la fiche : permet de transmettre le dossier au partenaire. */
     partner?: PartnerDetail;
-    roles?: string[];
 }) {
     const [forwarding, setForwarding] = useState<PartnerLead | null>(null);
 
     return (
-        <DetailSection title="Dossiers" count={leads.length}>
-            {roles.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                    {roles.map((role) => (
-                        <Badge
-                            key={role}
-                            variant="secondary"
-                            className="font-medium"
-                        >
-                            {role}
-                        </Badge>
-                    ))}
-                </div>
-            )}
+        <Fold
+            title="Dossiers"
+            icon={FolderOpen}
+            count={leads.length}
+            defaultOpen={leads.length > 0}
+            storageKey={partner ? `partner.${partner.uuid}.leads` : undefined}
+        >
             {leads.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
                     Ce partenaire n’intervient sur rien pour l’instant.
@@ -173,35 +175,70 @@ export function PartnerLeads({
                     propriétaire ou un bien.
                 </p>
             ) : (
-                <ul role="list" className="divide-border grid divide-y">
+                /* Chaque dossier en carte grise (28 octobre 2026) : qui, où
+                   il en est, ce que le partenaire y fait et depuis quand, et
+                   « Transmettre » en bouton rond discret. */
+                <ul role="list" className="grid gap-2">
                     {leads.map((lead) => (
                         <li
                             key={lead.id}
-                            className="flex items-baseline justify-between gap-2 py-3 text-sm first:pt-0 last:pb-0"
+                            className="bg-sidebar flex items-start gap-3 rounded-lg border p-3 text-sm"
                         >
-                            <span className="grid min-w-0">
-                                <Link
-                                    href={leadShow({ lead: lead.uuid })}
-                                    className="truncate font-medium underline-offset-4 hover:underline"
+                            <Avatar className="size-9 shrink-0">
+                                <AvatarFallback
+                                    className={cn(
+                                        'text-xs',
+                                        memberTone(lead.id),
+                                    )}
                                 >
-                                    {lead.name}
-                                </Link>
-                                <span className="text-muted-foreground truncate text-xs">
-                                    {lead.role_label}
+                                    {initials(lead.name)}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="grid min-w-0 flex-1 gap-1">
+                                <span className="flex min-w-0 flex-wrap items-center gap-2">
+                                    <Link
+                                        href={leadShow({ lead: lead.uuid })}
+                                        className="truncate font-medium underline-offset-4 hover:underline"
+                                    >
+                                        {lead.name}
+                                    </Link>
+                                    <Badge
+                                        variant="secondary"
+                                        className={cn(
+                                            'font-medium',
+                                            lead.status &&
+                                                leadStatusClasses[lead.status],
+                                        )}
+                                    >
+                                        {lead.status_label}
+                                    </Badge>
                                 </span>
-                            </span>
-                            <span className="text-muted-foreground shrink-0 text-xs">
-                                {lead.status_label}
-                            </span>
+                                <span className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                                    <span className="inline-flex items-center gap-1">
+                                        <Handshake
+                                            className="size-3.5"
+                                            aria-hidden
+                                        />
+                                        {lead.role_label}
+                                    </span>
+                                    {lead.at && (
+                                        <span>
+                                            Depuis le{' '}
+                                            {formatDate(lead.at.slice(0, 10))}
+                                        </span>
+                                    )}
+                                </span>
+                            </div>
                             {partner && (
                                 <Button
                                     variant="ghost"
-                                    size="sm"
-                                    className="shrink-0"
+                                    size="icon"
+                                    className="text-muted-foreground hover:text-foreground size-7 shrink-0 rounded-full"
+                                    aria-label={`Transmettre le dossier de ${lead.name}`}
+                                    title="Transmettre le dossier"
                                     onClick={() => setForwarding(lead)}
                                 >
                                     <Send aria-hidden />
-                                    Transmettre
                                 </Button>
                             )}
                         </li>
@@ -215,6 +252,6 @@ export function PartnerLeads({
                     onOpenChange={(open) => !open && setForwarding(null)}
                 />
             )}
-        </DetailSection>
+        </Fold>
     );
 }

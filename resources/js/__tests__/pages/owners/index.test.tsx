@@ -57,6 +57,7 @@ function useFormStub(initial: Record<string, string>) {
     };
 }
 
+import { memberTone } from '@/components/leads/lead-assign-menu';
 import OwnersIndex from '@/pages/owners/index';
 import { makeOwner, ownerKinds } from '@/test/fixtures/owner';
 
@@ -107,7 +108,8 @@ describe('Owners index page', () => {
         get.mockClear();
     });
 
-    it('lists the owners with their kind, contact, address and number of properties', () => {
+    it('lists the owners with their contact and number of properties, the kind and address behind « Colonnes »', async () => {
+        const user = userEvent.setup();
         render(<OwnersIndex {...listProps} />);
 
         // L'annuaire annonce les propriétaires et les biens qu'ils détiennent.
@@ -117,8 +119,19 @@ describe('Owners index page', () => {
         expect(screen.getAllByText('zoe@example.com').length).toBeGreaterThan(
             0,
         );
+        // Type, adresse et auteur sont masqués d'office : le tableau en
+        // montrait trop (28 octobre 2026). Le menu « Colonnes » les rouvre.
+        expect(screen.queryByText('Particulier')).toBeNull();
+        expect(
+            screen.queryByRole('columnheader', { name: /Adresse/ }),
+        ).toBeNull();
+        await user.click(screen.getByRole('button', { name: /Colonnes/ }));
+        await user.click(
+            await screen.findByRole('menuitemcheckbox', { name: 'Type' }),
+        );
         expect(screen.getByText('Particulier')).toBeInTheDocument();
         expect(screen.getByText('Société ou agence')).toBeInTheDocument();
+        await user.keyboard('{Escape}');
         // L'interlocuteur d'une société est rappelé sous sa raison sociale.
         expect(screen.getByText('Ali Bensaïd')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: '5' })).toHaveAttribute(
@@ -195,6 +208,13 @@ describe('Owners index page', () => {
         const user = userEvent.setup();
         render(<OwnersIndex {...listProps} />);
 
+        // La pastille devant le nom : ronde et teintée pour une personne,
+        // carrée aux initiales pour une société (comme agents et agences).
+        expect(screen.getByText('ZM')).toHaveClass(...memberTone(1).split(' '));
+        expect(screen.getByText('SD')).toHaveClass(
+            'rounded-md',
+            'bg-primary/10',
+        );
         // Le nom ouvre la fiche ; la modification passe par le menu « ⋯ ».
         expect(
             screen.getByRole('link', { name: 'Zoé Martin' }),

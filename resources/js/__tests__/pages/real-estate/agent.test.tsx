@@ -212,7 +212,8 @@ describe('Agent detail page', () => {
         );
     });
 
-    it('marks an independent agent and the empty states', () => {
+    it('marks an independent agent and the empty states', async () => {
+        const user = userEvent.setup();
         render(
             <AgentShow
                 agent={makeAgent({
@@ -234,6 +235,10 @@ describe('Agent detail page', () => {
             within(screen.getByTestId('agent-header')).getByText('Indépendant'),
         ).toBeInTheDocument();
         expect(screen.getByText('Aucune note.')).toBeInTheDocument();
+        // L'accordéon « Leads et clients » est replié quand il est vide : on l'ouvre.
+        await user.click(
+            screen.getByRole('button', { name: /Leads et clients/ }),
+        );
         expect(
             screen.getByText(
                 /Aucun lead ni dossier client ne lui est rattaché/,

@@ -17,6 +17,8 @@ export type Owner = {
     last_name: string;
     /** Nom affiché : la personne, ou la raison sociale d'une société. */
     name: string;
+    /** Portrait ou logo (URL, lien signé dans un bucket), null sans image. */
+    photo: string | null;
     /** Interlocuteur d'une société, quand il est renseigné. */
     contact_name: string | null;
     company: string | null;

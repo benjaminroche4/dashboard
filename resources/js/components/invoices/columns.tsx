@@ -2,12 +2,13 @@ import { Link } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown } from 'lucide-react';
 import { InvoiceRowActions } from '@/components/invoices/invoice-row-actions';
+import { invoiceStatusClasses } from '@/components/invoices/invoice-status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { formatDate, formatMoney } from '@/lib/format';
 import { show as invoiceShow } from '@/routes/invoices';
-import type { Invoice, InvoiceStatus } from '@/types';
+import type { Invoice } from '@/types';
 
 export const invoiceColumnLabels: Record<string, string> = {
     number: 'Numéro',
@@ -16,16 +17,6 @@ export const invoiceColumnLabels: Record<string, string> = {
     amount_cents: 'Montant',
     issued_at: 'Émise le',
     due_at: 'Échéance',
-};
-
-// Couleurs personnalisées (pattern « Custom Colors » de shadcn Badge).
-const statusClasses: Record<InvoiceStatus, string> = {
-    paid: 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300',
-    sent: 'bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
-    overdue: 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300',
-    draft: 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300',
-    cancelled:
-        'bg-neutral-100 text-neutral-600 dark:bg-neutral-900 dark:text-neutral-400',
 };
 
 function SortableHeader({
@@ -122,7 +113,7 @@ export function invoiceColumns(canManage = false): ColumnDef<Invoice>[] {
                 <Badge
                     variant="secondary"
                     data-status={row.original.status}
-                    className={statusClasses[row.original.status]}
+                    className={invoiceStatusClasses[row.original.status]}
                 >
                     {row.original.status_label}
                 </Badge>

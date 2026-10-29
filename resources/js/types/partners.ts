@@ -1,3 +1,5 @@
+import type { LeadStatus } from '@/types/leads';
+
 export type PartnerType =
     | 'management'
     | 'insurance'
@@ -27,6 +29,8 @@ export type Partner = {
     postal_code: string | null;
     city: string | null;
     notes: string | null;
+    /** URL du logo (lien signé dans un bucket), null sans logo. */
+    logo: string | null;
     /** Position posée depuis l'adresse, pour la carte. */
     latitude: number | null;
     longitude: number | null;
@@ -70,6 +74,8 @@ export type PartnerLead = {
     id: number;
     uuid: string;
     name: string;
+    /** Statut du lead, pour teinter le badge (`leadStatusClasses`). */
+    status?: LeadStatus;
     status_label: string;
     role_label: string;
     at: string | null;

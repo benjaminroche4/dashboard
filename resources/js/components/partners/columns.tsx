@@ -2,6 +2,8 @@ import { Link } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown } from 'lucide-react';
 import { CreatedBy } from '@/components/created-by';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { initials } from '@/components/leads/lead-assign-menu';
 import { FavoriteStar } from '@/components/favorite-star';
 import { formatAddress } from '@/components/real-estate/columns';
 import { RealEstateRowActions } from '@/components/real-estate/real-estate-row-actions';
@@ -110,26 +112,45 @@ export function partnerColumns(
                 />
             ),
             cell: ({ row }) => (
-                <div className="grid">
-                    <span className="flex items-center gap-1.5">
-                        <Link
-                            href={partnerShow({ partner: row.original.uuid })}
-                            className="font-medium hover:underline"
-                        >
-                            {row.original.name}
-                        </Link>
-                        <FavoriteStar favorite={row.original.is_favorite} />
-                    </span>
-                    {row.original.website && (
-                        <a
-                            href={row.original.website}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-muted-foreground truncate text-xs underline-offset-4 hover:underline"
-                        >
-                            {row.original.website.replace(/^https?:\/\//, '')}
-                        </a>
-                    )}
+                <div className="flex min-w-0 items-center gap-3">
+                    {/* Le logo du partenaire devant son nom, en carré légèrement
+                        arrondi, les initiales en repli (28 octobre 2026). */}
+                    <Avatar className="size-8 rounded-md border">
+                        <AvatarImage
+                            src={row.original.logo ?? undefined}
+                            alt=""
+                            className="object-contain"
+                        />
+                        <AvatarFallback className="bg-primary/10 text-primary rounded-md text-xs font-medium">
+                            {initials(row.original.name)}
+                        </AvatarFallback>
+                    </Avatar>
+                    <div className="grid min-w-0">
+                        <span className="flex items-center gap-1.5">
+                            <Link
+                                href={partnerShow({
+                                    partner: row.original.uuid,
+                                })}
+                                className="font-medium hover:underline"
+                            >
+                                {row.original.name}
+                            </Link>
+                            <FavoriteStar favorite={row.original.is_favorite} />
+                        </span>
+                        {row.original.website && (
+                            <a
+                                href={row.original.website}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-muted-foreground truncate text-xs underline-offset-4 hover:underline"
+                            >
+                                {row.original.website.replace(
+                                    /^https?:\/\//,
+                                    '',
+                                )}
+                            </a>
+                        )}
+                    </div>
                 </div>
             ),
         },

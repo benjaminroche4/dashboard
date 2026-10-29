@@ -244,6 +244,10 @@ export function filterLeads(leads: Lead[], filters: LeadFilters): Lead[] {
             (a.arrival_at ?? '9999').localeCompare(b.arrival_at ?? '9999'),
         created: (a, b) =>
             (b.created_at ?? '').localeCompare(a.created_at ?? ''),
+        // Du plus ancien au plus récent : les leads qui attendent depuis le
+        // plus longtemps remontent (demandé le 28 octobre 2026).
+        oldest: (a, b) =>
+            (a.created_at ?? '').localeCompare(b.created_at ?? ''),
     };
 
     return [...kept].sort(comparators[filters.sort]);

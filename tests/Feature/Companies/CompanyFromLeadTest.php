@@ -37,14 +37,26 @@ test('the company of a lead joins the directory once, the lead is attached and i
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->where('directoryCompany.uuid', $company->uuid));
 });
 
-test('an existing company with the same name is reused rather than duplicated', function (): void {
-    $company = Company::factory()->create(['name' => 'Nestlé']);
-    $lead = Lead::factory()->create(['company' => 'nestlé ']);
+test('an existing company with the same name, even spelled differently, is reused rather than duplicated', function (): void {
+    $company = Company::factory()->create(['name' => 'Nestlé S.A.']);
 
-    $this->actingAs(User::factory()->create())->post(route('companies.from-lead', $lead))->assertRedirect(route('companies.show', $company));
+    foreach (['nestlé ', 'NESTLE SA', 'Nestle', 'Nestlé Groupe'] as $spelling) {
+        $lead = Lead::factory()->create(['company' => $spelling]);
+        $this->actingAs(User::factory()->create())->post(route('companies.from-lead', $lead))
+            ->assertRedirect(route('companies.show', $company))
+            ->assertSessionHas('inertia.flash_data', fn (array $flash): bool => str_contains((string) $flash['toast']['message'], 'Nestlé S.A.'));
+        expect($lead->fresh()?->company_id)->toBe($company->id);
+    }
 
-    expect(Company::query()->count())->toBe(1)
-        ->and($lead->fresh()?->company_id)->toBe($company->id);
+    // Une faute de frappe sur un nom long est rattrapée, un autre nom ne l'est pas.
+    $typo = Lead::factory()->create(['company' => 'Nestlee']);
+    $this->actingAs(User::factory()->create())->post(route('companies.from-lead', $typo));
+    expect($typo->fresh()?->company_id)->toBe($company->id);
+
+    $other = Lead::factory()->create(['company' => 'Danone']);
+    $this->actingAs(User::factory()->create())->post(route('companies.from-lead', $other));
+    expect(Company::query()->count())->toBe(2)
+        ->and($other->fresh()?->companyEntry?->name)->toBe('Danone');
 });
 
 test('a lead without a company cannot be added, and a member who cannot write companies is refused', function (): void {

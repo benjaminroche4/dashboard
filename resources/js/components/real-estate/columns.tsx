@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown } from 'lucide-react';
 import { CreatedBy } from '@/components/created-by';
+import { memberTone } from '@/components/leads/lead-assign-menu';
 import { FavoriteStar } from '@/components/favorite-star';
 import { AgencyAgentsPopover } from '@/components/real-estate/agency-agents-popover';
 import { AgentLeadsPopover } from '@/components/real-estate/agent-leads-popover';
@@ -22,6 +23,7 @@ import {
 } from '@/routes/agents';
 import type { Agency, Agent } from '@/types';
 import { parisFormat } from '@/lib/datetime';
+import { cn } from '@/lib/utils';
 
 /** Deux lettres au plus, pour la pastille d'un agent sans photo ou d'une agence sans logo. */
 function personInitials(name: string): string {
@@ -339,8 +341,14 @@ export function agentColumns(
                             alt=""
                             className="object-cover"
                         />
-                        {/* La teinte de la pastille de sa fiche (`AgentPhotoTile`). */}
-                        <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
+                        {/* La teinte de la pastille de sa fiche : celle que
+                            `memberTone` attribue à cet agent. */}
+                        <AvatarFallback
+                            className={cn(
+                                'text-xs font-medium',
+                                memberTone(row.original.id),
+                            )}
+                        >
                             {personInitials(row.original.name)}
                         </AvatarFallback>
                     </Avatar>

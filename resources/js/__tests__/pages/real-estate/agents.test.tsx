@@ -60,6 +60,7 @@ function useFormStub(initial: Record<string, string>) {
     };
 }
 
+import { memberTone } from '@/components/leads/lead-assign-menu';
 import Agents from '@/pages/real-estate/agents';
 import { agencyOptions, makeAgent } from '@/test/fixtures/real-estate';
 
@@ -161,11 +162,8 @@ describe('Agents page', () => {
         );
 
         // La pastille devant le nom : ses initiales sans photo, dans la
-        // teinte de la pastille de sa fiche.
-        expect(screen.getByText('ZM')).toHaveClass(
-            'bg-primary/10',
-            'text-primary',
-        );
+        // teinte que sa fiche lui attribue (`memberTone(agent.id)`).
+        expect(screen.getByText('ZM')).toHaveClass(...memberTone(1).split(' '));
         expect(
             screen.getByRole('link', { name: 'Zoé Martin' }),
         ).toHaveAttribute(

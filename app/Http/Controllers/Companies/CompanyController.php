@@ -183,9 +183,15 @@ class CompanyController extends Controller
     {
         $this->authorize('create', Company::class);
 
+        $before = Company::query()->count();
         $company = $add->handle($lead, $request->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __(':name figure dans l’annuaire des entreprises.', ['name' => $company->name])]);
+        // Reprise d'une entreprise connue sous une orthographe voisine : on le dit.
+        $message = Company::query()->count() === $before && mb_strtolower(trim((string) $lead->company)) !== mb_strtolower($company->name)
+            ? __('Déjà dans l’annuaire sous le nom « :name » : le lead y est rattaché.', ['name' => $company->name])
+            : __(':name figure dans l’annuaire des entreprises.', ['name' => $company->name]);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
 
         return to_route('companies.show', $company);
     }

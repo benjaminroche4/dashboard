@@ -99,6 +99,9 @@ export default function OwnersIndex({
                 </div>
                 <DataTable
                     storageKey="owners"
+                    // Moins de colonnes d'office (28 octobre 2026) : le type, l'adresse et
+                    // l'auteur se rouvrent depuis « Colonnes ».
+                    defaultHidden={['kind_label', 'address', 'creator']}
                     columns={columns}
                     data={owners}
                     server={server}

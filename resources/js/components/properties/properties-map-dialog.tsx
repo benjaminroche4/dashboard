@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { formatMoney } from '@/lib/format';
 import { loadGoogleMaps } from '@/lib/google-maps';
+import { mapStyles } from '@/lib/map-styles';
 import { propertyPosition } from '@/lib/paris-geo';
 import {
     map as propertiesMap,
@@ -38,16 +39,6 @@ export type MapPoint = {
     rent_cents: number | null;
     currency: string;
 };
-
-/** Fond discret, le même que la carte des visites. */
-const mapStyles: google.maps.MapTypeStyle[] = [
-    {
-        elementType: 'geometry',
-        stylers: [{ saturation: -60 }, { lightness: 20 }],
-    },
-    { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-    { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-];
 
 const PARIS = { lat: 48.8566, lng: 2.3522 };
 /** Vert « disponible », gris pour tout le reste : la même lecture que les badges. */

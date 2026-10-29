@@ -88,6 +88,11 @@ describe('Companies index page', () => {
         render(<CompaniesIndex companies={companies} />);
 
         expect(screen.getByText(/2 entreprise\(s\)/)).toBeInTheDocument();
+        // La pastille d'initiales prend la teinte des agences, sans logo.
+        expect(screen.getByText('ZC')).toHaveClass(
+            'bg-primary/10',
+            'text-primary',
+        );
         expect(
             screen.getByRole('link', { name: 'Zen Conseil' }),
         ).toHaveAttribute(

@@ -144,8 +144,8 @@ test('the partner page carries its duplicates, its roles and its own journal', f
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->has('duplicates', 1)
             ->where('duplicates.0.name', 'Zen bis')
-            ->has('activities', 1)
-            ->where('activities.0.message', 'a noté un échange')
+            // Plus de journal sur la fiche : l'historique des échanges s'ouvre par « Voir l'historique ».
+            ->missing('activities')
             ->has('functions')
             ->has('qualities'));
 });

@@ -130,6 +130,25 @@ describe('filterLeads', () => {
             ),
         ).toEqual([1, 4, 2, 3]);
     });
+
+    it('sorts by creation date in both directions: newest first, or oldest first', () => {
+        const dated = [
+            makeLead({ id: 1, created_at: '2026-10-20T10:00:00+00:00' }),
+            makeLead({ id: 2, created_at: '2026-10-01T10:00:00+00:00' }),
+            makeLead({ id: 3, created_at: '2026-10-28T10:00:00+00:00' }),
+        ];
+
+        expect(
+            filterLeads(dated, { ...defaultFilters, sort: 'created' }).map(
+                (lead) => lead.id,
+            ),
+        ).toEqual([3, 1, 2]);
+        expect(
+            filterLeads(dated, { ...defaultFilters, sort: 'oldest' }).map(
+                (lead) => lead.id,
+            ),
+        ).toEqual([2, 1, 3]);
+    });
 });
 
 describe('hasActiveFilters', () => {

@@ -10,28 +10,30 @@ use App\Actions\Directory\ToggleFavorite;
 use App\Actions\Partners\CreatePartner;
 use App\Actions\Partners\DeletePartner;
 use App\Actions\Partners\DeletePartners;
+use App\Actions\Partners\RemovePartnerLogo;
 use App\Actions\Partners\SetPartnerRelationshipQuality;
 use App\Actions\Partners\TouchPartnerContact;
 use App\Actions\Partners\UpdatePartner;
+use App\Actions\Partners\UpdatePartnerFields;
+use App\Actions\Partners\UpdatePartnerLogo;
 use App\Data\PartnerData;
 use App\Enums\ContactFunction;
 use App\Enums\PartnerType;
 use App\Enums\RelationshipQuality;
 use App\Events\DashboardUpdated;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Tools\ActivityController;
 use App\Http\Requests\Partners\BulkPartnersRequest;
 use App\Http\Requests\Partners\SendPartnerWelcomeRequest;
 use App\Http\Requests\Partners\StorePartnerRequest;
 use App\Http\Requests\Partners\TouchPartnerRequest;
+use App\Http\Requests\Partners\UpdatePartnerFieldsRequest;
+use App\Http\Requests\Partners\UpdatePartnerLogoRequest;
 use App\Http\Requests\Partners\UpdatePartnerRequest;
-use App\Models\Activity;
 use App\Models\Invoice;
 use App\Models\LeadPartner;
 use App\Models\Partner;
 use App\Models\PartnerContact;
 use App\Models\Quote;
-use App\Services\DistrictStaticMap;
 use App\Support\SearchSql;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -39,6 +41,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -73,6 +76,44 @@ class PartnerController extends Controller
     }
 
     /** Pose ou retire l'étoile du membre connecté sur ce partenaire (favori personnel). */
+    /** Un ou plusieurs champs du partenaire, modifiés en place depuis sa fiche. */
+    public function fields(UpdatePartnerFieldsRequest $request, Partner $partner, UpdatePartnerFields $updatePartnerFields): RedirectResponse
+    {
+        $updatePartnerFields->handle($partner, $request->fields());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Partenaire :name mis à jour.', ['name' => $partner->name])]);
+
+        return back();
+    }
+
+    /** Remplace le logo du partenaire. */
+    public function updateLogo(UpdatePartnerLogoRequest $request, Partner $partner, UpdatePartnerLogo $update): RedirectResponse
+    {
+        $this->authorize('update', $partner);
+
+        $logo = $request->file('logo');
+
+        if ($logo instanceof UploadedFile) {
+            $update->handle($partner, $logo, $request->user());
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Logo de :name mis à jour.', ['name' => $partner->name])]);
+
+        return back();
+    }
+
+    /** Retire le logo du partenaire. */
+    public function destroyLogo(Request $request, Partner $partner, RemovePartnerLogo $remove): RedirectResponse
+    {
+        $this->authorize('update', $partner);
+
+        $remove->handle($partner, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Logo de :name retiré.', ['name' => $partner->name])]);
+
+        return back();
+    }
+
     public function favorite(Request $request, Partner $partner, ToggleFavorite $toggle): RedirectResponse
     {
         $this->authorize('view', $partner);
@@ -115,6 +156,7 @@ class PartnerController extends Controller
                     'id' => $link->id,
                     'uuid' => $link->lead->uuid,
                     'name' => $link->lead->fullName(),
+                    'status' => $link->lead->status->value,
                     'status_label' => $link->lead->status->label(),
                     'role_label' => $link->role->label(),
                     'at' => $link->created_at?->toIso8601String(),
@@ -153,8 +195,6 @@ class PartnerController extends Controller
             'types' => PartnerType::options(),
             'qualities' => RelationshipQuality::options(),
             'functions' => ContactFunction::options(),
-            // Carte statique de l'adresse, si la clé dédiée est configurée.
-            'mapUrl' => resolve(DistrictStaticMap::class)->place($partner->latitude, $partner->longitude, $this->addressLine($partner)),
             // Partenaires qui partagent l'e-mail ou le téléphone : doublon probable.
             'duplicates' => Partner::query()
                 ->whereKeyNot($partner->id)
@@ -162,16 +202,6 @@ class PartnerController extends Controller
                 ->limit(5)
                 ->get()
                 ->map(fn (Partner $other): array => ['uuid' => $other->uuid, 'name' => $other->name, 'type_label' => $other->type->label()])
-                ->all(),
-            // Journal : les dernières actions du backoffice sur ce partenaire.
-            'activities' => Activity::query()
-                ->with(['actor', 'lead', 'partner'])
-                ->where('partner_id', $partner->id)
-                ->latest('created_at')
-                ->latest('id')
-                ->limit(10)
-                ->get()
-                ->map(fn (Activity $activity): array => ActivityController::summary($activity))
                 ->all(),
             // Tous les échanges notés, pour la modale « Voir l'historique ».
             'contacts' => resolve(ListContactHistory::class)->handle($partner),
@@ -215,17 +245,6 @@ class PartnerController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('E-mail de bienvenue renvoyé à :email.', ['email' => $names])]);
 
         return back();
-    }
-
-    /** Adresse du partenaire sur une ligne, pour la carte statique. */
-    private function addressLine(Partner $partner): ?string
-    {
-        $line = trim(implode(', ', array_filter([
-            $partner->street,
-            trim(($partner->postal_code ?? '').' '.($partner->city ?? '')),
-        ])));
-
-        return $line === '' ? null : $line;
     }
 
     /** Recherche ⌘K : nom, interlocuteur, e-mail ou téléphone. */
@@ -383,6 +402,7 @@ class PartnerController extends Controller
             'latitude' => $partner->latitude,
             'longitude' => $partner->longitude,
             'notes' => $partner->notes,
+            'logo' => $partner->logo,
             // Suivi de la relation, comme pour les agents immobiliers.
             'relationship_quality' => $partner->relationship_quality?->value,
             'relationship_quality_label' => $partner->relationship_quality?->label(),

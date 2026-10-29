@@ -21,6 +21,7 @@ import { FavoriteStar } from '@/components/favorite-star';
 import type { InlineValue } from '@/components/inline-field';
 import { initials, memberTone } from '@/components/leads/lead-assign-menu';
 import {
+    Fold,
     Rows,
     RuledRows,
     Section,
@@ -517,28 +518,23 @@ export default function AgencyShow({
                     {/* Ce que le matching sait de l'agence, et ce qu'on a visité avec elle. */}
                     <div className="grid min-w-0 content-start lg:pb-10 lg:pl-8">
                         <div className="divide-y">
-                            <Section
+                            <Fold
                                 title="Agents"
                                 icon={Building2}
+                                count={agency.agents.length}
+                                defaultOpen={agency.agents.length > 0}
+                                storageKey={`agency.${agency.uuid}.agents`}
                                 action={
-                                    <span className="flex items-center gap-2">
-                                        {agency.agents.length > 0 && (
-                                            <Badge
-                                                variant="secondary"
-                                                className="tabular-nums"
-                                            >
-                                                {agency.agents.length}
-                                            </Badge>
-                                        )}
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setAddingAgent(true)}
-                                        >
-                                            <Plus aria-hidden />
-                                            Ajouter un agent
-                                        </Button>
-                                    </span>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-muted-foreground hover:text-foreground size-7 rounded-full"
+                                        aria-label="Ajouter un agent"
+                                        title="Ajouter un agent"
+                                        onClick={() => setAddingAgent(true)}
+                                    >
+                                        <Plus aria-hidden />
+                                    </Button>
                                 }
                             >
                                 {/* Une agence peut aligner cent agents : au-delà
@@ -673,8 +669,13 @@ export default function AgencyShow({
                                         ))}
                                     </ul>
                                 )}
-                            </Section>
-                            <Section title="Profil de matching" icon={Target}>
+                            </Fold>
+                            <Fold
+                                title="Profil de matching"
+                                icon={Target}
+                                defaultOpen
+                                storageKey={`agency.${agency.uuid}.profile`}
+                            >
                                 <RuledRows
                                     facts={profile}
                                     onSave={saveField}
@@ -689,7 +690,7 @@ export default function AgencyShow({
                                         rien n’est exigé à la création.
                                     </p>
                                 )}
-                            </Section>
+                            </Fold>
                             {/* Les biens visités défilent de gauche à droite, en
                                 boucle, au doigt comme au trackpad (demandé le
                                 28 octobre 2026) ; les flèches vivent à côté du
@@ -700,29 +701,21 @@ export default function AgencyShow({
                                 className="min-w-0"
                                 aria-label="Biens visités, en carrousel"
                             >
-                                <Section
+                                <Fold
                                     title="Biens visités"
                                     icon={Home}
-                                    // Enveloppée par le carrousel, la section est
-                                    // « première » de son parent : on lui rend la
+                                    count={agency.properties.length}
+                                    defaultOpen={agency.properties.length > 0}
+                                    storageKey={`agency.${agency.uuid}.properties`}
+                                    // Enveloppé par le carrousel, l'accordéon est
+                                    // « premier » de son parent : on lui rend la
                                     // marge haute que `divide-y` attend.
                                     className="pt-6 first:pt-6"
                                     action={
-                                        agency.properties.length > 0 ? (
+                                        agency.properties.length > 1 ? (
                                             <span className="flex items-center gap-2">
-                                                <Badge
-                                                    variant="secondary"
-                                                    className="tabular-nums"
-                                                >
-                                                    {agency.properties.length}
-                                                </Badge>
-                                                {agency.properties.length >
-                                                    1 && (
-                                                    <>
-                                                        <CarouselPrevious className="static size-8 translate-y-0" />
-                                                        <CarouselNext className="static size-8 translate-y-0" />
-                                                    </>
-                                                )}
+                                                <CarouselPrevious className="static size-8 translate-y-0" />
+                                                <CarouselNext className="static size-8 translate-y-0" />
                                             </span>
                                         ) : undefined
                                     }
@@ -807,7 +800,7 @@ export default function AgencyShow({
                                             )}
                                         </CarouselContent>
                                     )}
-                                </Section>
+                                </Fold>
                             </Carousel>
                         </div>
                     </div>

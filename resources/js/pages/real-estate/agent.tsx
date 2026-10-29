@@ -18,6 +18,7 @@ import { FavoriteStar } from '@/components/favorite-star';
 import { memberTone } from '@/components/leads/lead-assign-menu';
 import type { InlineValue } from '@/components/inline-field';
 import {
+    Fold,
     Rows,
     RuledRows,
     Section,
@@ -513,7 +514,12 @@ export default function AgentShow({
                             {/* Le profil de matching en fiche à filets, chaque
                                 ligne modifiable en place, comme le Projet d'un
                                 lead ; vide, « Non renseigné » invite à compléter. */}
-                            <Section title="Profil de matching" icon={Target}>
+                            <Fold
+                                title="Profil de matching"
+                                icon={Target}
+                                defaultOpen
+                                storageKey={`agent.${agent.uuid}.profile`}
+                            >
                                 <RuledRows
                                     facts={profile}
                                     onSave={saveField}
@@ -526,20 +532,13 @@ export default function AgentShow({
                                         de son agence sert au matching.
                                     </p>
                                 )}
-                            </Section>
-                            <Section
+                            </Fold>
+                            <Fold
                                 title="Leads et clients"
                                 icon={Users}
-                                action={
-                                    agent.leads.length > 0 ? (
-                                        <Badge
-                                            variant="secondary"
-                                            className="tabular-nums"
-                                        >
-                                            {agent.leads.length}
-                                        </Badge>
-                                    ) : undefined
-                                }
+                                count={agent.leads.length}
+                                defaultOpen={agent.leads.length > 0}
+                                storageKey={`agent.${agent.uuid}.leads`}
                             >
                                 {agent.leads.length === 0 ? (
                                     <p className="text-muted-foreground text-sm">
@@ -561,7 +560,7 @@ export default function AgentShow({
                                         ))}
                                     </ul>
                                 )}
-                            </Section>
+                            </Fold>
                         </div>
                     </div>
                 </div>

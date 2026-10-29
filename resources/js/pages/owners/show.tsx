@@ -3,6 +3,10 @@ import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { AddressMapButton } from '@/components/address-map-dialog';
 import { OwnerDialog } from '@/components/owners/owner-dialog';
+import {
+    OwnerPhotoMenuItem,
+    OwnerPhotoTile,
+} from '@/components/owners/owner-photo-upload';
 import { PropertyThumb } from '@/components/properties/property-thumb';
 import { formatAddress } from '@/components/real-estate/columns';
 import {
@@ -71,6 +75,8 @@ export default function OwnerShow({
             <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pb-10">
                 <DetailHeader
                     name={owner.name}
+                    avatar={<OwnerPhotoTile owner={owner} />}
+                    menu={<OwnerPhotoMenuItem owner={owner} />}
                     subtitle={
                         <>
                             <OwnerKindBadge

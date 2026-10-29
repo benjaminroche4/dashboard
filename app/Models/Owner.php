@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\Owners\UpdateOwnerPhoto;
 use App\Enums\OwnerKind;
 use App\Support\ContactMatch;
+use App\Support\FileUrl;
 use Carbon\CarbonInterface;
 use Database\Factories\OwnerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -33,6 +36,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $city
  * @property string|null $notes
  * @property int|null $lead_id
+ * @property string|null $photo_path
+ * @property-read string|null $photo
  * @property CarbonInterface|null $last_contacted_at
  * @property int|null $created_by
  * @property CarbonInterface|null $created_at
@@ -41,7 +46,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read User|null $creator
  * @property-read Collection<int, Property> $properties
  */
-#[Fillable(['kind', 'first_name', 'last_name', 'company', 'email', 'phone', 'street', 'postal_code', 'city', 'notes', 'lead_id', 'last_contacted_at', 'created_by'])]
+#[Fillable(['kind', 'first_name', 'last_name', 'company', 'email', 'phone', 'street', 'postal_code', 'city', 'notes', 'photo_path', 'lead_id', 'last_contacted_at', 'created_by'])]
 class Owner extends Model
 {
     /** @use HasFactory<OwnerFactory> */
@@ -60,6 +65,16 @@ class Owner extends Model
     public function getRouteKeyName(): string
     {
         return 'uuid';
+    }
+
+    /**
+     * URL de la photo (lien signé dans un bucket), ou null sans photo.
+     *
+     * @return Attribute<string|null, null>
+     */
+    protected function photo(): Attribute
+    {
+        return new Attribute(get: fn (): ?string => FileUrl::for(UpdateOwnerPhoto::DISK, $this->photo_path));
     }
 
     /**

@@ -67,6 +67,7 @@ const sortOptions: Option<LeadSortKey>[] = [
     { value: 'score', label: 'Meilleure note' },
     { value: 'arrival', label: "Date d'arrivée" },
     { value: 'created', label: 'Plus récents' },
+    { value: 'oldest', label: 'Plus anciens' },
 ];
 
 /**

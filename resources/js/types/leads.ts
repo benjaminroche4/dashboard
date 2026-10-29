@@ -299,7 +299,8 @@ export type ArchivedLeads = {
     count: number;
 };
 
-export type LeadSortKey = 'manual' | 'score' | 'arrival' | 'created';
+/** `created` = plus récents d'abord, `oldest` = plus anciens d'abord (date de création). */
+export type LeadSortKey = 'manual' | 'score' | 'arrival' | 'created' | 'oldest';
 
 /** Tous, non attribués, ou l'identifiant d'un membre du staff. */
 export type LeadAssigneeFilter = 'all' | 'none' | number;

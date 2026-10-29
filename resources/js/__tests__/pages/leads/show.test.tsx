@@ -617,9 +617,13 @@ describe('Company directory shortcut on the lead page', () => {
             />,
         );
 
-        await user.click(
-            screen.getByRole('button', { name: 'Ajouter aux entreprises' }),
-        );
+        const add = screen.getByRole('button', {
+            name: 'Ajouter aux entreprises',
+        });
+        // Un simple rond « + », sur la ligne de la société.
+        expect(add).toHaveClass('rounded-full');
+        expect(add).not.toHaveTextContent('Ajouter');
+        await user.click(add);
         expect(post).toHaveBeenCalledWith(
             '/companies/from-lead/0199a9a0-0000-7000-8000-000000000001',
             {},
@@ -640,7 +644,7 @@ describe('Company directory shortcut on the lead page', () => {
             screen.queryByRole('button', { name: 'Ajouter aux entreprises' }),
         ).toBeNull();
         expect(
-            screen.getByRole('link', { name: 'Voir l’entreprise' }),
+            screen.getByRole('link', { name: 'Voir l’entreprise Nestlé' }),
         ).toHaveAttribute('href', '/companies/c-1');
 
         // Sans société, rien à ajouter.

@@ -273,6 +273,7 @@ export function TitleIcon({ icon: Icon }: { icon: typeof Home }) {
 export function Section({
     title,
     icon,
+    count,
     action,
     className,
     children,
@@ -280,6 +281,8 @@ export function Section({
     title: string;
     /** Pictogramme en pastille grise devant le titre. */
     icon?: typeof Home;
+    /** Nombre d'éléments, en pastille à côté du titre (rien à zéro). */
+    count?: number;
     action?: ReactNode;
     /** Filet sous la section (`border-b`) là où la colonne n'est pas en `divide-y`. */
     className?: string;
@@ -294,6 +297,11 @@ export function Section({
                 <h2 className="flex items-center gap-2 text-base font-medium">
                     {icon && <TitleIcon icon={icon} />}
                     {title}
+                    {count !== undefined && count > 0 && (
+                        <Badge variant="secondary" className="tabular-nums">
+                            {count}
+                        </Badge>
+                    )}
                 </h2>
                 {action}
             </header>
@@ -308,12 +316,14 @@ function foldKey(prefix: string | undefined, name: string): string | undefined {
 }
 
 /** Groupe repliable à filet : intitulé, compte, chevron. */
-function Fold({
+export function Fold({
     title,
     icon,
     count,
     defaultOpen = false,
     storageKey,
+    action,
+    className,
     children,
 }: {
     title: string;
@@ -323,6 +333,10 @@ function Fold({
     defaultOpen?: boolean;
     /** Clé `localStorage` qui mémorise l'état plié ou déplié (28 octobre 2026). */
     storageKey?: string;
+    /** Bouton à droite du titre, hors du déclencheur (« Ajouter un interlocuteur »). */
+    action?: ReactNode;
+    /** Marges à rendre quand l'accordéon n'est pas un enfant direct de la colonne (carrousel). */
+    className?: string;
     children: ReactNode;
 }) {
     // Plié ou déplié à la main, l'accordéon le reste après un rechargement :
@@ -330,30 +344,52 @@ function Fold({
     const [open, setOpen] = useStoredState(storageKey, defaultOpen);
 
     return (
-        <section aria-label={title} className="py-6 first:pt-0 last:pb-0">
+        <section
+            aria-label={title}
+            className={cn('py-6 first:pt-0 last:pb-0', className)}
+        >
             <Collapsible
                 open={open}
                 onOpenChange={setOpen}
                 className="grid gap-4"
             >
-                <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 text-left">
-                    <span className="flex items-center gap-2 text-base font-medium">
-                        {icon && <TitleIcon icon={icon} />}
-                        {title}
-                        {count !== undefined && count > 0 && (
-                            <Badge variant="secondary" className="tabular-nums">
-                                {count}
-                            </Badge>
-                        )}
-                    </span>
-                    <ChevronDown
-                        aria-hidden
-                        className={cn(
-                            'text-muted-foreground size-4 transition-transform',
-                            open && 'rotate-180',
-                        )}
-                    />
-                </CollapsibleTrigger>
+                {/* Un seul déclencheur (titre et chevron) ; l'action se pose
+                    par-dessus, juste avant le chevron, hors du bouton (un « + »
+                    après le chevron pendait au bout de la ligne). */}
+                <div className="relative flex items-center">
+                    <CollapsibleTrigger className="flex w-full min-w-0 items-center justify-between gap-2 text-left">
+                        <span
+                            className={cn(
+                                'flex min-w-0 items-center gap-2 text-base font-medium',
+                                // Le titre s'arrête avant l'action posée par-dessus.
+                                action && 'pr-9',
+                            )}
+                        >
+                            {icon && <TitleIcon icon={icon} />}
+                            {title}
+                            {count !== undefined && count > 0 && (
+                                <Badge
+                                    variant="secondary"
+                                    className="tabular-nums"
+                                >
+                                    {count}
+                                </Badge>
+                            )}
+                        </span>
+                        <ChevronDown
+                            aria-hidden
+                            className={cn(
+                                'text-muted-foreground size-4 shrink-0 transition-transform',
+                                open && 'rotate-180',
+                            )}
+                        />
+                    </CollapsibleTrigger>
+                    {action && (
+                        <div className="absolute top-1/2 right-7 flex -translate-y-1/2 items-center gap-1">
+                            {action}
+                        </div>
+                    )}
+                </div>
                 {/* Le contenu d'un bloc respire : ses éléments (phrase, lignes,
                     citation, carte) sont espacés comme les blocs entre eux. */}
                 <CollapsibleContent className="grid gap-5">

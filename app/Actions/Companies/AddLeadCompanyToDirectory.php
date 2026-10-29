@@ -9,6 +9,7 @@ use App\Events\DashboardUpdated;
 use App\Models\Company;
 use App\Models\Lead;
 use App\Models\User;
+use App\Support\CompanyName;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -36,7 +37,9 @@ final readonly class AddLeadCompanyToDirectory
             throw ValidationException::withMessages(['company' => __('Le lead n’a pas de société à ajouter.')]);
         }
 
-        $company = Company::query()->named($name)->first()
+        // Une entreprise déjà connue sous une orthographe voisine (« Nestlé
+        // S.A. », « NESTLE SA », « Nestle ») est reprise, jamais dupliquée.
+        $company = self::similar($name)
             ?? $this->create->handle(CompanyData::from(['name' => $name]), $by);
 
         $lead->forceFill(['company_id' => $company->id])->save();
@@ -45,5 +48,18 @@ final readonly class AddLeadCompanyToDirectory
         event(new DashboardUpdated('companies', ['id' => $company->id, 'lead_id' => $lead->id], "a rattaché le lead {$lead->fullName()} à l'entreprise {$company->name}", $by));
 
         return $company;
+    }
+
+    /** Entreprise de l'annuaire dont la raison sociale se rapproche de `$name`, le nom exact d'abord. */
+    public static function similar(string $name): ?Company
+    {
+        $exact = Company::query()->named($name)->first();
+
+        if ($exact !== null) {
+            return $exact;
+        }
+
+        return Company::query()->orderBy('name')->get(['id', 'uuid', 'name'])
+            ->first(fn (Company $company): bool => CompanyName::similar($company->name, $name));
     }
 }

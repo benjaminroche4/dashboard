@@ -75,6 +75,7 @@ export function makePartner(overrides: Partial<Partner> = {}): Partner {
         postal_code: '75004',
         city: 'Paris',
         notes: null,
+        logo: null,
         relationship_quality: null,
         relationship_quality_label: null,
         last_contacted_at: null,

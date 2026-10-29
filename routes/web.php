@@ -191,6 +191,8 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('owners/{owner}', [OwnerController::class, 'show'])->name('owners.show');
     Route::patch('owners/{owner}', [OwnerController::class, 'update'])->name('owners.update');
     Route::post('owners/{owner}/contact', [OwnerController::class, 'contact'])->name('owners.contact');
+    Route::post('owners/{owner}/photo', [OwnerController::class, 'updatePhoto'])->name('owners.photo.update');
+    Route::delete('owners/{owner}/photo', [OwnerController::class, 'destroyPhoto'])->name('owners.photo.destroy');
     Route::delete('owners/{owner}', [OwnerController::class, 'destroy'])->name('owners.destroy');
     Route::get('partners', [PartnerController::class, 'index'])->name('partners.index');
     Route::get('partners/duplicates', [PartnerController::class, 'duplicates'])->middleware('throttle:60,1')->name('partners.duplicates');
@@ -203,6 +205,9 @@ Route::middleware(['auth'])->group(function (): void {
     Route::post('partners/{partner}/contact', [PartnerController::class, 'touch'])->name('partners.contact');
     Route::post('partners/{partner}/welcome', [PartnerController::class, 'welcome'])->name('partners.welcome');
     Route::post('partners/{partner}/favorite', [PartnerController::class, 'favorite'])->name('partners.favorite');
+    Route::post('partners/{partner}/logo', [PartnerController::class, 'updateLogo'])->name('partners.logo.update');
+    Route::delete('partners/{partner}/logo', [PartnerController::class, 'destroyLogo'])->name('partners.logo.destroy');
+    Route::patch('partners/{partner}/fields', [PartnerController::class, 'fields'])->name('partners.fields');
     Route::post('partners/{partner}/contacts', [PartnerContactController::class, 'store'])->name('partners.contacts.store');
     Route::patch('partners/{partner}/contacts/{contact}', [PartnerContactController::class, 'update'])->scopeBindings()->name('partners.contacts.update');
     Route::delete('partners/{partner}/contacts/{contact}', [PartnerContactController::class, 'destroy'])->scopeBindings()->name('partners.contacts.destroy');

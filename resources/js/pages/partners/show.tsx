@@ -1,8 +1,11 @@
-import { Head, Link } from '@inertiajs/react';
-import { Globe, Send, TriangleAlert } from 'lucide-react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Contact, Globe, Home, Mail, Phone, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
-import { ActivityFeed } from '@/components/activity/activity-feed';
 import { AddressMapButton } from '@/components/address-map-dialog';
+import { CreatedBy } from '@/components/created-by';
+import { FavoriteStar } from '@/components/favorite-star';
+import type { InlineValue } from '@/components/inline-field';
+import { Rows, Section, type Fact } from '@/components/leads/lead-show-body';
 import { PartnerBilling } from '@/components/partners/partner-billing';
 import { PartnerTypeBadge } from '@/components/partners/columns';
 import {
@@ -11,33 +14,31 @@ import {
 } from '@/components/partners/partner-contacts';
 import { PartnerDialog } from '@/components/partners/partner-dialog';
 import {
-    PartnerWelcomeDialog,
-    welcomeRecipients,
-} from '@/components/partners/partner-welcome-dialog';
+    PartnerLogoMenuItem,
+    PartnerLogoTile,
+} from '@/components/partners/partner-logo-upload';
 import { formatAddress } from '@/components/real-estate/columns';
-import {
-    DetailHeader,
-    DetailSection,
-    missingValue,
-} from '@/components/real-estate/detail-header';
-import { DirectoryRelationCard } from '@/components/real-estate/directory-relation-card';
+import { missingValue } from '@/components/real-estate/detail-header';
+import { DirectoryFollowUp } from '@/components/real-estate/directory-follow-up';
+import { RealEstateRowActions } from '@/components/real-estate/real-estate-row-actions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
+    relationshipQualities,
     relationshipQualityTones,
     type RelationshipQualityValue,
 } from '@/lib/relationship-quality';
+import { notify } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import {
     contact as partnerContact,
     destroy as partnerDestroy,
     favorite as partnerFavorite,
+    fields as partnerFields,
     index as partnersIndex,
     show as partnerShow,
 } from '@/routes/partners';
 import type {
-    Activity,
     ContactHistoryEntry,
     LeadInvoice,
     LeadQuote,
@@ -55,63 +56,192 @@ type Props = {
     invoices?: LeadInvoice[];
     /** Droits du membre sur les devis et les factures. */
     can?: PartnerAbilities;
-    /** Carte statique de l'adresse, null sans clé Maps Static dédiée. */
-    mapUrl?: string | null;
     /** Partenaires qui partagent l'e-mail ou le téléphone. */
     duplicates?: PartnerDuplicate[];
-    /** Journal : les dernières actions du backoffice sur ce partenaire. */
-    activities?: Activity[];
     /** Tous les échanges notés, pour « Voir l'historique ». */
     contacts?: ContactHistoryEntry[];
 };
 
+/** Valeur d'une ligne de contact : lien cliquable, texte, ou « Non renseigné ». */
+function contactValue(
+    value: string | null | undefined,
+    href: string | null,
+    external = false,
+) {
+    if (!value) {
+        return missingValue;
+    }
+
+    return href ? (
+        <a
+            href={href}
+            {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
+            className="underline-offset-4 hover:underline"
+        >
+            {value}
+        </a>
+    ) : (
+        value
+    );
+}
+
+/**
+ * Fiche d'un partenaire, **sur le moule des fiches agent et agence** (28
+ * octobre 2026) : deux moitiés égales séparées d'un filet. À gauche, le
+ * partenaire et la relation — l'alerte doublons, l'en-tête gris (pastille-logo,
+ * nom, favori, type, qualité, interlocuteurs et dossiers, site, « Ajouté(e)
+ * par », menu « ⋯ » qui porte Modifier et le retrait du logo), le contact en
+ * lignes deux par deux modifiables en place (`partners.fields`) avec la carte
+ * Google, puis la frise « Suivi et notes ». À
+ * droite, ses interlocuteurs, ses dossiers, ses devis et factures.
+ */
 export default function PartnerShow({
     partner,
     types,
     quotes = [],
     invoices = [],
     can = { quotes: false, invoices: false },
-    mapUrl = null,
     duplicates = [],
-    activities = [],
     contacts = [],
 }: Props) {
     const [editing, setEditing] = useState(false);
-    const [welcoming, setWelcoming] = useState(false);
-    // Le partenaire et ses interlocuteurs : les seules adresses possibles.
-    const welcomeTo = welcomeRecipients(partner, partner.contacts);
+    const [savingField, setSavingField] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const address = formatAddress(partner);
+    const { features } = usePage().props;
+    const addressAutocomplete = features.addressAutocomplete;
+    const saveField = (name: string, value: InlineValue) => {
+        setSavingField(name);
+        setFieldErrors({});
+        router.patch(
+            partnerFields({ partner: partner.uuid }).url,
+            // Un champ composé (l'adresse) envoie ses trois colonnes.
+            value !== null && typeof value === 'object' && !Array.isArray(value)
+                ? value
+                : { [name]: value },
+            {
+                preserveScroll: true,
+                onError: (errors) => {
+                    const message =
+                        Object.values(errors)[0] ??
+                        'Le champ n’a pas pu être enregistré.';
+                    setFieldErrors({ [name]: message });
+                    notify.error('Modification refusée', message);
+                },
+                onFinish: () => setSavingField(null),
+            },
+        );
+    };
 
-    return (
-        <>
-            <Head title={`Partenaire ${partner.name}`} />
-            <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pb-10">
-                <DetailHeader
-                    name={partner.name}
-                    subtitle={
-                        <>
-                            <PartnerTypeBadge
-                                type={partner.type}
-                                label={partner.type_label}
-                            />
-                            {partner.relationship_quality_label && (
-                                <Badge
-                                    variant="secondary"
-                                    className={cn(
-                                        'font-medium',
-                                        relationshipQualityTones[
-                                            partner.relationship_quality as RelationshipQualityValue
-                                        ],
-                                    )}
-                                >
-                                    {partner.relationship_quality_label}
-                                </Badge>
-                            )}
-                            <span className="tabular-nums">
-                                {partner.contacts_count} interlocuteur(s) ·{' '}
-                                {partner.leads_count} dossier(s)
-                            </span>
-                            {partner.website && (
+    const contact: Fact[] = [
+        {
+            label: 'Téléphone',
+            icon: <Phone className="size-3.5" aria-hidden />,
+            value: contactValue(
+                partner.phone,
+                partner.phone
+                    ? `tel:${partner.phone.replace(/\s+/g, '')}`
+                    : null,
+            ),
+            edit: { name: 'phone', kind: 'text', value: partner.phone },
+        },
+        {
+            label: 'E-mail',
+            icon: <Mail className="size-3.5" aria-hidden />,
+            value: contactValue(
+                partner.email,
+                partner.email ? `mailto:${partner.email}` : null,
+            ),
+            edit: { name: 'email', kind: 'text', value: partner.email },
+        },
+        {
+            label: 'Site web',
+            icon: <Globe className="size-3.5" aria-hidden />,
+            value: contactValue(
+                partner.website?.replace(/^https?:\/\//, ''),
+                partner.website,
+                true,
+            ),
+            edit: {
+                name: 'website',
+                kind: 'text',
+                value: partner.website,
+                placeholder: 'https://',
+            },
+        },
+        {
+            label: 'Qualité de la relation',
+            value: partner.relationship_quality_label ?? missingValue,
+            edit: {
+                name: 'relationship_quality',
+                kind: 'select',
+                value: partner.relationship_quality,
+                options: relationshipQualities.map((quality) => ({
+                    ...quality,
+                })),
+            },
+        },
+        {
+            label: 'Adresse',
+            icon: <Home className="size-3.5" aria-hidden />,
+            value: address ?? missingValue,
+            // Une seule ligne cherchée dans Google Places : la suggestion
+            // remplit rue, code postal et ville (28 octobre 2026, comme sur
+            // les fiches agent et agence).
+            edit: {
+                name: 'address',
+                kind: 'postal_address',
+                street: partner.street,
+                postalCode: partner.postal_code,
+                city: partner.city,
+                enabled: addressAutocomplete,
+            },
+        },
+    ];
+
+    const header = (
+        <div
+            className="bg-sidebar flex items-start justify-between gap-4 rounded-xl border p-4"
+            data-testid="partner-header"
+        >
+            <div className="flex min-w-0 items-center gap-4">
+                {/* La pastille est le bouton : logo, ou initiales, et au
+                    survol un appareil photo pour en poser un. */}
+                <PartnerLogoTile partner={partner} />
+                <div className="min-w-0">
+                    {/* L'étoile reste hors du titre : le nom accessible du <h1>
+                        ne doit pas se terminer par « Favori ». */}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <h1 className="truncate text-lg font-medium">
+                            {partner.name}
+                        </h1>
+                        <FavoriteStar favorite={partner.is_favorite} />
+                        <PartnerTypeBadge
+                            type={partner.type}
+                            label={partner.type_label}
+                        />
+                        {partner.relationship_quality_label && (
+                            <Badge
+                                variant="secondary"
+                                className={cn(
+                                    'font-medium',
+                                    relationshipQualityTones[
+                                        partner.relationship_quality as RelationshipQualityValue
+                                    ],
+                                )}
+                            >
+                                {partner.relationship_quality_label}
+                            </Badge>
+                        )}
+                    </div>
+                    <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-sm">
+                        <span className="tabular-nums">
+                            {partner.contacts_count} interlocuteur(s) ·{' '}
+                            {partner.leads_count} dossier(s)
+                        </span>
+                        {partner.website && (
+                            <>
+                                <span>·</span>
                                 <a
                                     href={partner.website}
                                     target="_blank"
@@ -124,30 +254,46 @@ export default function PartnerShow({
                                         '',
                                     )}
                                 </a>
-                            )}
-                        </>
-                    }
-                    creator={partner.creator}
-                    creatorAvatar={partner.creator_avatar}
-                    createdAt={partner.created_at}
-                    onEdit={() => setEditing(true)}
-                    deleteUrl={partnerDestroy({ partner: partner.uuid }).url}
-                    deleteTitle={`Supprimer le partenaire ${partner.name} ?`}
-                    deleteDescription="Sa fiche sera effacée. Cette action est irréversible."
-                    tone="bg-muted text-muted-foreground"
-                    favorite={{
-                        active: partner.is_favorite,
-                        url: partnerFavorite({ partner: partner.uuid }).url,
-                    }}
-                />
+                            </>
+                        )}
+                    </div>
+                    <p className="text-muted-foreground mt-1 text-xs">
+                        <CreatedBy
+                            name={partner.creator}
+                            avatar={partner.creator_avatar}
+                            date={partner.created_at}
+                            verb="Ajouté(e) par"
+                        />
+                    </p>
+                </div>
+            </div>
+            {/* Toutes les actions dans le menu « ⋯ », comme sur les autres fiches. */}
+            <RealEstateRowActions
+                triggerVariant="outline"
+                favorite={{
+                    active: partner.is_favorite,
+                    url: partnerFavorite({ partner: partner.uuid }).url,
+                }}
+                name={partner.name}
+                deleteUrl={partnerDestroy({ partner: partner.uuid }).url}
+                deleteTitle={`Supprimer le partenaire ${partner.name} ?`}
+                deleteDescription="Sa fiche sera effacée. Cette action est irréversible."
+                onEdit={() => setEditing(true)}
+                extra={<PartnerLogoMenuItem partner={partner} />}
+            />
+        </div>
+    );
 
-                {/* Même découpe qu'une facture ou un devis : le document à gauche,
-                    les actions et les liens dans une colonne collante à droite. */}
-
-                {/* Même découpe qu'une facture ou un devis : le document à gauche,
-                    les actions et les liens dans une colonne collante à droite. */}
-                <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                    <div className="flex flex-col gap-6">
+    return (
+        <>
+            <Head title={`Partenaire ${partner.name}`} />
+            <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pt-8 pb-10 lg:pb-0">
+                <div
+                    className="grid gap-8 lg:flex-1 lg:grid-cols-2 lg:gap-0 lg:divide-x"
+                    data-testid="partner-columns"
+                >
+                    {/* Le partenaire et la relation. */}
+                    <div className="grid content-start gap-6 lg:sticky lg:top-20 lg:-ml-3 lg:max-h-[calc(100dvh-5rem)] lg:self-start lg:overflow-y-auto lg:pr-8 lg:pb-8 lg:pl-3">
                         {duplicates.length > 0 && (
                             <Alert variant="warning">
                                 <TriangleAlert aria-hidden />
@@ -178,148 +324,72 @@ export default function PartnerShow({
                                 </AlertDescription>
                             </Alert>
                         )}
-                        <DetailSection
-                            title="Coordonnées"
-                            action={
-                                <AddressMapButton
-                                    place={{
-                                        name: partner.name,
-                                        address,
-                                        street: partner.street,
-                                        latitude: partner.latitude,
-                                        longitude: partner.longitude,
-                                    }}
-                                />
-                            }
-                        >
-                            <div className="grid gap-4">
-                                {mapUrl && (
-                                    <img
-                                        src={mapUrl}
-                                        alt={`Carte de ${address ?? partner.name}`}
-                                        loading="lazy"
-                                        className="h-40 w-full rounded-lg border object-cover"
+                        {header}
+                        <div>
+                            <Section
+                                title="Contact"
+                                icon={Contact}
+                                className="border-b pb-6 last:pb-6"
+                                action={
+                                    <AddressMapButton
+                                        place={{
+                                            name: partner.name,
+                                            address,
+                                            street: partner.street,
+                                            latitude: partner.latitude,
+                                            longitude: partner.longitude,
+                                        }}
                                     />
-                                )}
-                                <dl className="divide-border grid divide-y text-sm">
-                                    {[
-                                        {
-                                            label: 'Téléphone',
-                                            value: partner.phone,
-                                            href: partner.phone
-                                                ? `tel:${partner.phone.replace(/\s+/g, '')}`
-                                                : null,
-                                        },
-                                        {
-                                            label: 'E-mail',
-                                            value: partner.email,
-                                            href: partner.email
-                                                ? `mailto:${partner.email}`
-                                                : null,
-                                        },
-                                        {
-                                            label: 'Site web',
-                                            value: partner.website?.replace(
-                                                /^https?:\/\//,
-                                                '',
-                                            ),
-                                            href: partner.website,
-                                            external: true,
-                                        },
-                                        { label: 'Adresse', value: address },
-                                    ].map((row) => (
-                                        <div
-                                            key={row.label}
-                                            className="grid gap-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[10rem_minmax(0,1fr)] sm:gap-4"
-                                        >
-                                            <dt className="text-muted-foreground">
-                                                {row.label}
-                                            </dt>
-                                            <dd className="break-words">
-                                                {row.value ? (
-                                                    row.href ? (
-                                                        <a
-                                                            href={row.href}
-                                                            {...(row.external
-                                                                ? {
-                                                                      target: '_blank',
-                                                                      rel: 'noreferrer',
-                                                                  }
-                                                                : {})}
-                                                            className="underline-offset-4 hover:underline"
-                                                        >
-                                                            {row.value}
-                                                        </a>
-                                                    ) : (
-                                                        row.value
-                                                    )
-                                                ) : (
-                                                    missingValue
-                                                )}
-                                            </dd>
-                                        </div>
-                                    ))}
-                                </dl>
-                            </div>
-                        </DetailSection>
-                        <PartnerContacts
-                            partnerUuid={partner.uuid}
-                            contacts={partner.contacts}
-                        />
-                    </div>
-                    <aside className="grid h-fit content-start gap-6 lg:sticky lg:top-6">
-                        <DirectoryRelationCard
-                            lastContactedAt={partner.last_contacted_at}
-                            touchUrl={
-                                partnerContact({ partner: partner.uuid }).url
-                            }
-                            notes={partner.notes}
-                            contacts={contacts}
-                            name={partner.name}
-                            extraAction={
-                                welcomeTo.length > 0 && (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setWelcoming(true)}
-                                    >
-                                        <Send aria-hidden />
-                                        Renvoyer la bienvenue
-                                    </Button>
-                                )
-                            }
-                        />
-                        <PartnerLeads
-                            leads={partner.leads}
-                            partner={partner}
-                            roles={partner.roles}
-                        />
-                        <PartnerBilling
-                            partnerUuid={partner.uuid}
-                            quotes={quotes}
-                            invoices={invoices}
-                            can={can}
-                        />
-                        {activities.length > 0 && (
-                            <ActivityFeed
-                                groups={[
-                                    {
-                                        label: 'Dernières actions',
-                                        items: activities,
-                                    },
-                                ]}
-                                collapseAfter={5}
+                                }
+                            >
+                                {/* Pas de carte dans le bloc : elle ne s'ouvre
+                                    qu'au clic sur « Voir sur la carte » (28 octobre 2026). */}
+                                <Rows
+                                    facts={contact}
+                                    columns={2}
+                                    onSave={saveField}
+                                    saving={savingField}
+                                    errors={fieldErrors}
+                                />
+                            </Section>
+                            <DirectoryFollowUp
+                                name={partner.name}
+                                lastContactedAt={partner.last_contacted_at}
+                                touchUrl={
+                                    partnerContact({ partner: partner.uuid })
+                                        .url
+                                }
+                                contacts={contacts}
+                                notes={partner.notes}
+                                saving={savingField === 'notes'}
+                                error={fieldErrors.notes}
+                                onSaveNotes={(value) =>
+                                    saveField('notes', value)
+                                }
                             />
-                        )}
-                    </aside>
+                        </div>
+                    </div>
+                    {/* Ses interlocuteurs, ses dossiers, ce qu'on lui a facturé. */}
+                    <div className="grid min-w-0 content-start lg:pb-10 lg:pl-8">
+                        <div className="divide-y">
+                            <PartnerContacts
+                                partnerUuid={partner.uuid}
+                                contacts={partner.contacts}
+                            />
+                            <PartnerLeads
+                                leads={partner.leads}
+                                partner={partner}
+                            />
+                            <PartnerBilling
+                                partnerUuid={partner.uuid}
+                                quotes={quotes}
+                                invoices={invoices}
+                                can={can}
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
-            <PartnerWelcomeDialog
-                partnerUuid={partner.uuid}
-                recipients={welcomeTo}
-                open={welcoming}
-                onOpenChange={setWelcoming}
-            />
             <PartnerDialog
                 open={editing}
                 onOpenChange={setEditing}

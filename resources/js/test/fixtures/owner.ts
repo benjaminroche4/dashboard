@@ -23,6 +23,7 @@ export function makeOwner(overrides: Partial<Owner> = {}): Owner {
         first_name: 'Zoé',
         last_name: 'Martin',
         name: 'Zoé Martin',
+        photo: null,
         contact_name: null,
         company: null,
         email: 'zoe@example.com',

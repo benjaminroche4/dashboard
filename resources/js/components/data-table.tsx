@@ -97,6 +97,11 @@ type DataTableProps<TData, TValue> = {
      * survivent alors au rechargement de la page. Une clé par liste.
      */
     storageKey?: string;
+    /**
+     * Colonnes masquées à la première visite (identifiants de colonnes) ;
+     * le menu « Colonnes » les rouvre, et le choix mémorisé prime ensuite.
+     */
+    defaultHidden?: string[];
 };
 
 /**
@@ -119,6 +124,7 @@ export function DataTable<TData, TValue>({
     rowProps,
     server,
     storageKey,
+    defaultHidden = [],
 }: DataTableProps<TData, TValue>) {
     const styles = frames[frame];
     const [localSorting, setLocalSorting] = useState<SortingState>([]);
@@ -138,7 +144,7 @@ export function DataTable<TData, TValue>({
     const [columnVisibility, setColumnVisibility] =
         useStoredState<VisibilityState>(
             storageKey === undefined ? undefined : `${storageKey}.columns`,
-            {},
+            Object.fromEntries(defaultHidden.map((id) => [id, false])),
         );
     const [rowSelection, setRowSelection] = useState({});
 

@@ -336,5 +336,6 @@
     "Photo de :name retirée.": "Photo de :name retirée.",
     ":name figure dans l’annuaire des entreprises.": ":name figure dans l’annuaire des entreprises.",
     "Le lead n’a pas de société à ajouter.": "Le lead n’a pas de société à ajouter.",
+    "Déjà dans l’annuaire sous le nom « :name » : le lead y est rattaché.": "Déjà dans l’annuaire sous le nom « :name » : le lead y est rattaché.",
     "Indiquez au moins un bien correspondant.": "Indiquez au moins un bien correspondant."
 }

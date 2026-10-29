@@ -2,7 +2,7 @@ import { Link } from '@inertiajs/react';
 import { FilePlus2, Link2, Receipt } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { linkInvoice } from '@/components/invoices/invoice-lead-link';
-import { Badge } from '@/components/ui/badge';
+import { InvoiceStatusBadge } from '@/components/invoices/invoice-status-badge';
 import { Button } from '@/components/ui/button';
 import {
     Command,
@@ -105,12 +105,10 @@ export function LeadInvoices({
                                         invoice.currency,
                                     )}
                                 </span>
-                                <Badge
-                                    variant="secondary"
-                                    data-status={invoice.status}
-                                >
-                                    {invoice.status_label}
-                                </Badge>
+                                <InvoiceStatusBadge
+                                    status={invoice.status}
+                                    label={invoice.status_label}
+                                />
                             </span>
                         </li>
                     ))}

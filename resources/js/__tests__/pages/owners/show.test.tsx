@@ -238,4 +238,49 @@ describe('Owner detail page', () => {
             screen.queryByRole('img', { name: 'Photo de Studio · 11e' }),
         ).not.toBeInTheDocument();
     });
+
+    it('shows the portrait in the header as a tile that changes it, and the removal in the « ⋯ » menu', async () => {
+        const user = userEvent.setup();
+        render(
+            <OwnerShow
+                owner={makeOwner({ photo: '/storage/owner-photos/zoe.png' })}
+                properties={[]}
+                stats={stats}
+                kinds={ownerKinds}
+            />,
+        );
+
+        const tile = screen.getByRole('button', { name: 'Changer la photo' });
+        expect(tile.querySelector('img')).toHaveAttribute(
+            'src',
+            '/storage/owner-photos/zoe.png',
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: /Actions pour Zoé Martin/ }),
+        );
+        expect(
+            screen.getByRole('menuitem', { name: 'Retirer la photo' }),
+        ).toBeInTheDocument();
+    });
+
+    it('speaks of a logo for a company, with its initials in a square tile', () => {
+        render(
+            <OwnerShow
+                owner={makeOwner({
+                    kind: 'company',
+                    kind_label: 'Société ou agence',
+                    name: 'SCI du Marais',
+                    company: 'SCI du Marais',
+                })}
+                properties={[]}
+                stats={stats}
+                kinds={ownerKinds}
+            />,
+        );
+
+        expect(
+            screen.getByRole('button', { name: 'Ajouter un logo' }),
+        ).toHaveTextContent('SD');
+    });
 });

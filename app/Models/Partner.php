@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\Partners\UpdatePartnerLogo;
 use App\Concerns\Favoritable;
 use App\Enums\PartnerType;
 use App\Enums\RelationshipQuality;
 use App\Support\ContactMatch;
+use App\Support\FileUrl;
 use Carbon\CarbonInterface;
 use Database\Factories\PartnerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -35,6 +38,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $postal_code
  * @property string|null $city
  * @property string|null $notes
+ * @property string|null $logo_path
+ * @property-read string|null $logo
  * @property int|null $created_by
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
@@ -44,7 +49,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read Collection<int, PartnerContact> $contacts
  * @property-read Collection<int, LeadPartner> $leadLinks
  */
-#[Fillable(['name', 'type', 'relationship_quality', 'email', 'phone', 'website', 'street', 'postal_code', 'city', 'notes', 'last_contacted_at', 'latitude', 'longitude', 'created_by'])]
+#[Fillable(['name', 'type', 'relationship_quality', 'email', 'phone', 'website', 'street', 'postal_code', 'city', 'notes', 'logo_path', 'last_contacted_at', 'latitude', 'longitude', 'created_by'])]
 class Partner extends Model
 {
     use Favoritable;
@@ -84,6 +89,16 @@ class Partner extends Model
     }
 
     /** Interlocuteur principal, sinon le premier de la liste. */
+    /**
+     * URL du logo (lien signé dans un bucket), ou null sans logo.
+     *
+     * @return Attribute<string|null, never>
+     */
+    protected function logo(): Attribute
+    {
+        return new Attribute(get: fn (): ?string => FileUrl::for(UpdatePartnerLogo::DISK, $this->logo_path));
+    }
+
     public function primaryContact(): ?PartnerContact
     {
         return $this->contacts->firstWhere('is_primary', true) ?? $this->contacts->first();
