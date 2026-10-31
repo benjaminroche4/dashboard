@@ -55,7 +55,7 @@ const offers = [
         label: 'Accompagné',
         description: '',
         summary: '',
-        price_cents: 119_000,
+        price_cents: 149_000,
     },
     {
         value: 'confie' as const,

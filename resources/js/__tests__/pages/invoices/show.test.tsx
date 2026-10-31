@@ -42,7 +42,7 @@ const offers = [
         value: 'accompagne' as const,
         label: 'Accompagné',
         description: 'Offre Accompagné',
-        prices: { CHF: 0, EUR: 119_000 },
+        prices: { CHF: 0, EUR: 149_000 },
     },
 ];
 

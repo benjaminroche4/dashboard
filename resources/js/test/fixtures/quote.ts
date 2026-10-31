@@ -1,6 +1,6 @@
 import type { Quote, QuoteDetail, QuoteStatusChange } from '@/types';
 
-/** Miroir de QuoteFactory : devis envoyé, une ligne Accompagné à 1 190 EUR. */
+/** Miroir de QuoteFactory : devis envoyé, une ligne Accompagné à 1 490 EUR. */
 export function makeQuote(overrides: Partial<Quote> = {}): Quote {
     return {
         id: 1,
@@ -8,7 +8,7 @@ export function makeQuote(overrides: Partial<Quote> = {}): Quote {
         number: 'DV-27001',
         client_name: 'Jean Dupont',
         client_email: 'client@exemple.com',
-        amount_cents: 128_639,
+        amount_cents: 161_069,
         currency: 'EUR',
         status: 'sent',
         status_label: 'Envoyé',
@@ -39,14 +39,14 @@ export function makeQuoteDetail(
                 offer: 'accompagne',
                 description: 'Offre Accompagné',
                 quantity: 1,
-                unit_price_cents: 119_000,
+                unit_price_cents: 149_000,
             },
         ],
         vat_rate: 8.1,
         discount_percent: 0,
         discount_cents: 0,
-        subtotal_cents: 119_000,
-        vat_cents: 9_639,
+        subtotal_cents: 149_000,
+        vat_cents: 12_069,
         sent_at: '2026-09-07T10:00:00+00:00',
         accepted_at: null,
         declined_at: null,

@@ -36,6 +36,8 @@ export function makeCompany(
         street: '8 rue de Rivoli',
         postal_code: '75004',
         city: 'Paris',
+        latitude: null,
+        longitude: null,
         notes: null,
         logo: null,
         contacts: [

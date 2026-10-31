@@ -293,4 +293,30 @@ describe('Owner detail page', () => {
             screen.getByRole('button', { name: 'Ajouter un logo' }),
         ).toHaveTextContent('SD');
     });
+
+    it('offers « Voir sur la carte » once the fiche is geocoded, like the other directory pages', () => {
+        const { rerender } = render(
+            <OwnerShow
+                owner={makeOwner()}
+                properties={[]}
+                stats={stats}
+                kinds={ownerKinds}
+            />,
+        );
+        expect(
+            screen.queryByRole('button', { name: 'Voir sur la carte' }),
+        ).toBeNull();
+
+        rerender(
+            <OwnerShow
+                owner={makeOwner({ latitude: 48.8656, longitude: 2.3705 })}
+                properties={[]}
+                stats={stats}
+                kinds={ownerKinds}
+            />,
+        );
+        expect(
+            screen.getByRole('button', { name: 'Voir sur la carte' }),
+        ).toBeInTheDocument();
+    });
 });

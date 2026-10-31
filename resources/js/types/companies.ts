@@ -9,6 +9,9 @@ export type CompanyEntry = {
     street: string | null;
     postal_code: string | null;
     city: string | null;
+    /** Position posée depuis l'adresse, pour la carte ; null tant que non géocodé. */
+    latitude: number | null;
+    longitude: number | null;
     notes: string | null;
     /** URL du logo (image de profil de l'entreprise), ou null. */
     logo: string | null;

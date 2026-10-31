@@ -31,6 +31,8 @@ export function makeOwner(overrides: Partial<Owner> = {}): Owner {
         street: '8 rue de Rivoli',
         postal_code: '75004',
         city: 'Paris',
+        latitude: null,
+        longitude: null,
         properties_count: 2,
         notes: null,
         last_contacted_at: null,

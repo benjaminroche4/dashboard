@@ -10,7 +10,7 @@ describe('invoiceToForm', () => {
 
         expect(form.deposit).toBe('500');
         expect(form.discount_percent).toBe('10');
-        expect(form.items[0].unit_price).toBe('1190');
+        expect(form.items[0].unit_price).toBe('1490');
         expect(form.items[0].quantity).toBe('1');
         expect(form.client_email).toBe('client@exemple.com');
     });

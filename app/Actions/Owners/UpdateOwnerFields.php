@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Owners;
 
+use App\Actions\Directory\GeocodeDirectoryEntry;
 use App\Events\DashboardUpdated;
 use App\Http\Requests\Owners\UpdateOwnerFieldsRequest;
 use App\Models\Owner;
@@ -12,8 +13,10 @@ use App\Models\Owner;
  * Écrit les champs d'un propriétaire modifiés en place depuis sa fiche : une
  * chaîne vide vaut null ; rien n'est enregistré ni diffusé sans changement.
  */
-final class UpdateOwnerFields
+final readonly class UpdateOwnerFields
 {
+    public function __construct(private GeocodeDirectoryEntry $geocode) {}
+
     /**
      * @param  array<string, mixed>  $fields  Clés parmi `UpdateOwnerFieldsRequest::FIELDS`.
      */
@@ -41,6 +44,10 @@ final class UpdateOwnerFields
             array_keys(array_intersect_key($owner->getDirty(), UpdateOwnerFieldsRequest::FIELDS)),
         )));
         $owner->save();
+
+        if ($this->geocode->shouldGeocode($owner)) {
+            $this->geocode->handle($owner);
+        }
 
         event(new DashboardUpdated(
             'owners',

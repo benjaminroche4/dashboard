@@ -201,4 +201,25 @@ describe('Company detail page', () => {
             screen.getByRole('menuitem', { name: 'Retirer le logo' }),
         ).toBeInTheDocument();
     });
+
+    it('offers « Voir sur la carte » once the fiche is geocoded, like the other directory pages', () => {
+        const { rerender } = render(
+            <CompanyShow company={makeCompanyDetail()} />,
+        );
+        expect(
+            screen.queryByRole('button', { name: 'Voir sur la carte' }),
+        ).toBeNull();
+
+        rerender(
+            <CompanyShow
+                company={makeCompanyDetail({
+                    latitude: 48.8656,
+                    longitude: 2.3705,
+                })}
+            />,
+        );
+        expect(
+            screen.getByRole('button', { name: 'Voir sur la carte' }),
+        ).toBeInTheDocument();
+    });
 });

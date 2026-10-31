@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Companies;
 
+use App\Actions\Directory\GeocodeDirectoryEntry;
 use App\Events\DashboardUpdated;
 use App\Http\Requests\Companies\UpdateCompanyFieldsRequest;
 use App\Models\Company;
@@ -12,8 +13,10 @@ use App\Models\Company;
  * Écrit les champs d'une entreprise modifiés en place depuis sa fiche : une
  * chaîne vide vaut null ; rien n'est enregistré ni diffusé sans changement.
  */
-final class UpdateCompanyFields
+final readonly class UpdateCompanyFields
 {
+    public function __construct(private GeocodeDirectoryEntry $geocode) {}
+
     /**
      * @param  array<string, mixed>  $fields  Clés parmi `UpdateCompanyFieldsRequest::FIELDS`.
      */
@@ -41,6 +44,10 @@ final class UpdateCompanyFields
             array_keys(array_intersect_key($company->getDirty(), UpdateCompanyFieldsRequest::FIELDS)),
         )));
         $company->save();
+
+        if ($this->geocode->shouldGeocode($company)) {
+            $this->geocode->handle($company);
+        }
 
         event(new DashboardUpdated(
             'companies',

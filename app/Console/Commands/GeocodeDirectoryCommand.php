@@ -7,6 +7,8 @@ namespace App\Console\Commands;
 use App\Actions\Directory\GeocodeDirectoryEntry;
 use App\Models\Agency;
 use App\Models\Agent;
+use App\Models\Company;
+use App\Models\Owner;
 use App\Models\Partner;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
@@ -25,7 +27,7 @@ final class GeocodeDirectoryCommand extends Command
         $located = 0;
         $total = 0;
 
-        foreach ([Agency::class, Agent::class, Partner::class] as $model) {
+        foreach ([Agency::class, Agent::class, Partner::class, Owner::class, Company::class] as $model) {
             $entries = $model::query()
                 ->whereNotNull('street')
                 ->unless($this->option('all'), fn (Builder $query): Builder => $query->whereNull('latitude'))
@@ -33,7 +35,7 @@ final class GeocodeDirectoryCommand extends Command
                 ->get();
 
             $total += $entries->count();
-            $located += $entries->filter(fn (Agency|Agent|Partner $entry): bool => $geocode->handle($entry))->count();
+            $located += $entries->filter(fn (Agency|Agent|Partner|Owner|Company $entry): bool => $geocode->handle($entry))->count();
         }
 
         $this->info("{$located} entrée(s) positionnée(s) sur {$total}.");

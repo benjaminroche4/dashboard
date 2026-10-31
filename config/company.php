@@ -104,7 +104,7 @@ return [
         ['code' => null, 'name' => 'Autre'],
     ],
 
-    // Prix unitaires par défaut des offres, en centimes, par devise (1 190 et 2 190).
+    // Prix unitaires par défaut des offres, en centimes, par devise (Accompagné 1 490, Confié 2 190).
     /*
      * Liens de paiement Stripe (Payment Links) par formule, modalité et langue.
      * « deposit » = acompte de 50 %. Absent pour Accompagné : pas d'acompte sur cette offre.
@@ -130,8 +130,8 @@ return [
 
     'offers' => [
         'accompagne' => [
-            'CHF' => (int) env('OFFER_ACCOMPAGNE_CHF_CENTS', 119_000),
-            'EUR' => (int) env('OFFER_ACCOMPAGNE_EUR_CENTS', 119_000),
+            'CHF' => (int) env('OFFER_ACCOMPAGNE_CHF_CENTS', 149_000),
+            'EUR' => (int) env('OFFER_ACCOMPAGNE_EUR_CENTS', 149_000),
         ],
         'confie' => [
             'CHF' => (int) env('OFFER_CONFIE_CHF_CENTS', 219_000),

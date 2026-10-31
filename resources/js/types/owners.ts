@@ -27,6 +27,9 @@ export type Owner = {
     street: string | null;
     postal_code: string | null;
     city: string | null;
+    /** Position posée depuis l'adresse, pour la carte ; null tant que non géocodé. */
+    latitude: number | null;
+    longitude: number | null;
     /** Biens de l'annuaire rattachés à ce propriétaire. */
     properties_count: number;
     notes: string | null;

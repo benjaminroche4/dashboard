@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Companies;
 
+use App\Actions\Directory\GeocodeDirectoryEntry;
 use App\Data\CompanyData;
 use App\Events\DashboardUpdated;
 use App\Models\Company;
@@ -17,6 +18,12 @@ final class UpdateCompany
     public function handle(Company $company, CompanyData $data, ?User $by = null): Company
     {
         $company->fill($data->toArray())->save();
+        // Nouvelle adresse (ou position encore absente) : on repositionne sur la carte.
+        $geocode = resolve(GeocodeDirectoryEntry::class);
+
+        if ($geocode->shouldGeocode($company)) {
+            $geocode->handle($company);
+        }
 
         event(new DashboardUpdated('companies', ['id' => $company->id], "a modifié l'entreprise {$company->name}", $by));
 

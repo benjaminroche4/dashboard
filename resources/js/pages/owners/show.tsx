@@ -263,8 +263,8 @@ export default function OwnerShow({
                                             name: owner.name,
                                             address,
                                             street: owner.street,
-                                            latitude: null,
-                                            longitude: null,
+                                            latitude: owner.latitude,
+                                            longitude: owner.longitude,
                                         }}
                                     />
                                 }
@@ -274,8 +274,8 @@ export default function OwnerShow({
                                         name: owner.name,
                                         address,
                                         street: owner.street,
-                                        latitude: null,
-                                        longitude: null,
+                                        latitude: owner.latitude,
+                                        longitude: owner.longitude,
                                     }}
                                     fallback={mapUrl}
                                 />

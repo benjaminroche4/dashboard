@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Models\Agency;
 use App\Models\Agent;
+use App\Models\Company;
+use App\Models\Owner;
 use App\Models\Partner;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
@@ -96,4 +98,38 @@ test('the directory geocoding command catches up the entries without coordinates
     expect(Agency::query()->firstOrFail()->latitude)->toBe(48.8656)
         // Sans rue, rien à géocoder.
         ->and(Agent::query()->firstOrFail()->latitude)->toBeNull();
+});
+
+test('an owner and a company are placed on the map too, and their fiche exposes the position', function (): void {
+    fakeGeocoder();
+    $staff = User::factory()->create();
+
+    $this->actingAs($staff)->post(route('owners.store'), [
+        'kind' => 'individual',
+        'first_name' => 'Zoé',
+        'last_name' => 'Martin',
+        'email' => 'zoe@example.com',
+        'street' => '8 rue de Rivoli',
+        'postal_code' => '75004',
+        'city' => 'Paris',
+    ])->assertSessionHasNoErrors();
+    $this->actingAs($staff)->post(route('companies.store'), [
+        'name' => 'Axa',
+        'street' => '25 avenue Matignon',
+        'postal_code' => '75008',
+        'city' => 'Paris',
+    ])->assertSessionHasNoErrors();
+
+    $owner = Owner::query()->firstOrFail();
+    $company = Company::query()->firstOrFail();
+    expect($owner->latitude)->toBe(48.8656)->and($company->longitude)->toBe(2.3705);
+
+    $this->actingAs($staff)->get(route('owners.show', $owner))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->where('owner.latitude', 48.8656));
+    $this->actingAs($staff)->get(route('companies.show', $company))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->where('company.longitude', 2.3705));
+
+    // Une adresse changée en place repart au géocodage.
+    $this->actingAs($staff)->patch(route('owners.fields', $owner), ['street' => '1 rue de la Paix', 'postal_code' => '75002', 'city' => 'Paris'])->assertRedirect();
+    Http::assertSent(fn ($request): bool => str_contains($request->url(), 'geocode') && str_contains(urldecode($request->url()), '1 rue de la Paix'));
 });

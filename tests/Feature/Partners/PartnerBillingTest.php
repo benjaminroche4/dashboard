@@ -61,7 +61,7 @@ test('an invoice stores the partner it is addressed to, and keeps it when edited
         'issued_at' => now()->toDateString(),
         'due_at' => now()->addDays(30)->toDateString(),
         'partner_id' => $partner->id,
-        'items' => [['offer' => Offer::Accompagne->value, 'quantity' => 1, 'unit_price_cents' => 119_000]],
+        'items' => [['offer' => Offer::Accompagne->value, 'quantity' => 1, 'unit_price_cents' => 149_000]],
     ];
 
     $this->actingAs($manager)->post(route('invoices.store'), $payload)->assertRedirect();

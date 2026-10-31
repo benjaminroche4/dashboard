@@ -36,6 +36,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $notes
  * @property string|null $logo_path
  * @property-read string|null $logo
+ * @property float|null $latitude
+ * @property float|null $longitude
  * @property int|null $created_by
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
@@ -43,7 +45,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read Collection<int, CompanyContact> $contacts
  * @property-read Collection<int, Lead> $clients
  */
-#[Fillable(['name', 'email', 'phone', 'website', 'street', 'postal_code', 'city', 'notes', 'logo_path', 'created_by'])]
+#[Fillable(['name', 'email', 'phone', 'website', 'street', 'postal_code', 'city', 'notes', 'logo_path', 'latitude', 'longitude', 'created_by'])]
 class Company extends Model
 {
     /** @use HasFactory<CompanyFactory> */
@@ -64,6 +66,17 @@ class Company extends Model
     public function getRouteKeyName(): string
     {
         return 'uuid';
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'latitude' => 'float',
+            'longitude' => 'float',
+        ];
     }
 
     /**

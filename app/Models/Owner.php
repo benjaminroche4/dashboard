@@ -38,6 +38,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int|null $lead_id
  * @property string|null $photo_path
  * @property-read string|null $photo
+ * @property float|null $latitude
+ * @property float|null $longitude
  * @property CarbonInterface|null $last_contacted_at
  * @property int|null $created_by
  * @property CarbonInterface|null $created_at
@@ -46,7 +48,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read User|null $creator
  * @property-read Collection<int, Property> $properties
  */
-#[Fillable(['kind', 'first_name', 'last_name', 'company', 'email', 'phone', 'street', 'postal_code', 'city', 'notes', 'photo_path', 'lead_id', 'last_contacted_at', 'created_by'])]
+#[Fillable(['kind', 'first_name', 'last_name', 'company', 'email', 'phone', 'street', 'postal_code', 'city', 'notes', 'photo_path', 'lead_id', 'last_contacted_at', 'latitude', 'longitude', 'created_by'])]
 class Owner extends Model
 {
     /** @use HasFactory<OwnerFactory> */
@@ -82,7 +84,12 @@ class Owner extends Model
      */
     protected function casts(): array
     {
-        return ['kind' => OwnerKind::class, 'last_contacted_at' => 'datetime'];
+        return [
+            'kind' => OwnerKind::class,
+            'last_contacted_at' => 'datetime',
+            'latitude' => 'float',
+            'longitude' => 'float',
+        ];
     }
 
     /** Nom de la personne ; pour une société, sa raison sociale. */

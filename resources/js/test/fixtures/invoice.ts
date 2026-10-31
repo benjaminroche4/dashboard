@@ -1,6 +1,6 @@
 import type { Invoice, InvoiceDetail, InvoiceStatusChange } from '@/types';
 
-/** Miroir de InvoiceFactory : facture envoyée, une ligne Accompagné à 1 190 EUR. */
+/** Miroir de InvoiceFactory : facture envoyée, une ligne Accompagné à 1 490 EUR. */
 export function makeInvoice(overrides: Partial<Invoice> = {}): Invoice {
     return {
         id: 1,
@@ -8,7 +8,7 @@ export function makeInvoice(overrides: Partial<Invoice> = {}): Invoice {
         number: 'RP-27001',
         client_name: 'Jean Dupont',
         client_email: 'client@exemple.com',
-        amount_cents: 128_639,
+        amount_cents: 161_069,
         currency: 'EUR',
         status: 'sent',
         status_label: 'Envoyée',
@@ -16,7 +16,7 @@ export function makeInvoice(overrides: Partial<Invoice> = {}): Invoice {
         due_at: '2026-10-04',
         paid_at: null,
         deposit_cents: 0,
-        due_cents: 128_639,
+        due_cents: 161_069,
         can_send: false,
         can_pay: true,
         can_quote: true,
@@ -41,13 +41,13 @@ export function makeInvoiceDetail(
                 offer: 'accompagne',
                 description: 'Offre Accompagné',
                 quantity: 1,
-                unit_price_cents: 119_000,
+                unit_price_cents: 149_000,
             },
         ],
         vat_rate: 8.1,
         discount_percent: 0,
         discount_cents: 0,
-        vat_cents: 9_639,
+        vat_cents: 12_069,
         sent_at: '2026-09-04T10:00:00+00:00',
         notes: null,
         bank_name: null,

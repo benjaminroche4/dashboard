@@ -297,6 +297,8 @@ class CompanyController extends Controller
             'street' => $company->street,
             'postal_code' => $company->postal_code,
             'city' => $company->city,
+            'latitude' => $company->latitude,
+            'longitude' => $company->longitude,
             'notes' => $company->notes,
             'logo' => $company->logo,
             'contacts' => $company->contacts->map(fn (CompanyContact $contact): array => [

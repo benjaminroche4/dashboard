@@ -172,7 +172,7 @@ class OwnerController extends Controller
             'stats' => $this->parcStats($owner),
             'kinds' => OwnerKind::options(),
             // Carte statique de l'adresse du bien, si la clé Maps Static dédiée est configurée.
-            'mapUrl' => resolve(DistrictStaticMap::class)->place(null, null, $this->addressLine($owner)),
+            'mapUrl' => resolve(DistrictStaticMap::class)->place($owner->latitude, $owner->longitude, $this->addressLine($owner)),
             // Tous les échanges notés, pour la modale « Voir l'historique ».
             'contacts' => resolve(ListContactHistory::class)->handle($owner),
         ]);
@@ -386,6 +386,8 @@ class OwnerController extends Controller
             'street' => $owner->street,
             'postal_code' => $owner->postal_code,
             'city' => $owner->city,
+            'latitude' => $owner->latitude,
+            'longitude' => $owner->longitude,
             // Nombre réel de biens de l'annuaire rattachés au propriétaire.
             'properties_count' => (int) ($owner->properties_count ?? 0),
             'notes' => $owner->notes,
