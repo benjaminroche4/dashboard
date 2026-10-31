@@ -122,8 +122,8 @@ return [
         ],
         'accompagne' => [
             'full' => [
-                'fr' => 'https://payment.relocation-in-paris.fr/b/dRm28teBlbCjgSH0767EQ0E',
-                'en' => 'https://payment.relocation-in-paris.fr/b/6oU9AVbp96hZbyn1ba7EQ0F',
+                'fr' => 'https://payment.relocation-in-paris.fr/b/aFa7sN4K62lYdv55IM7N609',
+                'en' => 'https://payment.relocation-in-paris.fr/b/9B6aEZfoK6Ce1Mnb367N608',
             ],
         ],
     ],
