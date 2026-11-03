@@ -40,7 +40,6 @@ const firstOf = (list: string, prefix: string): ResolveStep[] => [
 ];
 
 export const keyPages: KeyPage[] = [
-    { name: 'Aujourd’hui', path: '/dashboard' },
     { name: 'Leads : liste', path: '/locataires' },
     { name: 'Leads : création', path: '/locataires/create' },
     {

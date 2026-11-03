@@ -5,7 +5,6 @@ import {
     FolderOpenIcon,
     KeyIcon,
     ReceiptEuroIcon,
-    SunIcon,
     UserRoundPlusIcon,
     UsersRoundIcon,
 } from 'lucide-animated';
@@ -20,7 +19,6 @@ import {
     SidebarHeader,
     SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
 import { index as agenciesIndex } from '@/routes/agencies';
 import {
     index as clientsIndex,
@@ -53,21 +51,6 @@ type Counts = {
  */
 export function buildNavGroups(counts: Counts): NavGroup[] {
     return [
-        // « Aujourd'hui » seul en tête, sans libellé de groupe : la page dit
-        // ce qu'un membre a à faire maintenant, pas un « tableau de bord ».
-        // Chaque entrée porte une icône `lucide-animated` : un léger
-        // mouvement au survol de la ligne, c'est le geste demandé par l'équipe.
-        {
-            label: '',
-            items: [
-                {
-                    title: 'Aujourd’hui',
-                    href: dashboard(),
-                    animatedIcon: SunIcon,
-                    shortcut: 'G A',
-                },
-            ],
-        },
         // Deux liens directs : la page porte déjà son bouton « Nouveau lead »,
         // un sous-menu pour l'y mener n'apprenait rien. Le libellé dit le
         // segment entier : en mode icône comme dans ⌘K, « Propriétaires » seul

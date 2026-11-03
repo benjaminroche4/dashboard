@@ -9,7 +9,7 @@ test('the role and permissions are shared with the front-end', function (): void
     $admin = User::factory()->admin()->create();
 
     $this->actingAs($admin)
-        ->get(route('dashboard'))
+        ->get(route('profile.edit'))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->where('auth.user.role', 'admin')
             ->where('auth.can.manageStaff', true)
@@ -18,7 +18,7 @@ test('the role and permissions are shared with the front-end', function (): void
 
 test('members get no management permissions', function (): void {
     $this->actingAs(User::factory()->create())
-        ->get(route('dashboard'))
+        ->get(route('profile.edit'))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->where('auth.user.role', 'member')
             ->where('auth.can.manageStaff', false)

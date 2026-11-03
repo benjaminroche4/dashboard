@@ -5,7 +5,7 @@ import { edit as editProfile } from '@/routes/profile';
 
 /**
  * Raccourcis annoncés dans le menu d'espace de travail :
- * ⌘D (ou Ctrl+D) → tableau de bord, ⌘, (ou Ctrl+,) → paramètres.
+ * ⌘D (ou Ctrl+D) → page d'arrivée (la première liste ouverte au membre), ⌘, (ou Ctrl+,) → paramètres.
  */
 export function useWorkspaceShortcuts(): void {
     useEffect(() => {

@@ -472,7 +472,7 @@ function NavGroupSection({
             {index > 0 && (
                 <SidebarSeparator className="mx-0 mb-2 hidden w-auto group-data-[collapsible=icon]:block" />
             )}
-            {/* Un groupe sans libellé (« Aujourd'hui » seul en tête) n'affiche pas d'en-tête et ne se plie pas. */}
+            {/* Un groupe sans libellé n'affiche pas d'en-tête et ne se plie pas. */}
             {labelled ? (
                 <Collapsible open={shown} onOpenChange={toggle}>
                     <CollapsibleTrigger asChild>

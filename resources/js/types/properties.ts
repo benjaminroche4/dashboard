@@ -135,6 +135,8 @@ export type PropertyAgentOption = {
     id: number;
     name: string;
     agency: string | null;
+    /** Agence de l'agent : filtre les agents de l'agence choisie. */
+    agency_id?: number | null;
 };
 export type PropertyOwnerOption = { id: number; name: string };
 

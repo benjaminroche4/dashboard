@@ -318,5 +318,7 @@ describe('Owner detail page', () => {
         expect(
             screen.getByRole('button', { name: 'Voir sur la carte' }),
         ).toBeInTheDocument();
+        // La carte reste fermée : elle ne s'ouvre que par le bouton.
+        expect(screen.queryByRole('application')).toBeNull();
     });
 });

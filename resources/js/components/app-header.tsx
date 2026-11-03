@@ -33,6 +33,7 @@ import { useCurrentUrl } from '@/hooks/use-current-url';
 import { useInitials } from '@/hooks/use-initials';
 import { cn, toUrl } from '@/lib/utils';
 import { dashboard } from '@/routes';
+import { index as leadsIndex } from '@/routes/leads';
 import type { BreadcrumbItem, NavItem } from '@/types';
 
 type Props = {
@@ -41,8 +42,8 @@ type Props = {
 
 const mainNavItems: NavItem[] = [
     {
-        title: 'Aujourd’hui',
-        href: dashboard(),
+        title: 'Leads locataires',
+        href: leadsIndex(),
         icon: LayoutGrid,
     },
 ];

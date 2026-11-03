@@ -2,22 +2,22 @@ import { expect, test } from '@playwright/test';
 import { login } from './support/auth';
 
 test.describe('Parcours de base', () => {
-    test('la connexion mène au tableau de bord et la sidebar l’affiche', async ({
+    test('la connexion mène à la liste des leads et la sidebar l’affiche', async ({
         browser,
     }) => {
         const page = await browser.newPage({
             storageState: { cookies: [], origins: [] },
         });
         await login(page);
-        await expect(page).toHaveURL(/\/dashboard$/);
+        await expect(page).toHaveURL(/\/locataires$/);
         await expect(
-            page.getByRole('link', { name: 'Aujourd’hui' }).first(),
+            page.getByRole('link', { name: 'Leads locataires' }).first(),
         ).toBeVisible();
         await page.close();
     });
 
     test('⌘K ouvre la recherche', async ({ page }) => {
-        await page.goto('/dashboard', { waitUntil: 'networkidle' });
+        await page.goto('/locataires', { waitUntil: 'networkidle' });
         await page.keyboard.press('ControlOrMeta+k');
         const input = page.getByPlaceholder(/Rechercher une page/);
         await expect(input).toBeVisible();

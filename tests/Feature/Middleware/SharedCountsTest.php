@@ -19,7 +19,7 @@ test('the menu receives the number of leads still to handle', function (): void 
     Lead::factory()->converted()->create();
 
     $this->actingAs(User::factory()->create())
-        ->get(route('dashboard'))
+        ->get(route('profile.edit'))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             // Chaque badge compte son segment : les deux leads locataires à
@@ -38,7 +38,7 @@ test('the menu receives what awaits an action: reports to write, uploads to chec
     Invoice::factory()->paid()->create();
 
     $this->actingAs(User::factory()->create())
-        ->get(route('dashboard'))
+        ->get(route('profile.edit'))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->where('counts.visitReports', 1)

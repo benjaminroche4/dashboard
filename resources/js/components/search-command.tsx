@@ -35,7 +35,7 @@ import {
     CommandShortcut,
 } from '@/components/ui/command';
 import { useStoredState } from '@/hooks/use-stored-state';
-import { dashboard, search as unifiedSearch } from '@/routes';
+import { search as unifiedSearch } from '@/routes';
 import { index as agenciesIndex } from '@/routes/agencies';
 import { index as agentsIndex } from '@/routes/agents';
 import { edit as editAppearance } from '@/routes/appearance';
@@ -93,13 +93,6 @@ export type Destination = {
  * liste aux liens de la sidebar et échoue dès qu'une page manque.
  */
 export const destinations: Destination[] = [
-    {
-        title: 'Aujourd’hui',
-        keywords: 'accueil dashboard tableau de bord',
-        url: dashboard().url,
-        icon: LayoutGrid,
-        shortcut: '⌘D',
-    },
     {
         title: 'Leads locataires',
         keywords: 'kanban prospects statut suivi',

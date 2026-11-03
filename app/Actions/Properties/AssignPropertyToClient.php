@@ -40,6 +40,10 @@ final class AssignPropertyToClient
 
         // Le dossier garde la trace : le bien y est noté attribué puis libéré.
         if ($lead instanceof Lead) {
+            // Attribué depuis la fiche du bien à un dossier où il n'était pas
+            // encore proposé : il rejoint ses logements.
+            $lead->properties()->syncWithoutDetaching([$property->id => ['created_by' => $by?->id]]);
+
             $lead->notes()->create([
                 'body' => "Bien attribué au dossier : {$property->label()}.",
                 'user_id' => $by?->id,

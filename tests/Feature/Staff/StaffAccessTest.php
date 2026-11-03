@@ -80,7 +80,7 @@ test('an admin opens the rights page of a member and saves role, levels and func
         ->and($member->staffFunctions())->toBe([StaffFunction::Dossiers, StaffFunction::Visits]);
     Event::assertDispatched(DashboardUpdated::class, fn (DashboardUpdated $event): bool => $event->resource === 'staff' && $event->message === 'a modifié les droits de Zoé Petit');
 
-    $this->actingAs($member)->get(route('dashboard'))
+    $this->actingAs($member)->get(route('profile.edit'))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->where('auth.access.leads', 'none')
             ->where('auth.access.invoices', 'write')
@@ -127,7 +127,7 @@ test('levels drive the policies and the middleware: none refuses the pages, read
     expect($member->can('delete', $invoice))->toBeFalse()->and($member->can('update', $invoice))->toBeTrue();
     $this->actingAs($member)->get(route('partners.index'))->assertOk();
     $this->actingAs($member)->post(route('partners.store'), ['name' => 'X', 'type' => 'bank'])->assertForbidden();
-    $this->actingAs($member)->get(route('dashboard'))->assertOk();
+    $this->actingAs($member)->get(route('dashboard'))->assertRedirect();
     $this->actingAs($member)->get(route('profile.edit'))->assertOk();
 
     expect($member->can('delete', Visit::factory()->create()))->toBeTrue()

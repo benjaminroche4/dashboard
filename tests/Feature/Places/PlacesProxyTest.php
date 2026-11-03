@@ -70,7 +70,7 @@ test('a missing key answers 503 and the feature flag is off', function (): void 
         ->assertStatus(503);
 
     $this->actingAs(User::factory()->create())
-        ->get(route('dashboard'))
+        ->get(route('profile.edit'))
         ->assertInertia(fn ($page) => $page->where('features.addressAutocomplete', false)->where('features.googleMapsKey', null));
 });
 
@@ -85,7 +85,7 @@ test('the browser Google Maps key is shared with the front when configured', fun
     config()->set('services.google.maps_browser_key', 'browser-key');
 
     $this->actingAs(User::factory()->create())
-        ->get(route('dashboard'))
+        ->get(route('profile.edit'))
         ->assertInertia(fn ($page) => $page->where('features.googleMapsKey', 'browser-key'));
 });
 

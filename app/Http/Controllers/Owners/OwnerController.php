@@ -34,7 +34,6 @@ use App\Models\Lead;
 use App\Models\Owner;
 use App\Models\Property;
 use App\Models\Visit;
-use App\Services\DistrictStaticMap;
 use App\Support\SearchSql;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -171,8 +170,6 @@ class OwnerController extends Controller
             // État du parc en trois chiffres : ce que la liste des biens ne dit pas.
             'stats' => $this->parcStats($owner),
             'kinds' => OwnerKind::options(),
-            // Carte statique de l'adresse du bien, si la clé Maps Static dédiée est configurée.
-            'mapUrl' => resolve(DistrictStaticMap::class)->place($owner->latitude, $owner->longitude, $this->addressLine($owner)),
             // Tous les échanges notés, pour la modale « Voir l'historique ».
             'contacts' => resolve(ListContactHistory::class)->handle($owner),
         ]);
@@ -404,16 +401,5 @@ class OwnerController extends Controller
             'creator_avatar' => $owner->creator?->avatar,
             'created_at' => $owner->created_at?->toIso8601String(),
         ];
-    }
-
-    /** Adresse du propriétaire sur une ligne, pour la carte statique. */
-    private function addressLine(Owner $owner): ?string
-    {
-        $line = trim(implode(', ', array_filter([
-            $owner->street,
-            trim(($owner->postal_code ?? '').' '.($owner->city ?? '')),
-        ])));
-
-        return $line === '' ? null : $line;
     }
 }

@@ -136,6 +136,10 @@ describe('Property assignment and photos', () => {
             />,
         );
 
+        // « Toutes les photos » est replié par défaut : la galerie d'en-tête suffit.
+        await user.click(
+            screen.getByRole('button', { name: /Toutes les photos/ }),
+        );
         await user.click(
             screen.getByRole('button', {
                 name: 'Définir la photo 2 comme principale',
@@ -151,16 +155,21 @@ describe('Property assignment and photos', () => {
 });
 
 describe('Property detail page', () => {
-    it('shows the features, owner, agent and visits, and goes to the dedicated edit page', async () => {
+    it('reads as a listing: price once, collapsible sections, contacts and tenant', async () => {
         const user = userEvent.setup();
         render(
             <PropertyShow
                 property={makeProperty({
                     notes: 'Digicode 1234.',
-                    // Attribué : c'est son locataire définitif.
                     assigned_lead: { uuid: 'lead-1', name: 'Léa Durand' },
                 })}
                 owner={makeOwner({ name: 'Ali Bensaïd', uuid: 'owner-1' })}
+                agency={{
+                    id: 3,
+                    uuid: 'agency-1',
+                    name: 'Agence du Marais',
+                    address: null,
+                }}
                 clients={clients}
                 visits={visits}
                 {...propertyFormOptions}
@@ -170,28 +179,50 @@ describe('Property detail page', () => {
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
             'T2 lumineux · 11e',
         );
-        const features = within(
-            screen.getByRole('region', { name: 'Caractéristiques' }),
-        );
-        expect(features.getByText('1 500,00 € / mois')).toBeInTheDocument();
-        expect(features.getByText('42 m²')).toBeInTheDocument();
-        expect(features.getByText('3e étage')).toBeInTheDocument();
-        expect(
-            features.getByRole('link', { name: /Ouvrir l’annonce/ }),
-        ).toHaveAttribute('href', 'https://www.seloger.com/annonces/123.htm');
-        expect(screen.getByText('Digicode 1234.')).toBeInTheDocument();
+        expect(screen.getByTestId('property-columns')).toBeInTheDocument();
 
-        const owner = within(
-            screen.getByRole('region', { name: 'Propriétaire' }),
+        // Le prix en tête, avec les charges et le total : pas de second encadré.
+        const price = screen.getByTestId('property-price');
+        expect(within(price).getByText('1 500,00 €')).toBeInTheDocument();
+        expect(price).toHaveTextContent(/de charges/);
+        expect(price).toHaveTextContent(/1 600,00 €.*au total/);
+        expect(screen.queryByText('Loyer mensuel')).toBeNull();
+
+        expect(
+            within(
+                screen.getByRole('region', { name: 'Description' }),
+            ).getByText('Digicode 1234.'),
+        ).toBeInTheDocument();
+        const housing = within(
+            screen.getByRole('region', { name: 'Le logement en détail' }),
+        );
+        expect(housing.getByText('42 m²')).toBeInTheDocument();
+        expect(housing.getByText('3e étage')).toBeInTheDocument();
+        const lease = within(
+            screen.getByRole('region', { name: 'Loyer et bail' }),
+        );
+        expect(lease.getByText('1 500,00 € / mois')).toBeInTheDocument();
+        expect(
+            lease.getByRole('link', { name: /Ouvrir l’annonce/ }),
+        ).toHaveAttribute('href', 'https://www.seloger.com/annonces/123.htm');
+
+        // Chaque section se replie d'un clic sur son titre.
+        await user.click(
+            screen.getByRole('button', { name: /Le logement en détail/ }),
+        );
+        expect(screen.queryByText('42 m²')).toBeNull();
+
+        const contacts = within(
+            screen.getByRole('region', { name: 'Contacts' }),
         );
         expect(
-            owner.getByRole('link', { name: 'Ali Bensaïd' }),
+            contacts.getByRole('link', { name: 'Ali Bensaïd' }),
         ).toHaveAttribute('href', '/owners/owner-1');
         expect(
-            within(screen.getByRole('region', { name: 'Agent' })).getByRole(
-                'link',
-                { name: 'Zoé Martin' },
-            ),
+            contacts.getByRole('link', { name: 'Agence du Marais' }),
+        ).toHaveAttribute('href', '/real-estate/agencies/agency-1');
+        expect(
+            contacts.getByRole('link', { name: 'Zoé Martin' }),
         ).toHaveAttribute('href', '/real-estate/agents/agent-uuid');
 
         const visitsRegion = within(
@@ -200,9 +231,7 @@ describe('Property detail page', () => {
         expect(
             visitsRegion.getByRole('link', { name: 'Léa Durand' }),
         ).toHaveAttribute('href', '/clients/lead-1');
-        expect(visitsRegion.getByText('Planifiée')).toBeInTheDocument();
 
-        // Un bien n'a qu'un locataire à la fin : celui à qui il est attribué.
         const tenant = within(
             screen.getByRole('region', { name: 'Locataire définitif' }),
         );
@@ -211,14 +240,7 @@ describe('Property detail page', () => {
         ).toHaveAttribute('href', '/clients/lead-1');
         expect(tenant.getByText('LD-0042')).toBeInTheDocument();
 
-        // « Modifier » et « Fiche PDF » vivent dans le menu « ⋯ » : l'en-tête
-        // ne garde que « Voir sur la carte ».
-        expect(
-            screen.queryByRole('button', { name: 'Modifier' }),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: 'Fiche PDF' }),
-        ).not.toBeInTheDocument();
+        // « Modifier » et « Fiche PDF » vivent dans le menu « ⋯ ».
         await user.click(screen.getByRole('button', { name: /Actions pour/ }));
         expect(
             await screen.findByRole('menuitem', { name: 'Fiche PDF' }),
@@ -229,10 +251,12 @@ describe('Property detail page', () => {
         );
     });
 
-    it('explains when nothing is attached to the property', () => {
+    it('edits a line in place', async () => {
+        const user = userEvent.setup();
+        patch.mockClear();
         render(
             <PropertyShow
-                property={makeProperty({ agent: null, photos: [] })}
+                property={makeProperty({ bedrooms: null })}
                 owner={null}
                 clients={[]}
                 visits={[]}
@@ -240,17 +264,83 @@ describe('Property detail page', () => {
             />,
         );
 
-        expect(
-            screen.getByText(/Aucun propriétaire rattaché/),
-        ).toBeInTheDocument();
-        expect(screen.getByText('Aucun agent rattaché.')).toBeInTheDocument();
-        expect(
-            screen.getByText(/Aucun locataire pour ce bien/),
-        ).toBeInTheDocument();
+        await user.click(
+            screen.getByRole('button', { name: 'Modifier Chambres' }),
+        );
+        const input = screen.getByRole('spinbutton');
+        await user.type(input, '2{Enter}');
+
+        expect(patch).toHaveBeenCalledWith(
+            '/properties/0199a9a0-0000-7000-8000-0000000000f1/fields',
+            { bedrooms: 2 },
+            expect.objectContaining({ preserveScroll: true }),
+        );
+    });
+
+    it('offers quick actions when nothing is attached', async () => {
+        const user = userEvent.setup();
+        patch.mockClear();
+        render(
+            <PropertyShow
+                property={makeProperty({ agent: null, photos: [] })}
+                owner={null}
+                clients={[]}
+                clientOptions={clients}
+                visits={[]}
+                {...propertyFormOptions}
+            />,
+        );
+
+        expect(screen.getByText(/Aucune photo\./)).toBeInTheDocument();
         expect(
             screen.getByText('Aucune visite pour ce bien.'),
         ).toBeInTheDocument();
-        expect(screen.getByText('Aucune photo.')).toBeInTheDocument();
+        expect(
+            screen.getByText(/Aucun locataire pour l’instant/),
+        ).toBeInTheDocument();
+
+        // Les contacts se rattachent ensemble, dans une seule modale.
+        await user.click(
+            screen.getByRole('button', { name: /Ajouter un propriétaire/ }),
+        );
+        const dialog = within(await screen.findByRole('dialog'));
+        expect(dialog.getByText('Contacts du bien')).toBeInTheDocument();
+        for (const label of ['Propriétaire', 'Agence', 'Agent', 'Partenaire']) {
+            expect(dialog.getByLabelText(label)).toBeInTheDocument();
+        }
+        await user.click(dialog.getByRole('button', { name: 'Enregistrer' }));
+        expect(patch).toHaveBeenCalledWith(
+            '/properties/0199a9a0-0000-7000-8000-0000000000f1/fields',
+            {
+                owner_id: null,
+                agency_id: null,
+                agent_id: null,
+                partner_id: null,
+            },
+            expect.objectContaining({ preserveScroll: true }),
+        );
+    });
+
+    it('assigns the property to any client in progress', async () => {
+        const user = userEvent.setup();
+        render(
+            <PropertyShow
+                property={makeProperty()}
+                owner={null}
+                clients={[]}
+                clientOptions={clients}
+                visits={[]}
+                {...propertyFormOptions}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: /Attribuer à un client/ }),
+        );
+        const dialog = within(await screen.findByRole('dialog'));
+        // Le dossier n'était pas encore proposé : il est quand même au choix.
+        expect(dialog.queryByText(/Aucun dossier n’est rattaché/)).toBeNull();
+        expect(dialog.getByRole('combobox')).toBeInTheDocument();
     });
 
     it('offers the map only once the address has been located', async () => {

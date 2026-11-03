@@ -14,9 +14,11 @@ use App\Actions\Properties\RenderPropertyPdf;
 use App\Actions\Properties\SetPropertyCover;
 use App\Actions\Properties\SetPropertyStatus;
 use App\Actions\Properties\UpdateProperty;
+use App\Actions\Properties\UpdatePropertyFields;
 use App\Data\PropertyData;
 use App\Enums\Currency;
 use App\Enums\Furnished;
+use App\Enums\LeadStatus;
 use App\Enums\LeaseType;
 use App\Enums\Orientation;
 use App\Enums\OwnerKind;
@@ -36,6 +38,7 @@ use App\Http\Requests\Properties\IndexPropertiesRequest;
 use App\Http\Requests\Properties\SetPropertyCoverRequest;
 use App\Http\Requests\Properties\SetPropertyStatusRequest;
 use App\Http\Requests\Properties\StorePropertyRequest;
+use App\Http\Requests\Properties\UpdatePropertyFieldsRequest;
 use App\Http\Requests\Properties\UpdatePropertyRequest;
 use App\Models\Agency;
 use App\Models\Agent;
@@ -206,11 +209,27 @@ class PropertyController extends Controller
     {
         $this->authorize('view', $property);
 
-        $property->load(['agent.agency', 'owner.creator', 'partner', 'creator', 'leads' => fn ($query) => $query->orderByPivot('created_at', 'desc'), 'visits.lead', 'visits.agent.agency'])->loadCount('visits');
+        $property->load(['agent.agency', 'agency', 'owner.creator', 'partner', 'creator', 'leads' => fn ($query) => $query->orderByPivot('created_at', 'desc'), 'visits.lead', 'visits.agent.agency'])->loadCount('visits');
 
         return Inertia::render('properties/show', [
             'property' => self::summary($property),
             'owner' => $property->owner === null ? null : OwnerController::summary($property->owner),
+            // L'agence du bien, à défaut celle de son agent.
+            'agency' => ($agency = $property->agency ?? $property->agent?->agency) === null ? null : AgencyController::option($agency),
+            // Tous les dossiers clients en cours : l'attribution rapide ne se
+            // limite pas à ceux où le bien est déjà proposé.
+            'clientOptions' => Lead::query()
+                ->where('status', LeadStatus::Converted)
+                ->orderBy('last_name')
+                ->orderBy('first_name')
+                ->get()
+                ->map(fn (Lead $lead): array => [
+                    'id' => $lead->id,
+                    'uuid' => $lead->uuid,
+                    'name' => $lead->householdName(),
+                    'reference' => $lead->reference,
+                ])
+                ->all(),
             // Dossiers clients auxquels le bien a été attribué, le dernier rattachement d'abord.
             'clients' => $property->leads
                 ->map(fn (Lead $lead): array => [
@@ -364,6 +383,19 @@ class PropertyController extends Controller
         return back();
     }
 
+    /**
+     * Modification en place depuis la fiche : critères, loyer et bail,
+     * description, et contacts posés ensemble par l'action rapide.
+     */
+    public function fields(UpdatePropertyFieldsRequest $request, Property $property, UpdatePropertyFields $update): RedirectResponse
+    {
+        $update->handle($property, $request->fields(), $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Bien :name mis à jour.', ['name' => $property->label()])]);
+
+        return back();
+    }
+
     /** Choisit la photo principale : celle que montrent la carte et la fiche. */
     public function cover(SetPropertyCoverRequest $request, Property $property, SetPropertyCover $setCover): RedirectResponse
     {
@@ -405,7 +437,7 @@ class PropertyController extends Controller
             'amenities' => PropertyAmenity::options(),
             'currencies' => array_map(fn (Currency $currency): string => $currency->value, Currency::cases()),
             'agents' => Agent::query()->with('agency')->orderBy('last_name')->orderBy('first_name')->get()
-                ->map(fn (Agent $agent): array => ['id' => $agent->id, 'name' => $agent->fullName(), 'agency' => $agent->agency?->name])
+                ->map(fn (Agent $agent): array => ['id' => $agent->id, 'name' => $agent->fullName(), 'agency' => $agent->agency?->name, 'agency_id' => $agent->agency_id])
                 ->all(),
             'owners' => Owner::query()->orderBy('last_name')->orderBy('first_name')->get()
                 ->map(fn (Owner $owner): array => ['id' => $owner->id, 'name' => $owner->fullName()])

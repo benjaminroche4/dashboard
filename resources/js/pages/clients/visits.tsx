@@ -1,7 +1,7 @@
-import { Head, Link } from '@inertiajs/react';
-import { CalendarClock, Plus } from 'lucide-react';
+import { Head } from '@inertiajs/react';
+import { CalendarClock } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { CreateButton } from '@/components/create-button';
 import { FilterMenu } from '@/components/filter-menu';
 import { Input } from '@/components/ui/input';
 import { VisitDaySection } from '@/components/visits/visit-day-section';
@@ -94,12 +94,10 @@ export default function ClientsVisits({ visits, statuses }: Props) {
                                 ` · ${closedCount} passée(s) masquée(s)`}
                         </p>
                     </div>
-                    <Button asChild>
-                        <Link href={visitCreate()}>
-                            <Plus />
-                            Planifier une visite
-                        </Link>
-                    </Button>
+                    <CreateButton
+                        label="Planifier une visite"
+                        href={visitCreate()}
+                    />
                 </div>
                 {visits.length === 0 ? (
                     <section

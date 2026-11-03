@@ -258,6 +258,7 @@ Route::middleware(['auth'])->group(function (): void {
     Route::delete('properties/bulk', [PropertyController::class, 'bulkDestroy'])->name('properties.bulk-destroy');
     Route::get('properties/{property}', [PropertyController::class, 'show'])->name('properties.show');
     Route::patch('properties/{property}', [PropertyController::class, 'update'])->name('properties.update');
+    Route::patch('properties/{property}/fields', [PropertyController::class, 'fields'])->name('properties.fields');
     Route::patch('properties/{property}/assign', [PropertyController::class, 'assign'])->name('properties.assign');
     Route::delete('properties/{property}', [PropertyController::class, 'destroy'])->name('properties.destroy');
     Route::get('clients/{lead}', [ClientController::class, 'show'])->name('clients.show');

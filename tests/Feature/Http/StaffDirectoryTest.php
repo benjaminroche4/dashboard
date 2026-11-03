@@ -11,7 +11,7 @@ test('the staff directory is shared with authenticated pages', function (): void
     User::factory()->role(StaffRole::Manager)->create(['name' => 'Alice']);
 
     $this->actingAs($admin)
-        ->get(route('dashboard'))
+        ->get(route('profile.edit'))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->has('staff', 2)
             ->where('staff.0.name', 'Alice')
@@ -24,7 +24,7 @@ test('the staff directory exposes no sensitive fields', function (): void {
     $admin = User::factory()->admin()->create();
 
     $this->actingAs($admin)
-        ->get(route('dashboard'))
+        ->get(route('profile.edit'))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->has('staff.0', fn (AssertableInertia $entry): AssertableInertia => $entry
                 ->hasAll(['id', 'name', 'role', 'avatar', 'functions'])

@@ -98,7 +98,7 @@ test('the sidebar counts each segment separately', function (): void {
     Lead::factory()->create(['status' => LeadStatus::Todo, 'help_type' => WebsiteHelpType::RentalManagement]);
 
     // Le badge « Leads locataires » comptait aussi les propriétaires.
-    $this->actingAs($staff)->get(route('dashboard'))
+    $this->actingAs($staff)->get(route('profile.edit'))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->where('counts.leadsTodo', 1)
             ->where('counts.ownerLeadsTodo', 1));

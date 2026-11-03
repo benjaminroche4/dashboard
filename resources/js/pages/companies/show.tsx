@@ -11,7 +11,7 @@ import {
     Users,
 } from 'lucide-react';
 import { useState } from 'react';
-import { AddressMap, AddressMapButton } from '@/components/address-map-dialog';
+import { AddressMapButton } from '@/components/address-map-dialog';
 import { ClampedText } from '@/components/clamped-text';
 import { CompanyClients } from '@/components/companies/company-clients';
 import { CompanyContacts } from '@/components/companies/company-contacts';
@@ -296,15 +296,6 @@ export default function CompanyShow({
                                     />
                                 }
                             >
-                                <AddressMap
-                                    place={{
-                                        name: company.name,
-                                        address,
-                                        street: company.street,
-                                        latitude: company.latitude,
-                                        longitude: company.longitude,
-                                    }}
-                                />
                                 <Rows
                                     facts={contact}
                                     columns={2}

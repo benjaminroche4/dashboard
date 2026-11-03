@@ -9,7 +9,7 @@ import {
     UserRound,
 } from 'lucide-react';
 import { useState } from 'react';
-import { AddressMap, AddressMapButton } from '@/components/address-map-dialog';
+import { AddressMapButton } from '@/components/address-map-dialog';
 import { CreatedBy } from '@/components/created-by';
 import type { InlineValue } from '@/components/inline-field';
 import { initials, memberTone } from '@/components/leads/lead-assign-menu';
@@ -57,8 +57,6 @@ import type {
 } from '@/types';
 
 type Props = {
-    /** Carte statique de l'adresse, repli sans clé navigateur (un propriétaire n'est pas géocodé). */
-    mapUrl?: string | null;
     owner: Owner;
     /** Biens de l'annuaire rattachés à ce propriétaire. */
     properties: Property[];
@@ -105,7 +103,6 @@ export default function OwnerShow({
     properties,
     stats,
     kinds,
-    mapUrl = null,
     contacts = [],
 }: Props) {
     const [editing, setEditing] = useState(false);
@@ -269,16 +266,6 @@ export default function OwnerShow({
                                     />
                                 }
                             >
-                                <AddressMap
-                                    place={{
-                                        name: owner.name,
-                                        address,
-                                        street: owner.street,
-                                        latitude: owner.latitude,
-                                        longitude: owner.longitude,
-                                    }}
-                                    fallback={mapUrl}
-                                />
                                 <Rows
                                     facts={contact}
                                     columns={2}

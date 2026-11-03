@@ -11,6 +11,6 @@ export async function login(page: Page): Promise<void> {
     await page.locator('input[type="email"]').fill(credentials.email);
     await page.locator('input[type="password"]').fill(credentials.password);
     await page.locator('button[type="submit"]').click();
-    await expect(page).toHaveURL(/\/dashboard$/);
+    await expect(page).toHaveURL(/\/locataires$/);
     await page.waitForLoadState('networkidle');
 }

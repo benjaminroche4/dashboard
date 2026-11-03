@@ -55,6 +55,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property Currency $currency
  * @property string|null $listing_url
  * @property int|null $agent_id
+ * @property int|null $agency_id
  * @property int|null $owner_id
  * @property int|null $partner_id
  * @property int|null $assigned_lead_id
@@ -65,12 +66,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  * @property-read Agent|null $agent
+ * @property-read Agency|null $agency
  * @property-read Owner|null $owner
  * @property-read Partner|null $partner
  * @property-read User|null $creator
  * @property-read Collection<int, Visit> $visits
  */
-#[Fillable(['title', 'street', 'postal_code', 'city', 'district', 'transit', 'status', 'property_type', 'furnished', 'rooms', 'bedrooms', 'bathrooms', 'surface_m2', 'floor', 'building_floors', 'orientations', 'amenities', 'lease_type', 'rent_cents', 'charges_cents', 'charges_included', 'deposit_cents', 'currency', 'listing_url', 'agent_id', 'owner_id', 'partner_id', 'assigned_lead_id', 'assigned_at', 'photos', 'notes', 'created_by'])]
+#[Fillable(['title', 'street', 'postal_code', 'city', 'district', 'transit', 'status', 'property_type', 'furnished', 'rooms', 'bedrooms', 'bathrooms', 'surface_m2', 'floor', 'building_floors', 'orientations', 'amenities', 'lease_type', 'rent_cents', 'charges_cents', 'charges_included', 'deposit_cents', 'currency', 'listing_url', 'agent_id', 'agency_id', 'owner_id', 'partner_id', 'assigned_lead_id', 'assigned_at', 'photos', 'notes', 'created_by'])]
 class Property extends Model
 {
     /** @use HasFactory<PropertyFactory> */
@@ -156,6 +158,16 @@ class Property extends Model
     public function agent(): BelongsTo
     {
         return $this->belongsTo(Agent::class);
+    }
+
+    /**
+     * Agence du bien, connue parfois avant son agent.
+     *
+     * @return BelongsTo<Agency, $this>
+     */
+    public function agency(): BelongsTo
+    {
+        return $this->belongsTo(Agency::class);
     }
 
     /**

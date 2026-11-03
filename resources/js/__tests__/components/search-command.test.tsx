@@ -241,7 +241,7 @@ describe('SearchCommand', () => {
         );
 
         expect(titles).toContain('Factures');
-        expect(titles).toContain('Aujourd’hui');
+        expect(titles).not.toContain('Aujourd’hui');
         expect(titles).not.toContain('Dossiers clients');
         expect(titles).not.toContain('Nouveau lead locataire');
         expect(titles).not.toContain('Équipe');

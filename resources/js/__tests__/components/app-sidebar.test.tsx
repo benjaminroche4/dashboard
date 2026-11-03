@@ -162,12 +162,11 @@ describe('AppSidebar', () => {
             ),
         }));
         expect(groups.map((group) => group.label)).toEqual([
-            undefined,
             'Leads',
             'Clients',
             'Outils',
         ]);
-        expect(groups[2].links).toEqual([
+        expect(groups[1].links).toEqual([
             'Dossiers',
             'Visites',
             'Listes de pièces',
@@ -177,8 +176,8 @@ describe('AppSidebar', () => {
             screen
                 .getByRole('button', { name: 'Annuaire' })
                 .closest('[data-sidebar="group"]'),
-        ).toBe(document.querySelectorAll('[data-sidebar="group"]')[3]);
-        expect(groups[3].links).toEqual(['Devis', 'Factures']);
+        ).toBe(document.querySelectorAll('[data-sidebar="group"]')[2]);
+        expect(groups[2].links).toEqual(['Devis', 'Factures']);
         // « Rapports » a quitté le menu, et le journal vit dans le menu de l'utilisateur.
         expect(screen.queryByRole('link', { name: 'Rapports' })).toBeNull();
         expect(
@@ -229,7 +228,6 @@ describe('AppSidebar', () => {
             const names = screen
                 .getAllByRole('link')
                 .map((link) => link.textContent?.trim());
-            expect(names).toContain('Aujourd’hui');
             expect(names).toContain('Visites');
             expect(names).toContain('Factures');
             expect(names).not.toContain('Dossiers');
@@ -246,7 +244,7 @@ describe('AppSidebar', () => {
         }
     });
 
-    it('puts the dashboard alone at the very top, without a group label', () => {
+    it('no longer lists the removed « Aujourd’hui » page', () => {
         render(
             <TooltipProvider>
                 <SidebarProvider>
@@ -256,13 +254,8 @@ describe('AppSidebar', () => {
         );
 
         const links = screen.getAllByRole('link');
-        expect(links[0]).toHaveTextContent('Aujourd’hui');
-        expect(links[0]).toHaveAttribute('href', '/dashboard');
-        expect(
-            document
-                .querySelector('[data-sidebar="group"]')
-                ?.querySelector('[data-sidebar="group-label"]'),
-        ).toBeNull();
+        expect(links[0]).toHaveTextContent('Leads locataires');
+        expect(screen.queryByText('Aujourd’hui')).toBeNull();
     });
 
     it('shows what awaits as a coloured badge and the dossiers total in grey', () => {
