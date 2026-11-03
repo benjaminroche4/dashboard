@@ -74,6 +74,7 @@ function useFormStub(initial: Record<string, unknown>) {
 }
 
 import LeadsCreate from '@/pages/leads/create';
+import { localDateIn } from '@/test/dates';
 
 const props = {
     offers: [
@@ -506,16 +507,11 @@ describe('Lead creation page', () => {
 
     it('warns when the arrival is less than 20 days away', async () => {
         const user = userEvent.setup();
-        const soon = new Date();
-        soon.setDate(soon.getDate() + 5);
-        const later = new Date();
-        later.setDate(later.getDate() + 60);
+        const soon = localDateIn(5);
+        const later = localDateIn(60);
 
         const { unmount } = render(
-            <LeadsCreate
-                {...props}
-                lead={{ ...lead, arrival_at: soon.toISOString().slice(0, 10) }}
-            />,
+            <LeadsCreate {...props} lead={{ ...lead, arrival_at: soon }} />,
         );
         await user.click(
             screen.getByRole('button', { name: 'Projet logement' }),
@@ -530,7 +526,7 @@ describe('Lead creation page', () => {
                 {...props}
                 lead={{
                     ...lead,
-                    arrival_at: later.toISOString().slice(0, 10),
+                    arrival_at: later,
                 }}
             />,
         );

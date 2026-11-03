@@ -48,6 +48,7 @@ vi.mock('@inertiajs/react', () => ({
 
 import LeadsIndex from '@/pages/leads/index';
 import { leadStatuses, lossReasons, makeLead } from '@/test/fixtures/lead';
+import { localDateIn } from '@/test/dates';
 
 const offers = [
     {
@@ -350,8 +351,7 @@ describe('Leads kanban page', () => {
     });
 
     it('shows urgency badges for stale leads and imminent arrivals', () => {
-        const soon = new Date();
-        soon.setDate(soon.getDate() + 5);
+        const soon = localDateIn(5);
         render(
             <LeadsIndex
                 archived={{ loaded: true, count: 0 }}
@@ -359,7 +359,7 @@ describe('Leads kanban page', () => {
                     makeLead({
                         created_at: '2026-01-01T10:00:00Z',
                         last_contacted_at: null,
-                        arrival_at: soon.toISOString().slice(0, 10),
+                        arrival_at: soon,
                     }),
                 ]}
                 statuses={leadStatuses}
